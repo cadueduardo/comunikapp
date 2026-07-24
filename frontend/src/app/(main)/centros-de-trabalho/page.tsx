@@ -1,96 +1,24 @@
 'use client';
 
-import Link from 'next/link';
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Building2,
-  DollarSign,
-  Hammer,
-  Hand,
-  Truck,
-  Users,
-  Wrench,
-} from 'lucide-react';
+import { Building2 } from 'lucide-react';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
+import { ModuleHubCards } from '@/components/layout/ModuleHubCards';
+import { centrosTrabalhoModuleNav } from '@/lib/module-nav';
 
 export default function CentrosDeTrabalhoPage() {
-  const options = [
-    {
-      title: 'Setores Produtivos',
-      description: 'Gerencie setores produtivos e operadores.',
-      icon: Building2,
-      href: '/centros-de-trabalho/setores-produtivos',
-    },
-    {
-      title: 'Máquinas',
-      description: 'Gerencie máquinas e modos de impressão.',
-      icon: Wrench,
-      href: '/centros-de-trabalho/maquinas',
-    },
-    {
-      title: 'Funções',
-      description: 'Gerencie funções e regras de cálculo.',
-      icon: Users,
-      href: '/centros-de-trabalho/funcoes',
-    },
-    {
-      title: 'Serviços Manuais',
-      description: 'Cadastre serviços manuais e parâmetros.',
-      icon: Hand,
-      href: '/centros-de-trabalho/servicos',
-    },
-    {
-      title: 'Modalidades de Entrega',
-      description: 'Configure retirada, motoboy, transportadora e entrega própria.',
-      icon: Truck,
-      href: '/centros-de-trabalho/modalidades-entrega',
-    },
-    {
-      title: 'Tipos de Instalação',
-      description: 'Configure padrões de instalação por produto.',
-      icon: Hammer,
-      href: '/centros-de-trabalho/tipos-instalacao',
-    },
-    {
-      title: 'Custos Indiretos',
-      description: 'Configure custos indiretos e alocação.',
-      icon: DollarSign,
-      href: '/centros-de-trabalho/custos-indiretos',
-    },
-  ];
-
   return (
-    <div className="p-2 md:p-0 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Centros de Trabalho</h1>
-        <p className="text-sm text-gray-500">Escolha uma área para gerenciar</p>
-      </div>
+    <div className="space-y-6 p-2 md:p-0">
+      <ModuleHeader
+        nav={centrosTrabalhoModuleNav}
+        title="Visão geral"
+        subtitle="Escolha uma área para gerenciar."
+        icon={<Building2 className="h-7 w-7 sm:h-8 sm:w-8" />}
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {options.map((opt) => (
-          <Link key={opt.href} href={opt.href}>
-            <Card className="hover:shadow-md transition-shadow cursor-pointer">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <opt.icon className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">{opt.title}</CardTitle>
-                    <CardDescription className="text-sm">
-                      {opt.description}
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      <ModuleHubCards
+        nav={centrosTrabalhoModuleNav}
+        gridClassName="lg:grid-cols-4"
+      />
     </div>
   );
 }

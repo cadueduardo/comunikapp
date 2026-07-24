@@ -16,6 +16,8 @@ import {
   IconSearch,
   IconFilter
 } from '@tabler/icons-react';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
+import { pcpModuleNav } from '@/lib/module-nav';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -119,23 +121,20 @@ export default function ApontamentosPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Apontamentos
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Registre e acompanhe apontamentos de produção
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/pcp/apontamentos/novo">
-            <IconPlus className="h-4 w-4 mr-2" />
-            Novo Apontamento
-          </Link>
-        </Button>
-      </div>
+      <ModuleHeader
+        nav={pcpModuleNav}
+        title="Apontamentos"
+        subtitle="Registre e acompanhe apontamentos de produção"
+        backHref="/pcp"
+        actions={
+          <Button asChild>
+            <Link href="/pcp/apontamentos/novo">
+              <IconPlus className="h-4 w-4 mr-2" />
+              Novo Apontamento
+            </Link>
+          </Button>
+        }
+      />
 
       {/* Filtros */}
       <Card>

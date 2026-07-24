@@ -9,8 +9,10 @@ import type { OSCard } from '@/components/ui/kanban-board';
 import { KanbanFilters, KanbanFilters as KanbanFiltersType } from '@/components/pcp/KanbanFilters';
 import { KanbanStats } from '@/components/pcp/KanbanStats';
 import { WorkflowAssignmentDialog } from '@/components/pcp/WorkflowAssignmentDialog';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { useKanbanData } from '@/hooks/useKanbanData';
 import { cardPrecisaAtribuirWorkflow } from '@/lib/pcp/pcp.utils';
+import { pcpModuleNav } from '@/lib/module-nav';
 import { 
   IconBuilding, 
   IconRefresh, 
@@ -120,42 +122,38 @@ export default function KanbanPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <IconBuilding className="h-6 w-6" />
-            Kanban PCP
-          </h1>
-          <p className="text-gray-600">
-            Visualização em tempo real do fluxo de produção
-          </p>
-        </div>
-        
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
-            <IconRefresh className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <IconDownload className="h-4 w-4 mr-2" />
-            Exportar
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleSettings}>
-            <IconSettings className="h-4 w-4 mr-2" />
-            Configurar
-          </Button>
-          <Button 
-            variant="default" 
-            size="sm" 
-            onClick={handleToggleFullscreen}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <IconMaximize className="h-4 w-4 mr-2" />
-            Fullscreen
-          </Button>
-        </div>
-      </div>
+      <ModuleHeader
+        nav={pcpModuleNav}
+        title="Kanban PCP"
+        subtitle="Visualização em tempo real do fluxo de produção"
+        icon={<IconBuilding className="h-6 w-6" />}
+        backHref="/pcp"
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
+              <IconRefresh className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <IconDownload className="h-4 w-4 mr-2" />
+              Exportar
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleSettings}>
+              <IconSettings className="h-4 w-4 mr-2" />
+              Configurar
+            </Button>
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={handleToggleFullscreen}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <IconMaximize className="h-4 w-4 mr-2" />
+              Fullscreen
+            </Button>
+          </div>
+        }
+      />
 
       {/* Filtros */}
       <KanbanFilters

@@ -13,12 +13,12 @@ import {
   TrendingUp,
   Download,
   RefreshCw,
-  ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { apiRequest } from '@/lib/api';
+import { estoqueModuleNav } from '@/lib/module-nav';
 import { useUser } from '@/contexts/UserContext';
-import Link from 'next/link';
 
 interface RelatorioBaixo {
   id: string;
@@ -137,36 +137,25 @@ export default function RelatoriosPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/estoque">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
+      <ModuleHeader
+        nav={estoqueModuleNav}
+        title="Relatórios de Estoque"
+        subtitle="Visualize relatórios detalhados do seu estoque"
+        icon={<BarChart3 className="h-8 w-8" />}
+        backHref="/estoque"
+        actions={
+          <div className="flex gap-2">
+            <Button onClick={handleRefresh} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Atualizar
             </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-              <BarChart3 className="h-8 w-8" />
-              Relatórios de Estoque
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Visualize relatórios detalhados do seu estoque
-            </p>
+            <Button onClick={() => handleExport(activeTab)} variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Exportar
+            </Button>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={handleRefresh} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Atualizar
-          </Button>
-          <Button onClick={() => handleExport(activeTab)} variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Exportar
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Tabs */}
       <div className="border-b border-gray-200">

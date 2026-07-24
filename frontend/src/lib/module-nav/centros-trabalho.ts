@@ -1,0 +1,83 @@
+import {
+  Building2,
+  DollarSign,
+  Hammer,
+  Hand,
+  LayoutDashboard,
+  Truck,
+  Users,
+  Wrench,
+} from 'lucide-react';
+import type { ModuleNavConfig } from './types';
+
+export const centrosTrabalhoModuleNav: ModuleNavConfig = {
+  id: 'centros-trabalho',
+  label: 'Centros de Trabalho',
+  homeHref: '/centros-de-trabalho',
+  items: [
+    {
+      id: 'visao-geral',
+      label: 'Visão geral',
+      shortLabel: 'Geral',
+      href: '/centros-de-trabalho',
+      description: 'Escolha uma área para gerenciar.',
+      icon: LayoutDashboard,
+    },
+    {
+      id: 'setores',
+      label: 'Setores produtivos',
+      shortLabel: 'Setores',
+      href: '/centros-de-trabalho/setores-produtivos',
+      description: 'Setores e operadores.',
+      icon: Building2,
+    },
+    {
+      id: 'maquinas',
+      label: 'Máquinas',
+      shortLabel: 'Máquinas',
+      href: '/centros-de-trabalho/maquinas',
+      description: 'Máquinas e modos de impressão.',
+      icon: Wrench,
+    },
+    {
+      id: 'funcoes',
+      label: 'Funções',
+      shortLabel: 'Funções',
+      href: '/centros-de-trabalho/funcoes',
+      description: 'Funções e regras de cálculo.',
+      icon: Users,
+    },
+    {
+      id: 'servicos',
+      label: 'Serviços manuais',
+      shortLabel: 'Serviços',
+      href: '/centros-de-trabalho/servicos',
+      description: 'Serviços manuais e parâmetros.',
+      icon: Hand,
+    },
+    {
+      id: 'modalidades',
+      label: 'Modalidades de entrega',
+      shortLabel: 'Entrega',
+      href: '/centros-de-trabalho/modalidades-entrega',
+      description: 'Retirada, motoboy, transportadora.',
+      icon: Truck,
+    },
+    {
+      id: 'tipos-instalacao',
+      label: 'Tipos de instalação',
+      shortLabel: 'Instalação',
+      href: '/centros-de-trabalho/tipos-instalacao',
+      description: 'Padrões de instalação por produto.',
+      icon: Hammer,
+    },
+    {
+      id: 'custos-indiretos',
+      label: 'Custos indiretos',
+      shortLabel: 'Custos',
+      href: '/centros-de-trabalho/custos-indiretos',
+      description: 'Custos indiretos e alocação.',
+      icon: DollarSign,
+    },
+  ],
+};

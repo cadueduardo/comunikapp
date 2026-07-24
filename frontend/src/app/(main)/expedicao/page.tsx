@@ -28,6 +28,8 @@ import { ConcluirEntregaDialog } from '@/components/expedicao/ConcluirEntregaDia
 import { BloqueioFinanceiroModal } from '@/components/expedicao/BloqueioFinanceiroModal';
 import { ExpedicaoDetalheSheet } from '@/components/expedicao/ExpedicaoDetalheSheet';
 import { ArquivarExpedicaoDialog } from '@/components/expedicao/ArquivarExpedicaoDialog';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
+import { expedicaoModuleNav } from '@/lib/module-nav';
 import { TransformarTemplateDialog } from '@/components/expedicao/TransformarTemplateDialog';
 import { IconArchive, IconRefresh, IconTruckDelivery } from '@tabler/icons-react';
 import { toast } from 'sonner';
@@ -290,36 +292,32 @@ export default function ExpedicaoPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <IconTruckDelivery className="h-7 w-7" />
-            Expedição
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Kanban logístico pós-produção — {stats.total} expedição(ões) ativa(s)
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Input
-            placeholder="Buscar OS, cliente ou rastreio..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            className="w-full sm:w-64"
-          />
-          <Button variant="outline" size="sm" onClick={() => void refreshData()}>
-            <IconRefresh className="mr-1 h-4 w-4" />
-            Atualizar
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/expedicao/arquivo">
-              <IconArchive className="mr-1 h-4 w-4" />
-              Arquivo
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <ModuleHeader
+        nav={expedicaoModuleNav}
+        title="Fila de expedição"
+        subtitle={`Kanban logístico pós-produção — ${stats.total} expedição(ões) ativa(s)`}
+        icon={<IconTruckDelivery className="h-7 w-7" />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              placeholder="Buscar OS, cliente ou rastreio..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="w-full sm:w-64"
+            />
+            <Button variant="outline" size="sm" onClick={() => void refreshData()}>
+              <IconRefresh className="mr-1 h-4 w-4" />
+              Atualizar
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/expedicao/arquivo">
+                <IconArchive className="mr-1 h-4 w-4" />
+                Arquivo
+              </Link>
+            </Button>
+          </div>
+        }
+      />
 
       <div className="flex flex-wrap gap-2">
         {EXPEDICAO_KANBAN_COLUMNS.map((coluna) => (

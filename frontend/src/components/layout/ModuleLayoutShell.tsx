@@ -5,7 +5,10 @@ import {
   MODULE_BOTTOM_NAV_PADDING_CLASS,
   ModuleBottomNav,
 } from '@/components/layout/ModuleBottomNav';
-import type { ModuleNavConfig } from '@/lib/module-nav';
+import {
+  shouldShowModuleSectionNav,
+  type ModuleNavConfig,
+} from '@/lib/module-nav';
 import { cn } from '@/lib/utils';
 
 type ModuleLayoutShellProps = {
@@ -15,18 +18,22 @@ type ModuleLayoutShellProps = {
 };
 
 /**
- * Shell do módulo: reserva espaço no mobile para o rodapé
- * "Navegar em …" e monta o ModuleBottomNav. Use no layout.tsx de cada módulo.
+ * Shell do módulo: padding + ModuleBottomNav somente se houver 2+ seções.
+ * Use no layout.tsx de cada módulo.
  */
 export function ModuleLayoutShell({
   nav,
   children,
   className,
 }: ModuleLayoutShellProps) {
+  const showSectionNav = shouldShowModuleSectionNav(nav);
+
   return (
-    <div className={cn(MODULE_BOTTOM_NAV_PADDING_CLASS, className)}>
+    <div
+      className={cn(showSectionNav && MODULE_BOTTOM_NAV_PADDING_CLASS, className)}
+    >
       {children}
-      <ModuleBottomNav nav={nav} />
+      {showSectionNav ? <ModuleBottomNav nav={nav} /> : null}
     </div>
   );
 }

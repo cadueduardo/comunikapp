@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   resolveActiveModuleNavItem,
+  shouldShowModuleSectionNav,
   type ModuleNavConfig,
   type ModuleNavItem,
 } from '@/lib/module-nav';
@@ -103,6 +104,10 @@ export function ModuleBottomNav({ nav, className }: ModuleBottomNavProps) {
   const [open, setOpen] = useState(false);
   const active = resolveActiveModuleNavItem(nav.items, pathname, nav.homeHref);
   const activeLabel = active?.shortLabel ?? active?.label;
+
+  if (!shouldShowModuleSectionNav(nav)) {
+    return null;
+  }
 
   return (
     <>

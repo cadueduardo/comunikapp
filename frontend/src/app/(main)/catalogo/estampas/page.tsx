@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ColumnDef } from '@tanstack/react-table';
-import { ArrowLeft, Edit, Layers, Plus, Search, Trash2 } from 'lucide-react';
+import { Edit, Layers, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CrudPage } from '@/components/crud/CrudPage';
 import { DataTable } from '@/components/data-table/data-table';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,6 +21,7 @@ import { ViewToggle } from '@/components/ui/shared/view-toggle';
 import { ProdutoFinitoThumb } from '@/components/produtos-finitos/ProdutoFinitoThumb';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { catalogoEstampasApi } from '@/lib/api-client';
+import { catalogoModuleNav } from '@/lib/module-nav';
 import { formatCurrency } from '@/lib/utils';
 
 type Estampa = EstampaCardItem;
@@ -136,28 +138,20 @@ export default function EstampasPage() {
   );
 
   const header = (
-    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-      <div className="flex items-start gap-4">
-        <Link href="/catalogo">
-          <Button variant="outline" size="sm">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar
+    <ModuleHeader
+      nav={catalogoModuleNav}
+      title="Estampas"
+      subtitle="Gerencie estampas, arte-mestra e vínculos de personalização."
+      backHref="/catalogo"
+      actions={
+        <Link href="/catalogo/estampas/novo">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Nova estampa
           </Button>
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold">Estampas</h1>
-          <p className="text-muted-foreground">
-            Gerencie estampas, arte-mestra e vínculos de personalização.
-          </p>
-        </div>
-      </div>
-      <Link href="/catalogo/estampas/novo">
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Nova estampa
-        </Button>
-      </Link>
-    </div>
+      }
+    />
   );
 
   const toolbar = (

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Grid3X3, List, Search, ArrowLeft } from 'lucide-react';
+import { PlusCircle, Grid3X3, List, Search } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Localizacao, createColumns } from './columns';
@@ -18,9 +18,11 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { LocalizacaoCard } from '@/components/ui/localizacao-card';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { Input } from '@/components/ui/input';
 import { apiRequest } from '@/lib/api';
+import { estoqueModuleNav } from '@/lib/module-nav';
 import { useUser } from '@/contexts/UserContext';
 
 export default function LocalizacoesPage() {
@@ -167,51 +169,44 @@ export default function LocalizacoesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/estoque">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Gerenciar Localizações</h1>
-            <p className="text-gray-600">Organize os locais físicos de armazenamento do seu estoque.</p>
+      <ModuleHeader
+        nav={estoqueModuleNav}
+        title="Gerenciar Localizações"
+        subtitle="Organize os locais físicos de armazenamento do seu estoque."
+        backHref="/estoque"
+        actions={
+          <div className="flex items-center gap-2">
+            {!isMobile && (
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                  className="h-8 px-3"
+                >
+                  <List className="h-4 w-4 mr-1" />
+                  Tabela
+                </Button>
+                <Button
+                  variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('cards')}
+                  className="h-8 px-3"
+                >
+                  <Grid3X3 className="h-4 w-4 mr-1" />
+                  Cards
+                </Button>
+              </div>
+            )}
+            <Link href="/estoque/localizacoes/novo">
+              <Button>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Adicionar Localização
+              </Button>
+            </Link>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Switch de visualização apenas no desktop */}
-          {!isMobile && (
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-              <Button
-                variant={viewMode === 'table' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('table')}
-                className="h-8 px-3"
-              >
-                <List className="h-4 w-4 mr-1" />
-                Tabela
-              </Button>
-              <Button
-                variant={viewMode === 'cards' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('cards')}
-                className="h-8 px-3"
-              >
-                <Grid3X3 className="h-4 w-4 mr-1" />
-                Cards
-              </Button>
-            </div>
-          )}
-          <Link href="/estoque/localizacoes/novo">
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Adicionar Localização
-            </Button>
-          </Link>
-        </div>
-      </div>
+        }
+      />
 
       {/* Área de busca */}
       <div className="relative">

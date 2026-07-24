@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, CalendarClock, ExternalLink, RefreshCw, Truck } from 'lucide-react';
+import { CalendarClock, ExternalLink, RefreshCw, Truck } from 'lucide-react';
 import { toast } from 'sonner';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { pcpApi } from '@/lib/api-client';
+import { pcpModuleNav } from '@/lib/module-nav';
 
 type StatusTerceirizacao =
   | 'A_COTAR'
@@ -230,25 +232,18 @@ export default function TerceirizacaoPCPPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/pcp" aria-label="Voltar ao PCP">
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <h1 className="text-2xl font-semibold">Terceirização</h1>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Acompanhe pedidos enviados aos parceiros externos.
-          </p>
-        </div>
-        <Button variant="outline" size="sm" onClick={carregar} disabled={loading}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Atualizar
-        </Button>
-      </header>
+      <ModuleHeader
+        nav={pcpModuleNav}
+        title="Terceirização"
+        subtitle="Acompanhe pedidos enviados aos parceiros externos."
+        backHref="/pcp"
+        actions={
+          <Button variant="outline" size="sm" onClick={carregar} disabled={loading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+        }
+      />
 
       {loading && ordens.length === 0 ? (
         <p className="text-sm text-muted-foreground">Carregando ordens...</p>

@@ -12,7 +12,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { ModuleNavConfig } from '@/lib/module-nav';
+import {
+  shouldShowModuleSectionNav,
+  type ModuleNavConfig,
+} from '@/lib/module-nav';
 import { cn } from '@/lib/utils';
 
 type ModuleSubmenuProps = {
@@ -26,7 +29,7 @@ type ModuleSubmenuProps = {
 
 /**
  * Submenu de seções do módulo (desktop).
- * Gatilho explícito "Seções" — não usa o título da página.
+ * Oculto quando o módulo tem menos de 2 seções navegáveis.
  */
 export function ModuleSubmenu({
   nav,
@@ -34,6 +37,10 @@ export function ModuleSubmenu({
   triggerLabel = 'Seções',
   className,
 }: ModuleSubmenuProps) {
+  if (!shouldShowModuleSectionNav(nav)) {
+    return null;
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

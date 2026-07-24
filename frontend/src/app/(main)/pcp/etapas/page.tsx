@@ -15,6 +15,8 @@ import {
   IconSearch,
   IconFilter
 } from '@tabler/icons-react';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
+import { pcpModuleNav } from '@/lib/module-nav';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -112,23 +114,20 @@ export default function EtapasPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Etapas
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Gerencie etapas de produção
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/pcp/etapas/nova">
-            <IconPlus className="h-4 w-4 mr-2" />
-            Nova Etapa
-          </Link>
-        </Button>
-      </div>
+      <ModuleHeader
+        nav={pcpModuleNav}
+        title="Etapas"
+        subtitle="Gerencie etapas de produção"
+        backHref="/pcp"
+        actions={
+          <Button asChild>
+            <Link href="/pcp/etapas/nova">
+              <IconPlus className="h-4 w-4 mr-2" />
+              Nova Etapa
+            </Link>
+          </Button>
+        }
+      />
 
       {/* Filtros */}
       <Card>

@@ -9,15 +9,10 @@ import {
   CardContent,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-
-import Link from 'next/link';
 import { 
   Warehouse, 
-  MapPin, 
   Package, 
-  TrendingUp, 
   AlertTriangle, 
-  BarChart3, 
   Activity,
   DollarSign,
   RefreshCw
@@ -25,8 +20,10 @@ import {
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
 import { useUser } from '@/contexts/UserContext';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
+import { ModuleHubCards } from '@/components/layout/ModuleHubCards';
+import { estoqueModuleNav } from '@/lib/module-nav';
 
-// Tipos para os dados do dashboard
 interface DashboardData {
   totalLocalizacoes: number;
   totalItens: number;
@@ -41,51 +38,6 @@ interface DashboardData {
     transferencias: number;
   };
 }
-
-const estoqueOptions = [
-  {
-    title: 'Localizações',
-    description: 'Gerencie os locais físicos de armazenamento do seu estoque.',
-    icon: MapPin,
-    href: '/estoque/localizacoes',
-  },
-  {
-    title: 'Itens de Estoque',
-    description: 'Acompanhe quantidades, lotes e movimentações de produtos.',
-    icon: Package,
-    href: '/estoque/itens',
-  },
-  {
-    title: 'Lotes',
-    description: 'Controle de lotes com rastreamento de validade e consumo FIFO/LIFO.',
-    icon: Package,
-    href: '/estoque/lotes',
-  },
-  {
-    title: 'Transferências',
-    description: 'Movimente itens entre localizações com controle de quantidade.',
-    icon: TrendingUp,
-    href: '/estoque/transferencias',
-  },
-  {
-    title: 'Sobras e Retalhos',
-    description: 'Gerencie sobras de materiais e aproveitamentos para economia.',
-    icon: Package,
-    href: '/estoque/sobras',
-  },
-  {
-    title: 'Movimentações',
-    description: 'Registre entradas, saídas e transferências de estoque.',
-    icon: TrendingUp,
-    href: '/estoque/movimentacoes',
-  },
-  {
-    title: 'Relatórios',
-    description: 'Visualize relatórios de estoque baixo, vencimento e ocupação.',
-    icon: BarChart3,
-    href: '/estoque/relatorios',
-  },
-];
 
 export default function EstoquePage() {
   const { user, loading: userLoading } = useUser();
@@ -189,19 +141,18 @@ export default function EstoquePage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Controle de Estoque</h1>
-          <p className="text-gray-600 mt-1">
-            Gerencie seu estoque de forma eficiente e organizada
-          </p>
-        </div>
-        <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
-          <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-          Atualizar
-        </Button>
-      </div>
+      <ModuleHeader
+        nav={estoqueModuleNav}
+        title="Visão geral"
+        subtitle="Gerencie seu estoque de forma eficiente e organizada"
+        icon={<Warehouse className="h-7 w-7 sm:h-8 sm:w-8" />}
+        actions={
+          <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+        }
+      />
 
       {error && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -335,26 +286,12 @@ export default function EstoquePage() {
       </div>
 
       {/* Opções de Navegação */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {estoqueOptions.map((option) => (
-          <Link key={option.href} href={option.href}>
-            <Card className="hover:shadow-md transition-shadow cursor-pointer">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <option.icon className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">{option.title}</CardTitle>
-                    <CardDescription className="text-sm">
-                      {option.description}
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          </Link>
-        ))}
+      <div>
+        <h2 className="mb-3 text-lg font-semibold">Recursos</h2>
+        <ModuleHubCards
+          nav={estoqueModuleNav}
+          gridClassName="lg:grid-cols-4"
+        />
       </div>
 
       {/* Informações do Sistema */}

@@ -9,10 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { Plus, Search, List, Grid3X3, Users, ArrowLeft } from "lucide-react";
+import { Plus, Search, List, Grid3X3, Users } from "lucide-react";
 import { toast } from "sonner";
+import { ModuleHeader } from "@/components/layout/ModuleHeader";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { funcoesApi } from "@/lib/api-client";
+import { centrosTrabalhoModuleNav } from "@/lib/module-nav";
 import { formatTimeDisplay } from "@/components/ui/time-input";
 
 interface Funcao {
@@ -182,29 +184,21 @@ export default function FuncoesCTPage() {
   ];
 
   const header = (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <Link href="/centros-de-trabalho">
-          <Button variant="outline" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
+    <ModuleHeader
+      nav={centrosTrabalhoModuleNav}
+      title="Funções"
+      subtitle="Gerencie funções de trabalho e seus custos"
+      icon={<Users className="h-7 w-7" />}
+      backHref="/centros-de-trabalho"
+      actions={
+        <Link href="/centros-de-trabalho/funcoes/novo">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Nova Função
           </Button>
         </Link>
-        <div className="flex items-center gap-3">
-          <Users className="h-7 w-7" />
-          <div>
-            <h1 className="text-3xl font-bold">Funções</h1>
-            <p className="text-gray-600 mt-1">Gerencie funções de trabalho e seus custos</p>
-          </div>
-        </div>
-      </div>
-      <Link href="/centros-de-trabalho/funcoes/novo">
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Nova Função
-        </Button>
-      </Link>
-    </div>
+      }
+    />
   );
 
   const toolbar = (

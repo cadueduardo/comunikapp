@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Users, Plus, RefreshCw, List, Grid3X3, UserRound, Pencil, UserX } from 'lucide-react';
 import Link from 'next/link';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { CrudPage } from '@/components/crud/CrudPage';
 import { DataTable } from '@/components/data-table/data-table';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { apiRequest } from '@/lib/api';
+import { usuariosModuleNav } from '@/lib/module-nav';
 import { createUsuarioColumns, UsuarioRow } from '../columns';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -138,7 +139,8 @@ export default function UsuariosGestaoPage() {
     <>
       <CrudPage
         header={
-        <PageHeader
+        <ModuleHeader
+          nav={usuariosModuleNav}
           title="Gestão de Usuários"
           backHref="/usuarios"
           icon={<Users className="h-8 w-8" />}

@@ -1,11 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, HardDrive, Loader2, MessageCircle, Plug } from 'lucide-react';
+import { HardDrive, Loader2, MessageCircle, Plug } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ConexaoIntegracaoCard } from '@/components/configuracoes/ConexaoIntegracaoCard';
 import {
@@ -14,6 +13,7 @@ import {
   iniciarGoogleOAuth,
   type LojaConexaoPublica,
 } from '@/lib/conexoes-api';
+import { configuracoesModuleNav } from '@/lib/module-nav';
 
 export default function ConfiguracoesConexoesPage() {
   const searchParams = useSearchParams();
@@ -85,23 +85,13 @@ export default function ConfiguracoesConexoesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-4">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/configuracoes">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
-          </Link>
-        </Button>
-        <div className="flex items-center gap-3">
-          <Plug className="h-8 w-8 text-muted-foreground" />
-          <div>
-            <h1 className="text-3xl font-bold">Hub de Conexões</h1>
-            <p className="text-muted-foreground">
-              Integre serviços externos para armazenamento e comunicação
-            </p>
-          </div>
-        </div>
-      </div>
+      <ModuleHeader
+        nav={configuracoesModuleNav}
+        title="Hub de Conexões"
+        subtitle="Integre serviços externos para armazenamento e comunicação"
+        icon={<Plug className="h-8 w-8 text-muted-foreground" />}
+        backHref="/configuracoes"
+      />
 
       <Alert>
         <AlertDescription>

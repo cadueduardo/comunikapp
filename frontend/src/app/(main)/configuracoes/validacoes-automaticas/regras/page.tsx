@@ -41,6 +41,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import Link from 'next/link';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
+import { configuracoesModuleNav } from '@/lib/module-nav';
 
 interface RegraValidacao {
   id: string;
@@ -254,12 +256,12 @@ export default function RegrasValidacaoPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Regras de Validação</h1>
-            <p className="text-gray-600">Gerencie as regras de validação automática</p>
-          </div>
-        </div>
+        <ModuleHeader
+          nav={configuracoesModuleNav}
+          title="Regras de Validação"
+          subtitle="Gerencie as regras de validação automática"
+          backHref="/configuracoes"
+        />
         
         <div className="space-y-4">
           <div className="flex space-x-4">
@@ -275,19 +277,20 @@ export default function RegrasValidacaoPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Regras de Validação</h1>
-          <p className="text-gray-600">Gerencie as regras de validação automática</p>
-        </div>
-        <Button asChild>
-          <Link href="/configuracoes/validacoes-automaticas/regras/nova">
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Regra
-          </Link>
-        </Button>
-      </div>
+      <ModuleHeader
+        nav={configuracoesModuleNav}
+        title="Regras de Validação"
+        subtitle="Gerencie as regras de validação automática"
+        backHref="/configuracoes"
+        actions={
+          <Button asChild>
+            <Link href="/configuracoes/validacoes-automaticas/regras/nova">
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Regra
+            </Link>
+          </Button>
+        }
+      />
 
       {/* Filtros */}
       <Card>

@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ColumnDef } from '@tanstack/react-table';
-import { ArrowLeft, Edit, FormInput, Plus, Search, Trash2 } from 'lucide-react';
+import { Edit, FormInput, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CrudPage } from '@/components/crud/CrudPage';
 import { DataTable } from '@/components/data-table/data-table';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,6 +20,7 @@ import {
 import { ViewToggle } from '@/components/ui/shared/view-toggle';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { catalogoConjuntosCamposApi } from '@/lib/api-client';
+import { catalogoModuleNav } from '@/lib/module-nav';
 
 type ConjuntoCampos = ConjuntoCamposCardItem;
 
@@ -120,28 +122,20 @@ export default function ConjuntosCamposPage() {
   );
 
   const header = (
-    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-      <div className="flex items-start gap-4">
-        <Link href="/catalogo">
-          <Button variant="outline" size="sm">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar
+    <ModuleHeader
+      nav={catalogoModuleNav}
+      title="Conjuntos de campos"
+      subtitle="Defina campos variáveis reutilizáveis nas personalizações."
+      backHref="/catalogo"
+      actions={
+        <Link href="/catalogo/conjuntos-campos/novo">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo conjunto
           </Button>
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold">Conjuntos de campos</h1>
-          <p className="text-muted-foreground">
-            Defina campos variáveis reutilizáveis nas personalizações.
-          </p>
-        </div>
-      </div>
-      <Link href="/catalogo/conjuntos-campos/novo">
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo conjunto
-        </Button>
-      </Link>
-    </div>
+      }
+    />
   );
 
   const toolbar = (

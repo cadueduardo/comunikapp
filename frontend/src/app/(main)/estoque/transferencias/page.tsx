@@ -13,14 +13,15 @@ import {
   Package,
   MapPin,
   RefreshCw,
-  ArrowLeft,
   List,
   Grid3X3,
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { apiRequest } from '@/lib/api';
+import { estoqueModuleNav } from '@/lib/module-nav';
 import { useUser } from '@/contexts/UserContext';
 
 interface Transferencia {
@@ -118,36 +119,27 @@ export default function TransferenciasPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/estoque">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
+      <ModuleHeader
+        nav={estoqueModuleNav}
+        title="Transferências de Estoque"
+        subtitle="Gerencie as transferências de itens entre localizações"
+        icon={<Package className="h-8 w-8" />}
+        backHref="/estoque"
+        actions={
+          <div className="flex gap-2">
+            <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Atualizar
             </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-              <Package className="h-8 w-8" />
-              Transferências de Estoque
-            </h1>
-            <p className="text-muted-foreground mt-1">Gerencie as transferências de itens entre localizações</p>
+            <Link href="/estoque/transferencias/nova">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Transferência
+              </Button>
+            </Link>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
-          <Link href="/estoque/transferencias/nova">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Transferência
-            </Button>
-          </Link>
-        </div>
-      </div>
+        }
+      />
 
       {/* KPI no topo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

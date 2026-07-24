@@ -27,7 +27,9 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { useUser } from '@/contexts/UserContext';
+import { configuracoesModuleNav } from '@/lib/module-nav';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { buildApiUrl } from '@/lib/config';
 
@@ -192,14 +194,12 @@ export default function ConfiguracoesLojaPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Configurações da Loja
-        </h1>
-        <p className="text-muted-foreground">
-          Gerencie os dados da sua empresa, custos e parâmetros de negócio.
-        </p>
-      </div>
+      <ModuleHeader
+        nav={configuracoesModuleNav}
+        title="Configurações da Loja"
+        subtitle="Gerencie os dados da sua empresa, custos e parâmetros de negócio."
+        backHref="/configuracoes"
+      />
       <Separator />
 
       <Form {...form}>

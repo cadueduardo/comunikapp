@@ -5,8 +5,10 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, Columns3, Gauge, Layers3 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { pcpModuleNav } from '@/lib/module-nav';
 
 type NivelPCP = 'ESSENCIAL' | 'ORGANIZADO' | 'COMPLETO';
 
@@ -131,21 +133,21 @@ export default function ConfiguracaoPCPPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Configuração do PCP</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Escolha o nível de controle produtivo adequado para a operação atual.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          disabled={loading || salvando !== null}
-          onClick={() => aplicarPadrao()}
-        >
-          Usar padrão recomendado (Organizado)
-        </Button>
-      </div>
+      <ModuleHeader
+        nav={pcpModuleNav}
+        title="Configuração do PCP"
+        subtitle="Escolha o nível de controle produtivo adequado para a operação atual."
+        backHref="/pcp"
+        actions={
+          <Button
+            variant="outline"
+            disabled={loading || salvando !== null}
+            onClick={() => aplicarPadrao()}
+          >
+            Usar padrão recomendado (Organizado)
+          </Button>
+        }
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         {opcoes.map((opcao) => {

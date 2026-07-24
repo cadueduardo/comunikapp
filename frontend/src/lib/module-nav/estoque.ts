@@ -1,0 +1,82 @@
+import {
+  Activity,
+  BarChart3,
+  LayoutDashboard,
+  MapPin,
+  Package,
+  TrendingUp,
+  Warehouse,
+} from 'lucide-react';
+import type { ModuleNavConfig } from './types';
+
+export const estoqueModuleNav: ModuleNavConfig = {
+  id: 'estoque',
+  label: 'Estoque',
+  homeHref: '/estoque',
+  items: [
+    {
+      id: 'visao-geral',
+      label: 'Visão geral',
+      shortLabel: 'Geral',
+      href: '/estoque',
+      description: 'Panorama e atalhos do controle de estoque.',
+      icon: LayoutDashboard,
+    },
+    {
+      id: 'localizacoes',
+      label: 'Localizações',
+      shortLabel: 'Locais',
+      href: '/estoque/localizacoes',
+      description: 'Locais físicos de armazenamento.',
+      icon: MapPin,
+    },
+    {
+      id: 'itens',
+      label: 'Itens de estoque',
+      shortLabel: 'Itens',
+      href: '/estoque/itens',
+      description: 'Quantidades, lotes e movimentações.',
+      icon: Package,
+    },
+    {
+      id: 'lotes',
+      label: 'Lotes',
+      shortLabel: 'Lotes',
+      href: '/estoque/lotes',
+      description: 'Validade e consumo FIFO/LIFO.',
+      icon: Warehouse,
+    },
+    {
+      id: 'transferencias',
+      label: 'Transferências',
+      shortLabel: 'Transferir',
+      href: '/estoque/transferencias',
+      description: 'Movimente itens entre localizações.',
+      icon: TrendingUp,
+    },
+    {
+      id: 'sobras',
+      label: 'Sobras e retalhos',
+      shortLabel: 'Sobras',
+      href: '/estoque/sobras',
+      description: 'Aproveitamentos e economia de material.',
+      icon: Package,
+    },
+    {
+      id: 'movimentacoes',
+      label: 'Movimentações',
+      shortLabel: 'Movimentos',
+      href: '/estoque/movimentacoes',
+      description: 'Entradas, saídas e transferências.',
+      icon: Activity,
+    },
+    {
+      id: 'relatorios',
+      label: 'Relatórios',
+      shortLabel: 'Relatórios',
+      href: '/estoque/relatorios',
+      description: 'Estoque baixo, vencimento e ocupação.',
+      icon: BarChart3,
+    },
+  ],
+};

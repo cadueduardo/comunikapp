@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Grid3X3, List, Search, Package, ArrowLeft } from 'lucide-react';
+import { PlusCircle, Grid3X3, List, Search, Package } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatLocalizacaoDisplay } from '@/lib/utils';
 import { apiRequest } from '@/lib/api';
+import { estoqueModuleNav } from '@/lib/module-nav';
 import { useUser } from '@/contexts/UserContext';
 
 interface ItemEstoque {
@@ -148,32 +150,21 @@ export default function ItensEstoquePage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/estoque">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
+      <ModuleHeader
+        nav={estoqueModuleNav}
+        title="Itens de Estoque"
+        subtitle="Gerencie os itens armazenados no seu estoque"
+        icon={<Package className="h-8 w-8" />}
+        backHref="/estoque"
+        actions={
+          <Link href="/estoque/itens/novo">
+            <Button>
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Novo Item
             </Button>
           </Link>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-              <Package className="h-8 w-8" />
-              Itens de Estoque
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Gerencie os itens armazenados no seu estoque
-            </p>
-          </div>
-        </div>
-        <Link href="/estoque/itens/novo">
-          <Button>
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Novo Item
-          </Button>
-        </Link>
-      </div>
+        }
+      />
 
       {/* Filtros e Controles */}
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">

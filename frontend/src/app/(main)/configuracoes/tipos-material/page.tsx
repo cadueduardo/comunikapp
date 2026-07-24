@@ -7,10 +7,12 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { TipoMaterial, createColumns } from './columns';
 import { DataTable } from '@/components/data-table/data-table';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TipoMaterialCard } from '@/components/ui/tipo-material-card';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { tiposMaterialApi } from '@/lib/api-client';
+import { configuracoesModuleNav } from '@/lib/module-nav';
 
 export default function TiposMaterialPage() {
   const [data, setData] = useState<TipoMaterial[]>([]);
@@ -107,43 +109,44 @@ export default function TiposMaterialPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Gerenciar Tipos de Material</h1>
-          <p className="text-gray-600">Configure os tipos de material para cálculo automático de consumo.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Switch de visualização apenas no desktop */}
-          {!isMobile && (
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-              <Button
-                variant={viewMode === 'table' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('table')}
-                className="h-8 px-3"
-              >
-                <List className="h-4 w-4 mr-1" />
-                Tabela
+      <ModuleHeader
+        nav={configuracoesModuleNav}
+        title="Gerenciar Tipos de Material"
+        subtitle="Configure os tipos de material para cálculo automático de consumo."
+        backHref="/configuracoes"
+        actions={
+          <div className="flex items-center gap-2">
+            {!isMobile && (
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                  className="h-8 px-3"
+                >
+                  <List className="h-4 w-4 mr-1" />
+                  Tabela
+                </Button>
+                <Button
+                  variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('cards')}
+                  className="h-8 px-3"
+                >
+                  <Grid3X3 className="h-4 w-4 mr-1" />
+                  Cards
+                </Button>
+              </div>
+            )}
+            <Link href="/configuracoes/tipos-material/novo">
+              <Button>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Adicionar Tipo de Material
               </Button>
-              <Button
-                variant={viewMode === 'cards' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('cards')}
-                className="h-8 px-3"
-              >
-                <Grid3X3 className="h-4 w-4 mr-1" />
-                Cards
-              </Button>
-            </div>
-          )}
-          <Link href="/configuracoes/tipos-material/novo">
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Adicionar Tipo de Material
-            </Button>
-          </Link>
-        </div>
-      </div>
+            </Link>
+          </div>
+        }
+      />
 
       {loading ? (
         <p>Carregando tipos de material...</p>

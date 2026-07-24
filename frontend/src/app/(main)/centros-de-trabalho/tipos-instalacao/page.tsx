@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ColumnDef } from '@tanstack/react-table';
-import { ArrowLeft, Edit, Grid3X3, Hammer, List, Plus, Search, Trash2 } from 'lucide-react';
+import { Edit, Grid3X3, Hammer, List, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CrudPage } from '@/components/crud/CrudPage';
 import { DataTable } from '@/components/data-table/data-table';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +15,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { tiposInstalacaoApi } from '@/lib/api-client';
+import { centrosTrabalhoModuleNav } from '@/lib/module-nav';
 
 type TipoInstalacao = {
   id: string;
@@ -155,29 +157,21 @@ export default function TiposInstalacaoPage() {
   );
 
   const header = (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <Link href="/centros-de-trabalho">
-          <Button variant="outline" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
+    <ModuleHeader
+      nav={centrosTrabalhoModuleNav}
+      title="Tipos de Instalação"
+      subtitle="Gerencie instalação, aplicação e deslocamento por produto"
+      icon={<Hammer className="h-7 w-7" />}
+      backHref="/centros-de-trabalho"
+      actions={
+        <Link href="/centros-de-trabalho/tipos-instalacao/novo">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Tipo
           </Button>
         </Link>
-        <div className="flex items-center gap-3">
-          <Hammer className="h-7 w-7" />
-          <div>
-            <h1 className="text-3xl font-bold">Tipos de Instalação</h1>
-            <p className="text-gray-600 mt-1">Gerencie instalação, aplicação e deslocamento por produto</p>
-          </div>
-        </div>
-      </div>
-      <Link href="/centros-de-trabalho/tipos-instalacao/novo">
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Tipo
-        </Button>
-      </Link>
-    </div>
+      }
+    />
   );
 
   const toolbar = (

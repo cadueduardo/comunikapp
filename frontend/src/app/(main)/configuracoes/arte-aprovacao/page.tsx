@@ -1,9 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { Loader2, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { configuracoesModuleNav } from '@/lib/module-nav';
 
 interface ConfigArte {
   ativo: boolean;
@@ -128,19 +129,12 @@ export default function ConfiguracaoArteAprovacaoPage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div className="flex items-center gap-4">
-        <Link href="/configuracoes">
-          <Button variant="outline" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold">Arte & Aprovação</h1>
-          <p className="text-muted-foreground text-sm">
-            Precificação automática de criação de arte nos orçamentos (modelo por hora)
-          </p>
-        </div>
-      </div>
+      <ModuleHeader
+        nav={configuracoesModuleNav}
+        title="Arte & Aprovação"
+        subtitle="Precificação automática de criação de arte nos orçamentos (modelo por hora)"
+        backHref="/configuracoes"
+      />
 
       {alertaStatus && (
         <Alert>

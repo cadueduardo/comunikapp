@@ -1,0 +1,41 @@
+---
+description: Navegação por módulo (ModuleHeader, Seções, bottom sheet). Use ao criar ou alterar páginas de módulos do app.
+globs: frontend/src/app/(main)/**/*.tsx,frontend/src/lib/module-nav/**/*.ts,frontend/src/components/layout/Module*.tsx
+alwaysApply: false
+---
+
+# Navegação de módulos (Module Nav)
+
+## Fonte de verdade
+
+Seções do módulo vivem em `frontend/src/lib/module-nav/{modulo}.ts` e no `registry.ts`.
+**Não** inventar menus paralelos na sidebar (sidebar = só módulos) nem listar seções só nos cards da home.
+
+## Ao adicionar uma nova seção
+
+1. Incluir item em `ModuleNavConfig.items` (label, shortLabel, href, description, icon).
+2. Se for “em breve”: `disabled: true` + `badge: 'Em breve'`.
+3. Criar a página sob a rota do módulo.
+4. Na página: usar `<ModuleHeader nav={xxxModuleNav} title="..." backHref="..." />`.
+5. Cards da home: preferir `<ModuleHubCards nav={xxxModuleNav} />` (deriva da config).
+
+## Layout do módulo
+
+`app/(main)/{modulo}/layout.tsx` deve usar:
+
+```tsx
+<ModuleLayoutShell nav={xxxModuleNav}>{children}</ModuleLayoutShell>
+```
+
+## UX por breakpoint
+
+- **Desktop:** título compacto + botão `Seções` (só se ≥ 2 itens navegáveis).
+- **Mobile:** rodapé “Navegar em {Módulo}” abre bottom sheet (só se ≥ 2 itens).
+- Módulo com 1 item: config existe para escalar; UI de seções fica oculta.
+
+## Checklist rápido
+
+- [ ] Item na config / registry
+- [ ] `ModuleHeader` na página
+- [ ] `backHref` para o pai (lista ou visão geral)
+- [ ] Sem segundo menu custom só para essa tela

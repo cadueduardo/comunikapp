@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DataTable } from '@/components/data-table/data-table';
 import { ColumnDef } from '@tanstack/react-table';
-import { Workflow, Plus, Search, List, Grid3X3, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import { Workflow, Plus, Search, List, Grid3X3, Edit, Trash2 } from 'lucide-react';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { useIsMobile } from '@/hooks/use-media-query';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { pcpModuleNav } from '@/lib/module-nav';
 
 interface WorkflowTemplateSetor {
   id: string;
@@ -173,29 +175,21 @@ export default function WorkflowsPage() {
   ];
 
   const header = (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <Link href="/pcp">
-          <Button variant="outline" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
+    <ModuleHeader
+      nav={pcpModuleNav}
+      title="Workflows"
+      subtitle="Gerencie os templates de workflow para o PCP"
+      icon={<Workflow className="h-7 w-7" />}
+      backHref="/pcp"
+      actions={
+        <Link href="/pcp/workflows/novo">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Workflow
           </Button>
         </Link>
-        <div className="flex items-center gap-3">
-          <Workflow className="h-7 w-7" />
-          <div>
-            <h1 className="text-3xl font-bold">Workflows</h1>
-            <p className="text-gray-600 mt-1">Gerencie os templates de workflow para o PCP</p>
-          </div>
-        </div>
-      </div>
-      <Link href="/pcp/workflows/novo">
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Workflow
-        </Button>
-      </Link>
-    </div>
+      }
+    />
   );
 
   const toolbar = (

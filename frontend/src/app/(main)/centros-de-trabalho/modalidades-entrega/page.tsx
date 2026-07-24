@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ColumnDef } from '@tanstack/react-table';
-import { ArrowLeft, Edit, Grid3X3, List, PackageCheck, Plus, Search, Trash2 } from 'lucide-react';
+import { Edit, Grid3X3, List, PackageCheck, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CrudPage } from '@/components/crud/CrudPage';
 import { DataTable } from '@/components/data-table/data-table';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +15,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { modalidadesEntregaApi } from '@/lib/api-client';
+import { centrosTrabalhoModuleNav } from '@/lib/module-nav';
 
 type ModalidadeEntrega = {
   id: string;
@@ -134,29 +136,21 @@ export default function ModalidadesEntregaPage() {
   );
 
   const header = (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <Link href="/centros-de-trabalho">
-          <Button variant="outline" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
+    <ModuleHeader
+      nav={centrosTrabalhoModuleNav}
+      title="Modalidades de Entrega"
+      subtitle="Gerencie frete, retirada e entrega do orçamento"
+      icon={<PackageCheck className="h-7 w-7" />}
+      backHref="/centros-de-trabalho"
+      actions={
+        <Link href="/centros-de-trabalho/modalidades-entrega/novo">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Nova Modalidade
           </Button>
         </Link>
-        <div className="flex items-center gap-3">
-          <PackageCheck className="h-7 w-7" />
-          <div>
-            <h1 className="text-3xl font-bold">Modalidades de Entrega</h1>
-            <p className="text-gray-600 mt-1">Gerencie frete, retirada e entrega do orçamento</p>
-          </div>
-        </div>
-      </div>
-      <Link href="/centros-de-trabalho/modalidades-entrega/novo">
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Nova Modalidade
-        </Button>
-      </Link>
-    </div>
+      }
+    />
   );
 
   const toolbar = (

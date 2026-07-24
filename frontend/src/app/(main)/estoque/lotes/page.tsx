@@ -3,11 +3,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-media-query';
-import { Grid3X3, List, ArrowLeft } from 'lucide-react';
+import { Grid3X3, List } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { Input } from '@/components/ui/input';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { 
   Package, 
   Plus, 
@@ -22,6 +23,7 @@ import {
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { apiRequest } from '@/lib/api';
+import { estoqueModuleNav } from '@/lib/module-nav';
 import { useUser } from '@/contexts/UserContext';
 
 interface Lote {
@@ -148,54 +150,45 @@ export default function LotesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/estoque">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
+      <ModuleHeader
+        nav={estoqueModuleNav}
+        title="Lotes de Estoque"
+        subtitle="Controle de lotes e validades do estoque"
+        icon={<Package className="h-8 w-8" />}
+        backHref="/estoque"
+        actions={
+          <div className="flex gap-2">
+            <Button onClick={handleRefresh} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Atualizar
             </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-              <Package className="h-8 w-8" />
-              Lotes de Estoque
-            </h1>
-            <p className="text-muted-foreground mt-1">Controle de lotes e validades do estoque</p>
+            {!isMobile && (
+              <>
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                >
+                  <List className="h-4 w-4 mr-2" /> Tabela
+                </Button>
+                <Button
+                  variant={viewMode === 'cards' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('cards')}
+                >
+                  <Grid3X3 className="h-4 w-4 mr-2" /> Cards
+                </Button>
+              </>
+            )}
+            <Link href="/estoque/lotes/novo">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Lote
+              </Button>
+            </Link>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={handleRefresh} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Atualizar
-          </Button>
-          {!isMobile && (
-            <>
-              <Button
-                variant={viewMode === 'table' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('table')}
-              >
-                <List className="h-4 w-4 mr-2" /> Tabela
-              </Button>
-              <Button
-                variant={viewMode === 'cards' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('cards')}
-              >
-                <Grid3X3 className="h-4 w-4 mr-2" /> Cards
-              </Button>
-            </>
-          )}
-          <Link href="/estoque/lotes/novo">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Lote
-            </Button>
-          </Link>
-        </div>
-      </div>
+        }
+      />
 
       {/* Filtros */}
       <div className="flex gap-4 items-center">

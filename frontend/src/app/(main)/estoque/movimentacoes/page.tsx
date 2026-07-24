@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Grid3X3, List, Search, TrendingUp, ArrowUpRight, ArrowDownRight, RotateCcw, ArrowLeft } from 'lucide-react';
+import { PlusCircle, Grid3X3, List, Search, TrendingUp, ArrowUpRight, ArrowDownRight, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatLocalizacaoDisplay } from '@/lib/utils';
 import { apiRequest } from '@/lib/api';
+import { estoqueModuleNav } from '@/lib/module-nav';
 import { useUser } from '@/contexts/UserContext';
 
 interface Movimentacao {
@@ -156,46 +158,35 @@ export default function MovimentacoesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/estoque">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-              <TrendingUp className="h-8 w-8" />
-              Movimentações
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Acompanhe todas as entradas, saídas e ajustes do estoque
-            </p>
+      <ModuleHeader
+        nav={estoqueModuleNav}
+        title="Movimentações"
+        subtitle="Acompanhe todas as entradas, saídas e ajustes do estoque"
+        icon={<TrendingUp className="h-8 w-8" />}
+        backHref="/estoque"
+        actions={
+          <div className="flex gap-2">
+            <Link href="/estoque/movimentacoes/entrada">
+              <Button variant="outline">
+                <ArrowUpRight className="h-4 w-4 mr-2" />
+                Entrada
+              </Button>
+            </Link>
+            <Link href="/estoque/movimentacoes/saida">
+              <Button variant="outline">
+                <ArrowDownRight className="h-4 w-4 mr-2" />
+                Saída
+              </Button>
+            </Link>
+            <Link href="/estoque/movimentacoes/ajuste">
+              <Button>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Ajuste
+              </Button>
+            </Link>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/estoque/movimentacoes/entrada">
-            <Button variant="outline">
-              <ArrowUpRight className="h-4 w-4 mr-2" />
-              Entrada
-            </Button>
-          </Link>
-          <Link href="/estoque/movimentacoes/saida">
-            <Button variant="outline">
-              <ArrowDownRight className="h-4 w-4 mr-2" />
-              Saída
-            </Button>
-          </Link>
-          <Link href="/estoque/movimentacoes/ajuste">
-            <Button>
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Ajuste
-            </Button>
-          </Link>
-        </div>
-      </div>
+        }
+      />
 
       {/* Filtros e Controles */}
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">

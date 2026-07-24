@@ -10,8 +10,9 @@ import {
   IconClock,
   IconBuildingFactory,
 } from '@tabler/icons-react';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { pcpApi } from '@/lib/api-client';
-import Link from 'next/link';
+import { pcpModuleNav } from '@/lib/module-nav';
 
 interface MaquinaOcupacao {
   maquina_id: string;
@@ -125,25 +126,18 @@ export default function RelatoriosPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Relatórios PCP
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Ocupação por máquina e comparativo previsto × realizado
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/pcp">
-            <Button variant="outline">Voltar ao PCP</Button>
-          </Link>
+      <ModuleHeader
+        nav={pcpModuleNav}
+        title="Relatórios PCP"
+        subtitle="Ocupação por máquina e comparativo previsto × realizado"
+        backHref="/pcp"
+        actions={
           <Button onClick={() => void carregar()} disabled={loading}>
             <IconRefresh className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Atualizar
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {erro && (
         <Card className="border-destructive/50">

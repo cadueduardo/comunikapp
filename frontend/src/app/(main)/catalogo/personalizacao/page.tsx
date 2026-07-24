@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ColumnDef } from '@tanstack/react-table';
-import { ArrowLeft, Edit, Paintbrush, Plus, Search, Trash2 } from 'lucide-react';
+import { Edit, Paintbrush, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CrudPage } from '@/components/crud/CrudPage';
 import { DataTable } from '@/components/data-table/data-table';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,6 +20,7 @@ import {
 import { ViewToggle } from '@/components/ui/shared/view-toggle';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { catalogoPersonalizacaoApi } from '@/lib/api-client';
+import { catalogoModuleNav } from '@/lib/module-nav';
 import { formatCurrency } from '@/lib/utils';
 
 type ProcessoDecoracao = ProcessoDecoracaoCardItem;
@@ -126,28 +128,20 @@ export default function PersonalizacaoPage() {
   );
 
   const header = (
-    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-      <div className="flex items-start gap-4">
-        <Link href="/catalogo">
-          <Button variant="outline" size="sm">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar
+    <ModuleHeader
+      nav={catalogoModuleNav}
+      title="Personalização"
+      subtitle="Processos de decoração, setup e faixas de preço por quantidade."
+      backHref="/catalogo"
+      actions={
+        <Link href="/catalogo/personalizacao/novo">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo processo
           </Button>
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold">Personalização</h1>
-          <p className="text-muted-foreground">
-            Processos de decoração, setup e faixas de preço por quantidade.
-          </p>
-        </div>
-      </div>
-      <Link href="/catalogo/personalizacao/novo">
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo processo
-        </Button>
-      </Link>
-    </div>
+      }
+    />
   );
 
   const toolbar = (

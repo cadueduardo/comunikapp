@@ -1,17 +1,19 @@
 'use client';
 
-import { PageHeader } from '@/components/layout/PageHeader';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { CrudPage } from '@/components/crud/CrudPage';
 import { PerfilAccessList } from '../PerfilAccessList';
 import { Shield, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { usuariosModuleNav } from '@/lib/module-nav';
 
 export default function PerfisPage() {
   return (
     <CrudPage
       header={
-        <PageHeader
+        <ModuleHeader
+          nav={usuariosModuleNav}
           title="Perfis de Acesso"
           backHref="/usuarios"
           icon={<Shield className="h-8 w-8" />}

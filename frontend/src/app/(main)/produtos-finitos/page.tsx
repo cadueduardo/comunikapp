@@ -15,12 +15,14 @@ import {
 import { toast } from 'sonner';
 import { CrudPage } from '@/components/crud/CrudPage';
 import { DataTable } from '@/components/data-table/data-table';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { produtosFinitosApi } from '@/lib/api-client';
+import { catalogoModuleNav } from '@/lib/module-nav';
 import { ProdutoFinitoThumb } from '@/components/produtos-finitos/ProdutoFinitoThumb';
 import { ProdutoFinitoCard } from './components/produto-finito-card';
 import { formatCurrency } from '@/lib/utils';
@@ -144,20 +146,20 @@ export default function ProdutosFinitosPage() {
   );
 
   const header = (
-    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-      <div>
-        <h1 className="text-2xl font-bold">Produtos</h1>
-        <p className="text-muted-foreground">
-          Gerencie o catálogo de produtos de prateleira da sua loja.
-        </p>
-      </div>
-      <Link href="/produtos-finitos/novo">
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo produto
-        </Button>
-      </Link>
-    </div>
+    <ModuleHeader
+      nav={catalogoModuleNav}
+      title="Produtos"
+      subtitle="Gerencie o catálogo de produtos de prateleira da sua loja."
+      backHref="/catalogo"
+      actions={
+        <Link href="/produtos-finitos/novo">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo produto
+          </Button>
+        </Link>
+      }
+    />
   );
 
   const toolbar = (

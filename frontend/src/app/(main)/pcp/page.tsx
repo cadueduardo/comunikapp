@@ -8,8 +8,10 @@ import { WorkflowAssignmentDialog } from '@/components/pcp/WorkflowAssignmentDia
 import { WorkflowCardInfo } from '@/components/pcp/WorkflowCardInfo';
 import { toast } from 'sonner';
 import { solicitarAtualizacaoBadgesSidebar } from '@/lib/sidebar-badge-refresh';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { pcpModuleNav } from '@/lib/module-nav';
 import {
   Dialog,
   DialogContent,
@@ -656,40 +658,56 @@ export default function PCPPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">PCP</h1>
-            {nivel && (
-              <Badge variant="secondary" className="text-xs">
+      <ModuleHeader
+        nav={pcpModuleNav}
+        title="Visão geral"
+        subtitle={
+          nivel
+            ? nivelDescricao[nivel]
+            : 'Defina como a produção será controlada antes de operar o PCP.'
+        }
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {nivel ? (
+              <Badge variant="secondary" className="self-center text-xs">
                 {nivelLabel[nivel]}
               </Badge>
-            )}
+            ) : null}
+            <Button asChild variant="outline" size="sm">
+              <Link href="/pcp/terceirizacao">
+                <IconTruckDelivery className="mr-2 h-4 w-4" />
+                Terceirização
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={atualizar}
+              disabled={
+                loading ||
+                loadingDashboard ||
+                loadingSetores ||
+                loadingCapacidade
+              }
+            >
+              <IconRefresh
+                className={`mr-2 h-4 w-4 ${
+                  loading || loadingSetores || loadingCapacidade
+                    ? 'animate-spin'
+                    : ''
+                }`}
+              />
+              Atualizar
+            </Button>
+            <Button asChild size="sm" variant={nivel ? 'outline' : 'default'}>
+              <Link href="/pcp/configuracao">
+                <IconSettings className="mr-2 h-4 w-4" />
+                Configuração
+              </Link>
+            </Button>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {nivel ? nivelDescricao[nivel] : 'Defina como a produção será controlada antes de operar o PCP.'}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/pcp/terceirizacao">
-              <IconTruckDelivery className="mr-2 h-4 w-4" />
-              Terceirização
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" onClick={atualizar} disabled={loading || loadingDashboard || loadingSetores || loadingCapacidade}>
-            <IconRefresh className={`mr-2 h-4 w-4 ${loading || loadingSetores || loadingCapacidade ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
-          <Button asChild size="sm" variant={nivel ? 'outline' : 'default'}>
-            <Link href="/pcp/configuracao">
-              <IconSettings className="mr-2 h-4 w-4" />
-              Configuração
-            </Link>
-          </Button>
-        </div>
-      </header>
+        }
+      />
 
       {!loadingDashboard && !nivel && (
         <section className="rounded-lg border border-amber-200 bg-amber-50 p-4">

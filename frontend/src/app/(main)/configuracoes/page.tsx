@@ -1,24 +1,15 @@
 'use client';
 
-import Link from 'next/link';
+import { Settings } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ValidacoesAutomaticasCard } from '@/components/configuracoes/ValidacoesAutomaticasCard';
 import { IdentificacaoLojaCard } from '@/components/configuracoes/IdentificacaoLojaCard';
-import {
-  Settings,
-  Tag,
-  Users,
-  Wrench,
-  Building2,
-  Package,
-  Shield,
-  Grid3x3,
-  Palette,
-  Plug,
-} from 'lucide-react';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
+import { ModuleHubCards } from '@/components/layout/ModuleHubCards';
+import { configuracoesModuleNav } from '@/lib/module-nav';
 import { useEffect, useState } from 'react';
 import { usuariosApi } from '@/lib/api-client';
 
@@ -210,100 +201,26 @@ export default function ConfiguracoesPage() {
     loadStats();
   }, []);
 
-  const configuracoes = [
-    {
-      titulo: 'Categorias de Insumos',
-      descricao: 'Gerencie as categorias de insumos',
-      href: '/configuracoes/categorias',
-      icone: Tag,
-      cor: 'bg-blue-100 text-blue-600'
-    },
-    {
-      titulo: 'Funções',
-      descricao: 'Gerencie funções e mão de obra',
-      href: '/configuracoes/funcoes',
-      icone: Users,
-      cor: 'bg-orange-100 text-orange-600'
-    },
-    {
-      titulo: 'Máquinas',
-      descricao: 'Cadastro de máquinas e equipamentos',
-      href: '/configuracoes/maquinas',
-      icone: Wrench,
-      cor: 'bg-red-100 text-red-600'
-    },
-    {
-      titulo: 'Loja',
-      descricao: 'Configurações da loja',
-      href: '/configuracoes/loja',
-      icone: Building2,
-      cor: 'bg-indigo-100 text-indigo-600'
-    },
-    {
-      titulo: 'Tipos de Material',
-      descricao: 'Gerencie tipos de material',
-      href: '/configuracoes/tipos-material',
-      icone: Package,
-      cor: 'bg-pink-100 text-pink-600'
-    },
-    {
-      titulo: 'Arte & Aprovação',
-      descricao: 'Precificação automática e fila de arte',
-      href: '/configuracoes/arte-aprovacao',
-      icone: Palette,
-      cor: 'bg-violet-100 text-violet-600'
-    },
-    {
-      titulo: 'Hub de Conexões',
-      descricao: 'Google Drive, WhatsApp e integrações externas',
-      href: '/configuracoes/conexoes',
-      icone: Plug,
-      cor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-    }
-  ];
-
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Configurações</h1>
-        <p className="text-gray-600">Gerencie as configurações do sistema</p>
-      </div>
+      <ModuleHeader
+        nav={configuracoesModuleNav}
+        title="Visão geral"
+        subtitle="Gerencie as configurações do sistema"
+        icon={<Settings className="h-7 w-7 sm:h-8 sm:w-8" />}
+      />
 
       <IdentificacaoLojaCard />
 
       {/* Card de Validações Automáticas em destaque */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ValidacoesAutomaticasCard stats={statsValidacoes} />
         <TwoFactorSecurityCard />
       </div>
 
-      {/* Grid de outras configurações */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Outras Configurações</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {configuracoes.map((config) => {
-            const Icone = config.icone;
-            return (
-              <Link key={config.href} href={config.href}>
-                <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-lg ${config.cor}`}>
-                        <Icone className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-base">{config.titulo}</CardTitle>
-                        <CardDescription className="text-sm">
-                          {config.descricao}
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
+        <h2 className="mb-4 text-xl font-semibold">Outras Configurações</h2>
+        <ModuleHubCards nav={configuracoesModuleNav} />
       </div>
     </div>
   );

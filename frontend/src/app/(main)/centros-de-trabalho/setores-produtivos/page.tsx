@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DataTable } from '@/components/data-table/data-table';
 import { ColumnDef } from '@tanstack/react-table';
-import { Building2, Plus, Search, List, Grid3X3, ArrowLeft, Edit, Trash2 } from 'lucide-react';
+import { Building2, Plus, Search, List, Grid3X3, Edit, Trash2 } from 'lucide-react';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { useIsMobile } from '@/hooks/use-media-query';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { centrosTrabalhoModuleNav } from '@/lib/module-nav';
 
 interface SetorProdutivo {
   id: string;
@@ -157,29 +159,21 @@ export default function SetoresProdutivosPage() {
   ];
 
   const header = (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <Link href="/centros-de-trabalho">
-          <Button variant="outline" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
+    <ModuleHeader
+      nav={centrosTrabalhoModuleNav}
+      title="Setores Produtivos"
+      subtitle="Gerencie os setores produtivos da sua empresa"
+      icon={<Building2 className="h-7 w-7" />}
+      backHref="/centros-de-trabalho"
+      actions={
+        <Link href="/centros-de-trabalho/setores-produtivos/novo">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Setor
           </Button>
         </Link>
-        <div className="flex items-center gap-3">
-          <Building2 className="h-7 w-7" />
-          <div>
-            <h1 className="text-3xl font-bold">Setores Produtivos</h1>
-            <p className="text-gray-600 mt-1">Gerencie os setores produtivos da sua empresa</p>
-          </div>
-        </div>
-      </div>
-      <Link href="/centros-de-trabalho/setores-produtivos/novo">
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Setor
-        </Button>
-      </Link>
-    </div>
+      }
+    />
   );
 
   const toolbar = (

@@ -8,8 +8,10 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Edit, Plus, Trash2, List, Grid3X3, Search, Wrench, ArrowLeft } from "lucide-react";
+import { Edit, Plus, Trash2, List, Grid3X3, Search, Wrench } from "lucide-react";
 import { maquinasApi } from "@/lib/api-client";
+import { centrosTrabalhoModuleNav } from "@/lib/module-nav";
+import { ModuleHeader } from "@/components/layout/ModuleHeader";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useIsMobile } from "@/hooks/use-media-query";
@@ -150,29 +152,21 @@ export default function MaquinasCTPage() {
   );
 
   const header = (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <Link href="/centros-de-trabalho">
-          <Button variant="outline" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
+    <ModuleHeader
+      nav={centrosTrabalhoModuleNav}
+      title="Máquinas"
+      subtitle="Gerencie máquinas e modos de impressão"
+      icon={<Wrench className="h-7 w-7" />}
+      backHref="/centros-de-trabalho"
+      actions={
+        <Link href="/centros-de-trabalho/maquinas/novo">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Nova Máquina
           </Button>
         </Link>
-        <div className="flex items-center gap-3">
-          <Wrench className="h-7 w-7" />
-          <div>
-            <h1 className="text-3xl font-bold">Máquinas</h1>
-            <p className="text-gray-600 mt-1">Gerencie máquinas e modos de impressão</p>
-          </div>
-        </div>
-      </div>
-      <Link href="/centros-de-trabalho/maquinas/novo">
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Nova Máquina
-        </Button>
-      </Link>
-    </div>
+      }
+    />
   );
 
   const toolbar = (

@@ -8,10 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { Wrench, Plus, Search, List, Grid3X3, ArrowLeft } from "lucide-react";
+import { Wrench, Plus, Search, List, Grid3X3 } from "lucide-react";
 import { toast } from "sonner";
+import { ModuleHeader } from "@/components/layout/ModuleHeader";
 import { useIsMobile } from "@/hooks/use-media-query";
 import { servicosManuaisApi } from "@/lib/api-client";
+import { centrosTrabalhoModuleNav } from "@/lib/module-nav";
 import { Badge } from "@/components/ui/badge";
 import { formatTimeDisplay } from "@/components/ui/time-input";
 
@@ -162,29 +164,21 @@ export default function ServicosPage() {
   ];
 
   const header = (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <Link href="/centros-de-trabalho">
-          <Button variant="outline" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
+    <ModuleHeader
+      nav={centrosTrabalhoModuleNav}
+      title="Serviços Manuais"
+      subtitle="Defina serviços manuais e seus parâmetros de cálculo"
+      icon={<Wrench className="h-7 w-7" />}
+      backHref="/centros-de-trabalho"
+      actions={
+        <Link href="/centros-de-trabalho/servicos/novo">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Serviço
           </Button>
         </Link>
-        <div className="flex items-center gap-3">
-          <Wrench className="h-7 w-7" />
-          <div>
-            <h1 className="text-3xl font-bold">Serviços Manuais</h1>
-            <p className="text-gray-600 mt-1">Defina serviços manuais e seus parâmetros de cálculo</p>
-          </div>
-        </div>
-      </div>
-      <Link href="/centros-de-trabalho/servicos/novo">
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Serviço
-        </Button>
-      </Link>
-    </div>
+      }
+    />
   );
 
   const toolbar = (

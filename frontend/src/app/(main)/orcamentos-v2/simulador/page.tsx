@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import {
   postEstimarTempoMaquina,
 } from '@/lib/estimativa-tempo-api';
 import { apiRequest } from '@/lib/api';
+import { orcamentosModuleNav } from '@/lib/module-nav';
 
 interface MaquinaLite {
   id: string;
@@ -102,23 +103,13 @@ export default function SimuladorOrcamentoV2Page() {
 
   return (
     <div className="min-h-screen p-4 lg:p-6">
-      <div className="mb-6 flex items-center gap-3">
-        <Link
-          href="/orcamentos-v2"
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span className="hidden sm:inline">Voltar</span>
-        </Link>
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-            Simulador de precificação e produção
-          </h1>
-          <p className="text-sm text-gray-600">
-            Ferramentas de apoio: geometria rápida, estimativa de tempo de máquina e
-            simulador de precificação. Não cria orçamento.
-          </p>
-        </div>
+      <div className="mb-6">
+        <ModuleHeader
+          nav={orcamentosModuleNav}
+          title="Simulador de precificação e produção"
+          subtitle="Ferramentas de apoio: geometria rápida, estimativa de tempo de máquina e simulador de precificação. Não cria orçamento."
+          backHref="/orcamentos-v2"
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

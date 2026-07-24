@@ -6,13 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Plus, Filter, Download, Eye, Edit, Trash2, ArrowLeft, RefreshCw, List, Grid3X3, Package } from 'lucide-react';
+import { Search, Plus, Filter, Download, Eye, Edit, Trash2, RefreshCw, List, Grid3X3, Package } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { toast } from 'sonner';
 import { apiRequest } from '@/lib/api';
+import { estoqueModuleNav } from '@/lib/module-nav';
 import { useUser } from '@/contexts/UserContext';
 
 interface Sobra {
@@ -227,54 +229,45 @@ export default function SobrasPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/estoque">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
+      <ModuleHeader
+        nav={estoqueModuleNav}
+        title="Sobras e Retalhos"
+        subtitle="Gestão de sobras e retalhos do setor de comunicação visual"
+        icon={<Package className="h-8 w-8" />}
+        backHref="/estoque"
+        actions={
+          <div className="flex gap-2 items-center">
+            <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Atualizar
             </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <Package className="h-8 w-8" />
-              Sobras e Retalhos
-            </h1>
-            <p className="text-gray-600 mt-1">Gestão de sobras e retalhos do setor de comunicação visual</p>
+            {!isMobile && (
+              <>
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                >
+                  <List className="h-4 w-4 mr-2" /> Tabela
+                </Button>
+                <Button
+                  variant={viewMode === 'cards' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('cards')}
+                >
+                  <Grid3X3 className="h-4 w-4 mr-2" /> Cards
+                </Button>
+              </>
+            )}
+            <Link href="/estoque/sobras/novo">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Sobra
+              </Button>
+            </Link>
           </div>
-        </div>
-        <div className="flex gap-2 items-center">
-          <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
-          {!isMobile && (
-            <>
-              <Button
-                variant={viewMode === 'table' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('table')}
-              >
-                <List className="h-4 w-4 mr-2" /> Tabela
-              </Button>
-              <Button
-                variant={viewMode === 'cards' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('cards')}
-              >
-                <Grid3X3 className="h-4 w-4 mr-2" /> Cards
-              </Button>
-            </>
-          )}
-          <Link href="/estoque/sobras/novo">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Sobra
-            </Button>
-          </Link>
-        </div>
-      </div>
+        }
+      />
 
       {/* Cards de Métricas */}
       {metricas && (

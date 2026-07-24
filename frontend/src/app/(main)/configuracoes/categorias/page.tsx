@@ -7,6 +7,7 @@ import { PlusCircle } from "lucide-react";
 import { toast } from 'sonner';
 import { Categoria, getColumns } from "./columns";
 import { DataTable } from "@/components/data-table/data-table";
+import { ModuleHeader } from "@/components/layout/ModuleHeader";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   Dialog,
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { CategoryForm, formSchema } from "./category-form";
 import { categoriasApi } from "@/lib/api-client";
+import { configuracoesModuleNav } from "@/lib/module-nav";
 
 export default function CategoriasConfigPage() {
   const [data, setData] = useState<Categoria[]>([]);
@@ -131,16 +133,18 @@ export default function CategoriasConfigPage() {
   return (
     <>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Gerenciar Categorias</h1>
-            <p className="text-gray-600">Adicione, edite ou remova as categorias do sistema.</p>
-          </div>
-          <Button onClick={() => { setEditingCategory(null); setIsFormOpen(true); }}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Adicionar Categoria
-          </Button>
-        </div>
+        <ModuleHeader
+          nav={configuracoesModuleNav}
+          title="Gerenciar Categorias"
+          subtitle="Adicione, edite ou remova as categorias do sistema."
+          backHref="/configuracoes"
+          actions={
+            <Button onClick={() => { setEditingCategory(null); setIsFormOpen(true); }}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Adicionar Categoria
+            </Button>
+          }
+        />
         
         {loading ? <p>Carregando categorias...</p> : <DataTable columns={columns} data={data} />}
       </div>

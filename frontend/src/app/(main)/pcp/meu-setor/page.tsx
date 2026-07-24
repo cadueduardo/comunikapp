@@ -8,9 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { FilaOperador } from '@/components/pcp/FilaOperador';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { useMeuSetor } from '@/hooks/useMeuSetor';
 import { pcpApi } from '@/lib/api-client';
 import { filtrarFilaPorStatus, type FiltroStatusFila } from '@/lib/pcp/pcp.utils';
+import { pcpModuleNav } from '@/lib/module-nav';
 import {
   IconBuilding,
   IconRefresh,
@@ -258,38 +260,32 @@ export default function MeuSetorPage() {
 
   return (
     <div className="flex h-[calc(100vh-7rem)] min-h-[480px] flex-col gap-2">
-      {/* Cabeçalho compacto */}
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <h1 className="truncate text-lg font-semibold">{titulo}</h1>
-          {pcpNivel && (
-            <Badge variant="outline" className="h-5 shrink-0 text-[10px] font-normal">
-              {pcpNivel}
-            </Badge>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-xs">
-            <Link href="/pcp">
-              <IconArrowLeft className="mr-1 h-3.5 w-3.5" />
-              PCP
-            </Link>
-          </Button>
-          {setorSelect}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-2"
-            onClick={() => refreshData()}
-            disabled={loading}
-          >
-            <IconRefresh
-              className={cn('h-3.5 w-3.5', loading && 'animate-spin')}
-            />
-          </Button>
-        </div>
-      </header>
+      <ModuleHeader
+        nav={pcpModuleNav}
+        title={titulo}
+        backHref="/pcp"
+        actions={
+          <div className="flex flex-wrap items-center gap-1.5">
+            {pcpNivel && (
+              <Badge variant="outline" className="h-5 shrink-0 text-[10px] font-normal">
+                {pcpNivel}
+              </Badge>
+            )}
+            {setorSelect}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2"
+              onClick={() => refreshData()}
+              disabled={loading}
+            >
+              <IconRefresh
+                className={cn('h-3.5 w-3.5', loading && 'animate-spin')}
+              />
+            </Button>
+          </div>
+        }
+      />
 
       {/* Barra de contexto: setor + métricas + opções */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border bg-card px-3 py-2 text-sm shadow-sm">

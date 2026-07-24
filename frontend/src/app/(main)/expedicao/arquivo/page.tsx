@@ -14,11 +14,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { expedicaoApi } from '@/lib/expedicao/expedicao-api';
 import { STATUS_EXPEDICAO_LABEL } from '@/lib/expedicao/expedicao-columns';
 import { formatarDataHistoricoExpedicao } from '@/lib/expedicao/expedicao-format';
 import type { ExpedicaoCardKanban } from '@/lib/expedicao/expedicao.types';
-import { IconArrowLeft, IconArchive, IconRefresh } from '@tabler/icons-react';
+import { expedicaoModuleNav } from '@/lib/module-nav';
+import { IconArchive, IconRefresh } from '@tabler/icons-react';
 import { toast } from 'sonner';
 
 export default function ExpedicaoArquivoPage() {
@@ -52,37 +54,26 @@ export default function ExpedicaoArquivoPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/expedicao">
-              <IconArrowLeft className="mr-1 h-4 w-4" />
-              Voltar ao kanban
-            </Link>
-          </Button>
-          <div>
-            <h1 className="flex items-center gap-2 text-xl font-bold">
-              <IconArchive className="h-6 w-6" />
-              Arquivo de expedição
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Entregas arquivadas e histórico de devoluções
-            </p>
+      <ModuleHeader
+        nav={expedicaoModuleNav}
+        title="Arquivo de expedição"
+        subtitle="Entregas arquivadas e histórico de devoluções"
+        icon={<IconArchive className="h-6 w-6" />}
+        backHref="/expedicao"
+        actions={
+          <div className="flex gap-2">
+            <Input
+              placeholder="Buscar OS ou cliente..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="w-full sm:w-64"
+            />
+            <Button variant="outline" size="sm" onClick={() => void carregar()}>
+              <IconRefresh className="h-4 w-4" />
+            </Button>
           </div>
-        </div>
-
-        <div className="flex gap-2">
-          <Input
-            placeholder="Buscar OS ou cliente..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            className="w-full sm:w-64"
-          />
-          <Button variant="outline" size="sm" onClick={() => void carregar()}>
-            <IconRefresh className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       <Card>
         <CardContent className="p-0">
