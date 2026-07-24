@@ -1624,10 +1624,15 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
           })();
 
           return (
-          <AccordionItem key={field.id} value={`item-${index}`}>
-            <Card flatOnMobile>
+          <AccordionItem
+            key={field.id}
+            value={`item-${index}`}
+            className="border-0"
+          >
+            {/* Borda no mobile: separa produtos e reforça o accordion (resto do form segue flat). */}
+            <Card className="max-md:gap-3 max-md:py-3">
               <AccordionTrigger
-                className={`px-6 max-md:px-0 !py-0${somenteLeitura ? ' pointer-events-none cursor-default [&>svg]:opacity-40' : ''}`}
+                className={`px-4 sm:px-6 !py-0${somenteLeitura ? ' pointer-events-none cursor-default [&>svg]:opacity-40' : ''}`}
               >
                 <div className="flex items-center justify-between w-full pr-4">
                   <div className="flex items-center space-x-4">

@@ -3097,13 +3097,13 @@ export function OrcamentoV2Form({
                   <ConfiguracoesSection mode={mode} />
                   </div>
 
-                  {/* Botões de Ação */}
-                  <div className="flex justify-end space-x-4">
+                  {/* Botões de Ação — mobile empilhado (evita empurrar a tela) */}
+                  <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:justify-end md:gap-4 [&>button]:w-full md:[&>button]:w-auto">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={abrirSimuladorPrecificacao}
-                      className="flex items-center space-x-2"
+                      className="flex items-center justify-center space-x-2"
                     >
                       <Calculator className="w-4 h-4" />
                       <span>Simular preço</span>
@@ -3344,13 +3344,13 @@ export function OrcamentoV2Form({
               <ConfiguracoesSection mode={mode} />
               </div>
 
-              {/* Botões de Ação */}
-              <div className="flex justify-end space-x-4">
+              {/* Botões de Ação — mobile empilhado (evita empurrar a tela) */}
+              <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:justify-end md:gap-4 [&>button]:w-full md:[&>button]:w-auto">
               <Button
                 type="button"
                 variant="outline"
                 onClick={abrirSimuladorPrecificacao}
-                className="flex items-center space-x-2"
+                className="flex items-center justify-center space-x-2"
               >
                 <Calculator className="w-4 h-4" />
                 <span>Simular preço</span>

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Filter, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -44,20 +45,26 @@ export function MobileFiltersControl({
   aboveModuleNav = true,
 }: MobileFiltersControlProps) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const hasActive = activeCount > 0;
 
-  return (
-    <div className={cn('md:hidden', className)}>
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const chrome = (
+    <>
       <Button
         type="button"
         size="icon"
         className={cn(
-          'fixed z-30 h-12 w-12 rounded-full shadow-lg',
+          'fixed z-30 h-12 w-12 rounded-full shadow-lg touch-manipulation',
           'bg-[#1764F5] text-white hover:bg-[#1254d4] hover:text-white',
           aboveModuleNav
             ? 'bottom-[calc(4.25rem+env(safe-area-inset-bottom))] left-4'
             : 'bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-4',
         )}
+        style={{ transform: 'translateZ(0)' }}
         aria-label={title}
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -105,6 +112,12 @@ export function MobileFiltersControl({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  );
+
+  return (
+    <div className={cn('md:hidden', className)}>
+      {mounted ? createPortal(chrome, document.body) : null}
     </div>
   );
 }

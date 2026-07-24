@@ -19,7 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { motion } from 'framer-motion';
 import { IconGripVertical, IconArrowsSort } from '@tabler/icons-react';
-import { Sidebar, SidebarBody } from '@/components/ui/sidebar';
+import { SidebarBody } from '@/components/ui/sidebar';
 import { useSidebar } from '@/components/ui/sidebar';
 import { SidebarIconWithBadge } from '@/components/layout/SidebarIconWithBadge';
 import {
@@ -211,9 +211,6 @@ function AppSidebarContent({
 }
 
 export function AppSidebar(props: AppSidebarProps) {
-  return (
-    <Sidebar>
-      <AppSidebarContent {...props} />
-    </Sidebar>
-  );
+  // Provider fica no layout (main) para o MainHeader abrir o drawer mobile.
+  return <AppSidebarContent {...props} />;
 }

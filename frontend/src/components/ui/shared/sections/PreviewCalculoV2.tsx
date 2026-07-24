@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useFormContext } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1368,59 +1369,81 @@ function MobileDockShell({
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
 }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Spacer fica no fluxo do formulário; a barra fixed vai para o body
+  // (fora do overflow-y-auto) para não roubar toques após scroll.
+  const dock =
+    mounted &&
+    createPortal(
+      <>
+        <div
+          className={cn(
+            'fixed inset-x-0 z-30 touch-manipulation border-t border-black/10 text-black md:hidden',
+            'shadow-[0_-6px_18px_rgba(0,0,0,0.14)]',
+            'bottom-[calc(3.5rem+env(safe-area-inset-bottom))]',
+          )}
+          style={{
+            transform: 'translateZ(0)',
+            backgroundImage: 'linear-gradient(180deg, #FAFAFA 25%, #B9B9B9 100%)',
+          }}
+        >
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-14 w-full justify-between gap-3 rounded-none px-4 text-black hover:bg-black/5 hover:text-black"
+            onClick={() => onOpenChange(true)}
+            aria-haspopup="dialog"
+            aria-expanded={open}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <Calculator className="h-5 w-5 shrink-0 text-black" />
+              <span className="truncate text-sm font-medium text-black">
+                Total venda
+              </span>
+            </span>
+            <span className="flex shrink-0 items-center gap-2">
+              <span className="text-base font-bold tabular-nums text-black">
+                R$ {totalLabel}
+              </span>
+              <ChevronUp className="h-4 w-4 text-black/70" />
+            </span>
+          </Button>
+        </div>
+
+        <Dialog open={open} onOpenChange={onOpenChange}>
+          <DialogContent
+            showCloseButton
+            className={cn(
+              'top-auto bottom-0 left-0 right-0 flex max-h-[88dvh] w-full max-w-none flex-col gap-0 overflow-hidden p-0',
+              'translate-x-0 translate-y-0 rounded-t-2xl rounded-b-none border-x-0 border-b-0',
+              'data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom',
+              'data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100',
+            )}
+          >
+            <DialogHeader className="shrink-0 border-b px-4 py-3 text-left">
+              <DialogTitle>Preview do cálculo</DialogTitle>
+              <DialogDescription>
+                Detalhamento do orçamento. Role para ver custos e margens.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              {children}
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>,
+      document.body,
+    );
+
   return (
     <>
-      <div
-        className={cn(
-          'fixed inset-x-0 z-30 border-t border-black/10 text-black',
-          'shadow-[0_-6px_18px_rgba(0,0,0,0.14)]',
-          'bottom-[calc(3.5rem+env(safe-area-inset-bottom))]',
-        )}
-        style={{
-          backgroundImage: 'linear-gradient(180deg, #FAFAFA 25%, #B9B9B9 100%)',
-        }}
-      >
-        <Button
-          type="button"
-          variant="ghost"
-          className="h-14 w-full justify-between gap-3 rounded-none px-4 text-black hover:bg-black/5 hover:text-black"
-          onClick={() => onOpenChange(true)}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-        >
-          <span className="flex min-w-0 items-center gap-2">
-            <Calculator className="h-5 w-5 shrink-0 text-black" />
-            <span className="truncate text-sm font-medium text-black">Total venda</span>
-          </span>
-          <span className="flex shrink-0 items-center gap-2">
-            <span className="text-base font-bold tabular-nums text-black">R$ {totalLabel}</span>
-            <ChevronUp className="h-4 w-4 text-black/70" />
-          </span>
-        </Button>
-      </div>
-      <div className="h-14" aria-hidden />
-
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent
-          showCloseButton
-          className={cn(
-            'top-auto bottom-0 left-0 right-0 flex max-h-[88dvh] w-full max-w-none flex-col gap-0 overflow-hidden p-0',
-            'translate-x-0 translate-y-0 rounded-t-2xl rounded-b-none border-x-0 border-b-0',
-            'data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom',
-            'data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100',
-          )}
-        >
-          <DialogHeader className="shrink-0 border-b px-4 py-3 text-left">
-            <DialogTitle>Preview do cálculo</DialogTitle>
-            <DialogDescription>
-              Detalhamento do orçamento. Role para ver custos e margens.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            {children}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <div className="h-14 md:hidden" aria-hidden />
+      {dock}
     </>
   );
 }

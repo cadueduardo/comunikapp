@@ -51,19 +51,34 @@ function DialogContent({
   children,
   showCloseButton = true,
   fullscreen = false,
+  variant = "default",
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
   fullscreen?: boolean
+  /** bottom-sheet: ancora na base (mobile), sem translate de centralização. */
+  variant?: "default" | "bottom-sheet"
 }) {
+  const overlayZ =
+    fullscreen || variant === "bottom-sheet" ? "z-[199]" : undefined
+
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay className={fullscreen ? "z-[100]" : undefined} />
+      <DialogOverlay className={overlayZ} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
           fullscreen
             ? "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-[101] flex h-[100dvh] w-screen max-w-none flex-col gap-0 rounded-none border-0 p-0 shadow-lg duration-200"
+            : variant === "bottom-sheet"
+              ? cn(
+                  "bg-background pointer-events-auto fixed inset-x-0 bottom-0 top-auto z-[200] flex w-full max-w-none flex-col gap-0",
+                  "max-h-[85dvh] min-h-[45dvh] translate-x-0 translate-y-0 rounded-t-2xl rounded-b-none border-x-0 border-b-0 p-0 shadow-lg",
+                  "data-[state=open]:animate-in data-[state=closed]:animate-out",
+                  "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
+                  "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
+                  "duration-200",
+                )
             : "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
           className
         )}

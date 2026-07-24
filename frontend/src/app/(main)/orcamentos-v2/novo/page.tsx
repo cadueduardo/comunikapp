@@ -502,11 +502,10 @@ export default function NovoOrcamentoV2Page() {
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
                 {mode === 'editar' ? 'Editar Orçamento V2' : 'Novo Orçamento V2'}
               </h1>
-              <p className="text-sm sm:text-base text-gray-600">
-                {mode === 'editar' 
-                  ? 'Edite as informações do orçamento V2' 
-                  : 'Crie um novo orçamento para o cliente usando o sistema V2'
-                }
+              <p className="hidden text-base text-gray-600 sm:block">
+                {mode === 'editar'
+                  ? 'Edite as informações do orçamento V2'
+                  : 'Crie um novo orçamento para o cliente usando o sistema V2'}
               </p>
             </div>
           </div>

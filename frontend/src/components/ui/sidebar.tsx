@@ -2,7 +2,7 @@
 import { cn } from "@/lib/utils";
 import React, { useState, createContext, useContext, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { IconMenu2, IconX } from "@tabler/icons-react";
+import { IconX } from "@tabler/icons-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -121,83 +121,62 @@ export const DesktopSidebar = ({
   );
 };
 
-// Mobile-only Sidebar
+// Mobile-only Sidebar (drawer). O gatilho do menu fica no MainHeader.
 export const MobileSidebar = ({
   className,
   children,
-  ...props
 }: React.ComponentProps<"div">) => {
   const { open, setOpen } = useSidebar();
 
   return (
-    <>
-      <div
-        className={cn(
-          "flex h-12 w-full shrink-0 items-center px-3 lg:hidden",
-          sidebarSurfaceClass,
-        )}
-        {...props}
-      >
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="rounded-md p-2 text-neutral-800 dark:text-neutral-200"
-          aria-label="Abrir menu"
-          aria-expanded={open}
-        >
-          <IconMenu2 className="h-6 w-6" />
-        </button>
-      </div>
-
-      <AnimatePresence>
-        {open && (
-          <>
-            <motion.button
-              type="button"
-              key="sidebar-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-[200] bg-black/50 lg:hidden"
-              onClick={() => setOpen(false)}
-              aria-label="Fechar menu"
-            />
-            <motion.div
-              key="sidebar-drawer"
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ duration: 0.25, ease: "easeInOut" }}
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.button
+            type="button"
+            key="sidebar-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[200] bg-black/50 lg:hidden"
+            onClick={() => setOpen(false)}
+            aria-label="Fechar menu"
+          />
+          <motion.div
+            key="sidebar-drawer"
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className={cn(
+              "fixed inset-y-0 left-0 z-[201] flex w-[min(100vw,320px)] flex-col shadow-xl lg:hidden",
+              sidebarSurfaceClass,
+            )}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
+              <Logo />
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-md p-2 text-neutral-800 dark:text-neutral-200"
+                aria-label="Fechar menu"
+              >
+                <IconX className="h-6 w-6" />
+              </button>
+            </div>
+            <div
               className={cn(
-                "fixed inset-y-0 left-0 z-[201] flex w-[min(100vw,320px)] flex-col shadow-xl lg:hidden",
-                sidebarSurfaceClass,
+                "flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-4 py-4",
+                className,
               )}
             >
-              <div className="flex shrink-0 items-center justify-between border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
-                <Logo />
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="rounded-md p-2 text-neutral-800 dark:text-neutral-200"
-                  aria-label="Fechar menu"
-                >
-                  <IconX className="h-6 w-6" />
-                </button>
-              </div>
-              <div
-                className={cn(
-                  "flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-4 py-4",
-                  className,
-                )}
-              >
-                {children}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-    </>
+              {children}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 };
 

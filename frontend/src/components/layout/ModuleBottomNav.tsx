@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronUp, LayoutList } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -102,22 +103,30 @@ function NavItemRow({
 export function ModuleBottomNav({ nav, className }: ModuleBottomNavProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const active = resolveActiveModuleNavItem(nav.items, pathname, nav.homeHref);
   const activeLabel = active?.shortLabel ?? active?.label;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (!shouldShowModuleSectionNav(nav)) {
     return null;
   }
 
-  return (
+  // Portal no body: fixed DENTRO do overflow-y-auto do layout desalinha
+  // hit-target no Chrome mobile após scroll (toques “furam” o formulário).
+  const chrome = (
     <>
       <div
         className={cn(
-          'fixed inset-x-0 bottom-0 z-40 md:hidden',
+          'fixed inset-x-0 bottom-0 z-40 touch-manipulation md:hidden',
           'border-t border-[#1254d4] bg-[#1764F5] text-white shadow-[0_-4px_16px_rgba(23,100,245,0.28)]',
           'pb-[env(safe-area-inset-bottom)]',
           className,
         )}
+        style={{ transform: 'translateZ(0)' }}
       >
         <div className="mx-auto flex h-14 max-w-lg items-center px-2">
           <Button
@@ -150,14 +159,9 @@ export function ModuleBottomNav({ nav, className }: ModuleBottomNavProps) {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
+          variant="bottom-sheet"
           showCloseButton
-          className={cn(
-            'top-auto bottom-0 left-0 right-0 max-h-[85dvh] w-full max-w-none',
-            'translate-x-0 translate-y-0 rounded-t-2xl rounded-b-none border-x-0 border-b-0 p-0',
-            'data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom',
-            'data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100',
-            'md:hidden',
-          )}
+          className="md:hidden min-h-0"
         >
           <DialogHeader className="border-b px-4 py-4 text-left">
             <DialogTitle>Navegar em {nav.label}</DialogTitle>
@@ -165,7 +169,7 @@ export function ModuleBottomNav({ nav, className }: ModuleBottomNavProps) {
               Escolha uma seção do módulo para continuar.
             </DialogDescription>
           </DialogHeader>
-          <nav className="overflow-y-auto px-2 py-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {nav.items.map((item) => (
               <NavItemRow
                 key={item.id}
@@ -179,6 +183,9 @@ export function ModuleBottomNav({ nav, className }: ModuleBottomNavProps) {
       </Dialog>
     </>
   );
+
+  if (!mounted) return null;
+  return createPortal(chrome, document.body);
 }
 
 /** Altura da barra + safe area — use no padding do layout do módulo. */

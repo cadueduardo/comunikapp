@@ -201,9 +201,14 @@ export function ArteProdutoSection({ itemIndex }: ArteProdutoSectionProps) {
     const valores = form.getValues(`itens_produto.${itemIndex}`);
     const resp =
       valores?.responsabilidade_arte || ResponsabilidadeArte.NAO_APLICAVEL;
-    const { manuais, rascunhos } = separarServicosFormulario(valores?.servicos);
+    const { manuais, rascunhos, automaticos } = separarServicosFormulario(
+      valores?.servicos,
+    );
 
     if (!arteRequerTrabalhoInterno(resp)) {
+      // Evita setValue em loop quando já não há linha automática.
+      if (automaticos.length === 0) return;
+
       const semAutomatico =
         manuais.length > 0 ? manuais : [servicoManualPadrao()];
 
@@ -263,6 +268,9 @@ export function ArteProdutoSection({ itemIndex }: ArteProdutoSectionProps) {
     }
   }, [cobrancaPadrao, form, itemIndex]);
 
+  const sincronizarArteRef = useRef(sincronizarArte);
+  sincronizarArteRef.current = sincronizarArte;
+
   useEffect(() => {
     if (arteSyncInicialRef.current) {
       arteSyncInicialRef.current = false;
@@ -273,7 +281,7 @@ export function ArteProdutoSection({ itemIndex }: ArteProdutoSectionProps) {
       clearTimeout(debounceRef.current);
     }
     debounceRef.current = setTimeout(() => {
-      void sincronizarArte();
+      void sincronizarArteRef.current();
     }, 350);
 
     return () => {
@@ -281,7 +289,9 @@ export function ArteProdutoSection({ itemIndex }: ArteProdutoSectionProps) {
         clearTimeout(debounceRef.current);
       }
     };
-  }, [responsabilidade, politica, finalidadeAnexo, sincronizarArte]);
+    // Intencional: NÃO incluir sincronizarArte — a identidade da callback
+    // mudava a cada render e re-disparava o POST em loop.
+  }, [responsabilidade, politica, finalidadeAnexo]);
 
   const mostrarPolitica = arteRequerTrabalhoInterno(responsabilidade);
   const mostrarFinalidade = produtoExibeFinalidadeAnexo(

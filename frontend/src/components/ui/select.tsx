@@ -1,30 +1,50 @@
 'use client';
 
+/**
+ * Select responsivo:
+ * - Desktop: Radix Select (popover).
+ * - Mobile: bottom sheet próprio via createPortal no `document.body`
+ *   (lista de botões — NÃO aninha Select.Content em Dialog; Radix #2571).
+ *
+ * Importante: o sheet e as barras fixas do app devem viver no `body`,
+ * fora do container `overflow-y-auto` do layout — senão o Chrome mobile
+ * desalinha visual ↔ hit-target após scroll.
+ */
+
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import * as SelectPrimitive from '@radix-ui/react-select';
-import { Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
-const MOBILE_SHEET_BODY_CLASS = 'select-mobile-sheet-open';
 const MOBILE_QUERY = '(max-width: 767px)';
 
-/** Contador global: vários Selects abertos sem deixar classe órfã no body. */
-let mobileSheetOpenCount = 0;
+type SelectOption = {
+  value: string;
+  label: React.ReactNode;
+  disabled?: boolean;
+};
 
-function acquireMobileSheetBackdrop() {
-  if (typeof document === 'undefined') return;
-  if (!window.matchMedia(MOBILE_QUERY).matches) return;
-  mobileSheetOpenCount += 1;
-  document.body.classList.add(MOBILE_SHEET_BODY_CLASS);
-}
+type SelectUiContextValue = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  value?: string;
+  onValueChange?: (value: string) => void;
+  options: SelectOption[];
+  setOptions: (options: SelectOption[]) => void;
+  placeholder?: string;
+  setPlaceholder: (placeholder?: string) => void;
+};
 
-function releaseMobileSheetBackdrop() {
-  if (typeof document === 'undefined') return;
-  mobileSheetOpenCount = Math.max(0, mobileSheetOpenCount - 1);
-  if (mobileSheetOpenCount === 0) {
-    document.body.classList.remove(MOBILE_SHEET_BODY_CLASS);
+const SelectUiContext = React.createContext<SelectUiContextValue | null>(null);
+
+function useSelectUi() {
+  const ctx = React.useContext(SelectUiContext);
+  if (!ctx) {
+    throw new Error('Select.* deve ser usado dentro de <Select>');
   }
+  return ctx;
 }
 
 function subscribeMobile(onStoreChange: () => void) {
@@ -49,81 +69,334 @@ function useIsMobileSelect() {
   );
 }
 
+function getElementName(type: unknown): string {
+  if (typeof type === 'string') return type;
+  if (typeof type === 'function' || (typeof type === 'object' && type)) {
+    const t = type as { displayName?: string; name?: string };
+    return t.displayName || t.name || '';
+  }
+  return '';
+}
+
+function partitionSelectChildren(children: React.ReactNode): {
+  options: SelectOption[];
+  extras: React.ReactNode[];
+} {
+  const options: SelectOption[] = [];
+  const extras: React.ReactNode[] = [];
+
+  const walk = (node: React.ReactNode) => {
+    React.Children.forEach(node, (child) => {
+      if (!React.isValidElement(child)) return;
+
+      const name = getElementName(child.type);
+      const props = child.props as {
+        value?: string;
+        children?: React.ReactNode;
+        disabled?: boolean;
+      };
+
+      if (name === 'SelectItem') {
+        if (props.value != null && props.value !== '') {
+          options.push({
+            value: String(props.value),
+            label: props.children,
+            disabled: Boolean(props.disabled),
+          });
+        }
+        return;
+      }
+
+      if (name === 'SelectGroup') {
+        walk(props.children);
+        return;
+      }
+
+      if (name === 'SelectLabel' || name === 'SelectSeparator') {
+        return;
+      }
+
+      if (child.type === React.Fragment) {
+        walk(props.children);
+        return;
+      }
+
+      extras.push(child);
+    });
+  };
+
+  walk(children);
+  return { options, extras };
+}
+
+function lockAppScroll() {
+  const root = document.querySelector<HTMLElement>('[data-app-scroll-root]');
+  if (!root) return () => {};
+  const previous = root.style.overflow;
+  root.style.overflow = 'hidden';
+  return () => {
+    root.style.overflow = previous;
+  };
+}
+
+/**
+ * Bottom sheet no `document.body` (fora do scroll do layout).
+ */
+function MobileSelectSheet({
+  open,
+  onOpenChange,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: React.ReactNode;
+}) {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    return lockAppScroll();
+  }, [open]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onOpenChange(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, onOpenChange]);
+
+  if (!mounted || !open) return null;
+
+  return createPortal(
+    <div
+      className="pointer-events-auto fixed inset-0 z-[200] touch-manipulation"
+      role="presentation"
+      data-mobile-select-sheet-root=""
+      style={{ transform: 'translateZ(0)' }}
+    >
+      <button
+        type="button"
+        aria-label="Fechar"
+        className="absolute inset-0 bg-black/50"
+        onClick={() => onOpenChange(false)}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Selecionar"
+        className="absolute inset-x-0 bottom-0 flex max-h-[85dvh] min-h-[45dvh] flex-col rounded-t-2xl border border-b-0 bg-background shadow-[0_-8px_30px_rgba(0,0,0,0.18)]"
+      >
+        <div className="relative flex shrink-0 items-center justify-center border-b px-4 pb-3 pt-3">
+          <div
+            className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/35"
+            aria-hidden
+          />
+          <p className="pt-2 text-base font-semibold">Selecionar</p>
+          <button
+            type="button"
+            aria-label="Fechar"
+            className="absolute right-3 top-3 rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+            onClick={() => onOpenChange(false)}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          {children}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 type SelectProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>;
 
 function Select({
   open: openProp,
   defaultOpen,
   onOpenChange,
+  value: valueProp,
+  defaultValue,
+  onValueChange,
   ...props
 }: SelectProps) {
+  const isMobile = useIsMobileSelect();
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(
     defaultOpen ?? false,
   );
-  const isControlled = openProp !== undefined;
-  const open = isControlled ? Boolean(openProp) : uncontrolledOpen;
-  const wasOpenRef = React.useRef(false);
+  const [uncontrolledValue, setUncontrolledValue] = React.useState(
+    defaultValue != null ? String(defaultValue) : undefined,
+  );
+  const [options, setOptions] = React.useState<SelectOption[]>([]);
+  const [placeholder, setPlaceholder] = React.useState<string | undefined>();
 
-  React.useEffect(() => {
-    if (open && !wasOpenRef.current) {
-      acquireMobileSheetBackdrop();
-      wasOpenRef.current = true;
-    } else if (!open && wasOpenRef.current) {
-      releaseMobileSheetBackdrop();
-      wasOpenRef.current = false;
-    }
-  }, [open]);
-
-  React.useEffect(() => {
-    return () => {
-      if (wasOpenRef.current) {
-        releaseMobileSheetBackdrop();
-        wasOpenRef.current = false;
-      }
-    };
-  }, []);
+  const isOpenControlled = openProp !== undefined;
+  const isValueControlled = valueProp !== undefined;
+  const open = isOpenControlled ? Boolean(openProp) : uncontrolledOpen;
+  const value = isValueControlled
+    ? valueProp != null && valueProp !== ''
+      ? String(valueProp)
+      : undefined
+    : uncontrolledValue;
 
   const handleOpenChange = React.useCallback(
     (next: boolean) => {
-      if (!isControlled) {
-        setUncontrolledOpen(next);
-      }
+      if (!isOpenControlled) setUncontrolledOpen(next);
       onOpenChange?.(next);
     },
-    [isControlled, onOpenChange],
+    [isOpenControlled, onOpenChange],
   );
 
+  const handleValueChange = React.useCallback(
+    (next: string) => {
+      // eslint-disable-next-line no-console
+      console.log('[DEBUG select] handleValueChange', {
+        next,
+        isValueControlled,
+        hasOnValueChangeProp: typeof onValueChange === 'function',
+      });
+      if (!isValueControlled) setUncontrolledValue(next);
+      onValueChange?.(next);
+    },
+    [isValueControlled, onValueChange],
+  );
+
+  const ui = React.useMemo(
+    () => ({
+      open,
+      onOpenChange: handleOpenChange,
+      value,
+      onValueChange: handleValueChange,
+      options,
+      setOptions,
+      placeholder,
+      setPlaceholder,
+    }),
+    [open, handleOpenChange, value, handleValueChange, options, placeholder],
+  );
+
+  if (isMobile) {
+    // Mobile: nunca montar o Radix Select.Root. Trigger/Value/Content já são
+    // substituídos por markup próprio (sheet), e o Root do Radix não tem
+    // nenhum <Select.Item> real registrado nesse caminho — ao receber um
+    // `value` controlado externamente que ele não reconhece, o Root reage
+    // sozinho chamando onValueChange('') para "corrigir", desfazendo a
+    // seleção do usuário no próximo tick. Sem o Root montado, esse reset
+    // fantasma não acontece; o estado inteiro já é gerenciado pelo
+    // SelectUiContext acima.
+    return (
+      <SelectUiContext.Provider value={ui}>
+        {props.children}
+      </SelectUiContext.Provider>
+    );
+  }
+
   return (
-    <SelectPrimitive.Root
-      open={open}
-      onOpenChange={handleOpenChange}
-      {...props}
-    />
+    <SelectUiContext.Provider value={ui}>
+      <SelectPrimitive.Root
+        open={open}
+        onOpenChange={handleOpenChange}
+        value={value}
+        onValueChange={handleValueChange}
+        {...props}
+      />
+    </SelectUiContext.Provider>
   );
 }
 
-const SelectGroup = SelectPrimitive.Group;
+const SelectGroup = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Group>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Group>
+>((props, ref) => <SelectPrimitive.Group ref={ref} {...props} />);
+SelectGroup.displayName = 'SelectGroup';
 
-const SelectValue = SelectPrimitive.Value;
+const SelectValue = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Value>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Value>
+>(({ placeholder, className, ...props }, ref) => {
+  const isMobile = useIsMobileSelect();
+  const { value, options, setPlaceholder } = useSelectUi();
+
+  React.useEffect(() => {
+    setPlaceholder(typeof placeholder === 'string' ? placeholder : undefined);
+  }, [placeholder, setPlaceholder]);
+
+  if (isMobile) {
+    const selected = options.find((opt) => opt.value === value);
+    return (
+      <span
+        ref={ref as React.Ref<HTMLSpanElement>}
+        className={cn(
+          'line-clamp-1',
+          !selected && 'text-muted-foreground',
+          className,
+        )}
+      >
+        {selected ? selected.label : placeholder}
+      </span>
+    );
+  }
+
+  return (
+    <SelectPrimitive.Value
+      ref={ref}
+      placeholder={placeholder}
+      className={className}
+      {...props}
+    />
+  );
+});
+SelectValue.displayName = 'SelectValue';
 
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
-  <SelectPrimitive.Trigger
-    ref={ref}
-    className={cn(
-      'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
-      className,
-    )}
-    {...props}
-  >
-    {children}
-    <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 opacity-50" />
-    </SelectPrimitive.Icon>
-  </SelectPrimitive.Trigger>
-));
+>(({ className, children, ...props }, ref) => {
+  const isMobile = useIsMobileSelect();
+  const { open, onOpenChange } = useSelectUi();
+
+  const triggerClassName = cn(
+    'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
+    className,
+  );
+
+  if (isMobile) {
+    return (
+      <button
+        ref={ref as React.Ref<HTMLButtonElement>}
+        type="button"
+        className={triggerClassName}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        disabled={props.disabled}
+        onClick={() => onOpenChange(true)}
+      >
+        {children}
+        <ChevronDown className="h-4 w-4 opacity-50" />
+      </button>
+    );
+  }
+
+  return (
+    <SelectPrimitive.Trigger
+      ref={ref}
+      className={triggerClassName}
+      {...props}
+    >
+      {children}
+      <SelectPrimitive.Icon asChild>
+        <ChevronDown className="h-4 w-4 opacity-50" />
+      </SelectPrimitive.Icon>
+    </SelectPrimitive.Trigger>
+  );
+});
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 
 const SelectScrollUpButton = React.forwardRef<
@@ -133,7 +406,7 @@ const SelectScrollUpButton = React.forwardRef<
   <SelectPrimitive.ScrollUpButton
     ref={ref}
     className={cn(
-      'flex cursor-pointer items-center justify-center py-1 max-md:hidden',
+      'flex cursor-pointer items-center justify-center py-1',
       className,
     )}
     {...props}
@@ -150,7 +423,7 @@ const SelectScrollDownButton = React.forwardRef<
   <SelectPrimitive.ScrollDownButton
     ref={ref}
     className={cn(
-      'flex cursor-pointer items-center justify-center py-1 max-md:hidden',
+      'flex cursor-pointer items-center justify-center py-1',
       className,
     )}
     {...props}
@@ -161,10 +434,6 @@ const SelectScrollDownButton = React.forwardRef<
 SelectScrollDownButton.displayName =
   SelectPrimitive.ScrollDownButton.displayName;
 
-/**
- * Desktop: dropdown popper.
- * Mobile: bottom sheet (posição via CSS global — sem MutationObserver).
- */
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
@@ -183,53 +452,118 @@ const SelectContent = React.forwardRef<
     ref,
   ) => {
     const isMobile = useIsMobileSelect();
+    const {
+      open,
+      onOpenChange,
+      value,
+      onValueChange,
+      setOptions,
+    } = useSelectUi();
+
+    const { options, extras } = React.useMemo(
+      () => partitionSelectChildren(children),
+      [children],
+    );
+
+    React.useLayoutEffect(() => {
+      setOptions((prev) => {
+        if (
+          prev.length === options.length &&
+          prev.every(
+            (item, index) =>
+              item.value === options[index]?.value &&
+              item.disabled === options[index]?.disabled &&
+              item.label === options[index]?.label,
+          )
+        ) {
+          return prev;
+        }
+        return options;
+      });
+    }, [options, setOptions]);
+
+    if (isMobile) {
+      return (
+        <MobileSelectSheet open={open} onOpenChange={onOpenChange}>
+          <ul className="flex flex-col gap-0.5" role="listbox">
+            {options.map((opt) => {
+              const selected = opt.value === value;
+              return (
+                <li key={opt.value} role="none">
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    disabled={opt.disabled}
+                    className={cn(
+                      'flex w-full items-start gap-3 rounded-md px-3 py-3.5 text-left text-sm transition-colors',
+                      'hover:bg-accent hover:text-accent-foreground active:bg-accent',
+                      'disabled:pointer-events-none disabled:opacity-50',
+                      selected && 'bg-accent text-accent-foreground',
+                    )}
+                    onClick={() => {
+                      // eslint-disable-next-line no-console
+                      console.log('[DEBUG select] onClick item', {
+                        value: opt.value,
+                        disabled: opt.disabled,
+                        hasOnValueChange: typeof onValueChange === 'function',
+                      });
+                      if (opt.disabled) return;
+                      onValueChange?.(opt.value);
+                      onOpenChange(false);
+                    }}
+                  >
+                    <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
+                      {selected ? <Check className="h-4 w-4" /> : null}
+                    </span>
+                    <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">
+                      {opt.label}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          {extras.length > 0 ? (
+            <div
+              className="mt-2 border-t pt-2"
+              onClickCapture={() => {
+                window.setTimeout(() => onOpenChange(false), 0);
+              }}
+            >
+              {extras}
+            </div>
+          ) : null}
+        </MobileSelectSheet>
+      );
+    }
 
     return (
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content
           ref={ref}
-          data-mobile-select-sheet=""
           className={cn(
-            'relative z-[100] min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md',
-            'max-h-[min(24rem,70vh)]',
-            'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-            'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+            'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md',
+            'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
             'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
-            !isMobile &&
-              position === 'popper' &&
+            position === 'popper' &&
               'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
-            'max-md:box-border max-md:w-full max-md:max-w-[100dvw] max-md:min-w-full max-md:overflow-x-hidden',
-            'max-md:rounded-t-2xl max-md:rounded-b-none max-md:border-x-0 max-md:border-b-0',
-            'max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-md:shadow-[0_-8px_30px_rgba(0,0,0,0.18)]',
-            'max-md:data-[state=open]:fade-in-0 max-md:data-[state=open]:zoom-in-100',
-            'max-md:data-[state=open]:slide-in-from-bottom-4',
             className,
           )}
-          position={isMobile ? 'popper' : position}
-          side={isMobile ? 'bottom' : side}
-          align={isMobile ? 'center' : align}
-          avoidCollisions={isMobile ? false : avoidCollisions}
-          sideOffset={isMobile ? 0 : sideOffset}
+          position={position}
+          side={side}
+          align={align}
+          sideOffset={sideOffset}
+          avoidCollisions={avoidCollisions}
           {...props}
         >
-          <div
-            className="hidden justify-center pb-1 pt-3 max-md:flex"
-            aria-hidden
-          >
-            <div className="h-1 w-10 rounded-full bg-muted-foreground/35" />
-          </div>
           <SelectScrollUpButton />
           <SelectPrimitive.Viewport
             className={cn(
-              'overflow-y-auto overscroll-contain p-1',
-              'max-h-[min(22rem,66vh)]',
-              // Mobile: nunca herdar altura do trigger (senão a lista some)
-              'max-md:!h-auto max-md:min-h-[12rem] max-md:max-h-[min(65dvh,28rem)]',
-              'max-md:w-full max-md:min-w-0 max-md:max-w-full max-md:box-border',
-              'max-md:px-3 max-md:pb-3 max-md:pt-1',
-              !isMobile &&
-                position === 'popper' &&
-                'w-full min-w-[var(--radix-select-trigger-width)]',
+              'p-1',
+              position === 'popper' &&
+                'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]',
             )}
           >
             {children}
@@ -240,7 +574,7 @@ const SelectContent = React.forwardRef<
     );
   },
 );
-SelectContent.displayName = SelectPrimitive.Content.displayName;
+SelectContent.displayName = 'SelectContent';
 
 const SelectLabel = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Label>,
@@ -248,14 +582,11 @@ const SelectLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Label
     ref={ref}
-    className={cn(
-      'py-1.5 pl-8 pr-2 text-sm font-semibold max-md:px-1 max-md:pl-1',
-      className,
-    )}
+    className={cn('py-1.5 pl-8 pr-2 text-sm font-semibold', className)}
     {...props}
   />
 ));
-SelectLabel.displayName = SelectPrimitive.Label.displayName;
+SelectLabel.displayName = 'SelectLabel';
 
 const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
@@ -265,23 +596,19 @@ const SelectItem = React.forwardRef<
     ref={ref}
     className={cn(
       'relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-      'max-md:box-border max-md:min-h-12 max-md:max-w-full max-md:items-start max-md:rounded-md max-md:py-3 max-md:pl-10 max-md:pr-3',
       className,
     )}
     {...props}
   >
-    <span className="absolute left-2 top-1/2 flex h-3.5 w-3.5 -translate-y-1/2 items-center justify-center max-md:top-3.5 max-md:translate-y-0">
+    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
         <Check className="h-4 w-4" />
       </SelectPrimitive.ItemIndicator>
     </span>
-
-    <SelectPrimitive.ItemText className="max-md:whitespace-normal max-md:break-words">
-      {children}
-    </SelectPrimitive.ItemText>
+    <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
   </SelectPrimitive.Item>
 ));
-SelectItem.displayName = SelectPrimitive.Item.displayName;
+SelectItem.displayName = 'SelectItem';
 
 const SelectSeparator = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Separator>,
@@ -293,7 +620,7 @@ const SelectSeparator = React.forwardRef<
     {...props}
   />
 ));
-SelectSeparator.displayName = SelectPrimitive.Separator.displayName;
+SelectSeparator.displayName = 'SelectSeparator';
 
 export {
   Select,

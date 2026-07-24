@@ -18,6 +18,7 @@ import { BetaFeedbackButton } from '@/components/feedback/BetaFeedbackButton';
 import { SidebarBadgeSync } from '@/components/layout/SidebarBadgeSync';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { useSidebarContadores } from '@/hooks/use-sidebar-contadores';
+import { SidebarProvider } from '@/components/ui/sidebar';
 
 export default function DashboardLayout({
   children,
@@ -116,47 +117,52 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="app-shell flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-background lg:flex-row">
-      <SidebarBadgeSync userId={user.id} onModuloVisto={recarregar} />
-      <AppSidebar
-        userId={user.id}
-        permissions={permissions}
-        contadores={contadores}
-      />
+    <SidebarProvider>
+      <div className="app-shell flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-background lg:flex-row">
+        <SidebarBadgeSync userId={user.id} onModuloVisto={recarregar} />
+        <AppSidebar
+          userId={user.id}
+          permissions={permissions}
+          contadores={contadores}
+        />
 
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="shrink-0">
-          <MainHeader />
-        </div>
-        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-          {children}
-        </div>
-      </main>
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="shrink-0">
+            <MainHeader />
+          </div>
+          <div
+            data-app-scroll-root
+            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-6 lg:px-8 lg:py-6"
+          >
+            {children}
+          </div>
+        </main>
 
-      <Dialog
-        open={twoFactorReminderOpen}
-        onOpenChange={(open) => !open && closeTwoFactorReminder()}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-            <DialogTitle>Ative a segurança em dois fatores</DialogTitle>
-            <DialogDescription>
-              Proteja sua conta com um código temporário do Google
-              Authenticator, Microsoft Authenticator ou 1Password.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeTwoFactorReminder}>
-              Fazer depois
-            </Button>
-            <Button onClick={goToTwoFactorSettings}>Ativar 2FA</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <BetaFeedbackButton />
-    </div>
+        <Dialog
+          open={twoFactorReminderOpen}
+          onOpenChange={(open) => !open && closeTwoFactorReminder()}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+              <DialogTitle>Ative a segurança em dois fatores</DialogTitle>
+              <DialogDescription>
+                Proteja sua conta com um código temporário do Google
+                Authenticator, Microsoft Authenticator ou 1Password.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={closeTwoFactorReminder}>
+                Fazer depois
+              </Button>
+              <Button onClick={goToTwoFactorSettings}>Ativar 2FA</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <BetaFeedbackButton />
+      </div>
+    </SidebarProvider>
   );
 }
