@@ -217,15 +217,14 @@
 
 /*
  * Backdrop + posição do Select em mobile (bottom sheet).
- * Classe no body — sem nó React no Portal (evita tela preta órfã).
- * CSS reforça left/right/width para listas curtas não flutuarem no meio.
+ * Sheet acima do backdrop (z-index). Sem MutationObserver (quebrava a lista).
  */
 @media (max-width: 767px) {
   body.select-mobile-sheet-open::before {
     content: "";
     position: fixed;
     inset: 0;
-    z-index: 50;
+    z-index: 90;
     background: rgb(0 0 0 / 0.4);
     pointer-events: none;
   }
@@ -236,13 +235,26 @@
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
-    transform: none !important;
-    translate: none !important;
+    /* Não zerar transform: animações / Radix precisam dele; só reposiciona. */
     width: 100% !important;
     max-width: 100dvw !important;
     min-width: 100% !important;
+    max-height: min(75dvh, 32rem) !important;
     margin: 0 !important;
     box-sizing: border-box !important;
     overflow-x: hidden !important;
+    z-index: 100 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  body.select-mobile-sheet-open [data-mobile-select-sheet] [data-radix-select-viewport] {
+    height: auto !important;
+    min-height: 12rem !important;
+    max-height: min(65dvh, 28rem) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
 }

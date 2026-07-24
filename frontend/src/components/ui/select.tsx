@@ -41,7 +41,6 @@ function getMobileServerSnapshot() {
   return false;
 }
 
-/** Snapshot síncrono no client — evita sheet “flutuando” no 1º paint. */
 function useIsMobileSelect() {
   return React.useSyncExternalStore(
     subscribeMobile,
@@ -52,10 +51,6 @@ function useIsMobileSelect() {
 
 type SelectProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>;
 
-/**
- * Controla open para aplicar backdrop via classe no body (CSS),
- * sem Portal React — evita tela preta por overlay órfão.
- */
 function Select({
   open: openProp,
   defaultOpen,
@@ -168,7 +163,7 @@ SelectScrollDownButton.displayName =
 
 /**
  * Desktop: dropdown popper.
- * Mobile: sempre bottom sheet full-width (texto curto ou longo).
+ * Mobile: bottom sheet (posição via CSS global — sem MutationObserver).
  */
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
@@ -188,64 +183,14 @@ const SelectContent = React.forwardRef<
     ref,
   ) => {
     const isMobile = useIsMobileSelect();
-    const contentRef = React.useRef<HTMLDivElement | null>(null);
-
-    const setRefs = React.useCallback(
-      (node: HTMLDivElement | null) => {
-        contentRef.current = node;
-        if (typeof ref === 'function') {
-          ref(node);
-        } else if (ref) {
-          ref.current = node;
-        }
-      },
-      [ref],
-    );
-
-    // Sempre consulta matchMedia (não depende só do state) e re-aplica se o Radix mudar o style.
-    React.useLayoutEffect(() => {
-      const el = contentRef.current;
-      if (!el) return;
-
-      const mq = window.matchMedia(MOBILE_QUERY);
-
-      const pinToBottom = () => {
-        if (!mq.matches) return;
-        el.style.setProperty('position', 'fixed', 'important');
-        el.style.setProperty('top', 'auto', 'important');
-        el.style.setProperty('bottom', '0px', 'important');
-        el.style.setProperty('left', '0px', 'important');
-        el.style.setProperty('right', '0px', 'important');
-        el.style.setProperty('transform', 'none', 'important');
-        el.style.setProperty('translate', 'none', 'important');
-        el.style.setProperty('width', '100%', 'important');
-        el.style.setProperty('max-width', '100dvw', 'important');
-        el.style.setProperty('min-width', '100%', 'important');
-        el.style.setProperty('max-height', 'min(75dvh, 32rem)', 'important');
-        el.style.setProperty('box-sizing', 'border-box', 'important');
-        el.style.setProperty('margin', '0px', 'important');
-      };
-
-      pinToBottom();
-      const observer = new MutationObserver(pinToBottom);
-      observer.observe(el, {
-        attributes: true,
-        attributeFilter: ['style'],
-      });
-      mq.addEventListener('change', pinToBottom);
-      return () => {
-        observer.disconnect();
-        mq.removeEventListener('change', pinToBottom);
-      };
-    }, []);
 
     return (
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content
-          ref={setRefs}
+          ref={ref}
           data-mobile-select-sheet=""
           className={cn(
-            'relative z-[51] min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md',
+            'relative z-[100] min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md',
             'max-h-[min(24rem,70vh)]',
             'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
@@ -253,15 +198,14 @@ const SelectContent = React.forwardRef<
             !isMobile &&
               position === 'popper' &&
               'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
-            // Mobile sheet — classes CSS (reforço; pin também no layout effect + globals)
             'max-md:box-border max-md:w-full max-md:max-w-[100dvw] max-md:min-w-full max-md:overflow-x-hidden',
             'max-md:rounded-t-2xl max-md:rounded-b-none max-md:border-x-0 max-md:border-b-0',
-            'max-md:pb-[env(safe-area-inset-bottom)] max-md:shadow-[0_-8px_30px_rgba(0,0,0,0.18)]',
-            'max-md:data-[state=open]:slide-in-from-bottom max-md:data-[state=closed]:slide-out-to-bottom',
-            'max-md:data-[state=open]:zoom-in-100 max-md:data-[side=bottom]:translate-y-0',
+            'max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-md:shadow-[0_-8px_30px_rgba(0,0,0,0.18)]',
+            'max-md:data-[state=open]:fade-in-0 max-md:data-[state=open]:zoom-in-100',
+            'max-md:data-[state=open]:slide-in-from-bottom-4',
             className,
           )}
-          position={position}
+          position={isMobile ? 'popper' : position}
           side={isMobile ? 'bottom' : side}
           align={isMobile ? 'center' : align}
           avoidCollisions={isMobile ? false : avoidCollisions}
@@ -279,8 +223,10 @@ const SelectContent = React.forwardRef<
             className={cn(
               'overflow-y-auto overscroll-contain p-1',
               'max-h-[min(22rem,66vh)]',
-              'max-md:box-border max-md:!h-auto max-md:max-h-[min(65dvh,28rem)]',
-              'max-md:w-full max-md:min-w-0 max-md:max-w-full max-md:px-3 max-md:pb-3 max-md:pt-1',
+              // Mobile: nunca herdar altura do trigger (senão a lista some)
+              'max-md:!h-auto max-md:min-h-[12rem] max-md:max-h-[min(65dvh,28rem)]',
+              'max-md:w-full max-md:min-w-0 max-md:max-w-full max-md:box-border',
+              'max-md:px-3 max-md:pb-3 max-md:pt-1',
               !isMobile &&
                 position === 'popper' &&
                 'w-full min-w-[var(--radix-select-trigger-width)]',
@@ -330,10 +276,8 @@ const SelectItem = React.forwardRef<
       </SelectPrimitive.ItemIndicator>
     </span>
 
-    <SelectPrimitive.ItemText asChild>
-      <span className="block min-w-0 flex-1 whitespace-normal break-words text-left max-md:leading-snug">
-        {children}
-      </span>
+    <SelectPrimitive.ItemText className="max-md:whitespace-normal max-md:break-words">
+      {children}
     </SelectPrimitive.ItemText>
   </SelectPrimitive.Item>
 ));
