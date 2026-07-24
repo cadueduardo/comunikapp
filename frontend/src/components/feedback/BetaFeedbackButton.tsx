@@ -140,7 +140,7 @@ export function BetaFeedbackButton() {
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-50 print:hidden">
+      <div className="fixed bottom-20 right-6 z-50 print:hidden md:bottom-6">
         <Button
           type="button"
           onClick={() => setOpen(true)}

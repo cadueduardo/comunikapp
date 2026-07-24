@@ -15,7 +15,7 @@ type ModuleHeaderProps = {
   /** Configuração de navegação do módulo (reutilizável entre páginas). */
   nav: ModuleNavConfig;
   /**
-   * Título exibido no gatilho do submenu.
+   * Título estático da página.
    * Se omitido, usa o label do item ativo ou o label do módulo.
    */
   title?: string;
@@ -28,9 +28,9 @@ type ModuleHeaderProps = {
 };
 
 /**
- * Header de módulo com submenu de seções.
- * Desktop: dropdown no título. Mobile: bottom sheet.
- * Reutilizável — passe a config `nav` de cada módulo.
+ * Header de módulo.
+ * Desktop: título estático + botão "Seções" (submenu).
+ * Mobile: título estático; seções ficam no ModuleBottomNav (layout do módulo).
  */
 export function ModuleHeader({
   nav,
@@ -57,15 +57,20 @@ export function ModuleHeader({
           </Button>
         ) : null}
         <div className="min-w-0">
-          <p className="px-2 text-sm font-medium text-muted-foreground">
-            {nav.label}
-          </p>
-          <ModuleSubmenu
-            nav={nav}
-            activeHref={active?.href}
-            title={displayTitle}
-            icon={icon}
-          />
+          <div className="flex flex-wrap items-center gap-2 px-2">
+            <p className="text-sm font-medium text-muted-foreground">
+              {nav.label}
+            </p>
+            <ModuleSubmenu
+              nav={nav}
+              activeHref={active?.href}
+              className="hidden md:inline-flex"
+            />
+          </div>
+          <h1 className="flex items-center gap-2 px-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            {icon}
+            <span className="min-w-0 break-words">{displayTitle}</span>
+          </h1>
           {subtitle ? (
             <p className="mt-1 px-2 text-muted-foreground">{subtitle}</p>
           ) : null}

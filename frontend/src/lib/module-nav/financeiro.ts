@@ -15,6 +15,7 @@ export const financeiroModuleNav: ModuleNavConfig = {
     {
       id: 'visao-geral',
       label: 'Visão geral',
+      shortLabel: 'Geral',
       href: '/financeiro',
       description: 'Panorama de caixa, obrigações e atalhos da área.',
       icon: LayoutDashboard,
@@ -22,6 +23,7 @@ export const financeiroModuleNav: ModuleNavConfig = {
     {
       id: 'contas-receber',
       label: 'Contas a receber',
+      shortLabel: 'Receber',
       href: '/financeiro/recebimentos',
       description: 'Cobranças, parcelas, vencimentos e recebimentos.',
       icon: ArrowDownLeft,
@@ -29,6 +31,7 @@ export const financeiroModuleNav: ModuleNavConfig = {
     {
       id: 'contas-pagar',
       label: 'Contas a pagar',
+      shortLabel: 'Pagar',
       href: '/financeiro/contas-pagar',
       description: 'Obrigações com fornecedores e pagamentos.',
       icon: ArrowUpRight,
@@ -36,6 +39,7 @@ export const financeiroModuleNav: ModuleNavConfig = {
     {
       id: 'pos-calculo',
       label: 'Pós-cálculo (OS)',
+      shortLabel: 'Pós-cálculo',
       href: '/financeiro/pos-calculo',
       description: 'Previsto × real por OS, margens e fechamento.',
       icon: Calculator,
@@ -43,6 +47,7 @@ export const financeiroModuleNav: ModuleNavConfig = {
     {
       id: 'relatorios',
       label: 'Relatórios',
+      shortLabel: 'Relatórios',
       href: '/financeiro/relatorios',
       description: 'Visões consolidadas de caixa e inadimplência.',
       icon: BarChart3,

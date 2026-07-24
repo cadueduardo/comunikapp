@@ -3,6 +3,11 @@ import type { LucideIcon } from 'lucide-react';
 export type ModuleNavItem = {
   id: string;
   label: string;
+  /**
+   * Label curto para bottom nav mobile.
+   * Se omitido, usa `label`.
+   */
+  shortLabel?: string;
   href: string;
   description?: string;
   icon?: LucideIcon;
