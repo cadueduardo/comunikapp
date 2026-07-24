@@ -6,11 +6,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { DataTable } from '@/components/data-table/data-table';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ContaPagarCard } from '@/components/ui/conta-pagar-card';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { contasPagarApi } from '@/lib/api-client';
+import { financeiroModuleNav } from '@/lib/module-nav';
 import { createColumns, ContaPagar } from './columns';
 
 export default function ContasPagarListPage() {
@@ -48,40 +50,37 @@ export default function ContasPagarListPage() {
 
   return (
     <div>
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Contas a pagar</h1>
-          <p className="mt-1 text-muted-foreground">
-            Obrigações financeiras com fornecedores e pagamentos registrados.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          {!isMobile && (
-            <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
-              <Button
-                variant={viewMode === 'table' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('table')}
-                className="h-8 px-3"
-              >
-                <List className="mr-1 h-4 w-4" />
-                Tabela
-              </Button>
-              <Button
-                variant={viewMode === 'cards' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('cards')}
-                className="h-8 px-3"
-              >
-                <Grid3X3 className="mr-1 h-4 w-4" />
-                Cards
-              </Button>
-            </div>
-          )}
-          <Button asChild variant="outline">
-            <Link href="/financeiro">Voltar</Link>
-          </Button>
-        </div>
+      <div className="mb-8">
+        <ModuleHeader
+          nav={financeiroModuleNav}
+          title="Contas a pagar"
+          subtitle="Obrigações financeiras com fornecedores e pagamentos registrados."
+          icon={<Banknote className="h-7 w-7 sm:h-8 sm:w-8" />}
+          actions={
+            !isMobile ? (
+              <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                  className="h-8 px-3"
+                >
+                  <List className="mr-1 h-4 w-4" />
+                  Tabela
+                </Button>
+                <Button
+                  variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('cards')}
+                  className="h-8 px-3"
+                >
+                  <Grid3X3 className="mr-1 h-4 w-4" />
+                  Cards
+                </Button>
+              </div>
+            ) : undefined
+          }
+        />
       </div>
 
       {loading ? (

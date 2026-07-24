@@ -13,6 +13,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -22,6 +23,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { ApiClient } from '@/lib/api-client';
+import { financeiroModuleNav } from '@/lib/module-nav';
 import { formatarMoeda } from '@/lib/financeiro/financeiro-format';
 
 export interface FinanceiroDashboardKpis {
@@ -112,24 +114,24 @@ export default function FinanceiroHomePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Financeiro</h1>
-          <p className="mt-1 text-muted-foreground">
-            Panorama de caixa, obrigações e atalhos para cada recurso da área.
-          </p>
-        </div>
-        <Button
-          onClick={handleRefresh}
-          disabled={refreshing || loading}
-          variant="outline"
-        >
-          <RefreshCw
-            className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
-          />
-          Atualizar
-        </Button>
-      </div>
+      <ModuleHeader
+        nav={financeiroModuleNav}
+        title="Visão geral"
+        subtitle="Panorama de caixa, obrigações e atalhos para cada recurso da área."
+        icon={<Wallet className="h-7 w-7 sm:h-8 sm:w-8" />}
+        actions={
+          <Button
+            onClick={handleRefresh}
+            disabled={refreshing || loading}
+            variant="outline"
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
+            />
+            Atualizar
+          </Button>
+        }
+      />
 
       {/* KPIs — linha 1: saldos e vencidos */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">

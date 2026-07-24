@@ -17,7 +17,7 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +51,7 @@ import {
   numerosDocumentoAlinhados,
   osEsperadaDeOrcamento,
 } from '@/lib/expedicao/rastreio-documento.util';
+import { financeiroModuleNav } from '@/lib/module-nav';
 import { formatarMoeda } from '@/lib/financeiro/financeiro-format';
 import {
   exportarCobrancasCsv,
@@ -301,10 +302,10 @@ export default function RecebimentosPage() {
   if (!temPermissaoVisualizar) {
     return (
       <div className="space-y-6">
-        <PageHeader
+        <ModuleHeader
+          nav={financeiroModuleNav}
           title="Auditoria de recebimentos"
-          backHref="/financeiro"
-          icon={<Banknote className="h-8 w-8" />}
+          icon={<Banknote className="h-7 w-7 sm:h-8 sm:w-8" />}
           subtitle="Acompanhe cobranças e recebimentos por cliente"
         />
         <Card>
@@ -318,13 +319,13 @@ export default function RecebimentosPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <ModuleHeader
+        nav={financeiroModuleNav}
         title="Auditoria de recebimentos"
-        backHref="/financeiro"
-        icon={<Banknote className="h-8 w-8" />}
+        icon={<Banknote className="h-7 w-7 sm:h-8 sm:w-8" />}
         subtitle="Acompanhe cobranças e recebimentos por cliente"
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
               <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
               Atualizar

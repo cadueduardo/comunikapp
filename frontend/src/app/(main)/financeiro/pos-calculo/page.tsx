@@ -1,9 +1,9 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, Calculator, Search } from 'lucide-react';
+import { Calculator, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { OsPosCalculoPanel } from '@/components/os/OsPosCalculoPanel';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { financeiroModuleNav } from '@/lib/module-nav';
 
 export default function PosCalculoPage() {
   const [osIdInput, setOsIdInput] = useState('');
@@ -32,23 +33,12 @@ export default function PosCalculoPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Pós-cálculo (OS)
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            Previsto × real por ordem de serviço — receitas, custos, margens e
-            fechamento financeiro.
-          </p>
-        </div>
-        <Button asChild variant="outline">
-          <Link href="/financeiro">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar
-          </Link>
-        </Button>
-      </div>
+      <ModuleHeader
+        nav={financeiroModuleNav}
+        title="Pós-cálculo (OS)"
+        subtitle="Previsto × real por ordem de serviço — receitas, custos, margens e fechamento financeiro."
+        icon={<Calculator className="h-7 w-7 sm:h-8 sm:w-8" />}
+      />
 
       <Card>
         <CardHeader>

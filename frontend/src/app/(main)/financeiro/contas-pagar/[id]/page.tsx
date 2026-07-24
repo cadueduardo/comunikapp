@@ -1,8 +1,9 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
-import Link from 'next/link';
+import { Banknote } from 'lucide-react';
 import { toast } from 'sonner';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +37,7 @@ import {
   type ContaPagarApi,
   type MetodoPagamentoFornecedorApi,
 } from '@/lib/api-client';
+import { financeiroModuleNav } from '@/lib/module-nav';
 import {
   metodoPagamentoLabel,
   statusContaPagarLabel,
@@ -180,29 +182,26 @@ export default function ContaPagarDetalhePage({
 
   return (
     <div>
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Conta a pagar</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground">{conta.numero_documento}</span>
-            <Badge variant="secondary">
-              {statusContaPagarLabel[conta.status] ?? conta.status}
-            </Badge>
-            <span className="text-sm text-muted-foreground">
-              {formatMoeda(conta.valor_total)}
-            </span>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {podeRegistrar && (
-            <Button disabled={busy} onClick={abrirPagamento}>
-              Registrar pagamento
-            </Button>
-          )}
-          <Button asChild variant="outline">
-            <Link href="/financeiro/contas-pagar">Voltar</Link>
-          </Button>
-        </div>
+      <div className="mb-8">
+        <ModuleHeader
+          nav={financeiroModuleNav}
+          title="Conta a pagar"
+          icon={<Banknote className="h-7 w-7 sm:h-8 sm:w-8" />}
+          backHref="/financeiro/contas-pagar"
+          subtitle={`${conta.numero_documento} · ${formatMoeda(conta.valor_total)}`}
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">
+                {statusContaPagarLabel[conta.status] ?? conta.status}
+              </Badge>
+              {podeRegistrar ? (
+                <Button disabled={busy} onClick={abrirPagamento}>
+                  Registrar pagamento
+                </Button>
+              ) : null}
+            </div>
+          }
+        />
       </div>
 
       <Card className="mb-6">
