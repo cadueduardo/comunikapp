@@ -108,29 +108,36 @@ export function ModuleBottomNav({ nav, className }: ModuleBottomNavProps) {
     <>
       <div
         className={cn(
-          'fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden',
+          'fixed inset-x-0 bottom-0 z-40 md:hidden',
+          'border-t border-[#1254d4] bg-[#1764F5] text-white shadow-[0_-4px_16px_rgba(23,100,245,0.28)]',
           'pb-[env(safe-area-inset-bottom)]',
           className,
         )}
       >
-        <div className="mx-auto flex h-14 max-w-lg items-center px-3">
+        <div className="mx-auto flex h-14 max-w-lg items-center px-2">
           <Button
             type="button"
-            variant="outline"
-            className="h-10 w-full justify-between gap-2 px-3"
+            variant="ghost"
+            className={cn(
+              'h-11 w-full justify-between gap-2 px-3 font-medium text-white',
+              'hover:bg-white/15 hover:text-white',
+              'focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-0',
+            )}
             aria-haspopup="dialog"
             aria-expanded={open}
             onClick={() => setOpen(true)}
           >
             <span className="flex min-w-0 items-center gap-2">
-              <LayoutList className="h-4 w-4 shrink-0" />
+              <LayoutList className="h-4 w-4 shrink-0 text-white" />
               <span className="truncate">Navegar em {nav.label}</span>
             </span>
-            <span className="flex shrink-0 items-center gap-1 text-muted-foreground">
+            <span className="flex shrink-0 items-center gap-1.5 text-white/90">
               {activeLabel ? (
-                <span className="max-w-[7rem] truncate text-xs">{activeLabel}</span>
+                <span className="max-w-[7rem] truncate rounded-full bg-white/15 px-2 py-0.5 text-xs">
+                  {activeLabel}
+                </span>
               ) : null}
-              <ChevronUp className="h-4 w-4" />
+              <ChevronUp className="h-4 w-4 text-white" />
             </span>
           </Button>
         </div>
