@@ -7,6 +7,12 @@ const resolveSocketBaseUrl = () => {
 
   if (!configuredUrl || configuredUrl === '/api') {
     if (process.env.NODE_ENV !== 'production') {
+      if (typeof window !== 'undefined') {
+        const host = window.location.hostname;
+        if (host && host !== 'localhost' && host !== '127.0.0.1') {
+          return `${window.location.protocol}//${host}:4000`;
+        }
+      }
       return 'http://localhost:4000';
     }
     return '';
@@ -100,21 +106,21 @@ export const useArteWebSocket = (
     setConnectionStatus('connecting');
     shouldReconnectRef.current = true;
 
-    // Conectar ao namespace /arte-aprovacao
     const socket = io(`${SOCKET_BASE_URL}/arte-aprovacao`, {
-      transports: ['websocket', 'polling'],
-      timeout: 10000,
-      forceNew: true,
-      reconnection: false,
+      // Polling primeiro: mais estável em mobile/Safari
+      transports: ['polling', 'websocket'],
+      upgrade: true,
+      timeout: 12000,
+      forceNew: false,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
       auth: {
         token: token,
       },
       query: {
         lojaId: options.lojaId,
         usuarioId: options.usuarioId,
-      },
-      extraHeaders: {
-        Authorization: `Bearer ${token}`,
       },
     });
 

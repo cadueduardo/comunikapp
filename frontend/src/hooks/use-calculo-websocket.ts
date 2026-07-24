@@ -2,11 +2,24 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 const WEBSOCKET_DISABLED = false;
+
 const resolveSocketBaseUrl = () => {
-  const configuredUrl = (process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+  const configuredUrl = (
+    process.env.NEXT_PUBLIC_WS_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    ''
+  ).replace(/\/$/, '');
 
   if (!configuredUrl || configuredUrl === '/api') {
     if (process.env.NODE_ENV !== 'production') {
+      // Em device/mobile na mesma rede, localhost aponta para o telefone — não para o PC.
+      // Prefira NEXT_PUBLIC_WS_URL com IP da máquina (ex.: http://192.168.x.x:4000).
+      if (typeof window !== 'undefined') {
+        const host = window.location.hostname;
+        if (host && host !== 'localhost' && host !== '127.0.0.1') {
+          return `${window.location.protocol}//${host}:4000`;
+        }
+      }
       return 'http://localhost:4000';
     }
     return '';
@@ -19,8 +32,6 @@ const resolveSocketBaseUrl = () => {
   return configuredUrl;
 };
 
-const SOCKET_BASE_URL = resolveSocketBaseUrl();
-
 interface UseCalculoWebSocketOptions {
   lojaId?: string;
   usuarioId?: string;
@@ -28,24 +39,29 @@ interface UseCalculoWebSocketOptions {
 
 export interface CalculoWebSocketHook {
   connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
-  executarCalculo: (data: any) => void;
-  executarCalculoOrcamento: (data: any) => void;
+  executarCalculo: (data: unknown) => void;
+  executarCalculoOrcamento: (data: unknown) => void;
   isConnected: boolean;
-  resultadoProduto: any;
-  resultadoOrcamento: any;
+  resultadoProduto: unknown;
+  resultadoOrcamento: unknown;
 }
+
+/**
+ * Socket compartilhado — evita 2 conexões (form + Preview) no mobile.
+ */
+let sharedSocket: Socket | null = null;
+let sharedRefCount = 0;
 
 export const useCalculoWebSocket = (
   options: UseCalculoWebSocketOptions = {},
 ): CalculoWebSocketHook => {
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>(
-    'disconnected',
-  );
+  const [connectionStatus, setConnectionStatus] = useState<
+    'connecting' | 'connected' | 'disconnected' | 'error'
+  >('disconnected');
   const [isConnected, setIsConnected] = useState(false);
-  const [resultadoProduto, setResultadoProduto] = useState<any>(null);
-  const [resultadoOrcamento, setResultadoOrcamento] = useState<any>(null);
+  const [resultadoProduto, setResultadoProduto] = useState<unknown>(null);
+  const [resultadoOrcamento, setResultadoOrcamento] = useState<unknown>(null);
 
-  const socketRef = useRef<Socket | null>(null);
   const isConnectingRef = useRef(false);
   const hasConnectedRef = useRef(false);
   const shouldReconnectRef = useRef(true);
@@ -57,26 +73,34 @@ export const useCalculoWebSocket = (
   const resolveIdentifiers = useCallback(() => {
     const lojaId =
       options.lojaId ??
-      (typeof window !== 'undefined' ? localStorage.getItem('loja_id') ?? undefined : undefined);
+      (typeof window !== 'undefined'
+        ? (localStorage.getItem('loja_id') ?? undefined)
+        : undefined);
     const usuarioId =
       options.usuarioId ??
-      (typeof window !== 'undefined' ? localStorage.getItem('user_id') ?? undefined : undefined);
+      (typeof window !== 'undefined'
+        ? (localStorage.getItem('user_id') ?? undefined)
+        : undefined);
 
     identifiersRef.current = { lojaId, usuarioId };
     return identifiersRef.current;
   }, [options.lojaId, options.usuarioId]);
 
   const disconnect = useCallback(() => {
-    shouldReconnectRef.current = false;
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
+    sharedRefCount = Math.max(0, sharedRefCount - 1);
+    if (sharedRefCount > 0) {
+      return;
     }
 
-    setConnectionStatus((prev) => (prev === 'disconnected' ? prev : 'disconnected'));
+    shouldReconnectRef.current = false;
+    if (sharedSocket) {
+      sharedSocket.removeAllListeners();
+      sharedSocket.disconnect();
+      sharedSocket = null;
+    }
+
+    setConnectionStatus('disconnected');
     setIsConnected(false);
-    setResultadoProduto(null);
-    setResultadoOrcamento(null);
     isConnectingRef.current = false;
     hasConnectedRef.current = false;
   }, []);
@@ -87,8 +111,12 @@ export const useCalculoWebSocket = (
     }
 
     const token =
-      (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null) ||
-      (typeof window !== 'undefined' ? sessionStorage.getItem('access_token') : null);
+      (typeof window !== 'undefined'
+        ? localStorage.getItem('access_token')
+        : null) ||
+      (typeof window !== 'undefined'
+        ? sessionStorage.getItem('access_token')
+        : null);
 
     if (!token) {
       setConnectionStatus('disconnected');
@@ -102,7 +130,15 @@ export const useCalculoWebSocket = (
       return;
     }
 
-    if (socketRef.current?.connected) {
+    if (sharedSocket?.connected) {
+      setConnectionStatus('connected');
+      setIsConnected(true);
+      return;
+    }
+
+    const baseUrl = resolveSocketBaseUrl();
+    if (!baseUrl) {
+      setConnectionStatus('disconnected');
       return;
     }
 
@@ -110,22 +146,25 @@ export const useCalculoWebSocket = (
     setConnectionStatus('connecting');
     shouldReconnectRef.current = true;
 
-    const socket = io(`${SOCKET_BASE_URL}/calculo-v2`, {
-      transports: ['websocket', 'polling'],
-      timeout: 10000,
-      forceNew: true,
-      reconnection: false,
+    // Polling primeiro: mais estável em Safari/mobile e redes com proxy.
+    // extraHeaders NÃO funciona no browser — usar auth.
+    const socket = io(`${baseUrl}/calculo-v2`, {
+      transports: ['polling', 'websocket'],
+      upgrade: true,
+      timeout: 12000,
+      forceNew: false,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+      auth: { token },
       query: {
         token,
         lojaId,
         usuarioId,
       },
-      extraHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
     });
 
-    socketRef.current = socket;
+    sharedSocket = socket;
 
     socket.on('connect', () => {
       setConnectionStatus('connected');
@@ -134,14 +173,14 @@ export const useCalculoWebSocket = (
       hasConnectedRef.current = true;
     });
 
-    socket.on('status', (message: any) => {
+    socket.on('status', (message: { conectado?: boolean }) => {
       if (message?.conectado) {
         setConnectionStatus('connected');
         setIsConnected(true);
       }
     });
 
-    socket.on('calculo_concluido', (message: any) => {
+    socket.on('calculo_concluido', (message: unknown) => {
       setResultadoProduto(message);
       setResultadoOrcamento(message);
     });
@@ -153,35 +192,20 @@ export const useCalculoWebSocket = (
     socket.on('disconnect', () => {
       setConnectionStatus('disconnected');
       setIsConnected(false);
-      setResultadoProduto(null);
-      setResultadoOrcamento(null);
       isConnectingRef.current = false;
       hasConnectedRef.current = false;
-
-      if (shouldReconnectRef.current) {
-        setTimeout(() => {
-          if (!hasConnectedRef.current && shouldReconnectRef.current) {
-            connect();
-          }
-        }, 5000);
-      }
+      // Mantém último resultado — preview local continua válido.
     });
 
     socket.on('connect_error', () => {
       setConnectionStatus('error');
       isConnectingRef.current = false;
-      if (shouldReconnectRef.current) {
-        setTimeout(() => {
-          if (!hasConnectedRef.current && shouldReconnectRef.current) {
-            connect();
-          }
-        }, 3000);
-      }
     });
 
     socket.on('erro-autenticacao', () => {
       setConnectionStatus('error');
       isConnectingRef.current = false;
+      shouldReconnectRef.current = false;
     });
   }, [resolveIdentifiers]);
 
@@ -190,6 +214,7 @@ export const useCalculoWebSocket = (
       return () => undefined;
     }
 
+    sharedRefCount += 1;
     const { lojaId, usuarioId } = resolveIdentifiers();
 
     if (lojaId && usuarioId) {
@@ -204,21 +229,21 @@ export const useCalculoWebSocket = (
   }, [connect, disconnect, resolveIdentifiers]);
 
   const executarCalculo = useCallback(
-    (data: any) => {
-      if (socketRef.current && isConnected) {
-        socketRef.current.emit('calcular_preview', data);
+    (data: unknown) => {
+      if (sharedSocket?.connected) {
+        sharedSocket.emit('calcular_preview', data);
       }
     },
-    [isConnected],
+    [],
   );
 
   const executarCalculoOrcamento = useCallback(
-    (data: any) => {
-      if (socketRef.current && isConnected) {
-        socketRef.current.emit('calcular_preview', data);
+    (data: unknown) => {
+      if (sharedSocket?.connected) {
+        sharedSocket.emit('calcular_preview', data);
       }
     },
-    [isConnected],
+    [],
   );
 
   if (WEBSOCKET_DISABLED) {

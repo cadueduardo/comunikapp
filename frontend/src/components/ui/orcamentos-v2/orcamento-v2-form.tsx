@@ -12,7 +12,6 @@ import { Calculator, CheckCircle2, Save, LayoutTemplate } from 'lucide-react';
 import { orcamentosApi, produtosApi, produtosFinitosApi } from '@/lib/api-client';
 import { createFormSchema, FormValues, validarMateriaisItensProduto } from '../orcamento/schemas/orcamento.schema';
 import { useOrcamentoData } from '../orcamento/hooks/useOrcamentoData';
-import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
 import {
   montarPreviewOrcamento,
   resolverTipoMargemLucroOrcamento,
@@ -264,8 +263,8 @@ export function OrcamentoV2Form({
   const funcaoUsuario = String(user?.funcao || '').toLowerCase();
   const podeFecharPedido = ['admin', 'administrador', 'gerente', 'vendedor'].includes(funcaoUsuario);
 
-  // Hook para WebSocket - capturar dados calculados do preview
-  const { resultadoOrcamento, isConnected } = useCalculoWebSocket();
+  // Preview usa cálculo local; WebSocket opcional só no PreviewCalculoV2.
+  // Evita segunda conexão no mobile (fonte comum de "Erro de conexão").
   
   // Estado para armazenar dados calculados localmente
   const [dadosCalculadosLocais, setDadosCalculadosLocais] = useState<any>(null);
@@ -2372,7 +2371,7 @@ export function OrcamentoV2Form({
       }
 
       // Capturar dados calculados do preview se disponíveis
-      let dadosCalculados = dadosCalculadosLocais || resultadoOrcamento?.resultado;
+      let dadosCalculados = dadosCalculadosLocais;
       
       // Se não há dados do preview, calcular localmente
       if (!dadosCalculados) {
@@ -2479,7 +2478,7 @@ export function OrcamentoV2Form({
       }
 
       const dadosCalculados =
-        calcularDadosQuandoNecessario() || resultadoOrcamento?.resultado;
+        calcularDadosQuandoNecessario();
       const dadosTransformados = transformarDadosParaBackend(formData, dadosCalculados);
       const produtoTemplate = {
         ...transformarDadosParaProdutoTemplate(dadosTransformados, {
@@ -2526,7 +2525,7 @@ export function OrcamentoV2Form({
 
       // Calcular dados no momento do salvamento
       console.log('🔍 Debug - Calculando dados para salvamento...');
-      const dadosCalculados = calcularDadosQuandoNecessario() || resultadoOrcamento?.resultado;
+      const dadosCalculados = calcularDadosQuandoNecessario();
       
       if (dadosCalculados) {
         console.log('🔍 Debug - Dados calculados para salvamento:', dadosCalculados);
@@ -2624,7 +2623,7 @@ export function OrcamentoV2Form({
       }
 
       // Capturar dados calculados do preview se disponíveis
-      let dadosCalculados = dadosCalculadosLocais || resultadoOrcamento?.resultado;
+      let dadosCalculados = dadosCalculadosLocais;
       
       // Se não há dados do preview, calcular localmente
       if (!dadosCalculados) {
@@ -2735,7 +2734,7 @@ export function OrcamentoV2Form({
         }
       }
 
-      let dadosCalculados = dadosCalculadosLocais || resultadoOrcamento?.resultado;
+      let dadosCalculados = dadosCalculadosLocais;
 
       if (!dadosCalculados) {
         const calculoLocal = calcularDadosLocalmente(formData);
@@ -3255,8 +3254,8 @@ export function OrcamentoV2Form({
                 </div>
               </div>
 
-              {/* Sidebar com preview de cálculo */}
-              <div className="w-full lg:w-3/10 lg:flex-shrink-0">
+              {/* Sidebar com preview — desktop */}
+              <div className="hidden w-full lg:block lg:w-3/10 lg:flex-shrink-0">
                 <div className="sticky top-6 space-y-3">
                   <PreviewCalculoV2
                     dadosCarregados={dadosCarregados}
@@ -3269,9 +3268,26 @@ export function OrcamentoV2Form({
                       servicos,
                       custosIndiretos,
                     }}
+                    layout="sidebar"
                   />
                 </div>
               </div>
+            </div>
+            {/* Mobile: total fixo + preview em sheet */}
+            <div className="lg:hidden">
+              <PreviewCalculoV2
+                dadosCarregados={dadosCarregados}
+                refreshKey={produtosSectionKey}
+                itensProdutoCarregados={itensProdutoCarregados}
+                datasets={{
+                  insumos,
+                  maquinas,
+                  funcoes,
+                  servicos,
+                  custosIndiretos,
+                }}
+                layout="mobile-dock"
+              />
             </div>
           ) : (
             /* Layout sem Preview - Formulário completo */

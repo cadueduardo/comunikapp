@@ -12,6 +12,14 @@ import { useCalculoWebSocket } from '@/hooks/use-calculo-websocket';
 import { useUser } from '@/contexts/UserContext';
 import { Cliente, Insumo, Maquina, Funcao, ServicoManual } from '../types/common.types';
 import { produtosFinitosApi } from '@/lib/api-client';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 const parseCustoPreview = (valor: unknown): number => {
   if (valor === null || valor === undefined || valor === '') return 0;
@@ -51,6 +59,12 @@ interface PreviewCalculoV2Props {
   itensProdutoCarregados?: unknown[];
   /** Quando informado, o preview usa a mesma lista do formulário (evita estado duplicado após cadastro inline de insumo). */
   datasets?: PreviewCalculoDatasets;
+  /**
+   * sidebar — sticky desktop (default)
+   * plain — conteúdo sem sticky (ex.: dentro de modal)
+   * mobile-dock — barra fixa + sheet no mobile
+   */
+  layout?: 'sidebar' | 'plain' | 'mobile-dock';
 }
 
 type PreviewCustoIndireto = {
@@ -190,9 +204,11 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   refreshKey = 0,
   itensProdutoCarregados,
   datasets,
+  layout = 'sidebar',
 }) => {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [showIndirectCosts, setShowIndirectCosts] = useState(false);
+  const [dockOpen, setDockOpen] = useState(false);
   const [formSnapshot, setFormSnapshot] = useState<Record<string, unknown> | null>(null);
   /** Cache produto_finito_id → preço de custo do catálogo (fonte de verdade para o preview). */
   const [custosCatalogo, setCustosCatalogo] = useState<Record<string, number>>({});
@@ -696,46 +712,78 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
 
   // Se nao ha dados, mostrar estado vazio
   if (!data) {
-    return (
-      <div className="sticky top-6 bg-white rounded-lg shadow-sm border max-h-[calc(100vh-3rem)] flex flex-col">
-        {/* Header fixo */}
-        <div className="p-6 pb-4 border-b border-gray-100">
-          <div className="flex items-center gap-2 mb-2">
+    const emptyBody = (
+      <div
+        className={cn(
+        layout === 'plain' || layout === 'mobile-dock'
+            ? 'flex flex-col bg-background'
+            : 'sticky top-6 flex max-h-[calc(100vh-3rem)] flex-col rounded-lg border bg-white shadow-sm',
+        )}
+      >
+        <div className="border-b border-gray-100 p-6 pb-4">
+          <div className="mb-2 flex items-center gap-2">
             <Calculator className="h-5 w-5 text-blue-600" />
             <h2 className="text-lg font-semibold text-gray-900">Preview do Cálculo</h2>
           </div>
           <Badge variant="outline" className="text-xs">
-            Desconectado
+            Cálculo local
           </Badge>
         </div>
-        
-        {/* Conteudo com scroll */}
         <div className="flex-1 overflow-y-auto p-6 pt-4">
-          <div className="text-center text-gray-500 py-8">
-            <Calculator className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+          <div className="py-8 text-center text-gray-500">
+            <Calculator className="mx-auto mb-4 h-12 w-12 text-gray-400" />
             <p>Nenhum cálculo disponível</p>
             <p className="text-sm">Adicione produtos para ver o preview</p>
           </div>
         </div>
       </div>
     );
+
+    if (layout === 'mobile-dock') {
+      return (
+        <MobileDockShell
+          totalLabel="0,00"
+          open={dockOpen}
+          onOpenChange={setDockOpen}
+        >
+          {emptyBody}
+        </MobileDockShell>
+      );
+    }
+
+    return emptyBody;
   }
 
-  return (
-    <div className="sticky top-6 bg-white rounded-lg shadow-sm border max-h-[calc(100vh-3rem)] flex flex-col">
+  const connectionBadgeLabel = isConnected
+    ? 'Tempo real ativo'
+    : connectionStatus === 'connecting'
+      ? 'Conectando...'
+      : 'Cálculo local';
+
+  const previewBody = (
+    <div
+      className={cn(
+        'flex flex-col',
+        layout === 'plain' || layout === 'mobile-dock'
+          ? 'bg-background'
+          : 'sticky top-6 max-h-[calc(100vh-3rem)] rounded-lg border bg-white shadow-sm',
+      )}
+    >
       {/* Header fixo */}
-      <div className="p-6 pb-4 border-b border-gray-100">
-        <div className="flex items-center gap-2 mb-2">
+      <div className="border-b border-gray-100 p-6 pb-4">
+        <div className="mb-2 flex items-center gap-2">
           <Calculator className="h-5 w-5 text-blue-600" />
           <h2 className="text-lg font-semibold text-gray-900">Preview do Cálculo</h2>
         </div>
-        <Badge 
-          variant="outline" 
-          className={`text-xs ${isConnected ? 'text-green-600 border-green-200' : 'text-red-600 border-red-200'}`}
+        <Badge
+          variant="outline"
+          className={`text-xs ${
+            isConnected
+              ? 'border-green-200 text-green-600'
+              : 'border-blue-200 text-blue-700'
+          }`}
         >
-          {connectionStatus === 'connecting' ? 'Conectando...' : 
-           isConnected ? 'Tempo real ativo' : 
-           connectionStatus === 'error' ? 'Erro de conexão' : 'Desconectado'}
+          {connectionBadgeLabel}
         </Badge>
       </div>
 
@@ -745,13 +793,13 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
         {/* Resumo do Orçamento */}
         <div>
           <div className="pb-3">
-            <h3 className="text-base font-semibold flex items-center gap-2">
+            <h3 className="flex items-center gap-2 text-base font-semibold">
               <Package className="h-4 w-4" />
               Resumo do Orçamento
             </h3>
           </div>
           <div className="space-y-3">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Valor Total (Venda)</span>
               <span className="text-lg font-bold text-green-600">
                 R$ {formatarValor(data.resumo.preco_final)}
@@ -1293,7 +1341,86 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
       </div>
     </div>
   );
+
+  if (layout === 'mobile-dock') {
+    return (
+      <MobileDockShell
+        totalLabel={formatarValor(data.resumo.preco_final ?? 0)}
+        open={dockOpen}
+        onOpenChange={setDockOpen}
+      >
+        {previewBody}
+      </MobileDockShell>
+    );
+  }
+
+  return previewBody;
 };
+
+function MobileDockShell({
+  totalLabel,
+  open,
+  onOpenChange,
+  children,
+}: {
+  totalLabel: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      <div
+        className={cn(
+          'fixed inset-x-0 z-30 border-t border-[#1254d4] bg-[#1764F5] text-white',
+          'shadow-[0_-4px_16px_rgba(23,100,245,0.28)]',
+          'bottom-[calc(3.5rem+env(safe-area-inset-bottom))]',
+        )}
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-14 w-full justify-between gap-3 rounded-none px-4 text-white hover:bg-white/15 hover:text-white"
+          onClick={() => onOpenChange(true)}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <Calculator className="h-5 w-5 shrink-0" />
+            <span className="truncate text-sm font-medium">Total venda</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-2">
+            <span className="text-base font-bold tabular-nums">R$ {totalLabel}</span>
+            <ChevronUp className="h-4 w-4 opacity-90" />
+          </span>
+        </Button>
+      </div>
+      <div className="h-14" aria-hidden />
+
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          showCloseButton
+          className={cn(
+            'top-auto bottom-0 left-0 right-0 flex max-h-[88dvh] w-full max-w-none flex-col gap-0 overflow-hidden p-0',
+            'translate-x-0 translate-y-0 rounded-t-2xl rounded-b-none border-x-0 border-b-0',
+            'data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom',
+            'data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100',
+          )}
+        >
+          <DialogHeader className="shrink-0 border-b px-4 py-3 text-left">
+            <DialogTitle>Preview do cálculo</DialogTitle>
+            <DialogDescription>
+              Detalhamento do orçamento. Role para ver custos e margens.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            {children}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
 
 export default PreviewCalculoV2;
 
