@@ -3042,7 +3042,8 @@ export function OrcamentoV2Form({
       <Form {...form}>
         <form onSubmit={(e) => e.preventDefault()} className="w-full">
           {showPreview ? (
-            /* Layout com Preview - Flex horizontal */
+            <>
+            {/* Layout com Preview - Flex horizontal */}
             <div className="flex flex-col lg:flex-row gap-6">
               {/* Formulário principal */}
               <div className="flex-1">
@@ -3289,6 +3290,7 @@ export function OrcamentoV2Form({
                 layout="mobile-dock"
               />
             </div>
+            </>
           ) : (
             /* Layout sem Preview - Formulário completo */
             <div className="w-full bg-white rounded-lg shadow-sm border p-6 space-y-6">
