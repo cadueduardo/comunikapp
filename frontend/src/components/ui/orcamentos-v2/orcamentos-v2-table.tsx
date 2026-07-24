@@ -256,9 +256,9 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-sm">
+    <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full min-w-0 sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
             placeholder="Buscar por servico, cliente ou numero..."
@@ -267,7 +267,7 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
             className="pl-10"
           />
         </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+        <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           <Button onClick={handleRefresh} variant="outline" className="flex items-center gap-2">
             <Loader2 className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           Atualizar
@@ -288,7 +288,7 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
         </div>
       </div>
 
-      <div className="crud-table-shell">
+      <div className="crud-table-shell max-w-full">
           <table>
             <thead>
               <tr>

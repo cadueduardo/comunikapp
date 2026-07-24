@@ -94,17 +94,17 @@ export function OrcamentosV2Cards() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6 overflow-x-hidden">
       {/* Filtros */}
-      <Card>
+      <Card className="min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle className="text-lg">Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
+          <div className="flex min-w-0 flex-col gap-4 sm:flex-row">
+            <div className="min-w-0 flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <Input
                   placeholder="Buscar por número, serviço ou cliente..."
                   value={searchTerm}
@@ -114,8 +114,8 @@ export function OrcamentosV2Cards() {
               </div>
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-48">
-                <Filter className="w-4 h-4 mr-2" />
+              <SelectTrigger className="w-full shrink-0 sm:w-48">
+                <Filter className="mr-2 h-4 w-4" />
                 <SelectValue placeholder="Filtrar por status" />
               </SelectTrigger>
               <SelectContent>
@@ -134,18 +134,22 @@ export function OrcamentosV2Cards() {
       </Card>
 
       {/* Lista de Cartões */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
         {filteredOrcamentos.map((orcamento) => (
-          <Card key={orcamento.id} className="hover:shadow-lg transition-shadow">
+          <Card key={orcamento.id} className="min-w-0 overflow-hidden hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <CardTitle className="text-lg mb-2">{orcamento.nome_servico}</CardTitle>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="outline" className="text-xs">
+              <div className="flex min-w-0 items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <CardTitle className="mb-2 break-words text-lg">
+                    {orcamento.nome_servico}
+                  </CardTitle>
+                  <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
+                    <Badge variant="outline" className="max-w-full truncate text-xs">
                       {orcamento.numero}
                     </Badge>
-                    <Badge className={statusColors[orcamento.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}>
+                    <Badge
+                      className={`max-w-full truncate ${statusColors[orcamento.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}`}
+                    >
                       {orcamento.status === 'rascunho' ? 'Rascunho' : 
                        orcamento.status === 'enviado' ? 'Enviado' :
                        orcamento.status === 'NEGOCIANDO' ? 'Negociando' :
@@ -156,28 +160,30 @@ export function OrcamentosV2Cards() {
               </div>
             </CardHeader>
             
-            <CardContent className="space-y-4">
+            <CardContent className="min-w-0 space-y-4">
               {/* Descrição */}
-              <p className="text-sm text-gray-600 line-clamp-2">
+              <p className="break-words text-sm text-gray-600 line-clamp-2">
                 {orcamento.descricao}
               </p>
 
               {/* Informações */}
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-700">{orcamento.cliente?.nome || 'Cliente não informado'}</span>
+              <div className="min-w-0 space-y-2 text-sm">
+                <div className="flex min-w-0 items-center gap-2">
+                  <User className="h-4 w-4 shrink-0 text-gray-400" />
+                  <span className="min-w-0 truncate text-gray-700">
+                    {orcamento.cliente?.nome || 'Cliente não informado'}
+                  </span>
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
+                <div className="flex min-w-0 items-center gap-2">
+                  <Calendar className="h-4 w-4 shrink-0 text-gray-400" />
                   <span className="text-gray-700">
                     {orcamento.criado_em || '-'}
                   </span>
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-gray-400" />
+                <div className="flex min-w-0 items-center gap-2">
+                  <DollarSign className="h-4 w-4 shrink-0 text-gray-400" />
                   <span className="font-semibold text-gray-900">
                     {formatCurrency(orcamento.preco_final)}
                   </span>
@@ -185,24 +191,24 @@ export function OrcamentosV2Cards() {
               </div>
 
               {/* Ações */}
-              <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                <Button variant="outline" size="sm" className="flex-1 min-w-[5rem]" asChild>
+              <div className="flex flex-wrap gap-2 border-t border-border pt-2">
+                <Button variant="outline" size="sm" className="min-w-0 flex-1 basis-[calc(50%-0.25rem)]" asChild>
                   <Link href={`/orcamentos-v2/novo?id=${orcamento.id}`}>
-                    <Edit className="w-4 h-4 mr-1" />
+                    <Edit className="mr-1 h-4 w-4" />
                     Editar
                   </Link>
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 min-w-[5rem]"
+                  className="min-w-0 flex-1 basis-[calc(50%-0.25rem)]"
                   disabled={isDuplicando(orcamento.id)}
                   onClick={() => void duplicar(orcamento.id, { onSuccess: () => refetch() })}
                 >
                   {isDuplicando(orcamento.id) ? (
-                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                   ) : (
-                    <Copy className="w-4 h-4 mr-1" />
+                    <Copy className="mr-1 h-4 w-4" />
                   )}
                   Duplicar
                 </Button>
@@ -213,7 +219,7 @@ export function OrcamentosV2Cards() {
                   className="text-primary"
                   title="Compartilhar"
                 >
-                  <Share2 className="w-4 h-4" />
+                  <Share2 className="h-4 w-4" />
                 </Button>
               </div>
             </CardContent>
@@ -223,10 +229,10 @@ export function OrcamentosV2Cards() {
 
       {filteredOrcamentos.length === 0 && (
         <Card>
-          <CardContent className="text-center py-12">
+          <CardContent className="py-12 text-center">
             <div className="text-gray-500">
-              <Search className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <p className="text-lg font-medium mb-2">Nenhum orçamento encontrado</p>
+              <Search className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+              <p className="mb-2 text-lg font-medium">Nenhum orçamento encontrado</p>
               <p className="text-sm">Tente ajustar os filtros de busca</p>
             </div>
           </CardContent>

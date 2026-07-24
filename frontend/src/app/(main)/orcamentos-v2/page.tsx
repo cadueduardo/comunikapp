@@ -1,42 +1,51 @@
 'use client';
 
-import React from 'react';
-import { OrcamentosV2Table } from '@/components/ui/orcamentos-v2/orcamentos-v2-table';
-import { OrcamentosV2Cards } from '@/components/ui/orcamentos-v2/orcamentos-v2-cards';
-import { ViewToggle } from '@/components/ui/shared/view-toggle';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { FileText, Plus } from 'lucide-react';
+import { ModuleHeader } from '@/components/layout/ModuleHeader';
+import { OrcamentosV2Cards } from '@/components/ui/orcamentos-v2/orcamentos-v2-cards';
+import { OrcamentosV2Table } from '@/components/ui/orcamentos-v2/orcamentos-v2-table';
+import { Button } from '@/components/ui/button';
+import { ViewToggle } from '@/components/ui/shared/view-toggle';
+import { useIsMobile } from '@/hooks/use-media-query';
+import { orcamentosModuleNav } from '@/lib/module-nav';
 
 export default function OrcamentosV2Page() {
-  const [viewMode, setViewMode] = React.useState<'table' | 'cards'>('table');
+  const isMobile = useIsMobile();
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+
+  useEffect(() => {
+    if (isMobile) {
+      setViewMode('cards');
+    }
+  }, [isMobile]);
+
+  const effectiveView = isMobile ? 'cards' : viewMode;
 
   return (
-    <div className="w-full space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Orçamentos V2</h1>
-          <p className="mt-2 text-muted-foreground">
-            Sistema de orçamentos com nova arquitetura e motor de cálculo V2
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <ViewToggle 
-            viewMode={viewMode} 
-            onViewModeChange={setViewMode} 
-          />
-          <Link href="/orcamentos-v2/novo">
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Orçamento
+    <div className="min-w-0 w-full max-w-full space-y-6 overflow-x-hidden">
+      <ModuleHeader
+        nav={orcamentosModuleNav}
+        title="Orçamentos"
+        subtitle="Sistema de orçamentos com nova arquitetura e motor de cálculo V2"
+        icon={<FileText className="h-7 w-7 shrink-0 sm:h-8 sm:w-8" />}
+        actions={
+          <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            {!isMobile ? (
+              <ViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+            ) : null}
+            <Button asChild className="w-full shrink-0 sm:w-auto">
+              <Link href="/orcamentos-v2/novo">
+                <Plus className="mr-2 h-4 w-4" />
+                Novo Orçamento
+              </Link>
             </Button>
-          </Link>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
-      {/* Content */}
-      {viewMode === 'table' ? (
+      {effectiveView === 'table' ? (
         <OrcamentosV2Table />
       ) : (
         <OrcamentosV2Cards />
