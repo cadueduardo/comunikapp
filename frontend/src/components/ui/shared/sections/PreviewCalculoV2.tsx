@@ -1372,26 +1372,29 @@ function MobileDockShell({
     <>
       <div
         className={cn(
-          'fixed inset-x-0 z-30 border-t border-[#1254d4] bg-[#1764F5] text-white',
-          'shadow-[0_-4px_16px_rgba(23,100,245,0.28)]',
+          'fixed inset-x-0 z-30 border-t border-black/10 text-black',
+          'shadow-[0_-6px_18px_rgba(0,0,0,0.14)]',
           'bottom-[calc(3.5rem+env(safe-area-inset-bottom))]',
         )}
+        style={{
+          backgroundImage: 'linear-gradient(180deg, #FAFAFA 25%, #B9B9B9 100%)',
+        }}
       >
         <Button
           type="button"
           variant="ghost"
-          className="h-14 w-full justify-between gap-3 rounded-none px-4 text-white hover:bg-white/15 hover:text-white"
+          className="h-14 w-full justify-between gap-3 rounded-none px-4 text-black hover:bg-black/5 hover:text-black"
           onClick={() => onOpenChange(true)}
           aria-haspopup="dialog"
           aria-expanded={open}
         >
           <span className="flex min-w-0 items-center gap-2">
-            <Calculator className="h-5 w-5 shrink-0" />
-            <span className="truncate text-sm font-medium">Total venda</span>
+            <Calculator className="h-5 w-5 shrink-0 text-black" />
+            <span className="truncate text-sm font-medium text-black">Total venda</span>
           </span>
           <span className="flex shrink-0 items-center gap-2">
-            <span className="text-base font-bold tabular-nums">R$ {totalLabel}</span>
-            <ChevronUp className="h-4 w-4 opacity-90" />
+            <span className="text-base font-bold tabular-nums text-black">R$ {totalLabel}</span>
+            <ChevronUp className="h-4 w-4 text-black/70" />
           </span>
         </Button>
       </div>
