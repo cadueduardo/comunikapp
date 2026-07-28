@@ -666,8 +666,8 @@ export default function ConfiguracoesLojaPage() {
             <div>
               <h2 className="text-lg font-semibold">Acesso e URL</h2>
               <p className="text-sm text-muted-foreground">
-                Defina o endereço da loja a partir do nome (ex.: Cacau Placas →
-                cacauplacas). O login no subdomínio usa este endereço.
+                Defina o subdomínio a partir do nome (ex.: Cacau Placas →
+                cacauplacas). O login no subdomínio usa este valor.
               </p>
             </div>
             <FormField
@@ -675,13 +675,15 @@ export default function ConfiguracoesLojaPage() {
               name="slug"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Endereço da loja</FormLabel>
+                  <FormLabel>Subdomínio da loja</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
                       autoComplete="off"
                       data-1p-ignore
                       data-lpignore="true"
+                      data-form-type="other"
+                      spellCheck={false}
                       onChange={(e) =>
                         field.onChange(
                           e.target.value
@@ -717,7 +719,7 @@ export default function ConfiguracoesLojaPage() {
                     <span className="font-mono text-foreground">
                       {urlCanonico || '—'}
                     </span>
-                    . Use este endereço para login da loja.
+                    . Use este subdomínio para login da loja.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,8 @@ import {
 } from '@/components/ui/dialog';
 import { buildApiUrl } from '@/lib/config';
 import { hasClientSession } from '@/lib/session-auth';
+
+const HOSTNAME_FORM_ID = 'form-loja-hostname-dns';
 
 type DominioCustomSectionProps = {
   slug: string;
@@ -67,6 +70,13 @@ export function DominioCustomSection({
   const [busy, setBusy] = useState(false);
   const [detalhes, setDetalhes] = useState<string[]>([]);
   const [guideOpen, setGuideOpen] = useState(false);
+  /** Impede popup de endereço físico do Chrome (readonly até o 1º foco). */
+  const [bloquearAutofill, setBloquearAutofill] = useState(true);
+  const [portalPronto, setPortalPronto] = useState(false);
+
+  useEffect(() => {
+    setPortalPronto(true);
+  }, []);
 
   useEffect(() => {
     setDominioInput(initialDominio ?? '');
@@ -191,12 +201,24 @@ export function DominioCustomSection({
 
   return (
     <div className="space-y-3 rounded-md border border-dashed p-3">
+      {portalPronto
+        ? createPortal(
+            <form
+              id={HOSTNAME_FORM_ID}
+              autoComplete="off"
+              className="hidden"
+              aria-hidden
+              onSubmit={(e) => e.preventDefault()}
+            />,
+            document.body,
+          )
+        : null}
       <div>
         <h3 className="text-sm font-semibold text-foreground">
-          Endereço próprio da loja
+          Domínio próprio da loja
         </h3>
         <p className="text-sm text-muted-foreground">
-          Use um endereço da sua empresa, por exemplo{' '}
+          Use um hostname da sua empresa, por exemplo{' '}
           <span className="font-mono text-foreground">
             sistema.minhaloja.com.br
           </span>
@@ -212,16 +234,28 @@ export function DominioCustomSection({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="dominio-custom">Endereço desejado</Label>
+        <Label htmlFor="loja-hostname-dns">Domínio desejado</Label>
+        {/*
+          Chrome agrupa este input com CEP/logradouro do form pai e ignora
+          autocomplete=off. Associamos a um <form> no body (atributo form=)
+          + rótulo sem "endereço" + readonly até o foco.
+        */}
         <Input
-          id="dominio-custom"
-          name="dominio_custom_loja"
+          id="loja-hostname-dns"
+          name="loja_hostname_dns"
+          form={HOSTNAME_FORM_ID}
+          type="text"
+          inputMode="url"
+          spellCheck={false}
           value={dominioInput}
           onChange={(e) => setDominioInput(e.target.value.toLowerCase())}
+          onFocus={() => setBloquearAutofill(false)}
+          readOnly={bloquearAutofill && !busy}
           placeholder="sistema.minhaloja.com.br"
-          autoComplete="off"
+          autoComplete="url"
           data-1p-ignore
           data-lpignore="true"
+          data-form-type="other"
           disabled={busy}
         />
         <p className="text-xs text-muted-foreground">
@@ -237,7 +271,7 @@ export function DominioCustomSection({
           onClick={() => void salvar()}
           disabled={busy || !dominioInput.trim()}
         >
-          Salvar endereço
+          Salvar domínio
         </Button>
         <Button
           type="button"
