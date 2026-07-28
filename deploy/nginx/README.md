@@ -9,14 +9,30 @@ na VPS e recopie. Assim o repositório é a fonte da verdade.
 | Arquivo | Onde instalar |
 |---|---|
 | `cors-map.conf` | `/etc/nginx/conf.d/cors-map.conf` (vai dentro de `http {}`) |
+| `cloudflare-realip.conf` | `/etc/nginx/conf.d/cloudflare-realip.conf` (vai dentro de `http {}`) |
 | `api.comunikapp.com.br.conf` | `/etc/nginx/sites-available/` + symlink em `sites-enabled/` |
 | `comunikapp.com.br.conf` | `/etc/nginx/sites-available/` + symlink em `sites-enabled/` |
+
+## Cloudflare (`real_ip` + X-Forwarded-For)
+
+Obrigatório quando o tráfego passa pelo proxy laranja da Cloudflare.
+Detalhes: `docs/cloudflare-hardening-plano.md`.
+
+- `cloudflare-realip.conf` restaura o IP real do cliente em `$remote_addr`.
+- Os sites passam `X-Forwarded-For: $remote_addr` (sobrescreve; não anexa).
+
+Pré-checagem do módulo:
+
+```bash
+nginx -V 2>&1 | grep -o with-http_realip_module
+```
 
 ## Instalação completa (do zero)
 
 ```bash
 # 1. Copiar para os locais corretos
 sudo cp /opt/comunikapp/app/deploy/nginx/cors-map.conf            /etc/nginx/conf.d/cors-map.conf
+sudo cp /opt/comunikapp/app/deploy/nginx/cloudflare-realip.conf   /etc/nginx/conf.d/cloudflare-realip.conf
 sudo cp /opt/comunikapp/app/deploy/nginx/api.comunikapp.com.br.conf /etc/nginx/sites-available/
 sudo cp /opt/comunikapp/app/deploy/nginx/comunikapp.com.br.conf      /etc/nginx/sites-available/
 
@@ -76,10 +92,18 @@ curl -I https://comunikapp.com.br
 # Na VPS:
 sudo -u comunikapp -H bash -lc 'cd /opt/comunikapp/app && git pull --ff-only'
 sudo cp /opt/comunikapp/app/deploy/nginx/cors-map.conf              /etc/nginx/conf.d/cors-map.conf
+sudo cp /opt/comunikapp/app/deploy/nginx/cloudflare-realip.conf     /etc/nginx/conf.d/cloudflare-realip.conf
 sudo cp /opt/comunikapp/app/deploy/nginx/api.comunikapp.com.br.conf /etc/nginx/sites-available/
 sudo cp /opt/comunikapp/app/deploy/nginx/comunikapp.com.br.conf     /etc/nginx/sites-available/
 sudo nginx -t && sudo systemctl reload nginx
 ```
+
+## Por que sobrescrever `X-Forwarded-For`?
+
+O login do backend lê o **primeiro** elemento de `X-Forwarded-For`. Com
+`$proxy_add_x_forwarded_for`, um cliente podia enviar um IP falso no header e
+contornar lockout/CAPTCHA. Com `real_ip` ativo, `$remote_addr` já é o IP real;
+enviar só esse valor fecha o vetor.
 
 ## Por que `proxy_hide_header`?
 
