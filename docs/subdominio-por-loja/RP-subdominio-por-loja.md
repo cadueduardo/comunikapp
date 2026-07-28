@@ -1,8 +1,8 @@
 # RP — Subdomínio por loja
 
-**Status:** Fatia B em implementação (runtime tenant-by-host); Fatia A em produção
+**Status:** Fatias A/B em produção; B+ e C (MVP wizard/DNS/`slug_anterior`) em deploy
 **Produto:** ComunikApp  
-**Feature:** Tenant por hostname (`{slug}.comunikapp.com.br`)  
+**Feature:** Tenant por hostname (`{slug}.comunikapp.com.br`) + domínio próprio (wizard)
 **Público:** lojas (tenant), TI/proxy corporativo do cliente, operação ComunikApp  
 **Última atualização:** 28/07/2026  
 **Branch de trabalho:** `feat/subdominio-por-loja`
@@ -55,13 +55,14 @@ A sessão HttpOnly atual (`comunikapp_session`, `Domain=.comunikapp.com.br`)
 - Continuar no mesmo host após o login.
 - Não precisar memorizar o apex genérico no dia a dia.
 
-### 3.3 Não objetivos do MVP
+### 3.3 Não objetivos do MVP (ainda pendentes após Fatia C)
 
-- Domínio customizado do cliente (`app.acme.com.br`) — fase 2+.
+- Tráfego HTTPS completo em domínio próprio sem Cloudflare for SaaS.
+- CORS/cookie host-only em domínio custom (allowlist dinâmica + sessão).
 - Multi-loja no mesmo usuário navegando vários subdomains na mesma sessão
   sem reauth (pode vir depois).
 - Isolamento de cookie por subdomain sem `Domain=.comunikapp.com.br`
-  (manter cookie compartilhado no eTLD+1 no MVP).
+  (manter cookie compartilhado no eTLD+1 no MVP de `*.comunikapp.com.br`).
 - Migrar a API para `{slug}.comunikapp.com.br/api` no MVP — `api.` continua.
 
 ## 4. Modelo de dados
@@ -85,13 +86,16 @@ Na tabela `loja`:
 | `cidade` | `String?` | endereço |
 | `uf` | `String?` (2) | endereço |
 
-Opcional depois:
+Fatia C (MVP):
 
 | Campo | Tipo | Uso |
 |---|---|---|
-| `slug_atualizado_em` | `DateTime?` | auditoria de mudança |
-| `slug_anterior` | `String?` | redirect 301 temporário após rename |
-| `dominio_custom` | `String?` | Fatia C |
+| `slug_atualizado_em` | `DateTime?` | auditoria de mudança de slug |
+| `slug_anterior` | `String?` único | redirect 301 após rename |
+| `dominio_custom` | `String?` único | host próprio (apex ou subdomínio) |
+| `dominio_custom_status` | `String?` | `NONE` / `PENDENTE` / `VERIFICADO` / `ERRO` |
+| `dominio_custom_token` | `String?` | token TXT `_comunikapp-verify` |
+| `dominio_custom_verificado_em` | `DateTime?` | quando TXT ok |
 
 ### 4.2 Slugs reservados (nunca atribuir a loja)
 
@@ -286,25 +290,26 @@ Nova etapa obrigatória `definir_slug`:
 - [x] CORS map para origens `https://*.comunikapp.com.br`
 - [x] Pós-login no apex → subdomain
 
-### Fatia B+ — Polimento UX (deploy junto com a próxima fase)
-
-Não subir sozinho em produção; empacotar no próximo deploy (início Fatia C ou release seguinte).
+### Fatia B+ — Polimento UX (deploy junto com Fatia C)
 
 - [x] Modal de novidade “endereço próprio” no dashboard (admins)
 - [x] CTA do modal / onboarding `definir_slug` → `/configuracoes/loja#acesso-url`
 - [x] Scroll + highlight amarelo com fade-out (~2,6s) na seção Acesso e URL
-- [ ] Página amigável estável para slug inexistente (hoje pode 500)
+- [x] Página amigável estável para slug inexistente (redirect, sem rewrite 500)
 - [ ] Rotacionar Cloudflare Origin Cert (chave exposta em chat operacional)
 
-### Fatia C — Domínio custom + endurecimento
+### Fatia C — Domínio custom + endurecimento (MVP desta entrega)
 
-- [ ] Wizard DNS no onboarding/config (CNAME/TXT + verificar)
-- [ ] Aceitar **ambos** os formatos do domínio da loja:
-  - subdomínio: `sistema.minhaloja.com.br` (CNAME → canônico ComunikApp)
-  - apex da loja: `minhaloja.com.br` (ALIAS/ANAME ou A + verificação)
-- [ ] `slug_anterior` + 301
+- [x] Campos `dominio_custom*` + wizard em `/configuracoes/loja` (CNAME/TXT)
+- [x] Aceitar **ambos** os formatos na UI/instruções:
+  - subdomínio: `sistema.minhaloja.com.br` (CNAME → `{slug}.comunikapp.com.br`)
+  - apex: `minhaloja.com.br` (ALIAS/ANAME ou A + TXT)
+- [x] Verificação DNS (TXT obrigatório) → status `VERIFICADO`
+- [x] Middleware resolve host custom verificado (pronto para tráfego)
+- [x] `slug_anterior` + 301 ao renomear slug
+- [ ] Ativação HTTPS/tráfego em domínio próprio via **Cloudflare for SaaS** (Custom Hostnames) — operação
 - [ ] Sunset do login no apex (após métricas)
-- [ ] Isolamento de sessão mais rígido (se necessário)
+- [ ] Isolamento de sessão mais rígido / cookie host-only em domínio custom
 
 ## 12. Critérios de aceite (MVP)
 

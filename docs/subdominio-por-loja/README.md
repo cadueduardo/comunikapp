@@ -13,10 +13,8 @@ Especificação para servir cada loja em um hostname próprio
 |---|---|---|
 | **A** | `loja.slug` + cadastro/endereço (pré-NF) + reformulação `/configuracoes/loja` + onboarding `definir_slug` | feito |
 | **B** | Runtime tenant-by-host (DNS wildcard, Nginx, middleware, CORS, login) | feito |
-| **B+** | Polimento UX (modal novidade, `#acesso-url` + highlight) — **deploy junto com a próxima fase** | no branch, aguardando |
-| **C** | Domínio custom (`sistema.loja.com.br` **ou** `loja.com.br`) + harden | próximo |
-| **B** | DNS wildcard, Nginx, middleware tenant-by-host, login no subdomain | depois |
-| **C** | Domínio custom do cliente + wizard DNS | depois |
+| **B+** | Polimento UX (modal, `#acesso-url` + highlight, 404 estável) | empacotado com C |
+| **C** | Domínio custom (wizard DNS + verify + `slug_anterior` 301); tráfego HTTPS custom depende de Cloudflare for SaaS | em deploy |
 
 ## Objetivo da primeira entrega (Fatia A)
 

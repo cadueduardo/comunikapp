@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { extractTenantSlugFromHost } from '@/lib/tenant-host';
+import { extractTenantSlugFromHost, stripPort } from '@/lib/tenant-host';
 
 function backendBaseUrl(): string {
   return (
@@ -9,62 +9,137 @@ function backendBaseUrl(): string {
   ).replace(/\/$/, '');
 }
 
+type PublicLojaResolve = {
+  id?: string;
+  slug?: string;
+  redirect_to?: string | null;
+};
+
+async function resolveBySlug(slug: string): Promise<{
+  status: number;
+  data: PublicLojaResolve;
+}> {
+  const res = await fetch(
+    `${backendBaseUrl()}/lojas/public/by-slug/${encodeURIComponent(slug)}`,
+    {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    },
+  );
+  const data = (await res.json().catch(() => ({}))) as PublicLojaResolve;
+  return { status: res.status, data };
+}
+
+async function resolveByHost(host: string): Promise<{
+  status: number;
+  data: PublicLojaResolve;
+}> {
+  const res = await fetch(
+    `${backendBaseUrl()}/lojas/public/by-host/${encodeURIComponent(host)}`,
+    {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    },
+  );
+  const data = (await res.json().catch(() => ({}))) as PublicLojaResolve;
+  return { status: res.status, data };
+}
+
+function notFoundRedirect(request: NextRequest) {
+  // Redirect (não rewrite): evita proxy https://localhost:3001 (EPROTO/500).
+  const dest = request.nextUrl.clone();
+  dest.pathname = '/loja-nao-encontrada';
+  dest.search = '';
+  dest.hash = '';
+  return NextResponse.redirect(dest);
+}
+
 export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname === '/loja-nao-encontrada') {
     return NextResponse.next();
   }
 
-  const host = request.headers.get('host');
-  const slug = extractTenantSlugFromHost(host);
+  const hostHeader = request.headers.get('host');
+  const host = stripPort(hostHeader ?? '');
+  const slug = extractTenantSlugFromHost(hostHeader);
 
-  if (!slug) {
-    return NextResponse.next();
-  }
-
-  // Não bloqueia assets/BFF; só injeta contexto e valida existência da loja.
   try {
-    const res = await fetch(
-      `${backendBaseUrl()}/lojas/public/by-slug/${encodeURIComponent(slug)}`,
-      {
-        headers: { Accept: 'application/json' },
-        cache: 'no-store',
-      },
-    );
+    if (slug) {
+      const { status, data } = await resolveBySlug(slug);
 
-    if (!res.ok) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/loja-nao-encontrada';
-      url.search = '';
-      const rewrite = NextResponse.rewrite(url);
-      rewrite.headers.set('x-tenant-slug-invalid', slug);
-      return rewrite;
+      if (status === 404) {
+        return notFoundRedirect(request);
+      }
+
+      if (!status || status >= 400) {
+        return notFoundRedirect(request);
+      }
+
+      if (data.redirect_to && data.redirect_to !== slug) {
+        const dest = request.nextUrl.clone();
+        dest.host = `${data.redirect_to}.comunikapp.com.br`;
+        dest.protocol = 'https:';
+        dest.port = '';
+        return NextResponse.redirect(dest, 301);
+      }
+
+      const requestHeaders = new Headers(request.headers);
+      if (data.slug) requestHeaders.set('x-tenant-slug', data.slug);
+      if (data.id) requestHeaders.set('x-tenant-loja-id', data.id);
+
+      const response = NextResponse.next({
+        request: { headers: requestHeaders },
+      });
+      response.headers.set('x-tenant-slug', data.slug || slug);
+      return response;
     }
 
-    const loja = (await res.json()) as { id?: string; slug?: string };
-    const requestHeaders = new Headers(request.headers);
-    if (loja.slug) requestHeaders.set('x-tenant-slug', loja.slug);
-    if (loja.id) requestHeaders.set('x-tenant-loja-id', loja.id);
+    // Host fora de *.comunikapp.com.br → tentar domínio custom verificado.
+    if (
+      host &&
+      !host.endsWith('.comunikapp.com.br') &&
+      host !== 'comunikapp.com.br' &&
+      host !== 'localhost' &&
+      host !== '127.0.0.1'
+    ) {
+      const { status, data } = await resolveByHost(host);
+      if (status === 404 || !data.slug) {
+        return notFoundRedirect(request);
+      }
+      if (!status || status >= 400) {
+        return notFoundRedirect(request);
+      }
 
-    const response = NextResponse.next({
-      request: { headers: requestHeaders },
-    });
-    response.headers.set('x-tenant-slug', loja.slug || slug);
-    return response;
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set('x-tenant-slug', data.slug);
+      if (data.id) requestHeaders.set('x-tenant-loja-id', data.id);
+      requestHeaders.set('x-tenant-custom-host', host);
+
+      const response = NextResponse.next({
+        request: { headers: requestHeaders },
+      });
+      response.headers.set('x-tenant-slug', data.slug);
+      return response;
+    }
+
+    return NextResponse.next();
   } catch (error) {
-    console.error('[middleware] falha ao resolver tenant', slug, error);
-    // Em falha de rede do backend, não derruba o site inteiro no apex-like path;
-    // no tenant, reescreve para página amigável.
-    const url = request.nextUrl.clone();
-    url.pathname = '/loja-nao-encontrada';
-    return NextResponse.rewrite(url);
+    console.error('[middleware] falha ao resolver tenant', host, error);
+    if (
+      slug ||
+      (host &&
+        host !== 'comunikapp.com.br' &&
+        host !== 'www.comunikapp.com.br' &&
+        !host.endsWith('.comunikapp.com.br'))
+    ) {
+      return notFoundRedirect(request);
+    }
+    return NextResponse.next();
   }
 }
 
 export const config = {
   matcher: [
-    /*
-     * Exclui estáticos e favicon; inclui páginas e /api/auth (BFF no mesmo host).
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

@@ -636,6 +636,13 @@ model loja {
   tipo_margem_lucro        String?     @db.VarChar(24) // 'markup' | 'margem_por_dentro'; padrão da loja
   nome                     String
   slug                     String      @unique(map: "Loja_slug_key")
+  slug_anterior            String?     @unique(map: "Loja_slug_anterior_key")
+  slug_atualizado_em       DateTime?
+  dominio_custom           String?     @unique(map: "Loja_dominio_custom_key") @db.VarChar(253)
+  /// NONE | PENDENTE | VERIFICADO | ERRO
+  dominio_custom_status    String?     @db.VarChar(24)
+  dominio_custom_token     String?     @db.VarChar(64)
+  dominio_custom_verificado_em DateTime?
   razao_social             String?
   nome_fantasia            String?
   inscricao_estadual       String?

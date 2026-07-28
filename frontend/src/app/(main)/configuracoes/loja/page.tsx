@@ -38,6 +38,7 @@ import {
   suggestLojaSlugFromNome,
 } from '@/lib/loja-slug';
 import { cn } from '@/lib/utils';
+import { DominioCustomSection } from '@/components/configuracoes/DominioCustomSection';
 
 const formatPercentage = (value: unknown): string => {
   if (value === null || value === undefined || value === '') return '';
@@ -635,10 +636,13 @@ export default function ConfiguracoesLojaPage() {
                 </FormItem>
               )}
             />
-            <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-              Domínio próprio (ex.: sistema.minhaloja.com.br) chegará em uma
-              próxima etapa, com wizard de DNS no onboarding.
-            </p>
+            <DominioCustomSection
+              slug={form.watch('slug') || user?.loja?.slug || ''}
+              initialDominio={user?.loja?.dominio_custom ?? null}
+              initialStatus={user?.loja?.dominio_custom_status ?? null}
+              initialToken={user?.loja?.dominio_custom_token ?? null}
+              onChanged={() => void refetchUser()}
+            />
           </section>
 
           <Separator />

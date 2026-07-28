@@ -46,6 +46,9 @@ interface Loja {
   cidade?: string | null;
   uf?: string | null;
   url_canonica?: string | null;
+  dominio_custom?: string | null;
+  dominio_custom_status?: string | null;
+  dominio_custom_token?: string | null;
   logo_url?: string | null;
   cabecalho_orcamento?: string | null;
   custo_maquinaria_hora?: string | null;

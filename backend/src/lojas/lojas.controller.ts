@@ -29,6 +29,7 @@ import { Public, CurrentUser, CurrentLojaId } from '../auth/decorators';
 import { AuthenticatedUser } from '../auth/auth.service';
 import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
 import { UpdateCadastroLojaDto } from './dto/update-cadastro-loja.dto';
+import { UpdateDominioCustomDto } from './dto/update-dominio-custom.dto';
 import { Request } from 'express';
 
 @UseGuards(JwtAuthGuard)
@@ -89,6 +90,12 @@ export class LojasController {
     return this.lojasService.findPublicBySlug(slug);
   }
 
+  @Public()
+  @Get('public/by-host/:host')
+  findPublicByHost(@Param('host') host: string) {
+    return this.lojasService.findPublicByHost(host);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('user-by-email')
   findUserByEmail(@Query('email') email: string) {
@@ -138,6 +145,27 @@ export class LojasController {
     @Body() updateCadastroLojaDto: UpdateCadastroLojaDto,
   ) {
     return this.lojasService.updateCadastro(lojaId, updateCadastroLojaDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('dominio-custom')
+  setDominioCustom(
+    @CurrentLojaId() lojaId: string,
+    @Body() dto: UpdateDominioCustomDto,
+  ) {
+    return this.lojasService.setDominioCustom(lojaId, dto.dominio);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('dominio-custom/verificar')
+  verificarDominioCustom(@CurrentLojaId() lojaId: string) {
+    return this.lojasService.verificarDominioCustom(lojaId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('dominio-custom')
+  clearDominioCustom(@CurrentLojaId() lojaId: string) {
+    return this.lojasService.clearDominioCustom(lojaId);
   }
 
   @UseGuards(JwtAuthGuard)

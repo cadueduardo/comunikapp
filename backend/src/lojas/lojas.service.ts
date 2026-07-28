@@ -502,7 +502,75 @@ export class LojasService {
       },
     });
 
-    if (!loja || loja.status === loja_status.INATIVO) {
+    if (loja && loja.status !== loja_status.INATIVO) {
+      return {
+        id: loja.id,
+        nome: loja.nome,
+        slug: loja.slug,
+        logo_url: loja.logo_url,
+        url_canonica: buildCanonicalLojaUrl(loja.slug),
+        redirect_to: null as string | null,
+      };
+    }
+
+    const byAnterior = await this.prisma.loja.findFirst({
+      where: { slug_anterior: slug, NOT: { status: loja_status.INATIVO } },
+      select: {
+        id: true,
+        nome: true,
+        slug: true,
+        logo_url: true,
+      },
+    });
+
+    if (!byAnterior) {
+      throw new NotFoundException('Loja não encontrada.');
+    }
+
+    return {
+      id: byAnterior.id,
+      nome: byAnterior.nome,
+      slug: byAnterior.slug,
+      logo_url: byAnterior.logo_url,
+      url_canonica: buildCanonicalLojaUrl(byAnterior.slug),
+      redirect_to: byAnterior.slug,
+    };
+  }
+
+  /** Resolve loja por hostname de domínio custom verificado. */
+  async findPublicByHost(hostRaw: string) {
+    const host = hostRaw
+      .split(':')[0]
+      ?.trim()
+      .toLowerCase()
+      .replace(/\.$/, '');
+    if (!host || host.length < 3 || host.length > 253) {
+      throw new NotFoundException('Loja não encontrada.');
+    }
+    if (
+      host === 'comunikapp.com.br' ||
+      host === 'www.comunikapp.com.br' ||
+      host.endsWith('.comunikapp.com.br')
+    ) {
+      throw new NotFoundException('Loja não encontrada.');
+    }
+
+    const loja = await this.prisma.loja.findFirst({
+      where: {
+        dominio_custom: host,
+        dominio_custom_status: 'VERIFICADO',
+        NOT: { status: loja_status.INATIVO },
+      },
+      select: {
+        id: true,
+        nome: true,
+        slug: true,
+        logo_url: true,
+        dominio_custom: true,
+      },
+    });
+
+    if (!loja) {
       throw new NotFoundException('Loja não encontrada.');
     }
 
@@ -511,7 +579,179 @@ export class LojasService {
       nome: loja.nome,
       slug: loja.slug,
       logo_url: loja.logo_url,
+      dominio_custom: loja.dominio_custom,
       url_canonica: buildCanonicalLojaUrl(loja.slug),
+      redirect_to: null as string | null,
+    };
+  }
+
+  async setDominioCustom(lojaId: string, dominioRaw: string) {
+    const dominio = this.normalizeDominioCustom(dominioRaw);
+    this.assertDominioCustomAllowed(dominio);
+
+    const taken = await this.prisma.loja.findFirst({
+      where: { dominio_custom: dominio, NOT: { id: lojaId } },
+      select: { id: true },
+    });
+    if (taken) {
+      throw new ConflictException('Este domínio já está em uso por outra loja.');
+    }
+
+    const token = `cmk-verify-${createHash('sha256')
+      .update(`${lojaId}:${dominio}:${Date.now()}`)
+      .digest('hex')
+      .slice(0, 24)}`;
+
+    const loja = await this.prisma.loja.update({
+      where: { id: lojaId },
+      data: {
+        dominio_custom: dominio,
+        dominio_custom_status: 'PENDENTE',
+        dominio_custom_token: token,
+        dominio_custom_verificado_em: null,
+        atualizado_em: new Date(),
+      },
+    });
+
+    return this.formatDominioCustomResponse(loja);
+  }
+
+  async clearDominioCustom(lojaId: string) {
+    const loja = await this.prisma.loja.update({
+      where: { id: lojaId },
+      data: {
+        dominio_custom: null,
+        dominio_custom_status: 'NONE',
+        dominio_custom_token: null,
+        dominio_custom_verificado_em: null,
+        atualizado_em: new Date(),
+      },
+    });
+    return this.formatDominioCustomResponse(loja);
+  }
+
+  async verificarDominioCustom(lojaId: string) {
+    const loja = await this.prisma.loja.findUnique({ where: { id: lojaId } });
+    if (!loja?.dominio_custom || !loja.dominio_custom_token) {
+      throw new BadRequestException(
+        'Configure um domínio próprio antes de verificar.',
+      );
+    }
+
+    const dns = await import('node:dns/promises');
+    const host = loja.dominio_custom;
+    const token = loja.dominio_custom_token;
+    const expectedCnameTargets = [
+      `${loja.slug}.comunikapp.com.br`,
+      'comunikapp.com.br',
+      'www.comunikapp.com.br',
+    ];
+
+    let txtOk = false;
+    let cnameOk = false;
+    const detalhes: string[] = [];
+
+    try {
+      const txtRecords = await dns.resolveTxt(`_comunikapp-verify.${host}`);
+      const flat = txtRecords.map((parts) => parts.join(''));
+      txtOk = flat.some((v) => v.includes(token));
+      detalhes.push(
+        txtOk
+          ? 'TXT de verificação encontrado.'
+          : 'TXT _comunikapp-verify não encontrado ou token divergente.',
+      );
+    } catch {
+      detalhes.push('TXT _comunikapp-verify não resolvido.');
+    }
+
+    try {
+      const cnames = await dns.resolveCname(host);
+      cnameOk = cnames.some((c) =>
+        expectedCnameTargets.includes(c.replace(/\.$/, '').toLowerCase()),
+      );
+      detalhes.push(
+        cnameOk
+          ? `CNAME aponta para destino ComunikApp (${cnames.join(', ')}).`
+          : `CNAME atual: ${cnames.join(', ') || 'nenhum'} (esperado: ${loja.slug}.comunikapp.com.br).`,
+      );
+    } catch {
+      // Apex muitas vezes não tem CNAME — ALIAS/A. TXT basta para marcar verificado no MVP.
+      detalhes.push(
+        'CNAME não resolvido (normal em domínio apex; use ALIAS/ANAME + TXT).',
+      );
+    }
+
+    // TXT obrigatório no MVP. CNAME é recomendado para subdomínio; apex usa ALIAS/A.
+    const ok = txtOk;
+
+    const updated = await this.prisma.loja.update({
+      where: { id: lojaId },
+      data: {
+        dominio_custom_status: ok ? 'VERIFICADO' : 'ERRO',
+        dominio_custom_verificado_em: ok ? new Date() : null,
+        atualizado_em: new Date(),
+      },
+    });
+
+    return {
+      ...this.formatDominioCustomResponse(updated),
+      verificacao: {
+        txt_ok: txtOk,
+        cname_ok: cnameOk,
+        detalhes,
+      },
+    };
+  }
+
+  private normalizeDominioCustom(raw: string): string {
+    let host = raw.trim().toLowerCase();
+    host = host.replace(/^https?:\/\//, '');
+    host = host.split('/')[0] ?? '';
+    host = host.split(':')[0] ?? '';
+    host = host.replace(/\.$/, '');
+    return host;
+  }
+
+  private assertDominioCustomAllowed(host: string) {
+    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(host)) {
+      throw new BadRequestException('Domínio inválido.');
+    }
+    if (host === 'comunikapp.com.br' || host.endsWith('.comunikapp.com.br')) {
+      throw new BadRequestException(
+        'Use um domínio próprio (não *.comunikapp.com.br).',
+      );
+    }
+    if (host.length > 253) {
+      throw new BadRequestException('Domínio muito longo.');
+    }
+  }
+
+  private formatDominioCustomResponse(loja: {
+    dominio_custom: string | null;
+    dominio_custom_status: string | null;
+    dominio_custom_token: string | null;
+    dominio_custom_verificado_em: Date | null;
+    slug: string;
+  }) {
+    const dominio = loja.dominio_custom;
+    const token = loja.dominio_custom_token;
+    return {
+      dominio_custom: dominio,
+      dominio_custom_status: loja.dominio_custom_status || 'NONE',
+      dominio_custom_token: token,
+      dominio_custom_verificado_em: loja.dominio_custom_verificado_em,
+      instrucoes: dominio
+        ? {
+            cname_host: dominio,
+            cname_alvo: `${loja.slug}.comunikapp.com.br`,
+            txt_host: `_comunikapp-verify.${dominio}`,
+            txt_valor: token,
+            nota_apex:
+              'Se for o domínio raiz (apex), use ALIAS/ANAME (ou A) conforme seu DNS e mantenha o TXT de verificação.',
+            nota_trafego:
+              'DNS verificado habilita o vínculo no ComunikApp. Tráfego HTTPS no domínio próprio pode exigir Cloudflare for SaaS (Custom Hostnames) na operação.',
+          }
+        : null,
     };
   }
 
@@ -960,14 +1200,28 @@ export class LojasService {
           'Slug inválido ou reservado. Use 3–48 caracteres (a-z, 0-9, hífen).',
         );
       }
-      const taken = await this.prisma.loja.findFirst({
-        where: { slug, NOT: { id: lojaId } },
-        select: { id: true },
+      const atual = await this.prisma.loja.findUnique({
+        where: { id: lojaId },
+        select: { slug: true, slug_anterior: true },
       });
-      if (taken) {
-        throw new ConflictException('Este endereço de URL já está em uso.');
+      if (!atual) {
+        throw new NotFoundException('Loja não encontrada.');
       }
-      data.slug = slug;
+      if (slug !== atual.slug) {
+        const taken = await this.prisma.loja.findFirst({
+          where: {
+            OR: [{ slug }, { slug_anterior: slug }],
+            NOT: { id: lojaId },
+          },
+          select: { id: true },
+        });
+        if (taken) {
+          throw new ConflictException('Este endereço de URL já está em uso.');
+        }
+        data.slug = slug;
+        data.slug_anterior = atual.slug;
+        data.slug_atualizado_em = new Date();
+      }
     }
 
     const addressFields = [
