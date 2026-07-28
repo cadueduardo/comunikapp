@@ -502,7 +502,7 @@ export class LojasService {
       },
     });
 
-    if (!loja || loja.status === loja_status.INATIVA) {
+    if (!loja || loja.status === loja_status.INATIVO) {
       throw new NotFoundException('Loja não encontrada.');
     }
 
