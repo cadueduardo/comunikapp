@@ -8,7 +8,7 @@ export class UpdateDominioCustomDto {
     /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?){2,}$/i,
     {
       message:
-        'Informe um subdomínio válido (ex.: sistema.minhaloja.com.br). Apex não é suportado no MVP.',
+        'Informe um endereço com prefixo (ex.: sistema.minhaloja.com.br). O domínio sozinho ainda não é aceito.',
     },
   )
   dominio: string;

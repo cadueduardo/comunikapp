@@ -592,7 +592,7 @@ export class LojasService {
     this.assertDominioCustomAllowed(dominio);
     if (isLikelyApexHostname(dominio)) {
       throw new BadRequestException(
-        'No MVP só aceitamos subdomínio do cliente (ex.: sistema.minhaloja.com.br). Domínio raiz (apex) fica para uma fase futura.',
+        'Use um endereço com prefixo, por exemplo sistema.minhaloja.com.br. O domínio sozinho (ex.: minhaloja.com.br) ainda não é aceito.',
       );
     }
 
@@ -714,13 +714,15 @@ export class LojasService {
     this.cloudflareSaaS.requireConfigured();
     const cf = await this.cloudflareSaaS.getHostname(loja.dominio_custom_cf_id);
     const ok = this.cloudflareSaaS.isFullyActive(cf);
-    const detalhes: string[] = [
-      `Cloudflare hostname: ${cf.status}`,
-      `Cloudflare SSL: ${cf.ssl?.status || 'desconhecido'}`,
-    ];
-    if (!ok) {
+    const detalhes: string[] = [];
+    if (ok) {
+      detalhes.push('DNS e certificado confirmados. Endereço pronto para uso.');
+    } else {
       detalhes.push(
-        'Aguarde propagação DNS (CNAME → customers.comunikapp.com.br) e validação TXT se solicitada.',
+        `Ainda processando (status: ${cf.status}, certificado: ${cf.ssl?.status || 'pendente'}).`,
+      );
+      detalhes.push(
+        'Confira o CNAME no painel de DNS da empresa e aguarde alguns minutos antes de verificar de novo.',
       );
     }
 
@@ -834,9 +836,9 @@ export class LojasService {
             ssl_txt_host: sslTxt?.txt_name || null,
             ssl_txt_valor: sslTxt?.txt_value || null,
             nota_apex:
-              'Domínio raiz (apex) não é suportado neste MVP. Use um subdomínio (ex.: sistema.minhaloja.com.br).',
+              'Use um endereço com prefixo (ex.: sistema.minhaloja.com.br), não o domínio sozinho.',
             nota_trafego:
-              'Após o CNAME apontar para customers.comunikapp.com.br e a Cloudflare marcar o hostname/SSL como active, o HTTPS fica ativo automaticamente (plano Free, até 100 hostnames).',
+              'Depois de apontar o DNS e clicar em Verificar, o endereço fica disponível em HTTPS.',
           }
         : null,
     };
