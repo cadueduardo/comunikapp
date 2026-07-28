@@ -51,6 +51,10 @@ interface Loja {
   dominio_custom_token?: string | null;
   logo_url?: string | null;
   cabecalho_orcamento?: string | null;
+  site_url?: string | null;
+  instagram_url?: string | null;
+  facebook_url?: string | null;
+  linkedin_url?: string | null;
   custo_maquinaria_hora?: string | null;
   custos_indiretos_mensais?: string | null;
   margem_lucro_padrao?: string | null;

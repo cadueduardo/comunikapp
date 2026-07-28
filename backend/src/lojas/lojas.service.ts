@@ -1321,6 +1321,10 @@ export class LojasService {
       'bairro',
       'cidade',
       'uf',
+      'site_url',
+      'instagram_url',
+      'facebook_url',
+      'linkedin_url',
     ] as const;
     for (const field of addressFields) {
       if (dto[field] !== undefined) {

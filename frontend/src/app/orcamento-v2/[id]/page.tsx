@@ -16,6 +16,7 @@ import { ShareButton } from '@/components/ui/share-button';
 import { resolverTextoCondicaoPagamento } from '@/lib/condicao-pagamento-descricao';
 import { resolveAssetUrl } from '@/lib/config';
 import { formatCpf, formatCnpj } from '@/lib/cpf-cnpj';
+import { TimbradoRodapeDocumento } from '@/components/configuracoes/TimbradoPreview';
 
 interface LinhaArtePdf {
   descricao: string;
@@ -75,10 +76,26 @@ interface OrcamentoV2 {
   // Dados da loja
   loja?: {
     nome: string;
+    nome_fantasia?: string | null;
+    razao_social?: string | null;
     email?: string;
     telefone?: string;
     logo_url?: string;
-    cnpj?: string;
+    cnpj?: string | null;
+    cpf?: string | null;
+    inscricao_estadual?: string | null;
+    inscricao_municipal?: string | null;
+    cep?: string | null;
+    logradouro?: string | null;
+    numero?: string | null;
+    complemento?: string | null;
+    bairro?: string | null;
+    cidade?: string | null;
+    uf?: string | null;
+    site_url?: string | null;
+    instagram_url?: string | null;
+    facebook_url?: string | null;
+    linkedin_url?: string | null;
   };
   
   // Condições comerciais
@@ -428,31 +445,45 @@ export default function OrcamentoV2PublicoPage() {
 
       <div className="min-h-screen bg-gray-100 p-4 print:p-0 print:bg-white">
         <div className="max-w-[210mm] mx-auto bg-white shadow-lg print:shadow-none print:max-w-none" style={{ minHeight: '297mm' }}>
-          {/* Header da Empresa */}
-          <div className="border-b-2 border-gray-300 p-6 print:p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+          {/* Cabeçalho timbrado */}
+          <div className="border-b border-gray-300 p-6 print:p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-4">
                 {resolveAssetUrl(orcamento.loja?.logo_url) ? (
-                  <img 
-                    src={resolveAssetUrl(orcamento.loja?.logo_url)!} 
-                    alt="Logo" 
+                  <img
+                    src={resolveAssetUrl(orcamento.loja?.logo_url)!}
+                    alt="Logo"
                     className="h-16 w-16 object-contain"
                   />
                 ) : (
-                  <div className="h-16 w-16 bg-gray-200 rounded flex items-center justify-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded bg-gray-200">
                     <span className="text-2xl font-bold text-gray-600">
-                      {orcamento.loja?.nome?.charAt(0) || 'C'}
+                      {(
+                        orcamento.loja?.nome_fantasia ||
+                        orcamento.loja?.nome ||
+                        'C'
+                      ).charAt(0)}
                     </span>
                   </div>
                 )}
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">{orcamento.loja?.nome || 'Comunikapp'}</h1>
-                  {orcamento.loja?.cnpj && (
-                    <p className="text-sm text-gray-600">CNPJ: {orcamento.loja.cnpj}</p>
-                  )}
+                <div className="min-w-0">
+                  <h1 className="truncate text-2xl font-bold text-gray-900">
+                    {orcamento.loja?.nome_fantasia ||
+                      orcamento.loja?.razao_social ||
+                      orcamento.loja?.nome ||
+                      'Comunikapp'}
+                  </h1>
+                  {orcamento.loja?.razao_social &&
+                  orcamento.loja?.nome_fantasia &&
+                  orcamento.loja.razao_social !==
+                    orcamento.loja.nome_fantasia ? (
+                    <p className="truncate text-sm text-gray-600">
+                      {orcamento.loja.razao_social}
+                    </p>
+                  ) : null}
                 </div>
               </div>
-              <div className="text-right">
+              <div className="shrink-0 text-right">
                 <h2 className="text-xl font-bold text-gray-900">ORÇAMENTO</h2>
                 <p className="text-lg text-gray-600">#{orcamento.numero}</p>
                 <p className="text-sm text-gray-500">
@@ -867,42 +898,58 @@ export default function OrcamentoV2PublicoPage() {
               </div>
             ) : null}
 
-            {/* Observações Finais */}
-            <div className="text-xs text-gray-600 space-y-2">
+            {/* Observações Finais + rodapé timbrado */}
+            <div className="space-y-2 text-xs text-gray-600">
               <p className="font-semibold">
                 A empresa reserva-se o direito de faturar boleto / cheque somente após análise do crédito do cliente
               </p>
-              
-              {orcamento.loja?.email && (
-                <p className="text-center">
-                  <a href={`mailto:${orcamento.loja.email}`} className="text-blue-600 underline">
-                    {orcamento.loja.email}
-                  </a>
-                </p>
-              )}
 
               {/* Área de Assinatura */}
-              <div className="mt-8 border border-gray-400 rounded p-4">
+              <div className="mt-8 rounded border border-gray-400 p-4">
                 <div className="grid grid-cols-2 gap-8">
                   <div className="text-center">
                     <p className="mb-2 font-semibold">Concordo e Autorizo a produção do(s) item(s) acima discriminado(s)</p>
-                    <div className="border-b border-gray-400 mt-8 mb-2"></div>
+                    <div className="mb-2 mt-8 border-b border-gray-400"></div>
                     <p className="text-xs">Data: ___/___/_______</p>
                   </div>
                   <div className="text-center">
                     <p className="mb-2 font-semibold">Ass. Cliente:</p>
-                    <div className="border-b border-gray-400 mt-8 mb-2"></div>
+                    <div className="mb-2 mt-8 border-b border-gray-400"></div>
                     <p className="text-xs">_________________________________</p>
                   </div>
                 </div>
               </div>
 
-              <div className="text-center mt-6">
+              <div className="mt-6 text-center">
                 <p>Agradecemos seu contato e estamos à disposição para maiores informações.</p>
-                {orcamento.loja?.telefone && (
-                  <p className="mt-1">{orcamento.loja.telefone}</p>
-                )}
               </div>
+
+              {orcamento.loja ? (
+                <TimbradoRodapeDocumento
+                  data={{
+                    nome_destaque:
+                      orcamento.loja.nome_fantasia || orcamento.loja.nome,
+                    razao_social: orcamento.loja.razao_social,
+                    cnpj: orcamento.loja.cnpj,
+                    cpf: orcamento.loja.cpf,
+                    inscricao_estadual: orcamento.loja.inscricao_estadual,
+                    inscricao_municipal: orcamento.loja.inscricao_municipal,
+                    cep: orcamento.loja.cep,
+                    logradouro: orcamento.loja.logradouro,
+                    numero: orcamento.loja.numero,
+                    complemento: orcamento.loja.complemento,
+                    bairro: orcamento.loja.bairro,
+                    cidade: orcamento.loja.cidade,
+                    uf: orcamento.loja.uf,
+                    telefone: orcamento.loja.telefone,
+                    email: orcamento.loja.email,
+                    site_url: orcamento.loja.site_url,
+                    instagram_url: orcamento.loja.instagram_url,
+                    facebook_url: orcamento.loja.facebook_url,
+                    linkedin_url: orcamento.loja.linkedin_url,
+                  }}
+                />
+              ) : null}
             </div>
           </div>
         </div>

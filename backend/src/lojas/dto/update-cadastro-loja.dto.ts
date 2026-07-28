@@ -101,4 +101,24 @@ export class UpdateCadastroLojaDto {
   @IsString()
   @MaxLength(2)
   uf?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  site_url?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  instagram_url?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  facebook_url?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  linkedin_url?: string | null;
 }

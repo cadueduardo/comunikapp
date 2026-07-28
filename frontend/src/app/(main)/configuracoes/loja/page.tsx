@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/form';
 import { InfoTooltip } from '@/components/ui/info-tooltip';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -39,6 +38,9 @@ import {
 } from '@/lib/loja-slug';
 import { cn } from '@/lib/utils';
 import { DominioCustomSection } from '@/components/configuracoes/DominioCustomSection';
+import { TimbradoPreview } from '@/components/configuracoes/TimbradoPreview';
+import { useCepInstalacao } from '@/hooks/useCepInstalacao';
+import { instalacaoApi } from '@/lib/instalacao/instalacao-api';
 
 const formatPercentage = (value: unknown): string => {
   if (value === null || value === undefined || value === '') return '';
@@ -97,7 +99,10 @@ const formSchema = z.object({
   cidade: z.string().optional(),
   uf: z.string().max(2).optional(),
   logo_url: z.string().optional(),
-  cabecalho_orcamento: z.string().optional(),
+  site_url: z.string().optional(),
+  instagram_url: z.string().optional(),
+  facebook_url: z.string().optional(),
+  linkedin_url: z.string().optional(),
   margem_lucro_padrao: z.string().optional(),
   impostos_padrao: z.string().optional(),
   comissao_padrao: z.string().optional(),
@@ -111,7 +116,12 @@ export default function ConfiguracoesLojaPage() {
   const { user, refetchUser, loading } = useUser();
   const [isSaving, setIsSaving] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
   const [highlightAcessoUrl, setHighlightAcessoUrl] = useState(false);
+
+  const { buscandoCep, erroCep, handleCepChange } = useCepInstalacao({
+    buscarCep: (cep) => instalacaoApi.buscarCep(cep),
+  });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -134,7 +144,10 @@ export default function ConfiguracoesLojaPage() {
       cidade: '',
       uf: '',
       logo_url: '',
-      cabecalho_orcamento: '',
+      site_url: '',
+      instagram_url: '',
+      facebook_url: '',
+      linkedin_url: '',
       margem_lucro_padrao: '',
       impostos_padrao: '',
       comissao_padrao: '',
@@ -166,7 +179,10 @@ export default function ConfiguracoesLojaPage() {
       cidade: loja.cidade ?? '',
       uf: loja.uf ?? '',
       logo_url: loja.logo_url ?? '',
-      cabecalho_orcamento: loja.cabecalho_orcamento ?? '',
+      site_url: loja.site_url ?? '',
+      instagram_url: loja.instagram_url ?? '',
+      facebook_url: loja.facebook_url ?? '',
+      linkedin_url: loja.linkedin_url ?? '',
       margem_lucro_padrao: formatPercentage(loja.margem_lucro_padrao),
       impostos_padrao: formatPercentage(loja.impostos_padrao),
       comissao_padrao: formatPercentage(loja.comissao_padrao),
@@ -175,6 +191,16 @@ export default function ConfiguracoesLojaPage() {
         loja.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro',
     });
   }, [user, form]);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setLogoPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(selectedFile);
+    setLogoPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selectedFile]);
 
   useEffect(() => {
     if (loading || !user) return;
@@ -258,6 +284,10 @@ export default function ConfiguracoesLojaPage() {
         bairro: emptyToUndef(values.bairro) ?? null,
         cidade: emptyToUndef(values.cidade) ?? null,
         uf: emptyToUndef(values.uf)?.toUpperCase() ?? null,
+        site_url: emptyToUndef(values.site_url) ?? null,
+        instagram_url: emptyToUndef(values.instagram_url) ?? null,
+        facebook_url: emptyToUndef(values.facebook_url) ?? null,
+        linkedin_url: emptyToUndef(values.linkedin_url) ?? null,
         ...(values.documento_tipo === 'cnpj'
           ? { cnpj: emptyToUndef(values.documento) ?? null, cpf: null }
           : { cpf: emptyToUndef(values.documento) ?? null, cnpj: null }),
@@ -276,7 +306,6 @@ export default function ConfiguracoesLojaPage() {
 
       const configPayload = {
         logo_url: newLogoUrl ?? values.logo_url,
-        cabecalho_orcamento: values.cabecalho_orcamento,
         margem_lucro_padrao: parsePercentage(values.margem_lucro_padrao),
         impostos_padrao: parsePercentage(values.impostos_padrao),
         comissao_padrao: parsePercentage(values.comissao_padrao),
@@ -472,7 +501,8 @@ export default function ConfiguracoesLojaPage() {
             <div>
               <h2 className="text-lg font-semibold">Endereço</h2>
               <p className="text-sm text-muted-foreground">
-                Preparado para futura integração fiscal / NF. Pode preencher agora.
+                Digite o CEP para preencher automaticamente. Usado no rodapé do
+                orçamento.
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-6">
@@ -483,8 +513,57 @@ export default function ConfiguracoesLojaPage() {
                   <FormItem className="md:col-span-2">
                     <FormLabel>CEP</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input
+                        {...field}
+                        inputMode="numeric"
+                        placeholder="00000-000"
+                        disabled={buscandoCep}
+                        onChange={(e) => {
+                          void handleCepChange(e.target.value, (parcial) => {
+                            if (parcial.cep !== undefined) {
+                              form.setValue('cep', parcial.cep, {
+                                shouldDirty: true,
+                              });
+                            }
+                            if (parcial.logradouro !== undefined) {
+                              form.setValue('logradouro', parcial.logradouro, {
+                                shouldDirty: true,
+                              });
+                            }
+                            if (parcial.bairro !== undefined) {
+                              form.setValue('bairro', parcial.bairro, {
+                                shouldDirty: true,
+                              });
+                            }
+                            if (parcial.cidade !== undefined) {
+                              form.setValue('cidade', parcial.cidade, {
+                                shouldDirty: true,
+                              });
+                            }
+                            if (parcial.uf !== undefined) {
+                              form.setValue('uf', parcial.uf, {
+                                shouldDirty: true,
+                              });
+                            }
+                            if (parcial.complemento !== undefined) {
+                              form.setValue(
+                                'complemento',
+                                parcial.complemento,
+                                { shouldDirty: true },
+                              );
+                            }
+                          });
+                        }}
+                      />
                     </FormControl>
+                    {buscandoCep ? (
+                      <p className="text-xs text-muted-foreground">
+                        Buscando CEP…
+                      </p>
+                    ) : null}
+                    {erroCep ? (
+                      <p className="text-xs text-destructive">{erroCep}</p>
+                    ) : null}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -649,33 +728,154 @@ export default function ConfiguracoesLojaPage() {
 
           <section className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold">Branding</h2>
+              <h2 className="text-lg font-semibold">
+                Papel timbrado do orçamento
+              </h2>
               <p className="text-sm text-muted-foreground">
-                Logo e cabeçalho usados em orçamentos e documentos.
+                O <strong>cabeçalho</strong> usa logo e nome da empresa. O{' '}
+                <strong>rodapé</strong> monta endereço, contatos, site/redes e
+                dados fiscais automaticamente. Veja o preview ao lado.
               </p>
             </div>
-            <FormItem>
-              <FormLabel>Logo</FormLabel>
-              <FormControl>
-                <ImageUpload
-                  currentImageUrl={form.watch('logo_url') || undefined}
-                  onFileSelect={setSelectedFile}
-                />
-              </FormControl>
-            </FormItem>
-            <FormField
-              control={form.control}
-              name="cabecalho_orcamento"
-              render={({ field }) => (
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Cabeçalho
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Logo + nome fantasia (ou razão social) em destaque.
+                  </p>
+                </div>
                 <FormItem>
-                  <FormLabel>Cabeçalho do orçamento</FormLabel>
+                  <FormLabel>Logo</FormLabel>
                   <FormControl>
-                    <Textarea rows={4} {...field} />
+                    <ImageUpload
+                      currentImageUrl={form.watch('logo_url') || undefined}
+                      onFileSelect={setSelectedFile}
+                    />
                   </FormControl>
-                  <FormMessage />
                 </FormItem>
-              )}
-            />
+
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Rodapé — canais digitais
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Opcionais. Endereço, telefone, e-mail e dados fiscais já
+                    vêm das seções acima.
+                  </p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="site_url"
+                    render={({ field }) => (
+                      <FormItem className="sm:col-span-2">
+                        <FormLabel>Site</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="https://www.minhaloja.com.br"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="instagram_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Instagram</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="https://instagram.com/..."
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="facebook_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Facebook</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="https://facebook.com/..."
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="linkedin_url"
+                    render={({ field }) => (
+                      <FormItem className="sm:col-span-2">
+                        <FormLabel>LinkedIn</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="https://linkedin.com/..."
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="lg:sticky lg:top-24 lg:self-start">
+                <p className="mb-2 text-sm font-medium text-foreground">
+                  Preview do timbrado
+                </p>
+                <TimbradoPreview
+                  compact
+                  data={{
+                    logo_url: form.watch('logo_url'),
+                    logoPreviewUrl,
+                    nome_destaque:
+                      form.watch('nome_fantasia') ||
+                      form.watch('razao_social') ||
+                      form.watch('nome'),
+                    razao_social: form.watch('razao_social'),
+                    cnpj:
+                      form.watch('documento_tipo') === 'cnpj'
+                        ? form.watch('documento')
+                        : null,
+                    cpf:
+                      form.watch('documento_tipo') === 'cpf'
+                        ? form.watch('documento')
+                        : null,
+                    inscricao_estadual: form.watch('inscricao_estadual'),
+                    inscricao_municipal: form.watch('inscricao_municipal'),
+                    cep: form.watch('cep'),
+                    logradouro: form.watch('logradouro'),
+                    numero: form.watch('numero'),
+                    complemento: form.watch('complemento'),
+                    bairro: form.watch('bairro'),
+                    cidade: form.watch('cidade'),
+                    uf: form.watch('uf'),
+                    telefone: form.watch('telefone'),
+                    email: form.watch('email'),
+                    site_url: form.watch('site_url'),
+                    instagram_url: form.watch('instagram_url'),
+                    facebook_url: form.watch('facebook_url'),
+                    linkedin_url: form.watch('linkedin_url'),
+                  }}
+                />
+              </div>
+            </div>
           </section>
 
           <Separator />
