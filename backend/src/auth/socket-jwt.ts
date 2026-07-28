@@ -75,8 +75,16 @@ export function extractJwtFromSocketHandshake(
   return null;
 }
 
+import { isAllowedComunikappOrigin } from '../lojas/tenant-host';
+
 /** Origins permitidos para Socket.IO com credentials (não pode ser *). */
-export function getSocketCorsOrigins(): string[] | boolean {
+export function getSocketCorsOrigins():
+  | boolean
+  | string[]
+  | ((
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => void) {
   const isProd = process.env.NODE_ENV === 'production';
   const envOrigins = (process.env.CORS_ORIGINS || '')
     .split(',')
@@ -95,11 +103,26 @@ export function getSocketCorsOrigins(): string[] | boolean {
         'http://localhost:3001',
         'http://127.0.0.1:3001',
       ];
-  const list = [
+  const allowlist = new Set([
     ...dev,
     ...defaults,
     ...(frontend ? [frontend.replace(/\/$/, '')] : []),
     ...envOrigins,
-  ];
-  return [...new Set(list)];
+  ]);
+
+  return (origin, callback) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (allowlist.has(origin) || isAllowedComunikappOrigin(origin)) {
+      callback(null, true);
+      return;
+    }
+    if (!isProd && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(null, false);
+  };
 }

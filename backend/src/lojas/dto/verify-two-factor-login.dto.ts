@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, Length } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, Length } from 'class-validator';
 
 export class VerifyTwoFactorLoginDto {
   @IsString()
@@ -8,4 +8,9 @@ export class VerifyTwoFactorLoginDto {
   @IsString()
   @Length(6, 6)
   code: string;
+
+  /** Slug esperado do host (Fatia B). */
+  @IsString()
+  @IsOptional()
+  slug?: string;
 }

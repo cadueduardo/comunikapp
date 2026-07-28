@@ -13,6 +13,7 @@ import {
   clearClientSessionActive,
   markClientSessionActive,
 } from '@/lib/session-auth';
+import { resolvePostLoginHref } from '@/lib/post-login-redirect';
 import {
   Dialog,
   DialogContent,
@@ -139,10 +140,27 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const login = useCallback(
     async (_token?: string) => {
       // Cookie já foi setado pelo BFF /api/auth/login*
-      await fetchUserData();
-      router.push('/dashboard');
+      setLoading(true);
+      try {
+        const userData = await authAPI.getCurrentUser();
+        setUser(userData);
+        markClientSessionActive();
+        const dest = resolvePostLoginHref(userData?.loja);
+        if (dest.external) {
+          window.location.assign(dest.href);
+          return;
+        }
+        router.push(dest.href);
+      } catch (error) {
+        console.error('❌ UserContext: Erro pós-login:', error);
+        clearLegacyAuthStorage();
+        setUser(null);
+        throw error;
+      } finally {
+        setLoading(false);
+      }
     },
-    [fetchUserData, router],
+    [router],
   );
 
   const logout = useCallback(async () => {

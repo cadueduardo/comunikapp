@@ -47,9 +47,24 @@ async function bootstrap() {
     const devOrigins = isProd
       ? []
       : ['http://localhost:3000', 'http://127.0.0.1:3000'];
-    const corsOrigins = [...devOrigins, ...defaultProduction, ...envOrigins];
+    const allowlist = new Set([
+      ...devOrigins,
+      ...defaultProduction,
+      ...envOrigins,
+    ]);
+    const { isAllowedComunikappOrigin } = await import('./lojas/tenant-host');
     app.enableCors({
-      origin: corsOrigins,
+      origin: (origin, callback) => {
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+        if (allowlist.has(origin) || isAllowedComunikappOrigin(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(new Error(`Origin não permitida: ${origin}`), false);
+      },
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
       allowedHeaders: [
         'Content-Type',
@@ -57,6 +72,7 @@ async function bootstrap() {
         'Authorization',
         'x-loja-id',
         'x-user-roles',
+        'x-tenant-slug',
         'x-internal-token',
         'Cache-Control',
         'Pragma',

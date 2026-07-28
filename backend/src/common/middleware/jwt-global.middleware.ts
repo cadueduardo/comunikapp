@@ -2,19 +2,28 @@ import {
   Injectable,
   NestMiddleware,
   UnauthorizedException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { JwtService } from '@nestjs/jwt';
+import { PrismaService } from '../../prisma/prisma.service';
 import { extractJwtFromRequest } from '../../auth/session-cookie';
+import {
+  extractTenantSlugFromHost,
+  extractTenantSlugFromOrigin,
+} from '../../lojas/tenant-host';
 
 @Injectable()
 export class JwtGlobalMiddleware implements NestMiddleware {
   private readonly logger = new Logger(JwtGlobalMiddleware.name);
 
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
+  ) {}
 
-  use(req: Request, res: Response, next: NextFunction) {
+  async use(req: Request, res: Response, next: NextFunction) {
     this.logger.debug(
       `Middleware JWT executado para: ${req.method} ${req.path}`,
     );
@@ -26,6 +35,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       '/api/lojas/health',
       '/api/lojas/verificar-email',
       '/api/lojas/reenviar-verificacao',
+      '/api/lojas/public/by-slug',
       '/api/platform/convites/validar',
       '/api/platform/interesse-beta',
       '/api/usuarios/reenviar-codigo',
@@ -37,6 +47,8 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       '/lojas/health',
       '/lojas/verificar-email',
       '/lojas/reenviar-verificacao',
+      '/lojas/public/by-slug',
+      '/api/lojas/public/by-slug',
       '/platform/convites/validar',
       '/platform/interesse-beta',
       '/usuarios/reenviar-codigo',
@@ -124,8 +136,35 @@ export class JwtGlobalMiddleware implements NestMiddleware {
         },
       };
 
+      const headerSlug = req.headers['x-tenant-slug'];
+      const fromHeader =
+        typeof headerSlug === 'string' ? headerSlug.trim().toLowerCase() : null;
+      const tenantSlug =
+        fromHeader ||
+        extractTenantSlugFromOrigin(req.headers.origin) ||
+        extractTenantSlugFromHost(req.headers['x-forwarded-host'] as string) ||
+        extractTenantSlugFromHost(req.headers.host);
+
+      if (tenantSlug) {
+        const loja = await this.prisma.loja.findUnique({
+          where: { slug: tenantSlug },
+          select: { id: true },
+        });
+        if (!loja || loja.id !== payload.loja_id) {
+          this.logger.warn(
+            `tenant_mismatch path=${req.path} slug=${tenantSlug} jwtLoja=${payload.loja_id}`,
+          );
+          throw new ForbiddenException(
+            'Sessão não pertence a esta loja. Faça login no endereço correto.',
+          );
+        }
+      }
+
       next();
     } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
       if (process.env.NODE_ENV === 'production') {
         this.logger.warn(`JWT invalido: ${req.method} ${req.path}`);
       } else {

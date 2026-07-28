@@ -83,6 +83,12 @@ export class LojasController {
     return this.lojasService.resendVerificationEmail(body.email);
   }
 
+  @Public()
+  @Get('public/by-slug/:slug')
+  findPublicBySlug(@Param('slug') slug: string) {
+    return this.lojasService.findPublicBySlug(slug);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('user-by-email')
   findUserByEmail(@Query('email') email: string) {

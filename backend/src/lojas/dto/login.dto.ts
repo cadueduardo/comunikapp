@@ -12,4 +12,9 @@ export class LoginDto {
   @IsString()
   @IsOptional()
   captchaToken?: string;
+
+  /** Slug esperado do host `{slug}.comunikapp.com.br` (omitido no apex). */
+  @IsString()
+  @IsOptional()
+  slug?: string;
 }

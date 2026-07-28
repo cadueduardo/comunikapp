@@ -4,6 +4,7 @@ import {
   getBackendBaseUrl,
   getSessionCookieOptions,
 } from '@/lib/auth-cookie';
+import { extractTenantSlugFromHost } from '@/lib/tenant-host';
 
 type NestLoginSuccess = {
   access_token?: string;
@@ -45,9 +46,16 @@ function applySessionCookie(
   return res;
 }
 
+function withTenantSlug(request: NextRequest, body: Record<string, unknown>) {
+  const slug = extractTenantSlugFromHost(request.headers.get('host'));
+  if (!slug) return body;
+  return { ...body, slug };
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const raw = (await request.json()) as Record<string, unknown>;
+    const body = withTenantSlug(request, raw);
     const { status, data } = await forwardLogin('/lojas/login', body);
 
     if (!status || status >= 400) {

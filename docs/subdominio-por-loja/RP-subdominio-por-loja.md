@@ -1,6 +1,6 @@
 # RP — Subdomínio por loja
 
-**Status:** Fatia A em produção (dados/UI/onboarding); runtime host = Fatia B
+**Status:** Fatia B em implementação (runtime tenant-by-host); Fatia A em produção
 **Produto:** ComunikApp  
 **Feature:** Tenant por hostname (`{slug}.comunikapp.com.br`)  
 **Público:** lojas (tenant), TI/proxy corporativo do cliente, operação ComunikApp  
@@ -279,12 +279,12 @@ Nova etapa obrigatória `definir_slug`:
 
 - [ ] Wildcard DNS `*.comunikapp.com.br` no Cloudflare
 - [ ] Validar TLS/proxy com slug de teste
-- [ ] Nginx `server_name` com wildcard
-- [ ] Next middleware: resolve slug → contexto
-- [ ] BFF login valida slug do host
-- [ ] Nest rejeita mismatch JWT ↔ tenant do host
-- [ ] CORS map para origens `https://*.comunikapp.com.br`
-- [ ] Pós-login no apex → subdomain
+- [x] Nginx `server_name` com wildcard
+- [x] Next middleware: resolve slug → contexto
+- [x] BFF login valida slug do host
+- [x] Nest rejeita mismatch JWT ↔ tenant do host
+- [x] CORS map para origens `https://*.comunikapp.com.br`
+- [x] Pós-login no apex → subdomain
 
 ### Fatia C — Domínio custom + endurecimento
 

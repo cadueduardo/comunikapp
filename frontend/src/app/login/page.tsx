@@ -46,9 +46,42 @@ function LoginContent() {
     const [captchaScriptLoaded, setCaptchaScriptLoaded] = useState(false);
     const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
     const [twoFactorCode, setTwoFactorCode] = useState('');
+    const [tenantLoja, setTenantLoja] = useState<{
+        nome: string;
+        logo_url?: string | null;
+        slug: string;
+    } | null>(null);
     const { login } = useUser(); // Obter a função de login do contexto
     const searchParams = useSearchParams();
     const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const host = window.location.hostname.toLowerCase();
+        const match = host.match(/^([a-z0-9-]+)\.comunikapp\.com\.br$/);
+        if (!match || match[1] === 'www') return;
+        const slug = match[1];
+        const apiBase = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/$/, '');
+        fetch(`${apiBase}/lojas/public/by-slug/${encodeURIComponent(slug)}`, {
+            credentials: 'omit',
+        })
+            .then(async (res) => {
+                if (!res.ok) return null;
+                return res.json();
+            })
+            .then((data) => {
+                if (data?.slug) {
+                    setTenantLoja({
+                        nome: data.nome,
+                        logo_url: data.logo_url,
+                        slug: data.slug,
+                    });
+                }
+            })
+            .catch(() => {
+                /* branding opcional */
+            });
+    }, []);
 
     useEffect(() => {
         if (searchParams.get('verified') === 'true') {
@@ -170,15 +203,30 @@ function LoginContent() {
                     <div className="mx-auto grid w-[400px] gap-6">
                         <div className="grid gap-2 text-center">
                             <div className="mb-4 flex justify-center">
-                                <BrandLogo
-                                    variant="logoPlatform"
-                                    heightPx={40}
-                                    maxWidthPx={240}
-                                />
+                                {tenantLoja?.logo_url ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={tenantLoja.logo_url}
+                                        alt={tenantLoja.nome}
+                                        className="h-10 max-w-[240px] object-contain"
+                                    />
+                                ) : (
+                                    <BrandLogo
+                                        variant="logoPlatform"
+                                        heightPx={40}
+                                        maxWidthPx={240}
+                                    />
+                                )}
                             </div>
-                            <h1 className="text-3xl font-bold">Faça seu login</h1>
+                            <h1 className="text-3xl font-bold">
+                                {tenantLoja
+                                    ? `Entrar em ${tenantLoja.nome}`
+                                    : 'Faça seu login'}
+                            </h1>
                             <p className="text-balance text-muted-foreground">
-                                Entre em sua conta para continuar
+                                {tenantLoja
+                                    ? `Acesso à loja ${tenantLoja.slug}.comunikapp.com.br`
+                                    : 'Entre em sua conta para continuar'}
                             </p>
                         </div>
                         <form onSubmit={handleSubmit} className="grid gap-4">

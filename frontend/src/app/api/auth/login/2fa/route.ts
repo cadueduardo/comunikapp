@@ -4,10 +4,14 @@ import {
   getBackendBaseUrl,
   getSessionCookieOptions,
 } from '@/lib/auth-cookie';
+import { extractTenantSlugFromHost } from '@/lib/tenant-host';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const raw = (await request.json()) as Record<string, unknown>;
+    const slug = extractTenantSlugFromHost(request.headers.get('host'));
+    const body = slug ? { ...raw, slug } : raw;
+
     const response = await fetch(`${getBackendBaseUrl()}/lojas/login/2fa`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },

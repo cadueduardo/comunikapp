@@ -551,7 +551,7 @@ export default function ConfiguracoesLojaPage() {
               <h2 className="text-lg font-semibold">Acesso e URL</h2>
               <p className="text-sm text-muted-foreground">
                 Defina o slug da loja a partir do nome (ex.: Cacau Placas →
-                cacauplacas). O subdomínio real entra na próxima fase.
+                cacauplacas). O login no subdomínio usa este endereço.
               </p>
             </div>
             <FormField
@@ -594,15 +594,11 @@ export default function ConfiguracoesLojaPage() {
                     </div>
                   ) : null}
                   <FormDescription>
-                    URL canônica (preview):{' '}
+                    URL canônica:{' '}
                     <span className="font-mono text-foreground">
                       {urlCanonico || '—'}
                     </span>
-                    . Ainda informativa — o host{' '}
-                    <span className="font-mono">
-                      {'{slug}.comunikapp.com.br'}
-                    </span>{' '}
-                    será ativado na Fatia B (DNS + Nginx + middleware).
+                    . Use este endereço para login da loja.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

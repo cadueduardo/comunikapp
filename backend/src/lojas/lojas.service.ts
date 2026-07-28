@@ -4,6 +4,7 @@ import {
   NotFoundException,
   UnauthorizedException,
   ConflictException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
@@ -245,7 +246,7 @@ export class LojasService {
   }
 
   async login(
-    { email, password, captchaToken }: LoginDto,
+    { email, password, captchaToken, slug }: LoginDto,
     ip = 'unknown',
     userAgent = 'unknown',
   ) {
@@ -336,6 +337,8 @@ export class LojasService {
       throw new UnauthorizedException('Credenciais inválidas.');
     }
 
+    this.assertLoginSlugMatchesLoja(slug, usuario.loja, normalizedEmail, ip, ua);
+
     if (usuario.two_factor_enabled && usuario.two_factor_secret) {
       this.clearLoginFailure(loginKey);
       this.logger.log(
@@ -374,13 +377,21 @@ export class LojasService {
         email: usuario.email,
         funcao: usuario.funcao,
         loja_id: usuario.loja_id,
+        loja: usuario.loja
+          ? {
+              id: usuario.loja.id,
+              nome: usuario.loja.nome,
+              slug: usuario.loja.slug,
+              url_canonica: buildCanonicalLojaUrl(usuario.loja.slug),
+            }
+          : undefined,
       },
       message: 'Login realizado com sucesso!',
     };
   }
 
   async verifyTwoFactorLogin(
-    { temporaryToken, code }: VerifyTwoFactorLoginDto,
+    { temporaryToken, code, slug }: VerifyTwoFactorLoginDto,
     ip = 'unknown',
     userAgent = 'unknown',
   ) {
@@ -422,6 +433,8 @@ export class LojasService {
       throw new UnauthorizedException('Codigo 2FA invalido.');
     }
 
+    this.assertLoginSlugMatchesLoja(slug, usuario.loja, usuario.email, ip, ua);
+
     const token = await this.authService.generateToken({
       id: usuario.id,
       email: usuario.email,
@@ -443,6 +456,14 @@ export class LojasService {
         email: usuario.email,
         funcao: usuario.funcao,
         loja_id: usuario.loja_id,
+        loja: usuario.loja
+          ? {
+              id: usuario.loja.id,
+              nome: usuario.loja.nome,
+              slug: usuario.loja.slug,
+              url_canonica: buildCanonicalLojaUrl(usuario.loja.slug),
+            }
+          : undefined,
       },
       message: 'Login realizado com sucesso!',
     };
@@ -461,6 +482,57 @@ export class LojasService {
     }
 
     return usuario;
+  }
+
+  /** Branding leve para login no subdomain (sem dados sensíveis). */
+  async findPublicBySlug(slugRaw: string) {
+    const slug = normalizeLojaSlugCandidate(slugRaw);
+    if (!isValidLojaSlug(slug)) {
+      throw new NotFoundException('Loja não encontrada.');
+    }
+
+    const loja = await this.prisma.loja.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        nome: true,
+        slug: true,
+        logo_url: true,
+        status: true,
+      },
+    });
+
+    if (!loja || loja.status === loja_status.INATIVA) {
+      throw new NotFoundException('Loja não encontrada.');
+    }
+
+    return {
+      id: loja.id,
+      nome: loja.nome,
+      slug: loja.slug,
+      logo_url: loja.logo_url,
+      url_canonica: buildCanonicalLojaUrl(loja.slug),
+    };
+  }
+
+  private assertLoginSlugMatchesLoja(
+    slug: string | undefined,
+    loja: { id: string; slug: string } | null | undefined,
+    email: string,
+    ip: string,
+    ua: string,
+  ) {
+    const expected = slug?.trim().toLowerCase();
+    if (!expected) return;
+
+    if (!loja?.slug || loja.slug !== expected) {
+      this.logger.warn(
+        `login_blocked tenant_mismatch email=${email} ip=${ip} ua="${ua}" expectedSlug=${expected} lojaSlug=${loja?.slug ?? 'none'}`,
+      );
+      throw new ForbiddenException(
+        'Estas credenciais não pertencem a esta loja. Use o endereço correto ou o login em comunikapp.com.br.',
+      );
+    }
   }
 
   async findLojaWithTrial(lojaId: string) {
