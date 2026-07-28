@@ -38,6 +38,7 @@ export class ApiClient {
       const response = await fetch(url, {
         method: 'GET',
         headers,
+        credentials: 'include',
         // Em orçamentos a consistência do dado exibido é crítica (preview/lista).
         // Evita retornar valores antigos após salvar/atualizar.
         cache: 'no-store',
@@ -69,6 +70,7 @@ export class ApiClient {
     const response = await fetch(url, {
       method: 'POST',
       headers: requestHeaders,
+      credentials: 'include',
       body: isFormData ? data : JSON.stringify(data),
     });
     
@@ -87,6 +89,7 @@ export class ApiClient {
     const response = await fetch(url, {
       method: 'PUT',
       headers,
+      credentials: 'include',
       body: JSON.stringify(data),
     });
     
@@ -104,6 +107,7 @@ export class ApiClient {
     
     const response = await fetch(url, {
       method: 'DELETE',
+      credentials: 'include',
       headers: {
         ...headers,
         ...(data && { 'Content-Type': 'application/json' }),
@@ -131,6 +135,7 @@ export class ApiClient {
     const response = await fetch(url, {
       method: 'PATCH',
       headers,
+      credentials: 'include',
       body: JSON.stringify(data),
     });
     
@@ -752,7 +757,7 @@ export const lojasApi = {
   verifyEmail: (data: Record<string, unknown>) => ApiClient.post('/lojas/verificar-email', data),
   resendVerification: (data: Record<string, unknown>) =>
     ApiClient.post('/lojas/reenviar-verificacao', data),
-  getCurrentUser: (token: string) => ApiClient.get('/lojas/me', token),
+  getCurrentUser: (_token?: string) => ApiClient.get('/lojas/me'),
   getMinhaLoja: (token: string) => ApiClient.get('/lojas/minha-loja', token),
 };
 

@@ -8,6 +8,7 @@ import {
 import { Observable } from 'rxjs';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from '../../auth/auth.service';
+import { extractJwtFromRequest } from '../../auth/session-cookie';
 
 @Injectable()
 export class JwtAuthInterceptor implements NestInterceptor {
@@ -29,13 +30,10 @@ export class JwtAuthInterceptor implements NestInterceptor {
       return next.handle();
     }
 
-    // Extrair token do header Authorization
-    const authHeader = request.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const token = extractJwtFromRequest(request);
+    if (!token) {
       throw new UnauthorizedException('Token de autenticação não fornecido');
     }
-
-    const token = authHeader.substring(7);
 
     try {
       // Validar token JWT

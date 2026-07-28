@@ -108,11 +108,11 @@ function LoginContent() {
 
         try {
             if (twoFactorToken) {
-                const responseData = await authAPI.verifyTwoFactorLogin(
+                await authAPI.verifyTwoFactorLogin(
                     twoFactorToken,
                     twoFactorCode
                 );
-                await login(responseData.access_token);
+                await login();
                 return;
             }
 
@@ -129,10 +129,8 @@ function LoginContent() {
                 return;
             }
 
-            const { access_token } = responseData;
-            
-            // Chama a função de login do contexto
-            await login(access_token);
+            // Cookie HttpOnly já foi setado pelo BFF /api/auth/login
+            await login();
             
         } catch (err: unknown) {
             if (err instanceof AuthApiError && err.code === 'CAPTCHA_REQUIRED') {

@@ -71,15 +71,16 @@ export const resolveAssetUrl = (path?: string | null): string | null => {
   return buildApiUrl(path.startsWith('/') ? path : `/${path}`);
 };
 
-// Função helper para obter headers com autenticação
-export const getAuthHeaders = (token?: string) => {
+// Função helper para obter headers com autenticação.
+// Sem token explícito, a sessão vai no cookie HttpOnly (credentials: 'include').
+export const getAuthHeaders = (token?: string | null) => {
   const headers: Record<string, string> = {
     ...API_CONFIG.defaultHeaders,
   };
-  
-  if (token) {
+
+  if (token && token !== 'null' && token !== 'undefined') {
     headers['Authorization'] = `Bearer ${token}`;
   }
-  
+
   return headers;
 };

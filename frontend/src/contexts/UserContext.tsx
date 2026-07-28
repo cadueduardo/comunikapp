@@ -1,16 +1,26 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI } from '@/lib/api';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { lojasApi } from '@/lib/api-client';
 
-// Adicionando um tipo básico para Loja para evitar erros
-// O ideal seria compartilhar tipos com o backend
 interface Loja {
   id: string;
   nome: string;
@@ -22,9 +32,7 @@ interface Loja {
   impostos_padrao?: string | null;
   comissao_padrao?: string | null;
   horas_produtivas_mensais?: number | null;
-  /** 'markup' | 'margem_por_dentro' — padrão da loja para tipo de margem */
   tipo_margem_lucro?: string | null;
-  // Fase 6 - Condicao de pagamento padrao da loja
   condicao_pagamento_padrao_tipo?: string | null;
   condicao_pagamento_padrao_entrada_pct?: string | null;
   condicao_pagamento_padrao_descricao?: string | null;
@@ -37,16 +45,17 @@ interface User {
   telefone: string;
   funcao: string;
   loja_id: string;
-  loja: Loja; // Adicionado campo loja
+  loja: Loja;
 }
 
 interface UserContextType {
   user: User | null;
   loading: boolean;
-  refetchUser: () => Promise<void>; // Renomeado de login
-  logout: () => void;
+  refetchUser: () => Promise<void>;
+  logout: () => void | Promise<void>;
   getFirstName: () => string;
-  login: (token: string) => Promise<void>;
+  /** Estabelece sessão via cookie HttpOnly (login BFF). Argumento legado ignorado. */
+  login: (_token?: string) => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -59,6 +68,18 @@ export const useUser = () => {
   return context;
 };
 
+function clearLegacyAuthStorage() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('loja_id');
+    localStorage.removeItem('user_roles');
+    localStorage.removeItem('user_id');
+  } catch {
+    // ignore
+  }
+}
+
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,53 +90,40 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [reauthEmail, setReauthEmail] = useState('');
   const [reauthPassword, setReauthPassword] = useState('');
 
+  const persistTenantHints = (userData: User) => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (userData?.loja?.id || userData?.loja_id) {
+        localStorage.setItem(
+          'loja_id',
+          String(userData.loja?.id || userData.loja_id),
+        );
+      }
+      if (userData?.id) {
+        localStorage.setItem('user_id', String(userData.id));
+      }
+      if (userData?.funcao) {
+        localStorage.setItem('user_roles', userData.funcao);
+      }
+      localStorage.removeItem('access_token');
+    } catch {
+      // ignore
+    }
+  };
+
   const fetchUserData = useCallback(async () => {
     setLoading(true);
     try {
-      // Verificar se há token antes de fazer a requisição
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        localStorage.removeItem('loja_id');
-        localStorage.removeItem('user_roles');
-        localStorage.removeItem('user_id');
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-      
-      const userData = await lojasApi.getCurrentUser(token);
+      const userData = await authAPI.getCurrentUser();
       setUser(userData);
-
-      // Persistir dados necessários para headers de tenant/roles no frontend
-      if (typeof window !== 'undefined') {
-        try {
-          if (userData?.loja?.id || userData?.loja_id) {
-            localStorage.setItem('loja_id', String(userData.loja?.id || userData.loja_id));
-          }
-          if (userData?.id) {
-            localStorage.setItem('user_id', String(userData.id));
-          }
-          if (userData?.funcao) {
-            // mapear função para role primária, mantendo consistência com middleware
-            // aqui persistimos apenas a função como role única por enquanto
-            localStorage.setItem('user_roles', userData.funcao);
-          }
-        } catch {}
-      }
+      persistTenantHints(userData);
     } catch (error) {
       console.error('❌ UserContext: Erro ao buscar dados do usuário:', error);
-      
-      // Verificar o tipo específico de erro
+
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        // Não limpar o token em caso de erro de conectividade
-        // Deixar que o usuário tente novamente quando o servidor estiver disponível
-      } else if (error instanceof Error && error.message.includes('401')) {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('loja_id');
-        localStorage.removeItem('user_roles');
-        localStorage.removeItem('user_id');
-        setUser(null);
+        // Não limpar sessão em erro de rede
       } else {
+        clearLegacyAuthStorage();
         setUser(null);
       }
     } finally {
@@ -124,23 +132,25 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const refetchUser = useCallback(async () => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      await fetchUserData();
-    }
+    await fetchUserData();
   }, [fetchUserData]);
 
-  const login = useCallback(async (token: string) => {
-    localStorage.setItem('access_token', token);
-    await fetchUserData();
-    router.push('/dashboard');
-  }, [fetchUserData, router]);
+  const login = useCallback(
+    async (_token?: string) => {
+      // Cookie já foi setado pelo BFF /api/auth/login*
+      await fetchUserData();
+      router.push('/dashboard');
+    },
+    [fetchUserData, router],
+  );
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('loja_id');
-    localStorage.removeItem('user_roles');
-    localStorage.removeItem('user_id');
+  const logout = useCallback(async () => {
+    try {
+      await authAPI.logout();
+    } catch (error) {
+      console.warn('Logout BFF falhou; limpando estado local mesmo assim.', error);
+    }
+    clearLegacyAuthStorage();
     setUser(null);
     router.push('/login');
   }, [router]);
@@ -150,8 +160,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     setReauthError(null);
     try {
       const responseData = await authAPI.login(reauthEmail, reauthPassword);
-      const { access_token } = responseData;
-      localStorage.setItem('access_token', access_token);
+      if (responseData.requiresTwoFactor) {
+        setReauthError(
+          'Esta conta exige 2FA. Faça login completo pela tela de login.',
+        );
+        return;
+      }
       setReauthOpen(false);
       setReauthEmail('');
       setReauthPassword('');
@@ -164,17 +178,24 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   }, [reauthEmail, reauthPassword, fetchUserData]);
 
   useEffect(() => {
-    // Verificar se estamos em uma página de autenticação
-    const isAuthPage = window.location.pathname.includes('/cadastro') || 
-                      window.location.pathname.includes('/login') || 
-                      window.location.pathname.includes('/verificar');
-    
-    // Verificar se estamos em páginas públicas
-    const isPublicPage = window.location.pathname === '/' || 
-                         window.location.pathname.startsWith('/orcamento/');
-    
-    const token = localStorage.getItem('access_token');
-    if (token && !isAuthPage && !isPublicPage) {
+    // Migração: remove JWT legado do localStorage (sessão agora é cookie HttpOnly)
+    try {
+      localStorage.removeItem('access_token');
+    } catch {
+      // ignore
+    }
+
+    const isAuthPage =
+      window.location.pathname.includes('/cadastro') ||
+      window.location.pathname.includes('/login') ||
+      window.location.pathname.includes('/verificar');
+
+    const isPublicPage =
+      window.location.pathname === '/' ||
+      window.location.pathname.startsWith('/orcamento/') ||
+      window.location.pathname.startsWith('/beta');
+
+    if (!isAuthPage && !isPublicPage) {
       fetchUserData();
     } else {
       setLoading(false);
@@ -187,11 +208,17 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       setReauthOpen(true);
     }
     if (typeof window !== 'undefined') {
-      window.addEventListener('session-expired', onSessionExpired as unknown as EventListener);
+      window.addEventListener(
+        'session-expired',
+        onSessionExpired as unknown as EventListener,
+      );
     }
     return () => {
       if (typeof window !== 'undefined') {
-        window.removeEventListener('session-expired', onSessionExpired as unknown as EventListener);
+        window.removeEventListener(
+          'session-expired',
+          onSessionExpired as unknown as EventListener,
+        );
       }
     };
   }, []);
@@ -202,34 +229,57 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <UserContext.Provider value={{ user, loading, refetchUser, logout, getFirstName, login }}>
+    <UserContext.Provider
+      value={{
+        user,
+        loading,
+        refetchUser,
+        logout,
+        getFirstName,
+        login,
+      }}
+    >
       {children}
       <Dialog open={reauthOpen} onOpenChange={setReauthOpen}>
-        <DialogContent showCloseButton={false}>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Sessão expirada</DialogTitle>
             <DialogDescription>
-              Sua sessão ficou inativa. Faça login novamente para continuar de onde parou.
+              Faça login novamente para continuar.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3 py-2">
-            <div className="grid gap-2">
-              <Label htmlFor="reauth-email">Email</Label>
-              <Input id="reauth-email" type="email" value={reauthEmail} onChange={(e) => setReauthEmail(e.target.value)} disabled={reauthLoading} />
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="reauth-email">E-mail</Label>
+              <Input
+                id="reauth-email"
+                type="email"
+                value={reauthEmail}
+                onChange={(e) => setReauthEmail(e.target.value)}
+              />
             </div>
-            <div className="grid gap-2">
+            <div className="space-y-1">
               <Label htmlFor="reauth-password">Senha</Label>
-              <Input id="reauth-password" type="password" value={reauthPassword} onChange={(e) => setReauthPassword(e.target.value)} disabled={reauthLoading} />
+              <Input
+                id="reauth-password"
+                type="password"
+                value={reauthPassword}
+                onChange={(e) => setReauthPassword(e.target.value)}
+              />
             </div>
             {reauthError && (
-              <p className="text-sm text-red-600">{reauthError}</p>
+              <p className="text-sm text-destructive">{reauthError}</p>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReauthOpen(false)} disabled={reauthLoading}>
+            <Button
+              variant="outline"
+              onClick={() => setReauthOpen(false)}
+              disabled={reauthLoading}
+            >
               Cancelar
             </Button>
-            <Button onClick={handleReauthenticate} disabled={reauthLoading || !reauthEmail || !reauthPassword}>
+            <Button onClick={handleReauthenticate} disabled={reauthLoading}>
               {reauthLoading ? 'Entrando…' : 'Entrar'}
             </Button>
           </DialogFooter>
@@ -237,4 +287,4 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       </Dialog>
     </UserContext.Provider>
   );
-}; 
+};

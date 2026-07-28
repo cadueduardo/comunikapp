@@ -5,6 +5,9 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import * as express from 'express';
+// cookie-parser é CJS sem .default; require evita undefined em runtime sem esModuleInterop
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const cookieParser = require('cookie-parser') as typeof import('cookie-parser');
 import { join } from 'path';
 
 async function bootstrap() {
@@ -26,6 +29,9 @@ async function bootstrap() {
   // Trust proxy: necessário para express-rate-limit atrás de nginx/reverse proxy (evita ERR_ERL_UNEXPECTED_X_FORWARDED_FOR)
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.set('trust proxy', 1);
+
+  // Cookie HttpOnly de sessão (JWT em comunikapp_session)
+  app.use(cookieParser());
 
   // CORS: se CORS_VIA_PROXY=true (ex.: atrás do Nginx na VPS), não envia headers CORS aqui
   // para evitar valor duplicado; o proxy envia os headers.

@@ -20,14 +20,18 @@ const nextConfig = {
         BACKEND_URL: process.env.BACKEND_URL || 'http://127.0.0.1:4000',
     },
     async rewrites() {
-        return [
-            {
-                source: '/api/:path*',
-                destination: process.env.BACKEND_URL
-                    ? `${process.env.BACKEND_URL}/:path*`
-                    : 'http://127.0.0.1:4000/:path*',
-            },
-        ];
+        // fallback: só proxyia /api/* se não houver Route Handler do Next
+        // (ex.: /api/auth/login, /api/auth/me ficam no BFF HttpOnly).
+        const backend =
+            process.env.BACKEND_URL || 'http://127.0.0.1:4000';
+        return {
+            fallback: [
+                {
+                    source: '/api/:path*',
+                    destination: `${backend}/:path*`,
+                },
+            ],
+        };
     },
     images: {
         remotePatterns: [

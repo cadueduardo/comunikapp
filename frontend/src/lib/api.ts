@@ -9,6 +9,10 @@ const SESSION_EXPIRED_IGNORED_ENDPOINTS = new Set([
   '/usuarios/definir-senha',
   '/usuarios/solicitar-redefinicao-senha',
   '/usuarios/redefinir-senha',
+  '/api/auth/login',
+  '/api/auth/login/2fa',
+  '/api/auth/logout',
+  '/api/auth/me',
 ]);
 
 export class AuthApiError extends Error {
@@ -20,13 +24,11 @@ export class AuthApiError extends Error {
   }
 }
 
-// Função para obter o token do localStorage
-const getAuthToken = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('access_token');
-  }
-  return null;
-};
+/**
+ * Sessão vive no cookie HttpOnly. Não ler JWT do localStorage.
+ * Mantido só por compatibilidade de assinatura em hotspots legados.
+ */
+const getAuthToken = (): string | null => null;
 
 // Headers de tenant/roles a partir do localStorage (preenchidos pelo UserContext)
 const getTenantHeaders = () => {
@@ -39,14 +41,14 @@ const getTenantHeaders = () => {
   return headers;
 };
 
-// Função para fazer requisições com autenticação automática
+// Função para fazer requisições com autenticação automática (cookie + credentials)
 export const apiRequest = async (
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<Response> => {
   const token = getAuthToken();
   const isEstoqueEndpoint = endpoint.startsWith('/api/estoque/');
-  
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
@@ -64,13 +66,11 @@ export const apiRequest = async (
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
+      credentials: 'include',
     });
 
-    // Em 401 de rota protegida com sessão existente, acionar modal de reautenticação.
-    // Rotas públicas (ex.: login) não devem abrir esse modal.
     const shouldTriggerSessionExpired =
       response.status === 401 &&
-      !!token &&
       !SESSION_EXPIRED_IGNORED_ENDPOINTS.has(endpoint);
 
     if (shouldTriggerSessionExpired) {
@@ -92,54 +92,65 @@ export const apiRequest = async (
     return response;
   } catch (error) {
     console.error('❌ Erro na requisição API:', error);
-    
-    // Verificar se é um erro de rede
+
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      throw new Error('Não foi possível conectar ao servidor. Verifique a conectividade com a API.');
+      throw new Error(
+        'Não foi possível conectar ao servidor. Verifique a conectividade com a API.',
+      );
     }
-    
-    // Verificar se é um erro de CORS
+
     if (error instanceof TypeError && error.message.includes('CORS')) {
-      throw new Error('Erro de CORS. Verifique se o backend está configurado corretamente.');
+      throw new Error(
+        'Erro de CORS. Verifique se o backend está configurado corretamente.',
+      );
     }
-    
-    // Verificar se é um erro de timeout
+
     if (error instanceof TypeError && error.message.includes('timeout')) {
-      throw new Error('Timeout na requisição. O servidor pode estar sobrecarregado.');
+      throw new Error(
+        'Timeout na requisição. O servidor pode estar sobrecarregado.',
+      );
     }
-    
-    // Outros erros
+
     throw error;
   }
 };
 
-// Funções específicas para diferentes endpoints
 export const authAPI = {
   login: async (email: string, password: string, captchaToken?: string) => {
-    const response = await apiRequest('/lojas/login', {
+    const response = await fetch('/api/auth/login', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      credentials: 'include',
       body: JSON.stringify({ email, password, captchaToken }),
     });
-    
+
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
       throw new AuthApiError(
         errorData.message || 'Erro ao fazer login',
         errorData.code,
       );
     }
-    
+
     return response.json();
   },
 
   verifyTwoFactorLogin: async (temporaryToken: string, code: string) => {
-    const response = await apiRequest('/lojas/login/2fa', {
+    const response = await fetch('/api/auth/login/2fa', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      credentials: 'include',
       body: JSON.stringify({ temporaryToken, code }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
       throw new AuthApiError(
         errorData.message || 'Codigo 2FA invalido',
         errorData.code,
@@ -147,6 +158,18 @@ export const authAPI = {
     }
 
     return response.json();
+  },
+
+  logout: async () => {
+    const response = await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new AuthApiError(errorData.message || 'Erro ao sair', errorData.code);
+    }
+    return response.json().catch(() => ({ ok: true }));
   },
 
   solicitarRedefinicaoSenha: async (email: string) => {
@@ -184,12 +207,16 @@ export const authAPI = {
   },
 
   getCurrentUser: async () => {
-    const response = await apiRequest('/lojas/me');
-    
+    const response = await fetch('/api/auth/me', {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+    });
+
     if (!response.ok) {
       throw new Error('Erro ao buscar dados do usuário');
     }
-    
+
     return response.json();
   },
 };
@@ -198,25 +225,25 @@ export const authAPI = {
 export const apiRequestServer = async (
   endpoint: string,
   options: RequestInit = {},
-  request?: Request
+  request?: Request,
 ): Promise<any> => {
-  // Extrair token do request do servidor (pode vir do header ou cookie)
-  let token = null;
+  let token: string | null = null;
   if (request) {
-    // Tentar pegar do header Authorization
     const authHeader = request.headers.get('authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.substring(7);
     }
-    
-    // Se não encontrou no header, tentar pegar do cookie
+
     if (!token) {
       const cookieHeader = request.headers.get('cookie');
       if (cookieHeader) {
-        const cookies = cookieHeader.split(';').map(c => c.trim());
-        const tokenCookie = cookies.find(c => c.startsWith('access_token='));
+        const cookies = cookieHeader.split(';').map((c) => c.trim());
+        const tokenCookie = cookies.find(
+          (c) =>
+            c.startsWith('comunikapp_session=') || c.startsWith('access_token='),
+        );
         if (tokenCookie) {
-          token = tokenCookie.split('=')[1];
+          token = decodeURIComponent(tokenCookie.split('=').slice(1).join('='));
         }
       }
     }
@@ -235,11 +262,14 @@ export const apiRequestServer = async (
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
+      credentials: 'include',
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Erro na requisição: ${response.status}`);
+      throw new Error(
+        errorData.message || `Erro na requisição: ${response.status}`,
+      );
     }
 
     return await response.json();
@@ -249,4 +279,4 @@ export const apiRequestServer = async (
   }
 };
 
-export default apiRequest; 
+export default apiRequest;

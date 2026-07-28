@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { JwtService } from '@nestjs/jwt';
+import { extractJwtFromRequest } from '../../auth/session-cookie';
 
 @Injectable()
 export class JwtGlobalMiddleware implements NestMiddleware {
@@ -102,14 +103,12 @@ export class JwtGlobalMiddleware implements NestMiddleware {
 
     this.logger.debug(`Rota protegida: ${req.path}`);
 
-    const authHeader = req.headers.authorization;
+    const token = extractJwtFromRequest(req);
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
       this.logger.warn(`Token nao fornecido para rota: ${req.path}`);
       throw new UnauthorizedException('Token de autenticação não fornecido');
     }
-
-    const token = authHeader.substring(7);
 
     try {
       const payload = this.jwtService.verify(token);
