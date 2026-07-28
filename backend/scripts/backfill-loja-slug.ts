@@ -5,9 +5,10 @@
  */
 import { PrismaClient } from '@prisma/client';
 import {
-  isValidLojaSlug,
+  isProvisionalLojaSlug,
   nextSlugOnCollision,
   suggestLojaSlugFromNome,
+  isValidLojaSlug,
 } from '../src/lojas/loja-slug';
 
 const prisma = new PrismaClient();
@@ -24,16 +25,25 @@ async function slugDisponivel(slug: string, ignoreLojaId?: string) {
 }
 
 async function main() {
+  const upgradeProvisional = process.argv.includes('--upgrade-provisional');
   const lojas = await prisma.loja.findMany({
-    where: { OR: [{ slug: null }, { slug: '' }] },
     select: { id: true, nome: true, slug: true },
     orderBy: { criado_em: 'asc' },
   });
 
-  console.log(`Lojas sem slug: ${lojas.length}`);
+  const targets = lojas.filter((loja) => {
+    if (!loja.slug) return true;
+    if (upgradeProvisional && isProvisionalLojaSlug(loja.slug)) return true;
+    return false;
+  });
+
+  console.log(
+    `Lojas a atualizar: ${targets.length}` +
+      (upgradeProvisional ? ' (inclui provisórios loja-*)' : ''),
+  );
 
   let updated = 0;
-  for (const loja of lojas) {
+  for (const loja of targets) {
     const base = suggestLojaSlugFromNome(loja.nome || '', loja.id);
     let attempt = 1;
     let candidate = base;
@@ -53,12 +63,17 @@ async function main() {
       continue;
     }
 
+    if (loja.slug === candidate) {
+      console.log(`${loja.id} já ok: ${candidate}`);
+      continue;
+    }
+
     await prisma.loja.update({
       where: { id: loja.id },
       data: { slug: candidate },
     });
     updated += 1;
-    console.log(`${loja.id} -> ${candidate}`);
+    console.log(`${loja.id} ${loja.slug ?? '(vazio)'} -> ${candidate}`);
   }
 
   console.log(`Atualizadas: ${updated}`);

@@ -103,8 +103,11 @@ suporte, help, billing, pagamento, webhook, webhooks
 
 ### 4.3 Geração automática (backfill e cadastro)
 
-1. Normalizar `loja.nome` → slug candidato (NFD, remover acentos, espaços → `-`).
-2. Se vazio/inválido/reservado → usar prefixo `loja-` + 6 chars do `id`.
+1. Normalizar `loja.nome` → slug candidato compacto (NFD, remover acentos,
+   juntar palavras: `Cacau Placas` → `cacauplacas`). Fallback com hífens
+   se o compacto for inválido.
+2. Se vazio/inválido/reservado → usar prefixo `loja-` + 6 chars do `id`
+   (provisório; a UI sugere o nome e permite “Usar sugestão”).
 3. Se colisão → `slug`, `slug-2`, `slug-3`, … ou `slug-{4charsId}`.
 4. Loja pode alterar o slug depois (admin da loja + confirmação), com
    redirect do slug antigo por período definido (ex.: 90 dias) se

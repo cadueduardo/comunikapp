@@ -33,6 +33,10 @@ import { configuracoesModuleNav } from '@/lib/module-nav';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { buildApiUrl } from '@/lib/config';
 import { hasClientSession } from '@/lib/session-auth';
+import {
+  isProvisionalLojaSlug,
+  suggestLojaSlugFromNome,
+} from '@/lib/loja-slug';
 
 const formatPercentage = (value: unknown): string => {
   if (value === null || value === undefined || value === '') return '';
@@ -170,10 +174,22 @@ export default function ConfiguracoesLojaPage() {
   }, [user, form]);
 
   const slugWatch = form.watch('slug');
+  const nomeWatch = form.watch('nome');
+  const slugSugerido = useMemo(() => {
+    const nome = nomeWatch?.trim() || user?.loja?.nome || '';
+    if (!nome) return '';
+    return suggestLojaSlugFromNome(nome, user?.loja?.id ?? 'nova');
+  }, [nomeWatch, user?.loja?.id, user?.loja?.nome]);
+
   const urlCanonico = useMemo(() => {
     if (!slugWatch) return '';
     return `https://${slugWatch}.comunikapp.com.br`;
   }, [slugWatch]);
+
+  const mostrarSugestaoSlug =
+    Boolean(slugSugerido) &&
+    slugSugerido !== slugWatch &&
+    (isProvisionalLojaSlug(slugWatch) || !slugWatch);
 
   async function onSubmit(values: FormValues) {
     setIsSaving(true);
@@ -534,7 +550,8 @@ export default function ConfiguracoesLojaPage() {
             <div>
               <h2 className="text-lg font-semibold">Acesso e URL</h2>
               <p className="text-sm text-muted-foreground">
-                Defina o slug da loja. Em breve o login será neste endereço.
+                Defina o slug da loja a partir do nome (ex.: Cacau Placas →
+                cacauplacas). O subdomínio real entra na próxima fase.
               </p>
             </div>
             <FormField
@@ -555,11 +572,37 @@ export default function ConfiguracoesLojaPage() {
                       }
                     />
                   </FormControl>
+                  {mostrarSugestaoSlug ? (
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="text-muted-foreground">
+                        Sugestão a partir do nome:
+                      </span>
+                      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">
+                        {slugSugerido}
+                      </code>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => form.setValue('slug', slugSugerido, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })}
+                      >
+                        Usar sugestão
+                      </Button>
+                    </div>
+                  ) : null}
                   <FormDescription>
-                    URL canônica (informativa):{' '}
+                    URL canônica (preview):{' '}
                     <span className="font-mono text-foreground">
                       {urlCanonico || '—'}
                     </span>
+                    . Ainda informativa — o host{' '}
+                    <span className="font-mono">
+                      {'{slug}.comunikapp.com.br'}
+                    </span>{' '}
+                    será ativado na Fatia B (DNS + Nginx + middleware).
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
