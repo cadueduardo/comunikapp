@@ -2,7 +2,7 @@
 
 **Criado em:** 2026-07-25
 **Escopo:** colocar `comunikapp.com.br` e `api.comunikapp.com.br` atrás do proxy da Cloudflare, ocultando o IP de origem da VPS, sem quebrar login, rate limit, fail2ban, CORS e WebSocket.
-**Status:** em execução — Fase 1 (Nginx `real_ip` + `X-Forwarded-For`) pronta no repositório; aplicar na VPS.
+**Status:** em execução — Fase 1 (Nginx) e Fase 6 parcial (UFW 22 fechada; 80/443 só Cloudflare) aplicadas na VPS.
 
 ## Decisões já tomadas
 
