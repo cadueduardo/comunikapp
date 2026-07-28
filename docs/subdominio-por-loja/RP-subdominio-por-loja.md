@@ -1,6 +1,6 @@
 # RP — Subdomínio por loja
 
-**Status:** Fatia A em implementação (dados/UI/onboarding); runtime host = Fatia B  
+**Status:** Fatia A em produção (dados/UI/onboarding); runtime host = Fatia B
 **Produto:** ComunikApp  
 **Feature:** Tenant por hostname (`{slug}.comunikapp.com.br`)  
 **Público:** lojas (tenant), TI/proxy corporativo do cliente, operação ComunikApp  
@@ -267,10 +267,10 @@ Nova etapa obrigatória `definir_slug`:
 ### Fatia A — Dados + UI + onboarding (atual)
 
 - [x] RP neste diretório (atualizado)
-- [ ] Migration `loja.slug` + campos cadastro/endereço + backfill
-- [ ] API PATCH cadastro/slug
-- [ ] Reformulação `/configuracoes/loja`
-- [ ] Etapa onboarding `definir_slug`
+- [x] Migration `loja.slug` + campos cadastro/endereço + backfill
+- [x] API PATCH cadastro/slug
+- [x] Reformulação `/configuracoes/loja`
+- [x] Etapa onboarding `definir_slug`
 
 ### Fatia B — Runtime tenant-by-host
 

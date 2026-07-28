@@ -161,7 +161,9 @@ install_system_packages() {
     make \
     g++ \
     pkg-config \
-    mariadb-client \
+    # mysql-client (nao mariadb-client): no Ubuntu, mariadb-client remove
+    # mysql-server/mysql-client e derruba o banco de producao.
+    mysql-client \
     gzip \
     libvips42 \
     nginx \
