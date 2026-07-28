@@ -119,6 +119,100 @@ function formatCnpjHeader(data: TimbradoLojaData): string {
   return '';
 }
 
+function razaoSocialHeader(data: TimbradoLojaData): string {
+  return data.razao_social?.trim() || '';
+}
+
+/** Bloco do meio do rodapé: site na 1ª linha; até 2 redes lado a lado na 2ª. */
+function BlocoSiteRedes({
+  data,
+  iconCls,
+  placeholder,
+  asLinks,
+}: {
+  data: TimbradoLojaData;
+  iconCls: string;
+  placeholder?: boolean;
+  asLinks?: boolean;
+}) {
+  const site = formatSiteDisplay(data.site_url);
+  const siteHref = data.site_url?.trim()
+    ? normalizeHref(data.site_url.trim())
+    : '';
+  const redes = selecionarRedesTimbrado(data);
+
+  const siteEl = site ? (
+    asLinks ? (
+      <a
+        href={siteHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block truncate text-blue-700 underline"
+      >
+        {site}
+      </a>
+    ) : (
+      <p className="truncate text-gray-800">{site}</p>
+    )
+  ) : placeholder ? (
+    <p className="truncate text-gray-300">website.com.br</p>
+  ) : null;
+
+  const redesEl =
+    redes.length > 0 ? (
+      <p className="flex min-w-0 items-center gap-1.5">
+        {redes.map((r, i) => {
+          const content = (
+            <>
+              <r.Icon className={cn(iconCls, 'shrink-0 text-gray-500')} />
+              <span className="truncate">{r.handle}</span>
+            </>
+          );
+          return (
+            <span key={r.key} className="flex min-w-0 items-center gap-1.5">
+              {i > 0 ? (
+                <span className="shrink-0 text-gray-400" aria-hidden>
+                  |
+                </span>
+              ) : null}
+              {asLinks ? (
+                <a
+                  href={r.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex min-w-0 items-center gap-1 truncate"
+                >
+                  {content}
+                </a>
+              ) : (
+                <span className="flex min-w-0 items-center gap-1 truncate">
+                  {content}
+                </span>
+              )}
+            </span>
+          );
+        })}
+      </p>
+    ) : placeholder ? (
+      <p className="flex items-center gap-1.5 text-gray-300">
+        <Instagram className={cn(iconCls, 'shrink-0')} />
+        <span>/rede</span>
+        <span aria-hidden>|</span>
+        <Facebook className={cn(iconCls, 'shrink-0')} />
+        <span>/rede</span>
+      </p>
+    ) : null;
+
+  if (!siteEl && !redesEl) return null;
+
+  return (
+    <div className="min-w-0 space-y-1">
+      {siteEl}
+      {redesEl}
+    </div>
+  );
+}
+
 function formatCepDisplay(cep?: string | null): string {
   const digits = (cep ?? '').replace(/\D/g, '');
   if (digits.length !== 8) return (cep ?? '').trim();
@@ -204,9 +298,8 @@ export function TimbradoPreview({
     data.razao_social?.trim() ||
     'Nome da empresa';
   const iniciais = nome.charAt(0).toUpperCase() || 'L';
-  const site = formatSiteDisplay(data.site_url);
+  const razao = razaoSocialHeader(data);
   const doc = formatCnpjHeader(data);
-  const redes = selecionarRedesTimbrado(data);
   const { linha1, linha2 } = enderecoLinhas(data);
   const iconCls = compact ? 'h-3 w-3' : 'h-3.5 w-3.5';
   const textCls = compact ? 'text-[10px] leading-snug' : 'text-xs leading-snug';
@@ -218,7 +311,7 @@ export function TimbradoPreview({
         className,
       )}
     >
-      {/* Cabeçalho: logo (ou iniciais+nome) | site + CNPJ */}
+      {/* Cabeçalho: logo (ou iniciais+nome) | razão social + CNPJ */}
       <div
         className={cn(
           'flex items-center justify-between gap-3 border-b border-gray-300',
@@ -259,9 +352,11 @@ export function TimbradoPreview({
             </>
           )}
         </div>
-        <div className={cn('shrink-0 text-right text-gray-600', textCls)}>
-          {site ? <p className="text-gray-800">{site}</p> : (
-            <p className="text-gray-300">website.com.br</p>
+        <div className={cn('min-w-0 max-w-[55%] shrink text-right text-gray-600', textCls)}>
+          {razao ? (
+            <p className="truncate text-gray-800">{razao}</p>
+          ) : (
+            <p className="text-gray-300">Razão social</p>
           )}
           {doc ? <p>{doc}</p> : <p className="text-gray-300">CNPJ</p>}
         </div>
@@ -271,7 +366,7 @@ export function TimbradoPreview({
 
       <div className="border-t border-gray-300" />
 
-      {/* Rodapé: 3 blocos, 2 linhas, sem títulos */}
+      {/* Rodapé: 3 blocos — contato | site+redes | endereço */}
       <div
         className={cn(
           'grid grid-cols-3 gap-4 text-gray-600',
@@ -304,27 +399,7 @@ export function TimbradoPreview({
           )}
         </div>
 
-        <div className="min-w-0 space-y-1">
-          {redes.length > 0 ? (
-            redes.map((r) => (
-              <p key={r.key} className="flex items-center gap-1.5 truncate">
-                <r.Icon className={cn(iconCls, 'shrink-0 text-gray-500')} />
-                <span className="truncate">{r.handle}</span>
-              </p>
-            ))
-          ) : (
-            <>
-              <p className="flex items-center gap-1.5 text-gray-300">
-                <Instagram className={cn(iconCls, 'shrink-0')} />
-                /rede
-              </p>
-              <p className="flex items-center gap-1.5 text-gray-300">
-                <Facebook className={cn(iconCls, 'shrink-0')} />
-                /rede
-              </p>
-            </>
-          )}
-        </div>
+        <BlocoSiteRedes data={data} iconCls={iconCls} placeholder />
 
         <div className="min-w-0 space-y-1 text-right">
           {linha1 ? (
@@ -345,7 +420,6 @@ export function TimbradoPreview({
 
 /** Rodapé do documento público do orçamento (print/PDF). */
 export function TimbradoRodapeDocumento({ data }: { data: TimbradoLojaData }) {
-  const redes = selecionarRedesTimbrado(data);
   const { linha1, linha2 } = enderecoLinhas(data);
 
   return (
@@ -369,20 +443,7 @@ export function TimbradoRodapeDocumento({ data }: { data: TimbradoLojaData }) {
           ) : null}
         </div>
 
-        <div className="min-w-0 space-y-1">
-          {redes.map((r) => (
-            <a
-              key={r.key}
-              href={r.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 truncate"
-            >
-              <r.Icon className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{r.handle}</span>
-            </a>
-          ))}
-        </div>
+        <BlocoSiteRedes data={data} iconCls="h-3.5 w-3.5" asLinks />
 
         <div className="min-w-0 space-y-1 text-right">
           {linha1 ? <p className="truncate">{linha1}</p> : null}
@@ -393,7 +454,7 @@ export function TimbradoRodapeDocumento({ data }: { data: TimbradoLojaData }) {
   );
 }
 
-/** Cabeçalho do documento: logo | site + CNPJ */
+/** Cabeçalho do documento: logo | razão social + CNPJ */
 export function TimbradoCabecalhoDocumento({
   data,
   rightSlot,
@@ -406,7 +467,7 @@ export function TimbradoCabecalhoDocumento({
     data.nome_destaque?.trim() ||
     data.razao_social?.trim() ||
     'Comunikapp';
-  const site = formatSiteDisplay(data.site_url);
+  const razao = razaoSocialHeader(data);
   const doc = formatCnpjHeader(data);
 
   return (
@@ -430,21 +491,14 @@ export function TimbradoCabecalhoDocumento({
               <h1 className="truncate text-2xl font-bold text-gray-900">
                 {nome}
               </h1>
-              {data.razao_social?.trim() &&
-              data.nome_destaque?.trim() &&
-              data.razao_social.trim() !== data.nome_destaque.trim() ? (
-                <p className="truncate text-sm text-gray-600">
-                  {data.razao_social}
-                </p>
-              ) : null}
             </div>
           </>
         )}
       </div>
 
-      <div className="flex shrink-0 items-start gap-6">
-        <div className="text-right text-sm text-gray-600">
-          {site ? <p className="text-gray-800">{site}</p> : null}
+      <div className="flex min-w-0 shrink-0 items-start gap-6">
+        <div className="min-w-0 max-w-[14rem] text-right text-sm text-gray-600 sm:max-w-xs">
+          {razao ? <p className="truncate text-gray-800">{razao}</p> : null}
           {doc ? <p>{doc}</p> : null}
         </div>
         {rightSlot}
