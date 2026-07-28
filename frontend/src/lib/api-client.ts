@@ -739,16 +739,20 @@ export const posCalculoApi = {
 };
 
 export const notificacoesApi = {
-  getAll: (token: string, limit?: number, offset?: number) => {
+  getAll: (token?: string, limit?: number, offset?: number) => {
     const params = new URLSearchParams();
     if (limit) params.append('limit', limit.toString());
     if (offset) params.append('offset', offset.toString());
     return ApiClient.get(`/orcamentos-v2/notificacoes?${params.toString()}`, token);
   },
-  getUnreadCount: (token: string) => ApiClient.get('/orcamentos-v2/notificacoes/nao-visualizadas/count', token),
-  markAsRead: (id: string, token: string) => ApiClient.patch(`/orcamentos-v2/notificacoes/${id}/visualizar`, {}, token),
-  markAllAsRead: (token: string) => ApiClient.patch('/orcamentos-v2/notificacoes/visualizar-todas', {}, token),
-  delete: (id: string, token: string) => ApiClient.delete(`/orcamentos-v2/notificacoes/${id}`, token),
+  getUnreadCount: (token?: string) =>
+    ApiClient.get('/orcamentos-v2/notificacoes/nao-visualizadas/count', token),
+  markAsRead: (id: string, token?: string) =>
+    ApiClient.patch(`/orcamentos-v2/notificacoes/${id}/visualizar`, {}, token),
+  markAllAsRead: (token?: string) =>
+    ApiClient.patch('/orcamentos-v2/notificacoes/visualizar-todas', {}, token),
+  delete: (id: string, token?: string) =>
+    ApiClient.delete(`/orcamentos-v2/notificacoes/${id}`, token),
 };
 
 export const lojasApi = {

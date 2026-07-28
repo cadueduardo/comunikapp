@@ -1,5 +1,4 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +17,10 @@ import { toast } from 'sonner';
 import { notificacoesApi } from '@/lib/api-client';
 import { useArteWebSocket } from '@/hooks/use-arte-websocket';
 import { cn } from '@/lib/utils';
+import {
+  clearClientSessionActive,
+  hasClientSession,
+} from '@/lib/session-auth';
 
 interface Notificacao {
   id: string;
@@ -58,11 +61,8 @@ export function NotificacoesDropdown() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef(1); // Ref para manter a página atual sem causar re-renders
 
-  // WebSocket para notificações de arte em tempo real - memoizar valores do localStorage
-  const websocketOptions = useMemo(() => ({
-    lojaId: typeof window !== 'undefined' ? localStorage.getItem('loja_id') || undefined : undefined,
-    usuarioId: typeof window !== 'undefined' ? localStorage.getItem('user_id') || undefined : undefined,
-  }), []);
+  // WebSocket para notificações de arte em tempo real
+  const websocketOptions = useMemo(() => ({}), []);
 
   const { novaMensagem: novaMensagemArte } = useArteWebSocket(websocketOptions);
 
@@ -77,27 +77,16 @@ export function NotificacoesDropdown() {
         setLoadingMore(true);
       }
 
-      const token = getClientSessionToken();
-
-      if (!token) {
-        console.log('Token não encontrado, pulando carregamento de notificações');
+      if (!hasClientSession()) {
         return;
       }
-
-      // Validar se o token não está vazio
-      if (token.trim() === '') {
-        console.log('Token vazio, pulando carregamento de notificações');
-        return;
-      }
-
-      console.log('Tentando carregar notificações com token:', token.substring(0, 20) + '...');
 
       const currentPage = reset ? 1 : pageRef.current;
       const limit = 10;
       const offset = (currentPage - 1) * limit;
 
-      // Usar paginação real do backend
-      const data = await notificacoesApi.getAll(token, limit, offset);
+      // Sessão via cookie HttpOnly (credentials: include no ApiClient)
+      const data = await notificacoesApi.getAll(undefined, limit, offset);
 
       if (reset) {
         setNotificacoes(data as Notificacao[]);
@@ -122,13 +111,10 @@ export function NotificacoesDropdown() {
     } catch (error) {
       console.error('Erro ao carregar notificações:', error);
 
-      // Se for erro de autenticação, limpar o token
       if (error instanceof Error && error.message.includes('401')) {
-        localStorage.removeItem('access_token');
-        console.log('Token inválido removido do localStorage');
+        clearClientSessionActive();
       }
 
-      // Se for erro de rede, mostrar mensagem específica
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
         console.error('Erro de conectividade com a API. Verifique se o backend está rodando.');
       }
@@ -190,34 +176,27 @@ export function NotificacoesDropdown() {
 
   const carregarContador = async () => {
     try {
-      const token = getClientSessionToken();
-
-      if (!token || token.trim() === '') {
-        console.log('Token não encontrado ou vazio, pulando carregamento do contador');
+      if (!hasClientSession()) {
         return;
       }
 
-      const data = await notificacoesApi.getUnreadCount(token);
+      const data = await notificacoesApi.getUnreadCount();
       setNaoVisualizadas((data as { count: number }).count);
     } catch (error) {
       console.error('Erro ao carregar contador:', error);
 
-      // Se for erro de autenticação, limpar o token
       if (error instanceof Error && error.message.includes('401')) {
-        localStorage.removeItem('access_token');
-        console.log('Token inválido removido do localStorage');
+        clearClientSessionActive();
       }
     }
   };
 
   const marcarComoVisualizada = async (notificacaoId: string) => {
     try {
-      const token = getClientSessionToken();
-      if (token) {
-        await notificacoesApi.markAsRead(notificacaoId, token);
-        await carregarNotificacoes(true); // Reset para recarregar tudo
-        await carregarContador();
-      }
+      if (!hasClientSession()) return;
+      await notificacoesApi.markAsRead(notificacaoId);
+      await carregarNotificacoes(true);
+      await carregarContador();
     } catch (error) {
       console.error('Erro ao marcar como visualizada:', error);
     }
@@ -225,13 +204,11 @@ export function NotificacoesDropdown() {
 
   const deletarNotificacao = async (notificacaoId: string) => {
     try {
-      const token = getClientSessionToken();
-      if (token) {
-        await notificacoesApi.delete(notificacaoId, token);
-        await carregarNotificacoes(true); // Reset para recarregar tudo
-        await carregarContador();
-        toast.success('Notificação removida');
-      }
+      if (!hasClientSession()) return;
+      await notificacoesApi.delete(notificacaoId);
+      await carregarNotificacoes(true);
+      await carregarContador();
+      toast.success('Notificação removida');
     } catch (error) {
       console.error('Erro ao deletar notificação:', error);
       toast.error('Erro ao remover notificação');

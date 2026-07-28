@@ -95,7 +95,7 @@ export class SystemStateService {
           acao: {
             tipo: 'link',
             label: 'Ativar plano agora',
-            href: '/configuracoes/assinatura',
+            href: '/configuracoes/loja',
           },
           dismissable: false,
           prioridade: 1,
@@ -111,7 +111,7 @@ export class SystemStateService {
           acao: {
             tipo: 'link',
             label: 'Ativar plano',
-            href: '/configuracoes/assinatura',
+            href: '/configuracoes/loja',
           },
           dismissable: false,
           prioridade: 10,
