@@ -14,9 +14,11 @@ import { CheckCircle, XCircle, MessageCircle, FileText, Phone, Mail, Printer, Sh
 import { ChatFlutuante } from '@/components/ui/chat-flutuante';
 import { ShareButton } from '@/components/ui/share-button';
 import { resolverTextoCondicaoPagamento } from '@/lib/condicao-pagamento-descricao';
-import { resolveAssetUrl } from '@/lib/config';
 import { formatCpf, formatCnpj } from '@/lib/cpf-cnpj';
-import { TimbradoRodapeDocumento } from '@/components/configuracoes/TimbradoPreview';
+import {
+  TimbradoCabecalhoDocumento,
+  TimbradoRodapeDocumento,
+} from '@/components/configuracoes/TimbradoPreview';
 
 interface LinhaArtePdf {
   descricao: string;
@@ -445,53 +447,27 @@ export default function OrcamentoV2PublicoPage() {
 
       <div className="min-h-screen bg-gray-100 p-4 print:p-0 print:bg-white">
         <div className="max-w-[210mm] mx-auto bg-white shadow-lg print:shadow-none print:max-w-none" style={{ minHeight: '297mm' }}>
-          {/* Cabeçalho timbrado */}
-          <div className="border-b border-gray-300 p-6 print:p-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex min-w-0 items-center gap-4">
-                {resolveAssetUrl(orcamento.loja?.logo_url) ? (
-                  <img
-                    src={resolveAssetUrl(orcamento.loja?.logo_url)!}
-                    alt="Logo"
-                    className="h-16 w-16 object-contain"
-                  />
-                ) : (
-                  <div className="flex h-16 w-16 items-center justify-center rounded bg-gray-200">
-                    <span className="text-2xl font-bold text-gray-600">
-                      {(
-                        orcamento.loja?.nome_fantasia ||
-                        orcamento.loja?.nome ||
-                        'C'
-                      ).charAt(0)}
-                    </span>
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <h1 className="truncate text-2xl font-bold text-gray-900">
-                    {orcamento.loja?.nome_fantasia ||
-                      orcamento.loja?.razao_social ||
-                      orcamento.loja?.nome ||
-                      'Comunikapp'}
-                  </h1>
-                  {orcamento.loja?.razao_social &&
-                  orcamento.loja?.nome_fantasia &&
-                  orcamento.loja.razao_social !==
-                    orcamento.loja.nome_fantasia ? (
-                    <p className="truncate text-sm text-gray-600">
-                      {orcamento.loja.razao_social}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-              <div className="shrink-0 text-right">
+          {/* Cabeçalho timbrado: logo | site + CNPJ + nº orçamento */}
+          <TimbradoCabecalhoDocumento
+            data={{
+              logo_url: orcamento.loja?.logo_url,
+              nome_destaque:
+                orcamento.loja?.nome_fantasia || orcamento.loja?.nome,
+              razao_social: orcamento.loja?.razao_social,
+              cnpj: orcamento.loja?.cnpj,
+              cpf: orcamento.loja?.cpf,
+              site_url: orcamento.loja?.site_url,
+            }}
+            rightSlot={
+              <div className="text-right">
                 <h2 className="text-xl font-bold text-gray-900">ORÇAMENTO</h2>
                 <p className="text-lg text-gray-600">#{orcamento.numero}</p>
                 <p className="text-sm text-gray-500">
                   {new Date(orcamento.criado_em).toLocaleDateString('pt-BR')}
                 </p>
               </div>
-            </div>
-          </div>
+            }
+          />
 
           {/* Dados do Cliente */}
           <div className="p-6 print:p-4">

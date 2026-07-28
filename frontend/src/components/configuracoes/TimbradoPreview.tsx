@@ -1,13 +1,12 @@
 'use client';
 
+import type { ReactNode } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import {
-  Globe,
-  Instagram,
   Facebook,
+  Instagram,
   Linkedin,
   Mail,
-  MapPin,
-  Phone,
 } from 'lucide-react';
 import { resolveAssetUrl } from '@/lib/config';
 import { cn } from '@/lib/utils';
@@ -37,27 +36,142 @@ export type TimbradoLojaData = {
   linkedin_url?: string | null;
 };
 
-function formatEndereco(d: TimbradoLojaData): string {
-  const linha1 = [d.logradouro, d.numero].filter(Boolean).join(', ');
-  const linha2 = [d.bairro, d.complemento].filter(Boolean).join(' — ');
-  const cidadeUf = [d.cidade, d.uf].filter(Boolean).join(' / ');
-  const cep = d.cep ? `CEP ${d.cep}` : '';
-  return [linha1, linha2, cidadeUf, cep].filter(Boolean).join(' · ');
+type RedeItem = {
+  key: string;
+  Icon: LucideIcon;
+  handle: string;
+  href: string;
+};
+
+function normalizeHref(url: string): string {
+  return url.startsWith('http') ? url : `https://${url}`;
 }
 
-function formatDocumento(d: TimbradoLojaData): string {
-  const parts: string[] = [];
-  if (d.cnpj) parts.push(`CNPJ ${d.cnpj}`);
-  else if (d.cpf) parts.push(`CPF ${d.cpf}`);
-  if (d.inscricao_estadual) parts.push(`IE ${d.inscricao_estadual}`);
-  if (d.inscricao_municipal) parts.push(`IM ${d.inscricao_municipal}`);
-  return parts.join(' · ');
+/** Extrai handle visual: /usuario a partir da URL da rede. */
+export function extrairHandleRede(url: string): string {
+  const raw = url.trim();
+  if (!raw) return '';
+  try {
+    const withProto = raw.startsWith('http') ? raw : `https://${raw}`;
+    const u = new URL(withProto);
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (parts.length > 0) return `/${parts[0]}`;
+    return u.hostname.replace(/^www\./, '');
+  } catch {
+    const cleaned = raw.replace(/^https?:\/\//, '').replace(/^www\./, '');
+    const slash = cleaned.indexOf('/');
+    if (slash >= 0) {
+      const handle = cleaned.slice(slash).split(/[?#]/)[0];
+      return handle.startsWith('/') ? handle : `/${handle}`;
+    }
+    return cleaned ? `/${cleaned}` : '';
+  }
+}
+
+/** Até 2 redes, na ordem Instagram → Facebook → LinkedIn. */
+export function selecionarRedesTimbrado(data: TimbradoLojaData): RedeItem[] {
+  const candidates: Array<{
+    key: string;
+    Icon: LucideIcon;
+    url?: string | null;
+  }> = [
+    { key: 'instagram', Icon: Instagram, url: data.instagram_url },
+    { key: 'facebook', Icon: Facebook, url: data.facebook_url },
+    { key: 'linkedin', Icon: Linkedin, url: data.linkedin_url },
+  ];
+
+  const out: RedeItem[] = [];
+  for (const c of candidates) {
+    const url = c.url?.trim();
+    if (!url) continue;
+    const handle = extrairHandleRede(url);
+    if (!handle) continue;
+    out.push({ key: c.key, Icon: c.Icon, handle, href: normalizeHref(url) });
+    if (out.length >= 2) break;
+  }
+  return out;
+}
+
+function WhatsAppIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="currentColor"
+      aria-hidden
+    >
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
+  );
+}
+
+function formatSiteDisplay(site?: string | null): string {
+  if (!site?.trim()) return '';
+  return site
+    .trim()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/$/, '');
+}
+
+function formatCnpjHeader(data: TimbradoLojaData): string {
+  if (data.cnpj?.trim()) return `CNPJ ${data.cnpj.trim()}`;
+  if (data.cpf?.trim()) return `CPF ${data.cpf.trim()}`;
+  return '';
+}
+
+function enderecoLinhas(data: TimbradoLojaData): {
+  linha1: string;
+  linha2: string;
+} {
+  const linha1 = [data.logradouro, data.numero].filter(Boolean).join(', ');
+  const linha2 = [data.cidade, data.uf].filter(Boolean).join(' / ');
+  return { linha1, linha2 };
+}
+
+function SkeletonMiolo({ compact }: { compact?: boolean }) {
+  return (
+    <div
+      className={cn(
+        'space-y-3 bg-white',
+        compact ? 'px-3 py-4' : 'px-5 py-6',
+      )}
+    >
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <div className="h-2 w-20 rounded bg-gray-200" />
+          <div className="h-2 w-full rounded bg-gray-100" />
+          <div className="h-2 w-4/5 rounded bg-gray-100" />
+        </div>
+        <div className="space-y-1.5">
+          <div className="h-2 w-16 rounded bg-gray-200" />
+          <div className="h-2 w-3/4 rounded bg-gray-100" />
+        </div>
+      </div>
+      <div className="space-y-1.5 border border-gray-100 p-2">
+        <div className="flex gap-2">
+          <div className="h-2 w-8 rounded bg-gray-200" />
+          <div className="h-2 flex-1 rounded bg-gray-200" />
+          <div className="h-2 w-12 rounded bg-gray-200" />
+          <div className="h-2 w-12 rounded bg-gray-200" />
+        </div>
+        <div className="h-2 w-full rounded bg-gray-100" />
+        <div className="h-2 w-full rounded bg-gray-100" />
+        <div className="h-2 w-2/3 rounded bg-gray-100" />
+        <div className="ml-auto h-2 w-24 rounded bg-gray-200" />
+      </div>
+      <div className="space-y-1 border border-gray-100 p-2">
+        <div className="h-2 w-full rounded bg-gray-100" />
+        <div className="h-2 w-full rounded bg-gray-100" />
+        <div className="h-2 w-3/4 rounded bg-gray-100" />
+      </div>
+      <div className="mx-auto h-5 w-36 rounded-full bg-gray-100" />
+    </div>
+  );
 }
 
 type TimbradoPreviewProps = {
   data: TimbradoLojaData;
   className?: string;
-  /** Variante compacta para a coluna da config */
   compact?: boolean;
 };
 
@@ -66,17 +180,18 @@ export function TimbradoPreview({
   className,
   compact = false,
 }: TimbradoPreviewProps) {
-  const logoSrc =
-    data.logoPreviewUrl ||
-    resolveAssetUrl(data.logo_url) ||
-    null;
+  const logoSrc = data.logoPreviewUrl || resolveAssetUrl(data.logo_url) || null;
   const nome =
     data.nome_destaque?.trim() ||
     data.razao_social?.trim() ||
     'Nome da empresa';
-  const endereco = formatEndereco(data);
-  const fiscal = formatDocumento(data);
   const iniciais = nome.charAt(0).toUpperCase() || 'L';
+  const site = formatSiteDisplay(data.site_url);
+  const doc = formatCnpjHeader(data);
+  const redes = selecionarRedesTimbrado(data);
+  const { linha1, linha2 } = enderecoLinhas(data);
+  const iconCls = compact ? 'h-3 w-3' : 'h-3.5 w-3.5';
+  const textCls = compact ? 'text-[10px] leading-snug' : 'text-xs leading-snug';
 
   return (
     <div
@@ -85,226 +200,210 @@ export function TimbradoPreview({
         className,
       )}
     >
-      {/* Cabeçalho */}
+      {/* Cabeçalho: logo | site + CNPJ */}
       <div
         className={cn(
-          'flex items-center gap-3 border-b border-gray-300',
-          compact ? 'p-3' : 'p-5',
+          'flex items-center justify-between gap-3 border-b border-gray-300',
+          compact ? 'p-3' : 'p-4',
         )}
       >
-        {logoSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={logoSrc}
-            alt="Logo"
-            className={cn(
-              'object-contain',
-              compact ? 'h-12 w-12' : 'h-16 w-16',
-            )}
-          />
-        ) : (
-          <div
-            className={cn(
-              'flex items-center justify-center rounded bg-gray-100 font-bold text-gray-500',
-              compact ? 'h-12 w-12 text-lg' : 'h-16 w-16 text-2xl',
-            )}
-          >
-            {iniciais}
-          </div>
-        )}
-        <div className="min-w-0">
-          <p
-            className={cn(
-              'truncate font-bold tracking-tight',
-              compact ? 'text-base' : 'text-xl',
-            )}
-          >
-            {nome}
-          </p>
-          {data.razao_social &&
-          data.nome_destaque &&
-          data.razao_social !== data.nome_destaque ? (
-            <p className="truncate text-xs text-gray-500">{data.razao_social}</p>
-          ) : null}
+        <div className="flex min-w-0 items-center gap-2">
+          {logoSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoSrc}
+              alt="Logo"
+              className={cn(
+                'object-contain',
+                compact ? 'h-11 w-11' : 'h-14 w-14',
+              )}
+            />
+          ) : (
+            <div
+              className={cn(
+                'flex items-center justify-center rounded bg-gray-100 font-bold text-gray-500',
+                compact ? 'h-11 w-11 text-base' : 'h-14 w-14 text-xl',
+              )}
+            >
+              {iniciais}
+            </div>
+          )}
+        </div>
+        <div className={cn('shrink-0 text-right text-gray-600', textCls)}>
+          {site ? <p className="text-gray-800">{site}</p> : (
+            <p className="text-gray-300">website.com.br</p>
+          )}
+          {doc ? <p>{doc}</p> : <p className="text-gray-300">CNPJ</p>}
         </div>
       </div>
 
-      {/* Área fictícia do documento */}
-      <div
-        className={cn(
-          'bg-gradient-to-b from-gray-50 to-white text-center text-gray-400',
-          compact ? 'px-3 py-8 text-xs' : 'px-6 py-14 text-sm',
-        )}
-      >
-        Pré-visualização do papel timbrado
-        <br />
-        <span className="text-[10px] text-gray-300">
-          (conteúdo do orçamento aparece aqui)
-        </span>
-      </div>
+      <SkeletonMiolo compact={compact} />
 
-      {/* Separador */}
       <div className="border-t border-gray-300" />
 
-      {/* Rodapé */}
+      {/* Rodapé: 3 blocos, 2 linhas, sem títulos */}
       <div
         className={cn(
-          'space-y-2 text-gray-600',
-          compact ? 'p-3 text-[10px] leading-snug' : 'p-4 text-xs leading-relaxed',
+          'grid grid-cols-3 gap-4 text-gray-600',
+          compact ? 'p-3' : 'p-4',
+          textCls,
         )}
       >
-        {endereco ? (
-          <div className="flex items-start gap-2">
-            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-500" />
-            <span>{endereco}</span>
-          </div>
-        ) : (
-          <div className="flex items-start gap-2 text-gray-400">
-            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>Endereço (preencha CEP e dados acima)</span>
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-x-4 gap-y-1">
+        <div className="min-w-0 space-y-1">
           {data.telefone ? (
-            <span className="inline-flex items-center gap-1.5">
-              <Phone className="h-3.5 w-3.5 text-gray-500" />
-              {data.telefone}
-            </span>
-          ) : null}
+            <p className="flex items-center gap-1.5 truncate">
+              <WhatsAppIcon className={cn(iconCls, 'shrink-0 text-gray-500')} />
+              <span className="truncate">{data.telefone}</span>
+            </p>
+          ) : (
+            <p className="flex items-center gap-1.5 text-gray-300">
+              <WhatsAppIcon className={cn(iconCls, 'shrink-0')} />
+              WhatsApp
+            </p>
+          )}
           {data.email ? (
-            <span className="inline-flex items-center gap-1.5">
-              <Mail className="h-3.5 w-3.5 text-gray-500" />
-              {data.email}
-            </span>
-          ) : null}
-          {!data.telefone && !data.email ? (
-            <span className="inline-flex items-center gap-1.5 text-gray-400">
-              <Phone className="h-3.5 w-3.5" />
-              Telefone e e-mail
-            </span>
-          ) : null}
+            <p className="flex items-center gap-1.5 truncate">
+              <Mail className={cn(iconCls, 'shrink-0 text-gray-500')} />
+              <span className="truncate">{data.email}</span>
+            </p>
+          ) : (
+            <p className="flex items-center gap-1.5 text-gray-300">
+              <Mail className={cn(iconCls, 'shrink-0')} />
+              e-mail
+            </p>
+          )}
         </div>
 
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
-          {data.site_url ? (
-            <span className="inline-flex items-center gap-1.5">
-              <Globe className="h-3.5 w-3.5 text-gray-500" />
-              {data.site_url.replace(/^https?:\/\//, '')}
-            </span>
-          ) : null}
-          {data.instagram_url ? (
-            <span className="inline-flex items-center gap-1.5">
-              <Instagram className="h-3.5 w-3.5 text-gray-500" />
-              Instagram
-            </span>
-          ) : null}
-          {data.facebook_url ? (
-            <span className="inline-flex items-center gap-1.5">
-              <Facebook className="h-3.5 w-3.5 text-gray-500" />
-              Facebook
-            </span>
-          ) : null}
-          {data.linkedin_url ? (
-            <span className="inline-flex items-center gap-1.5">
-              <Linkedin className="h-3.5 w-3.5 text-gray-500" />
-              LinkedIn
-            </span>
-          ) : null}
+        <div className="min-w-0 space-y-1">
+          {redes.length > 0 ? (
+            redes.map((r) => (
+              <p key={r.key} className="flex items-center gap-1.5 truncate">
+                <r.Icon className={cn(iconCls, 'shrink-0 text-gray-500')} />
+                <span className="truncate">{r.handle}</span>
+              </p>
+            ))
+          ) : (
+            <>
+              <p className="flex items-center gap-1.5 text-gray-300">
+                <Instagram className={cn(iconCls, 'shrink-0')} />
+                /rede
+              </p>
+              <p className="flex items-center gap-1.5 text-gray-300">
+                <Facebook className={cn(iconCls, 'shrink-0')} />
+                /rede
+              </p>
+            </>
+          )}
         </div>
 
-        {fiscal ? (
-          <p className="text-gray-500">{fiscal}</p>
-        ) : (
-          <p className="text-gray-400">Dados fiscais (CNPJ / IE / IM)</p>
-        )}
+        <div className="min-w-0 space-y-1 text-right">
+          {linha1 ? (
+            <p className="truncate">{linha1}</p>
+          ) : (
+            <p className="truncate text-gray-300">Rua, número</p>
+          )}
+          {linha2 ? (
+            <p className="truncate">{linha2}</p>
+          ) : (
+            <p className="truncate text-gray-300">Cidade / UF</p>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-/** Bloco de rodapé para o documento público do orçamento (print/PDF). */
+/** Rodapé do documento público do orçamento (print/PDF). */
 export function TimbradoRodapeDocumento({ data }: { data: TimbradoLojaData }) {
-  const endereco = formatEndereco(data);
-  const fiscal = formatDocumento(data);
+  const redes = selecionarRedesTimbrado(data);
+  const { linha1, linha2 } = enderecoLinhas(data);
 
   return (
-    <div className="mt-6 border-t border-gray-300 pt-4 text-xs text-gray-600 print:text-[10px]">
-      <div className="space-y-2">
-        {endereco ? (
-          <div className="flex items-start justify-center gap-2 text-center">
-            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>{endereco}</span>
-          </div>
-        ) : null}
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+    <div className="mt-6 border-t border-gray-300 pt-3 text-xs text-gray-600 print:text-[10px]">
+      <div className="grid grid-cols-3 gap-4">
+        <div className="min-w-0 space-y-1">
           {data.telefone ? (
-            <span className="inline-flex items-center gap-1.5">
-              <Phone className="h-3.5 w-3.5" />
-              {data.telefone}
-            </span>
+            <p className="flex items-center gap-1.5 truncate">
+              <WhatsAppIcon className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{data.telefone}</span>
+            </p>
           ) : null}
           {data.email ? (
             <a
               href={`mailto:${data.email}`}
-              className="inline-flex items-center gap-1.5 text-blue-700 underline"
+              className="flex items-center gap-1.5 truncate text-blue-700 underline"
             >
-              <Mail className="h-3.5 w-3.5" />
-              {data.email}
+              <Mail className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{data.email}</span>
             </a>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-          {data.site_url ? (
+
+        <div className="min-w-0 space-y-1">
+          {redes.map((r) => (
             <a
-              href={
-                data.site_url.startsWith('http')
-                  ? data.site_url
-                  : `https://${data.site_url}`
-              }
+              key={r.key}
+              href={r.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5"
+              className="flex items-center gap-1.5 truncate"
             >
-              <Globe className="h-3.5 w-3.5" />
-              {data.site_url.replace(/^https?:\/\//, '')}
+              <r.Icon className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{r.handle}</span>
             </a>
-          ) : null}
-          {data.instagram_url ? (
-            <a
-              href={data.instagram_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5"
-            >
-              <Instagram className="h-3.5 w-3.5" />
-              Instagram
-            </a>
-          ) : null}
-          {data.facebook_url ? (
-            <a
-              href={data.facebook_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5"
-            >
-              <Facebook className="h-3.5 w-3.5" />
-              Facebook
-            </a>
-          ) : null}
-          {data.linkedin_url ? (
-            <a
-              href={data.linkedin_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5"
-            >
-              <Linkedin className="h-3.5 w-3.5" />
-              LinkedIn
-            </a>
-          ) : null}
+          ))}
         </div>
-        {fiscal ? <p className="text-center text-gray-500">{fiscal}</p> : null}
+
+        <div className="min-w-0 space-y-1 text-right">
+          {linha1 ? <p className="truncate">{linha1}</p> : null}
+          {linha2 ? <p className="truncate">{linha2}</p> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Cabeçalho do documento: logo | site + CNPJ */
+export function TimbradoCabecalhoDocumento({
+  data,
+  rightSlot,
+}: {
+  data: TimbradoLojaData;
+  rightSlot?: ReactNode;
+}) {
+  const logoSrc = resolveAssetUrl(data.logo_url);
+  const nome =
+    data.nome_destaque?.trim() ||
+    data.razao_social?.trim() ||
+    'Comunikapp';
+  const site = formatSiteDisplay(data.site_url);
+  const doc = formatCnpjHeader(data);
+
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-gray-300 p-6 print:p-4">
+      <div className="flex min-w-0 items-center gap-3">
+        {logoSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoSrc}
+            alt="Logo"
+            className="h-16 w-16 object-contain"
+          />
+        ) : (
+          <div className="flex h-16 w-16 items-center justify-center rounded bg-gray-200">
+            <span className="text-2xl font-bold text-gray-600">
+              {nome.charAt(0)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex shrink-0 items-start gap-6">
+        <div className="text-right text-sm text-gray-600">
+          {site ? <p className="text-gray-800">{site}</p> : null}
+          {doc ? <p>{doc}</p> : null}
+        </div>
+        {rightSlot}
       </div>
     </div>
   );

@@ -732,9 +732,10 @@ export default function ConfiguracoesLojaPage() {
                 Papel timbrado do orçamento
               </h2>
               <p className="text-sm text-muted-foreground">
-                O <strong>cabeçalho</strong> usa logo e nome da empresa. O{' '}
-                <strong>rodapé</strong> monta endereço, contatos, site/redes e
-                dados fiscais automaticamente. Veja o preview ao lado.
+                O <strong>cabeçalho</strong> mostra logo à esquerda e website +
+                CNPJ à direita. O <strong>rodapé</strong> tem 3 blocos: WhatsApp
+                e e-mail, até 2 redes (Instagram → Facebook → LinkedIn) e
+                endereço. Preview ao lado atualiza ao digitar.
               </p>
             </div>
 
@@ -745,7 +746,8 @@ export default function ConfiguracoesLojaPage() {
                     Cabeçalho
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Logo + nome fantasia (ou razão social) em destaque.
+                    Logo à esquerda; site e CNPJ/CPF vêm dos campos abaixo e da
+                    identificação fiscal.
                   </p>
                 </div>
                 <FormItem>
@@ -763,8 +765,9 @@ export default function ConfiguracoesLojaPage() {
                     Rodapé — canais digitais
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Opcionais. Endereço, telefone, e-mail e dados fiscais já
-                    vêm das seções acima.
+                    Site no cabeçalho. Redes no rodapé: no máximo 2 (prioridade
+                    Instagram, depois Facebook, depois LinkedIn). Telefone e
+                    e-mail vêm das seções acima.
                   </p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
