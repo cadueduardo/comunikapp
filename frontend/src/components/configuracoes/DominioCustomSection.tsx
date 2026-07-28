@@ -204,7 +204,8 @@ export function DominioCustomSection({
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
           Quem configura é o TI ou a pessoa que cuida do domínio da empresa, no
-          painel de DNS (Registro.br, Cloudflare, GoDaddy, Hostinger, etc.).{' '}
+          painel de DNS da hospedagem (Hostgator, Hostinger, GoDaddy, Locaweb,
+          etc.).{' '}
           <strong>Não é obrigatório criar conta na Cloudflare</strong> — só se o
           DNS da empresa já estiver lá.
         </p>
@@ -299,9 +300,10 @@ export function DominioCustomSection({
                   Acesse o painel de DNS do domínio
                 </span>
                 <p className="mt-1">
-                  É o lugar onde a empresa gerencia{' '}
-                  <span className="font-mono">minhaloja.com.br</span> (ou o
-                  domínio dela): Registro.br, provedor de hospedagem, etc.
+                  É o painel onde a empresa gerencia o DNS do domínio (em geral
+                  na hospedagem: Hostgator, Hostinger, GoDaddy, Locaweb, etc.) —
+                  não confundir com a tela de “direcionamento de servidor” do
+                  registro do domínio.
                 </p>
                 <p className="mt-1">
                   Se o DNS já estiver na Cloudflare, entre em{' '}
