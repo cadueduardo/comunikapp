@@ -1,18 +1,19 @@
 import { ENV_CONFIG } from './env';
+import { isCustomTenantHost } from './tenant-host';
 
 // Configuração centralizada da API
 export const API_CONFIG = {
   // URL base da API - pode ser configurada por variável de ambiente
   baseUrl: ENV_CONFIG.API_URL,
-  
+
   // Timeout padrão para requisições (em ms)
   timeout: 10000,
-  
+
   // Headers padrão
   defaultHeaders: {
     'Content-Type': 'application/json',
   },
-  
+
   // Endpoints específicos (se necessário)
   endpoints: {
     auth: '/lojas',
@@ -25,7 +26,7 @@ export const API_CONFIG = {
     produtos: '/produtos',
     orcamentos: '/orcamentos',
     usuarios: '/usuarios',
-  }
+  },
 };
 
 // Função helper para construir URLs da API.
@@ -33,29 +34,58 @@ export const API_CONFIG = {
 // Comportamento por ambiente:
 // - No browser (client-side): retorna URL relativa baseada em ENV_CONFIG.API_URL
 //   (default "/api"), preservando o atalho do rewrite definido em next.config.mjs.
+// - Em domínio próprio (Fatia D): força "/api" (same-origin via Nginx no host custom).
 // - Em route handlers do Next.js (server-side, sem `window`): o fetch exige URL
-//   absoluta. Aqui caímos em process.env.BACKEND_URL (que o next.config.mjs já
-//   injeta a partir de BACKEND_URL/127.0.0.1:4000), evitando o erro genérico
-//   `TypeError: Failed to parse URL from /api/...` que aparecia como 500 opaco
-//   no log do Next sempre que uma rota chamava `buildApiUrl('/algo')`.
-//
-// Trade-off conhecido: ENV_CONFIG.API_URL pode estar configurada como caminho
-// absoluto em produção (ex.: "https://api.comunikapp.com.br"). Nesse caso ela
-// já é absoluta e funciona dos dois lados — então o ramo server-side só
-// substitui o fallback "/api" do dev local.
+//   absoluta via BACKEND_URL.
 export const buildApiUrl = (endpoint: string): string => {
-  const baseUrl = API_CONFIG.baseUrl;
-  const isRelative = baseUrl.startsWith('/');
   const isServer = typeof window === 'undefined';
+  const onCustomHost =
+    !isServer && isCustomTenantHost(window.location.host);
+
+  const baseUrl = onCustomHost ? '/api' : API_CONFIG.baseUrl;
+  const isRelative = baseUrl.startsWith('/');
 
   if (isServer && isRelative) {
-    const backendUrl =
-      process.env.BACKEND_URL || 'http://localhost:4000';
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
     return `${backendUrl}${endpoint}`;
   }
 
   return `${baseUrl}${endpoint}`;
 };
+
+/** Base URL do Socket.IO no browser (same-origin em domínio custom). */
+export function getClientSocketBaseUrl(): string {
+  if (
+    typeof window !== 'undefined' &&
+    isCustomTenantHost(window.location.host)
+  ) {
+    return window.location.origin;
+  }
+  const configuredUrl = (
+    process.env.NEXT_PUBLIC_WS_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    ''
+  ).replace(/\/$/, '');
+
+  if (!configuredUrl || configuredUrl === '/api') {
+    if (process.env.NODE_ENV !== 'production') {
+      if (typeof window !== 'undefined') {
+        const host = window.location.hostname;
+        if (host && host !== 'localhost' && host !== '127.0.0.1') {
+          return `${window.location.protocol}//${host}:4000`;
+        }
+      }
+      return 'http://localhost:4000';
+    }
+    return typeof window !== 'undefined' ? window.location.origin : '';
+  }
+
+  if (configuredUrl.endsWith('/api')) {
+    return configuredUrl.slice(0, -4);
+  }
+
+  return configuredUrl;
+}
 
 /** Resolve caminhos de upload/logo da loja para exibicao no frontend. */
 export const resolveAssetUrl = (path?: string | null): string | null => {

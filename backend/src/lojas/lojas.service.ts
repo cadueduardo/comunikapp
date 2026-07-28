@@ -12,7 +12,7 @@ import { createHash, timingSafeEqual } from 'crypto';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
-import { usuario_funcao, usuario_status, loja_status } from '@prisma/client';
+import { usuario_funcao, usuario_status, loja_status, loja, Prisma } from '@prisma/client';
 import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -20,7 +20,6 @@ import { LoginDto } from './dto/login.dto';
 import { VerifyTwoFactorLoginDto } from './dto/verify-two-factor-login.dto';
 import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
 import { UpdateCadastroLojaDto } from './dto/update-cadastro-loja.dto';
-import { loja } from '@prisma/client';
 import { TwoFactorService } from '../auth/two-factor.service';
 import { PendingSignupService } from './pending-signup.service';
 import {
@@ -38,6 +37,8 @@ import {
   normalizeLojaSlugCandidate,
   suggestLojaSlugFromNome,
 } from './loja-slug';
+import { CloudflareSaaSService } from './cloudflare-saas.service';
+import { isLikelyApexHostname } from './dominio-custom-host';
 
 type LoginAttemptState = {
   failedAttempts: number;
@@ -67,6 +68,7 @@ export class LojasService {
     private readonly authService: AuthService,
     private readonly twoFactorService: TwoFactorService,
     private readonly pendingSignupService: PendingSignupService,
+    private readonly cloudflareSaaS: CloudflareSaaSService,
   ) {}
 
   private getLoginAttemptKey(email: string, ip: string) {
@@ -588,6 +590,11 @@ export class LojasService {
   async setDominioCustom(lojaId: string, dominioRaw: string) {
     const dominio = this.normalizeDominioCustom(dominioRaw);
     this.assertDominioCustomAllowed(dominio);
+    if (isLikelyApexHostname(dominio)) {
+      throw new BadRequestException(
+        'No MVP só aceitamos subdomínio do cliente (ex.: sistema.minhaloja.com.br). Domínio raiz (apex) fica para uma fase futura.',
+      );
+    }
 
     const taken = await this.prisma.loja.findFirst({
       where: { dominio_custom: dominio, NOT: { id: lojaId } },
@@ -597,8 +604,49 @@ export class LojasService {
       throw new ConflictException('Este domínio já está em uso por outra loja.');
     }
 
+    this.cloudflareSaaS.requireConfigured();
+
+    const atual = await this.prisma.loja.findUnique({
+      where: { id: lojaId },
+      select: {
+        dominio_custom: true,
+        dominio_custom_cf_id: true,
+      },
+    });
+
+    // Troca de domínio: remove hostname antigo na CF.
+    if (
+      atual?.dominio_custom_cf_id &&
+      atual.dominio_custom &&
+      atual.dominio_custom !== dominio
+    ) {
+      try {
+        await this.cloudflareSaaS.deleteHostname(atual.dominio_custom_cf_id);
+      } catch (error) {
+        this.logger.warn(
+          `cf_saas delete previous failed loja=${lojaId}: ${
+            error instanceof Error ? error.message : error
+          }`,
+        );
+      }
+    }
+
+    let cf =
+      atual?.dominio_custom === dominio && atual.dominio_custom_cf_id
+        ? await this.cloudflareSaaS.getHostname(atual.dominio_custom_cf_id)
+        : null;
+
+    if (!cf) {
+      const existing = await this.cloudflareSaaS.findByHostname(dominio);
+      if (existing) {
+        cf = existing;
+      } else {
+        cf = await this.cloudflareSaaS.createHostname(dominio);
+      }
+    }
+
     const token = `cmk-verify-${createHash('sha256')
-      .update(`${lojaId}:${dominio}:${Date.now()}`)
+      .update(`${lojaId}:${dominio}:${cf.id}`)
       .digest('hex')
       .slice(0, 24)}`;
 
@@ -609,6 +657,10 @@ export class LojasService {
         dominio_custom_status: 'PENDENTE',
         dominio_custom_token: token,
         dominio_custom_verificado_em: null,
+        dominio_custom_cf_id: cf.id,
+        dominio_custom_cf_status: cf.status || null,
+        dominio_custom_cf_ssl_status: cf.ssl?.status || null,
+        dominio_custom_cf_validation: this.serializeCfValidation(cf),
         atualizado_em: new Date(),
       },
     });
@@ -617,6 +669,23 @@ export class LojasService {
   }
 
   async clearDominioCustom(lojaId: string) {
+    const atual = await this.prisma.loja.findUnique({
+      where: { id: lojaId },
+      select: { dominio_custom_cf_id: true },
+    });
+
+    if (atual?.dominio_custom_cf_id && this.cloudflareSaaS.isConfigured()) {
+      try {
+        await this.cloudflareSaaS.deleteHostname(atual.dominio_custom_cf_id);
+      } catch (error) {
+        this.logger.warn(
+          `cf_saas delete on clear failed loja=${lojaId}: ${
+            error instanceof Error ? error.message : error
+          }`,
+        );
+      }
+    }
+
     const loja = await this.prisma.loja.update({
       where: { id: lojaId },
       data: {
@@ -624,6 +693,10 @@ export class LojasService {
         dominio_custom_status: 'NONE',
         dominio_custom_token: null,
         dominio_custom_verificado_em: null,
+        dominio_custom_cf_id: null,
+        dominio_custom_cf_status: null,
+        dominio_custom_cf_ssl_status: null,
+        dominio_custom_cf_validation: null,
         atualizado_em: new Date(),
       },
     });
@@ -632,63 +705,33 @@ export class LojasService {
 
   async verificarDominioCustom(lojaId: string) {
     const loja = await this.prisma.loja.findUnique({ where: { id: lojaId } });
-    if (!loja?.dominio_custom || !loja.dominio_custom_token) {
+    if (!loja?.dominio_custom || !loja.dominio_custom_cf_id) {
       throw new BadRequestException(
         'Configure um domínio próprio antes de verificar.',
       );
     }
 
-    const dns = await import('node:dns/promises');
-    const host = loja.dominio_custom;
-    const token = loja.dominio_custom_token;
-    const expectedCnameTargets = [
-      `${loja.slug}.comunikapp.com.br`,
-      'comunikapp.com.br',
-      'www.comunikapp.com.br',
+    this.cloudflareSaaS.requireConfigured();
+    const cf = await this.cloudflareSaaS.getHostname(loja.dominio_custom_cf_id);
+    const ok = this.cloudflareSaaS.isFullyActive(cf);
+    const detalhes: string[] = [
+      `Cloudflare hostname: ${cf.status}`,
+      `Cloudflare SSL: ${cf.ssl?.status || 'desconhecido'}`,
     ];
-
-    let txtOk = false;
-    let cnameOk = false;
-    const detalhes: string[] = [];
-
-    try {
-      const txtRecords = await dns.resolveTxt(`_comunikapp-verify.${host}`);
-      const flat = txtRecords.map((parts) => parts.join(''));
-      txtOk = flat.some((v) => v.includes(token));
+    if (!ok) {
       detalhes.push(
-        txtOk
-          ? 'TXT de verificação encontrado.'
-          : 'TXT _comunikapp-verify não encontrado ou token divergente.',
-      );
-    } catch {
-      detalhes.push('TXT _comunikapp-verify não resolvido.');
-    }
-
-    try {
-      const cnames = await dns.resolveCname(host);
-      cnameOk = cnames.some((c) =>
-        expectedCnameTargets.includes(c.replace(/\.$/, '').toLowerCase()),
-      );
-      detalhes.push(
-        cnameOk
-          ? `CNAME aponta para destino ComunikApp (${cnames.join(', ')}).`
-          : `CNAME atual: ${cnames.join(', ') || 'nenhum'} (esperado: ${loja.slug}.comunikapp.com.br).`,
-      );
-    } catch {
-      // Apex muitas vezes não tem CNAME — ALIAS/A. TXT basta para marcar verificado no MVP.
-      detalhes.push(
-        'CNAME não resolvido (normal em domínio apex; use ALIAS/ANAME + TXT).',
+        'Aguarde propagação DNS (CNAME → customers.comunikapp.com.br) e validação TXT se solicitada.',
       );
     }
-
-    // TXT obrigatório no MVP. CNAME é recomendado para subdomínio; apex usa ALIAS/A.
-    const ok = txtOk;
 
     const updated = await this.prisma.loja.update({
       where: { id: lojaId },
       data: {
         dominio_custom_status: ok ? 'VERIFICADO' : 'ERRO',
         dominio_custom_verificado_em: ok ? new Date() : null,
+        dominio_custom_cf_status: cf.status || null,
+        dominio_custom_cf_ssl_status: cf.ssl?.status || null,
+        dominio_custom_cf_validation: this.serializeCfValidation(cf),
         atualizado_em: new Date(),
       },
     });
@@ -696,10 +739,25 @@ export class LojasService {
     return {
       ...this.formatDominioCustomResponse(updated),
       verificacao: {
-        txt_ok: txtOk,
-        cname_ok: cnameOk,
+        cf_ok: ok,
+        cf_status: cf.status,
+        cf_ssl_status: cf.ssl?.status,
         detalhes,
       },
+    };
+  }
+
+  private serializeCfValidation(cf: {
+    ownership_verification?: {
+      type?: string;
+      name?: string;
+      value?: string;
+    };
+    ssl?: { validation_records?: Array<Record<string, string | undefined>> };
+  }): Prisma.InputJsonValue {
+    return {
+      ownership_verification: cf.ownership_verification || null,
+      ssl_validation_records: cf.ssl?.validation_records || [],
     };
   }
 
@@ -731,25 +789,54 @@ export class LojasService {
     dominio_custom_status: string | null;
     dominio_custom_token: string | null;
     dominio_custom_verificado_em: Date | null;
+    dominio_custom_cf_id?: string | null;
+    dominio_custom_cf_status?: string | null;
+    dominio_custom_cf_ssl_status?: string | null;
+    dominio_custom_cf_validation?: unknown;
     slug: string;
   }) {
     const dominio = loja.dominio_custom;
     const token = loja.dominio_custom_token;
+    const cnameAlvo = this.cloudflareSaaS.cnameTarget();
+    const validation = (loja.dominio_custom_cf_validation || null) as {
+      ownership_verification?: {
+        type?: string;
+        name?: string;
+        value?: string;
+      } | null;
+      ssl_validation_records?: Array<{
+        txt_name?: string;
+        txt_value?: string;
+      }>;
+    } | null;
+
+    const ownership = validation?.ownership_verification;
+    const sslTxt = validation?.ssl_validation_records?.find(
+      (r) => r.txt_name && r.txt_value,
+    );
+
     return {
       dominio_custom: dominio,
       dominio_custom_status: loja.dominio_custom_status || 'NONE',
       dominio_custom_token: token,
       dominio_custom_verificado_em: loja.dominio_custom_verificado_em,
+      dominio_custom_cf_id: loja.dominio_custom_cf_id ?? null,
+      dominio_custom_cf_status: loja.dominio_custom_cf_status ?? null,
+      dominio_custom_cf_ssl_status: loja.dominio_custom_cf_ssl_status ?? null,
       instrucoes: dominio
         ? {
             cname_host: dominio,
-            cname_alvo: `${loja.slug}.comunikapp.com.br`,
-            txt_host: `_comunikapp-verify.${dominio}`,
-            txt_valor: token,
+            cname_alvo: cnameAlvo,
+            txt_host: ownership?.name || sslTxt?.txt_name || null,
+            txt_valor: ownership?.value || sslTxt?.txt_value || token,
+            ownership_txt_host: ownership?.name || null,
+            ownership_txt_valor: ownership?.value || null,
+            ssl_txt_host: sslTxt?.txt_name || null,
+            ssl_txt_valor: sslTxt?.txt_value || null,
             nota_apex:
-              'Se for o domínio raiz (apex), use ALIAS/ANAME (ou A) conforme seu DNS e mantenha o TXT de verificação.',
+              'Domínio raiz (apex) não é suportado neste MVP. Use um subdomínio (ex.: sistema.minhaloja.com.br).',
             nota_trafego:
-              'DNS verificado habilita o vínculo no ComunikApp. Tráfego HTTPS no domínio próprio pode exigir Cloudflare for SaaS (Custom Hostnames) na operação.',
+              'Após o CNAME apontar para customers.comunikapp.com.br e a Cloudflare marcar o hostname/SSL como active, o HTTPS fica ativo automaticamente (plano Free, até 100 hostnames).',
           }
         : null,
     };

@@ -72,3 +72,15 @@ export function isApexHost(hostHeader: string | null | undefined): boolean {
 export function buildCanonicalLojaUrl(slug: string): string {
   return `https://${slug}.comunikapp.com.br`;
 }
+
+/** Host fora de *.comunikapp.com.br (domínio próprio do cliente). */
+export function isCustomTenantHost(
+  hostHeader: string | null | undefined,
+): boolean {
+  if (!hostHeader) return false;
+  const host = stripPort(hostHeader);
+  if (!host || host === 'localhost' || host === '127.0.0.1') return false;
+  if (APEX_HOSTS.has(host)) return false;
+  if (host.endsWith(TENANT_HOST_SUFFIX)) return false;
+  return true;
+}

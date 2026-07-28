@@ -19,14 +19,20 @@ type DominioCustomSectionProps = {
 type Instrucoes = {
   cname_host: string;
   cname_alvo: string;
-  txt_host: string;
+  txt_host: string | null;
   txt_valor: string | null;
+  ownership_txt_host?: string | null;
+  ownership_txt_valor?: string | null;
+  ssl_txt_host?: string | null;
+  ssl_txt_valor?: string | null;
   nota_apex: string;
   nota_trafego: string;
 };
 
+const DEFAULT_CNAME_TARGET = 'customers.comunikapp.com.br';
+
 export function DominioCustomSection({
-  slug,
+  slug: _slug,
   initialDominio,
   initialStatus,
   initialToken,
@@ -36,16 +42,16 @@ export function DominioCustomSection({
   const [status, setStatus] = useState(initialStatus ?? 'NONE');
   const [token, setToken] = useState(initialToken);
   const [instrucoes, setInstrucoes] = useState<Instrucoes | null>(
-    initialDominio && initialToken
+    initialDominio
       ? {
           cname_host: initialDominio,
-          cname_alvo: `${slug}.comunikapp.com.br`,
-          txt_host: `_comunikapp-verify.${initialDominio}`,
+          cname_alvo: DEFAULT_CNAME_TARGET,
+          txt_host: null,
           txt_valor: initialToken,
           nota_apex:
-            'Se for o domínio raiz (apex), use ALIAS/ANAME (ou A) conforme seu DNS e mantenha o TXT de verificação.',
+            'Domínio raiz (apex) não é suportado neste MVP. Use um subdomínio (ex.: sistema.minhaloja.com.br).',
           nota_trafego:
-            'DNS verificado habilita o vínculo no ComunikApp. Tráfego HTTPS no domínio próprio pode exigir Cloudflare for SaaS (Custom Hostnames) na operação.',
+            'Após o CNAME apontar para customers.comunikapp.com.br e a Cloudflare marcar hostname/SSL como active, o HTTPS fica ativo.',
         }
       : null,
   );
@@ -73,10 +79,13 @@ export function DominioCustomSection({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.message || 'Não foi possível salvar o domínio.');
+        const msg = Array.isArray(data.message)
+          ? data.message.join(' ')
+          : data.message;
+        throw new Error(msg || 'Não foi possível salvar o domínio.');
       }
       setStatus(data.dominio_custom_status || 'PENDENTE');
-      setToken(data.instrucoes?.txt_valor ?? null);
+      setToken(data.dominio_custom_token ?? data.instrucoes?.txt_valor ?? null);
       setInstrucoes(data.instrucoes ?? null);
       setDetalhes([]);
       toast.success('Domínio salvo. Configure o DNS e clique em Verificar.');
@@ -104,15 +113,15 @@ export function DominioCustomSection({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.message || 'Falha na verificação DNS.');
+        throw new Error(data.message || 'Falha na verificação Cloudflare.');
       }
       setStatus(data.dominio_custom_status || 'ERRO');
       setInstrucoes(data.instrucoes ?? instrucoes);
       setDetalhes(data.verificacao?.detalhes || []);
       if (data.dominio_custom_status === 'VERIFICADO') {
-        toast.success('Domínio verificado com sucesso.');
+        toast.success('Domínio verificado e HTTPS ativo na Cloudflare.');
       } else {
-        toast.error('Ainda não foi possível verificar o DNS.');
+        toast.error('Ainda não está active na Cloudflare. Confira o DNS.');
       }
       onChanged();
     } catch (error) {
@@ -157,25 +166,32 @@ export function DominioCustomSection({
     status === 'VERIFICADO'
       ? 'Verificado'
       : status === 'PENDENTE'
-        ? 'Aguardando DNS'
+        ? 'Aguardando DNS / Cloudflare'
         : status === 'ERRO'
-          ? 'DNS incompleto'
+          ? 'Ainda não active'
           : 'Não configurado';
+
+  const ownershipHost =
+    instrucoes?.ownership_txt_host || instrucoes?.txt_host;
+  const ownershipValor =
+    instrucoes?.ownership_txt_valor || instrucoes?.txt_valor;
+  const sslHost = instrucoes?.ssl_txt_host;
+  const sslValor = instrucoes?.ssl_txt_valor;
 
   return (
     <div className="space-y-3 rounded-md border border-dashed p-3">
       <div>
         <h3 className="text-sm font-semibold text-foreground">
-          Domínio próprio
+          Domínio próprio (subdomínio)
         </h3>
         <p className="text-sm text-muted-foreground">
-          Use um subdomínio (ex.: sistema.minhaloja.com.br) ou o domínio raiz
-          (ex.: minhaloja.com.br). Status: <strong>{statusLabel}</strong>
+          Ex.: sistema.minhaloja.com.br. Domínio raiz (apex) não é suportado
+          neste MVP. Status: <strong>{statusLabel}</strong>
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="dominio-custom">Domínio</Label>
+        <Label htmlFor="dominio-custom">Subdomínio</Label>
         <Input
           id="dominio-custom"
           value={dominioInput}
@@ -186,7 +202,12 @@ export function DominioCustomSection({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" onClick={() => void salvar()} disabled={busy || !dominioInput.trim()}>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => void salvar()}
+          disabled={busy || !dominioInput.trim()}
+        >
           Salvar domínio
         </Button>
         <Button
@@ -194,9 +215,9 @@ export function DominioCustomSection({
           size="sm"
           variant="secondary"
           onClick={() => void verificar()}
-          disabled={busy || !token}
+          disabled={busy || (!token && status === 'NONE')}
         >
-          Verificar DNS
+          Verificar Cloudflare
         </Button>
         {status !== 'NONE' && status ? (
           <Button
@@ -213,20 +234,30 @@ export function DominioCustomSection({
 
       {instrucoes ? (
         <div className="space-y-2 rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
-          <p className="font-medium text-foreground">Registros DNS sugeridos</p>
+          <p className="font-medium text-foreground">Registros DNS</p>
           <ol className="list-decimal space-y-1 pl-4">
             <li>
               <span className="font-mono text-foreground">CNAME</span>{' '}
               <code className="text-foreground">{instrucoes.cname_host}</code> →{' '}
               <code className="text-foreground">{instrucoes.cname_alvo}</code>
             </li>
-            <li>
-              <span className="font-mono text-foreground">TXT</span>{' '}
-              <code className="text-foreground">{instrucoes.txt_host}</code> ={' '}
-              <code className="text-foreground break-all">
-                {instrucoes.txt_valor}
-              </code>
-            </li>
+            {ownershipHost && ownershipValor ? (
+              <li>
+                <span className="font-mono text-foreground">TXT</span> (ownership){' '}
+                <code className="text-foreground break-all">{ownershipHost}</code>{' '}
+                ={' '}
+                <code className="text-foreground break-all">
+                  {ownershipValor}
+                </code>
+              </li>
+            ) : null}
+            {sslHost && sslValor && sslHost !== ownershipHost ? (
+              <li>
+                <span className="font-mono text-foreground">TXT</span> (SSL){' '}
+                <code className="text-foreground break-all">{sslHost}</code> ={' '}
+                <code className="text-foreground break-all">{sslValor}</code>
+              </li>
+            ) : null}
           </ol>
           <p>{instrucoes.nota_apex}</p>
           <p>{instrucoes.nota_trafego}</p>

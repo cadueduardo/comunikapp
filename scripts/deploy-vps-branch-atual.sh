@@ -312,8 +312,9 @@ apply_nginx() {
   require_root_for_system_changes
 
   log 'Aplicando configuracoes canonicas do Nginx...'
-  mkdir -p /etc/nginx/conf.d /etc/nginx/sites-available /etc/nginx/sites-enabled /var/www/certbot
+  mkdir -p /etc/nginx/conf.d /etc/nginx/sites-available /etc/nginx/sites-enabled /var/www/certbot /etc/nginx/snippets
   cp "${PROJECT_DIR}/deploy/nginx/cors-map.conf" /etc/nginx/conf.d/cors-map.conf
+  cp "${PROJECT_DIR}/deploy/nginx/snippets/comunikapp-app-proxy.conf" /etc/nginx/snippets/comunikapp-app-proxy.conf
   cp "${PROJECT_DIR}/deploy/nginx/api.comunikapp.com.br.conf" /etc/nginx/sites-available/api.comunikapp.com.br.conf
   cp "${PROJECT_DIR}/deploy/nginx/comunikapp.com.br.conf" /etc/nginx/sites-available/comunikapp.com.br.conf
   ln -sf /etc/nginx/sites-available/api.comunikapp.com.br.conf /etc/nginx/sites-enabled/api.comunikapp.com.br.conf

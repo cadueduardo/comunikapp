@@ -27,7 +27,14 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       const res = NextResponse.json(data, { status: response.status });
       if (response.status === 401) {
-        res.cookies.set(SESSION_COOKIE_NAME, '', getClearSessionCookieOptions());
+        const host =
+          request.headers.get('x-forwarded-host') ||
+          request.headers.get('host');
+        res.cookies.set(
+          SESSION_COOKIE_NAME,
+          '',
+          getClearSessionCookieOptions(host),
+        );
       }
       return res;
     }

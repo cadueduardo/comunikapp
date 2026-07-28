@@ -37,11 +37,15 @@ async function forwardLogin(
 function applySessionCookie(
   res: NextResponse,
   accessToken: string,
+  request: NextRequest,
 ): NextResponse {
   res.cookies.set(
     SESSION_COOKIE_NAME,
     accessToken,
-    getSessionCookieOptions(),
+    getSessionCookieOptions(
+      undefined,
+      request.headers.get('x-forwarded-host') || request.headers.get('host'),
+    ),
   );
   return res;
 }
@@ -88,7 +92,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 },
     );
-    return applySessionCookie(res, data.access_token);
+    return applySessionCookie(res, data.access_token, request);
   } catch (error) {
     console.error('POST /api/auth/login:', error);
     return NextResponse.json(

@@ -6,6 +6,7 @@ Especificação para servir cada loja em um hostname próprio
 ## Documento principal
 
 - [RP — Subdomínio por loja](./RP-subdominio-por-loja.md)
+- [Runbook Cloudflare for SaaS](./CF-saas-runbook.md) (Fatia D)
 
 ## Fatias
 
@@ -13,8 +14,9 @@ Especificação para servir cada loja em um hostname próprio
 |---|---|---|
 | **A** | `loja.slug` + cadastro/endereço (pré-NF) + reformulação `/configuracoes/loja` + onboarding `definir_slug` | feito |
 | **B** | Runtime tenant-by-host (DNS wildcard, Nginx, middleware, CORS, login) | feito |
-| **B+** | Polimento UX (modal, `#acesso-url` + highlight, 404 estável) | empacotado com C |
-| **C** | Domínio custom (wizard DNS + verify + `slug_anterior` 301); tráfego HTTPS custom depende de Cloudflare for SaaS | em deploy |
+| **B+** | Polimento UX (modal, `#acesso-url` + highlight, 404 estável) | feito |
+| **C** | Domínio custom (wizard DNS + verify + `slug_anterior` 301) | feito |
+| **D** | HTTPS domínio próprio via Cloudflare for SaaS Free (só subdomínio do cliente) | em implementação |
 
 ## Objetivo da primeira entrega (Fatia A)
 

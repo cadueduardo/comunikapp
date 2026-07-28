@@ -2,29 +2,9 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { normalizeArteMensagemSocketPayload } from '@/lib/arte-mensagem-socket';
 import { hasClientSession, isUsableBearerToken } from '@/lib/session-auth';
+import { getClientSocketBaseUrl } from '@/lib/config';
 
-const resolveSocketBaseUrl = () => {
-  const configuredUrl = (process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
-
-  if (!configuredUrl || configuredUrl === '/api') {
-    if (process.env.NODE_ENV !== 'production') {
-      if (typeof window !== 'undefined') {
-        const host = window.location.hostname;
-        if (host && host !== 'localhost' && host !== '127.0.0.1') {
-          return `${window.location.protocol}//${host}:4000`;
-        }
-      }
-      return 'http://localhost:4000';
-    }
-    return '';
-  }
-
-  if (configuredUrl.endsWith('/api')) {
-    return configuredUrl.slice(0, -4);
-  }
-
-  return configuredUrl;
-};
+const resolveSocketBaseUrl = () => getClientSocketBaseUrl();
 
 interface UseArteWebSocketOptions {
   versaoId?: string;

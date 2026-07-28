@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { hasClientSession } from '@/lib/session-auth';
+import { getClientSocketBaseUrl } from '@/lib/config';
 
 export interface ArteMensagemSocketPayload {
   id?: string;
@@ -26,26 +27,7 @@ export interface ArteStatusAtualizadoSocketPayload {
   status_arte: string;
 }
 
-const resolveSocketBaseUrl = () => {
-  const configuredUrl = (
-    process.env.NEXT_PUBLIC_WS_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    ''
-  ).replace(/\/$/, '');
-
-  if (!configuredUrl || configuredUrl === '/api') {
-    if (process.env.NODE_ENV !== 'production') {
-      return 'http://localhost:4000';
-    }
-    return '';
-  }
-
-  if (configuredUrl.endsWith('/api')) {
-    return configuredUrl.slice(0, -4);
-  }
-
-  return configuredUrl;
-};
+const resolveSocketBaseUrl = () => getClientSocketBaseUrl();
 
 function normalizeMensagemPayload(data: unknown): ArteMensagemSocketPayload | null {
   if (!data || typeof data !== 'object') return null;

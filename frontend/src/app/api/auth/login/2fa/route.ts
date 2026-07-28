@@ -47,7 +47,10 @@ export async function POST(request: NextRequest) {
     res.cookies.set(
       SESSION_COOKIE_NAME,
       data.access_token,
-      getSessionCookieOptions(),
+      getSessionCookieOptions(
+        undefined,
+        request.headers.get('x-forwarded-host') || request.headers.get('host'),
+      ),
     );
     return res;
   } catch (error) {

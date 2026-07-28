@@ -5,8 +5,11 @@ export class UpdateDominioCustomDto {
   @MinLength(3)
   @MaxLength(253)
   @Matches(
-    /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i,
-    { message: 'Informe um domínio válido (ex.: sistema.minhaloja.com.br).' },
+    /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?){2,}$/i,
+    {
+      message:
+        'Informe um subdomínio válido (ex.: sistema.minhaloja.com.br). Apex não é suportado no MVP.',
+    },
   )
   dominio: string;
 }

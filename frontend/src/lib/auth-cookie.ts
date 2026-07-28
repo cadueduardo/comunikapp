@@ -1,4 +1,5 @@
 import type { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
+import { isCustomTenantHost, stripPort } from '@/lib/tenant-host';
 
 /** Deve coincidir com backend/src/auth/session-cookie.ts */
 export const SESSION_COOKIE_NAME = 'comunikapp_session';
@@ -12,11 +13,13 @@ function isProductionRuntime() {
 
 /**
  * Opções do cookie HttpOnly.
- * Em produção: Domain=.comunikapp.com.br para cobrir api.comunikapp.com.br (same-site).
- * Em localhost: host-only (sem Domain).
+ * - Produção em *.comunikapp.com.br: Domain=.comunikapp.com.br (same-site com api.).
+ * - Domínio próprio do cliente: host-only (sem Domain) — same-origin via Nginx.
+ * - Localhost: host-only.
  */
 export function getSessionCookieOptions(
   maxAgeSeconds: number = SESSION_MAX_AGE_SECONDS,
+  requestHost?: string | null,
 ): Partial<ResponseCookie> {
   const isProd = isProductionRuntime();
   const options: Partial<ResponseCookie> = {
@@ -27,16 +30,18 @@ export function getSessionCookieOptions(
     maxAge: maxAgeSeconds,
   };
 
-  if (isProd) {
+  if (isProd && !isCustomTenantHost(requestHost)) {
     options.domain = '.comunikapp.com.br';
   }
 
   return options;
 }
 
-export function getClearSessionCookieOptions(): Partial<ResponseCookie> {
+export function getClearSessionCookieOptions(
+  requestHost?: string | null,
+): Partial<ResponseCookie> {
   return {
-    ...getSessionCookieOptions(0),
+    ...getSessionCookieOptions(0, requestHost),
     maxAge: 0,
   };
 }
@@ -50,4 +55,12 @@ export function getBackendBaseUrl(): string {
     return fromEnv.replace(/\/$/, '');
   }
   return 'http://127.0.0.1:4000';
+}
+
+export function hostFromRequestHeaders(
+  headers: Headers | { get(name: string): string | null },
+): string {
+  const xf = headers.get('x-forwarded-host');
+  if (xf) return stripPort(xf.split(',')[0]?.trim() || '');
+  return stripPort(headers.get('host') || '');
 }

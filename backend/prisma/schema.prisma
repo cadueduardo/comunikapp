@@ -643,6 +643,11 @@ model loja {
   dominio_custom_status    String?     @db.VarChar(24)
   dominio_custom_token     String?     @db.VarChar(64)
   dominio_custom_verificado_em DateTime?
+  dominio_custom_cf_id     String?     @db.VarChar(64)
+  dominio_custom_cf_status String?     @db.VarChar(64)
+  dominio_custom_cf_ssl_status String? @db.VarChar(64)
+  /// JSON: ownership + ssl validation_records da Cloudflare
+  dominio_custom_cf_validation Json?
   razao_social             String?
   nome_fantasia            String?
   inscricao_estadual       String?

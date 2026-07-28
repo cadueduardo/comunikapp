@@ -1,8 +1,8 @@
 # RP — Subdomínio por loja
 
-**Status:** Fatias A/B em produção; B+ e C (MVP wizard/DNS/`slug_anterior`) em deploy
+**Status:** Fatias A–C em produção; Fatia D (CF for SaaS Free, só subdomínio) em implementação
 **Produto:** ComunikApp  
-**Feature:** Tenant por hostname (`{slug}.comunikapp.com.br`) + domínio próprio (wizard)
+**Feature:** Tenant por hostname (`{slug}.comunikapp.com.br`) + domínio próprio (subdomínio via SaaS)
 **Público:** lojas (tenant), TI/proxy corporativo do cliente, operação ComunikApp  
 **Última atualização:** 28/07/2026  
 **Branch de trabalho:** `feat/subdominio-por-loja`
@@ -55,15 +55,16 @@ A sessão HttpOnly atual (`comunikapp_session`, `Domain=.comunikapp.com.br`)
 - Continuar no mesmo host após o login.
 - Não precisar memorizar o apex genérico no dia a dia.
 
-### 3.3 Não objetivos do MVP (ainda pendentes após Fatia C)
+### 3.3 Não objetivos do MVP (ainda pendentes)
 
-- Tráfego HTTPS completo em domínio próprio sem Cloudflare for SaaS.
-- CORS/cookie host-only em domínio custom (allowlist dinâmica + sessão).
+- Apex do cliente (`minhaloja.com.br`) — Free SaaS sem Apex proxying; futuro
+- Cobrança Stripe do add-on “domínio próprio” (técnico liberado; SKU depois)
 - Multi-loja no mesmo usuário navegando vários subdomains na mesma sessão
   sem reauth (pode vir depois).
 - Isolamento de cookie por subdomain sem `Domain=.comunikapp.com.br`
-  (manter cookie compartilhado no eTLD+1 no MVP de `*.comunikapp.com.br`).
-- Migrar a API para `{slug}.comunikapp.com.br/api` no MVP — `api.` continua.
+  (mantido no eTLD+1 `*.comunikapp.com.br`; custom usa host-only).
+- Migrar a API para `{slug}.comunikapp.com.br/api` no MVP — `api.` continua
+  em hosts ComunikApp; em host custom a API é same-origin (`/api`).
 
 ## 4. Modelo de dados
 
@@ -301,15 +302,23 @@ Nova etapa obrigatória `definir_slug`:
 ### Fatia C — Domínio custom + endurecimento (MVP desta entrega)
 
 - [x] Campos `dominio_custom*` + wizard em `/configuracoes/loja` (CNAME/TXT)
-- [x] Aceitar **ambos** os formatos na UI/instruções:
-  - subdomínio: `sistema.minhaloja.com.br` (CNAME → `{slug}.comunikapp.com.br`)
-  - apex: `minhaloja.com.br` (ALIAS/ANAME ou A + TXT)
-- [x] Verificação DNS (TXT obrigatório) → status `VERIFICADO`
-- [x] Middleware resolve host custom verificado (pronto para tráfego)
+- [x] Aceitar **ambos** os formatos na UI/instruções (legado Fatia C):
+  - subdomínio: `sistema.minhaloja.com.br`
+  - apex: `minhaloja.com.br` (documentado; Fatia D restringe ao subdomínio)
+- [x] Verificação DNS (TXT) → status `VERIFICADO` (supersedido na Fatia D pela CF)
+- [x] Middleware resolve host custom verificado
 - [x] `slug_anterior` + 301 ao renomear slug
-- [ ] Ativação HTTPS/tráfego em domínio próprio via **Cloudflare for SaaS** (Custom Hostnames) — operação
 - [ ] Sunset do login no apex (após métricas)
-- [ ] Isolamento de sessão mais rígido / cookie host-only em domínio custom
+
+### Fatia D — Cloudflare for SaaS (Free, só subdomínio)
+
+- [x] Runbook: fallback origin + `customers.comunikapp.com.br` + secrets `CF_*`
+- [x] API create/get/delete Custom Hostname; `VERIFICADO` quando CF host+SSL active
+- [x] Wizard: só subdomínio; CNAME → `customers.comunikapp.com.br`
+- [x] Cookie host-only em host custom; API/WS same-origin
+- [x] Nginx catch-all + snippet proxy para Host custom via fallback
+- [ ] Operação: ativar SaaS na zona + preencher `CF_*` na VPS (checklist runbook)
+- [ ] Apex do cliente (futuro / Enterprise ou ALIAS no DNS do cliente)
 
 ## 12. Critérios de aceite (MVP)
 

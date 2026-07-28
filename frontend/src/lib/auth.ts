@@ -1,5 +1,9 @@
 import { cookies } from 'next/headers';
-import { SESSION_COOKIE_NAME } from '@/lib/auth-cookie';
+import {
+  SESSION_COOKIE_NAME,
+  getClearSessionCookieOptions,
+  getSessionCookieOptions,
+} from '@/lib/auth-cookie';
 
 /**
  * Obtém o JWT de sessão (cookie HttpOnly comunikapp_session).
@@ -19,16 +23,7 @@ export async function getAuthToken(): Promise<string | null> {
  */
 export async function setAuthToken(token: string): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24,
-    path: '/',
-    ...(process.env.NODE_ENV === 'production'
-      ? { domain: '.comunikapp.com.br' }
-      : {}),
-  });
+  cookieStore.set(SESSION_COOKIE_NAME, token, getSessionCookieOptions());
 }
 
 /**
@@ -36,7 +31,7 @@ export async function setAuthToken(token: string): Promise<void> {
  */
 export async function removeAuthToken(): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE_NAME);
+  cookieStore.set(SESSION_COOKIE_NAME, '', getClearSessionCookieOptions());
   cookieStore.delete('auth_token');
   cookieStore.delete('token');
   cookieStore.delete('jwt');

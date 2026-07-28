@@ -10,8 +10,9 @@ na VPS e recopie. Assim o repositório é a fonte da verdade.
 |---|---|
 | `cors-map.conf` | `/etc/nginx/conf.d/cors-map.conf` (vai dentro de `http {}`) |
 | `cloudflare-realip.conf` | `/etc/nginx/conf.d/cloudflare-realip.conf` (vai dentro de `http {}`) |
+| `snippets/comunikapp-app-proxy.conf` | `/etc/nginx/snippets/comunikapp-app-proxy.conf` |
 | `api.comunikapp.com.br.conf` | `/etc/nginx/sites-available/` + symlink em `sites-enabled/` |
-| `comunikapp.com.br.conf` | `/etc/nginx/sites-available/` + symlink em `sites-enabled/` |
+| `comunikapp.com.br.conf` | `/etc/nginx/sites-available/` + symlink em `sites-enabled/` (inclui catch-all SaaS) |
 
 ## Cloudflare (`real_ip` + X-Forwarded-For)
 
@@ -33,6 +34,8 @@ nginx -V 2>&1 | grep -o with-http_realip_module
 # 1. Copiar para os locais corretos
 sudo cp /opt/comunikapp/app/deploy/nginx/cors-map.conf            /etc/nginx/conf.d/cors-map.conf
 sudo cp /opt/comunikapp/app/deploy/nginx/cloudflare-realip.conf   /etc/nginx/conf.d/cloudflare-realip.conf
+sudo mkdir -p /etc/nginx/snippets
+sudo cp /opt/comunikapp/app/deploy/nginx/snippets/comunikapp-app-proxy.conf /etc/nginx/snippets/
 sudo cp /opt/comunikapp/app/deploy/nginx/api.comunikapp.com.br.conf /etc/nginx/sites-available/
 sudo cp /opt/comunikapp/app/deploy/nginx/comunikapp.com.br.conf      /etc/nginx/sites-available/
 
