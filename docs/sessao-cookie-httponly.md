@@ -32,6 +32,20 @@ Rotas BFF: `/api/auth/login`, `/api/auth/login/2fa`, `/api/auth/logout`, `/api/a
 - CORS do Socket.IO com origins explícitos + `credentials: true` (não `*`)
 - Cálculo V2 deriva `lojaId`/`usuarioId` do JWT (não confia só na query)
 
+## Nginx (produção)
+
+O site apex (`comunikapp.com.br`) proxyia `/api/` para o Nest. As rotas BFF
+devem ir ao Next **antes** desse bloco:
+
+```nginx
+location /api/auth/ {
+    proxy_pass http://127.0.0.1:3001;
+    ...
+}
+```
+
+Sem isso, `POST /api/auth/login` cai no Nest e o cookie HttpOnly nunca é setado.
+
 ## Tenant hints
 
 `loja_id` / `user_roles` / `user_id` **não** são mais gravados no `localStorage` após `/me`. Tenant vem do JWT no backend.
