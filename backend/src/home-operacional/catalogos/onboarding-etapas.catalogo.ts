@@ -22,8 +22,18 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
       acao_href: '/configuracoes/loja',
     },
     {
-      step_id: OnboardingStepId.PRIMEIRO_CLIENTE,
+      step_id: OnboardingStepId.DEFINIR_SLUG,
       ordem: 2,
+      obrigatoria: true,
+      titulo: 'Definir endereço da loja (URL)',
+      descricao_curta:
+        'Escolha o slug da sua loja. Em breve o acesso será minhaloja.comunikapp.com.br.',
+      acao_label: 'Definir URL da loja',
+      acao_href: '/configuracoes/loja',
+    },
+    {
+      step_id: OnboardingStepId.PRIMEIRO_CLIENTE,
+      ordem: 3,
       obrigatoria: true,
       titulo: 'Cadastrar primeiro cliente',
       descricao_curta: 'Quem vai comprar do seu negócio.',
@@ -32,7 +42,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.PRIMEIRO_MATERIAL,
-      ordem: 3,
+      ordem: 4,
       obrigatoria: true,
       titulo: 'Cadastrar materiais principais',
       descricao_curta:
@@ -42,7 +52,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.PRIMEIRA_MAQUINA,
-      ordem: 4,
+      ordem: 5,
       obrigatoria: true,
       titulo: 'Cadastrar máquinas ou processos',
       descricao_curta:
@@ -52,7 +62,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.CONFIGURAR_PRODUCAO,
-      ordem: 5,
+      ordem: 6,
       obrigatoria: true,
       titulo: 'Definir como o PCP vai funcionar',
       descricao_curta:
@@ -62,7 +72,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.CONFIGURAR_ENTREGA_INSTALACAO,
-      ordem: 6,
+      ordem: 7,
       obrigatoria: false,
       titulo: 'Configurar entrega e instalação',
       descricao_curta:
@@ -72,7 +82,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.CONFIGURAR_ARTE_APROVACAO,
-      ordem: 7,
+      ordem: 8,
       obrigatoria: false,
       titulo: 'Configurar custo/hora da arte',
       descricao_curta:
@@ -82,7 +92,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.CONECTAR_GOOGLE_DRIVE,
-      ordem: 8,
+      ordem: 9,
       obrigatoria: false,
       titulo: 'Conectar Google Drive',
       descricao_curta:
@@ -92,7 +102,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.MARGEM_IMPOSTO,
-      ordem: 9,
+      ordem: 10,
       obrigatoria: true,
       titulo: 'Definir margem, impostos e comissão',
       descricao_curta:
@@ -102,7 +112,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.CONDICAO_PAGAMENTO,
-      ordem: 10,
+      ordem: 11,
       obrigatoria: false,
       titulo: 'Configurar condição de pagamento padrão',
       descricao_curta:
@@ -112,7 +122,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.PRIMEIRO_ORCAMENTO,
-      ordem: 11,
+      ordem: 12,
       obrigatoria: true,
       titulo: 'Criar primeiro orçamento',
       descricao_curta: 'Coloque tudo em prática gerando uma proposta real.',
@@ -121,7 +131,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.PRIMEIRA_APROVACAO,
-      ordem: 12,
+      ordem: 13,
       obrigatoria: true,
       titulo: 'Aprovar orçamento e gerar OS',
       descricao_curta:
@@ -131,7 +141,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.PRIMEIRA_PRODUCAO,
-      ordem: 13,
+      ordem: 14,
       obrigatoria: false,
       titulo: 'Liberar OS para produção',
       descricao_curta: 'Acompanhe a produção pelo PCP.',
@@ -140,7 +150,7 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
     },
     {
       step_id: OnboardingStepId.PRIMEIRO_RECEBIMENTO,
-      ordem: 14,
+      ordem: 15,
       obrigatoria: false,
       titulo: 'Registrar primeiro recebimento',
       descricao_curta:

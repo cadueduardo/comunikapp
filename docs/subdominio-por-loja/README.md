@@ -7,14 +7,16 @@ Especificação para servir cada loja em um hostname próprio
 
 - [RP — Subdomínio por loja](./RP-subdominio-por-loja.md)
 
-## Objetivo da primeira entrega
+## Fatias
 
-Permitir que empresas com proxy/firewall liberem acesso apenas ao hostname da
-sua loja, sem depender do apex genérico `comunikapp.com.br` após o go-live da
-feature.
+| Fatia | Conteúdo | Status |
+|---|---|---|
+| **A** | `loja.slug` + cadastro/endereço (pré-NF) + reformulação `/configuracoes/loja` + onboarding `definir_slug` | em implementação |
+| **B** | DNS wildcard, Nginx, middleware tenant-by-host, login no subdomain | depois |
+| **C** | Domínio custom do cliente + wizard DNS | depois |
 
-## Fora de escopo (esta pasta)
+## Objetivo da primeira entrega (Fatia A)
 
-- Domínio customizado do cliente (`app.cliente.com.br`) — fase posterior.
-- Painel de gestão SaaS (`docs/gestao-comunikapp/`) — consome o slug, mas não
-  define o runtime de tenant-by-host.
+Deixar identidade, URL canônica e dados cadastrais/endereço prontos na loja,
+com etapa obrigatória de onboarding para lojas novas e legadas — sem ainda
+ativar o runtime de hostname.

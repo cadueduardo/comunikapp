@@ -20,6 +20,8 @@ import {
 type MinhaLoja = {
   id: string;
   nome: string;
+  slug?: string;
+  url_canonica?: string;
   email: string;
   status: string;
   criado_em: string;
@@ -167,6 +169,21 @@ export function IdentificacaoLojaCard() {
               <div>
                 <p className="text-xs text-muted-foreground">Nome da loja</p>
                 <p className="text-sm font-medium">{loja.nome}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Slug / URL</p>
+                <p className="text-sm font-medium break-all">
+                  {loja.url_canonica ||
+                    (loja.slug
+                      ? `https://${loja.slug}.comunikapp.com.br`
+                      : '—')}
+                </p>
+                <a
+                  href="/configuracoes/loja"
+                  className="text-xs text-primary underline-offset-2 hover:underline"
+                >
+                  Editar em Configurações → Loja
+                </a>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">E-mail da loja</p>

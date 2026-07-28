@@ -15,15 +15,16 @@
 | ordem | step_id | titulo | obrigatoria | critério de conclusão | rota da ação |
 | --- | --- | --- | --- | --- | --- |
 | 1 | `dados_empresa` | Confirmar dados da empresa | sim | `loja.nome`, `loja.cnpj` ou `loja.cpf`, `loja.telefone` preenchidos | `/configuracoes/loja` |
-| 2 | `primeiro_cliente` | Cadastrar primeiro cliente | sim | existe ≥ 1 `cliente` ativo na loja | `/clientes/novo` |
-| 3 | `primeiro_material` | Cadastrar materiais principais | sim | existe ≥ 1 `Insumo` ativo na loja | `/insumos/novo` |
-| 4 | `primeira_maquina` | Cadastrar máquinas ou processos | sim | existe ≥ 1 `maquina` ativa OR ≥ 1 `servico_manual` ativo | `/centros-de-trabalho/maquinas/novo` |
-| 5 | `margem_imposto` | Configurar margem, impostos e comissão | sim | `loja.margem_lucro_padrao` e `loja.impostos_padrao` preenchidos | `/configuracoes/loja` |
-| 6 | `condicao_pagamento` | Configurar condição de pagamento padrão | opcional | campo a ser criado: `loja.condicao_pagamento_padrao` preenchido | `/configuracoes/loja` |
-| 7 | `primeiro_orcamento` | Criar primeiro orçamento | sim | existe ≥ 1 `orcamento` na loja | `/orcamentos-v2/novo` |
-| 8 | `primeira_aprovacao` | Aprovar orçamento e gerar OS | sim | existe ≥ 1 `orcamento` com `status = aprovado` OR ≥ 1 `OrdemServico` criada | `/orcamentos-v2` |
-| 9 | `primeira_producao` | Liberar OS para produção | opcional | existe ≥ 1 `OrdemServico` com `status ∈ {PRODUCAO, ACABAMENTO, FINALIZADA}` | `/os` |
-| 10 | `primeiro_recebimento` | Registrar primeiro recebimento | opcional | existe ≥ 1 cobrança com `status ∈ {PARCIAL_PAGO, LIQUIDADO}` | `/financeiro/recebimentos` |
+| 2 | `definir_slug` | Definir endereço da loja (URL) | sim | `loja.slug` preenchido e válido (3–48, `[a-z0-9-]+`) | `/configuracoes/loja` |
+| 3 | `primeiro_cliente` | Cadastrar primeiro cliente | sim | existe ≥ 1 `cliente` ativo na loja | `/clientes/novo` |
+| 4 | `primeiro_material` | Cadastrar materiais principais | sim | existe ≥ 1 `Insumo` ativo na loja | `/insumos/novo` |
+| 5 | `primeira_maquina` | Cadastrar máquinas ou processos | sim | existe ≥ 1 `maquina` ativa OR ≥ 1 `servico_manual` ativo | `/centros-de-trabalho/maquinas/novo` |
+| 6 | `margem_imposto` | Configurar margem, impostos e comissão | sim | `loja.margem_lucro_padrao` e `loja.impostos_padrao` preenchidos | `/configuracoes/loja` |
+| 7 | `condicao_pagamento` | Configurar condição de pagamento padrão | opcional | campo a ser criado: `loja.condicao_pagamento_padrao` preenchido | `/configuracoes/loja` |
+| 8 | `primeiro_orcamento` | Criar primeiro orçamento | sim | existe ≥ 1 `orcamento` na loja | `/orcamentos-v2/novo` |
+| 9 | `primeira_aprovacao` | Aprovar orçamento e gerar OS | sim | existe ≥ 1 `orcamento` com `status = aprovado` OR ≥ 1 `OrdemServico` criada | `/orcamentos-v2` |
+| 10 | `primeira_producao` | Liberar OS para produção | opcional | existe ≥ 1 `OrdemServico` com `status ∈ {PRODUCAO, ACABAMENTO, FINALIZADA}` | `/os` |
+| 11 | `primeiro_recebimento` | Registrar primeiro recebimento | opcional | existe ≥ 1 cobrança com `status ∈ {PARCIAL_PAGO, LIQUIDADO}` | `/financeiro/recebimentos` |
 
 ## Cálculo de progresso
 
@@ -39,6 +40,7 @@ progresso_pct = round(100 * concluidas_obrigatorias / total_obrigatorias)
 | step_id | regra |
 | --- | --- |
 | `dados_empresa` | `loja.nome IS NOT NULL AND loja.telefone IS NOT NULL AND (loja.cnpj IS NOT NULL OR loja.cpf IS NOT NULL)` |
+| `definir_slug` | `loja.slug` válido (regex `^[a-z0-9]+(?:-[a-z0-9]+)*$`, length 3–48) |
 | `primeiro_cliente` | `SELECT 1 FROM cliente WHERE loja_id = ? AND status_cliente = 'ATIVO' LIMIT 1` |
 | `primeiro_material` | `SELECT 1 FROM insumos WHERE loja_id = ? AND ativo = true LIMIT 1` |
 | `primeira_maquina` | `(SELECT 1 FROM maquina WHERE loja_id = ? AND ativo = true) OR (SELECT 1 FROM servico_manual WHERE loja_id = ? AND ativo = true)` |

@@ -635,6 +635,18 @@ model loja {
   margem_lucro_padrao      Decimal?    @db.Decimal(5, 2)
   tipo_margem_lucro        String?     @db.VarChar(24) // 'markup' | 'margem_por_dentro'; padrão da loja
   nome                     String
+  slug                     String      @unique(map: "Loja_slug_key")
+  razao_social             String?
+  nome_fantasia            String?
+  inscricao_estadual       String?
+  inscricao_municipal      String?
+  cep                      String?     @db.VarChar(16)
+  logradouro               String?
+  numero                   String?     @db.VarChar(32)
+  complemento              String?
+  bairro                   String?
+  cidade                   String?
+  uf                       String?     @db.VarChar(2)
   stripe_customer_id       String?     @unique(map: "Loja_stripe_customer_id_key")
   telefone                 String
   trial_restante_dias      Int?

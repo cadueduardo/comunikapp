@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
   UnauthorizedException,
+  ConflictException,
   Logger,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
@@ -17,6 +18,7 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyTwoFactorLoginDto } from './dto/verify-two-factor-login.dto';
 import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
+import { UpdateCadastroLojaDto } from './dto/update-cadastro-loja.dto';
 import { loja } from '@prisma/client';
 import { TwoFactorService } from '../auth/two-factor.service';
 import { PendingSignupService } from './pending-signup.service';
@@ -28,6 +30,13 @@ import {
   normalizeCnpj,
   normalizeCpf,
 } from '../common/utils/cpf-cnpj.util';
+import {
+  buildCanonicalLojaUrl,
+  isValidLojaSlug,
+  nextSlugOnCollision,
+  normalizeLojaSlugCandidate,
+  suggestLojaSlugFromNome,
+} from './loja-slug';
 
 type LoginAttemptState = {
   failedAttempts: number;
@@ -505,6 +514,7 @@ export class LojasService {
       ...loja,
       trial_restante_dias: trialDaysLeft,
       trial_status: trialStatus,
+      url_canonica: buildCanonicalLojaUrl(loja.slug),
     };
   }
 
@@ -549,10 +559,27 @@ export class LojasService {
       expirationDate.setMinutes(expirationDate.getMinutes() + 15);
 
       return await this.prisma.$transaction(async (tx) => {
+        const lojaId = Math.random().toString(36).substr(2, 9);
+        let slug = suggestLojaSlugFromNome(nome_loja, lojaId);
+        for (let attempt = 1; attempt < 30; attempt += 1) {
+          const candidate = nextSlugOnCollision(slug, attempt);
+          if (!isValidLojaSlug(candidate)) continue;
+          const taken = await tx.loja.findFirst({
+            where: { slug: candidate },
+            select: { id: true },
+          });
+          if (!taken) {
+            slug = candidate;
+            break;
+          }
+        }
+
         const loja = await tx.loja.create({
           data: {
-            id: Math.random().toString(36).substr(2, 9), // Gerar ID único
+            id: lojaId,
             nome: nome_loja,
+            slug,
+            nome_fantasia: nome_loja,
             email: normalizedEmail,
             telefone,
             cpf: documentos.cpf,
@@ -798,6 +825,108 @@ export class LojasService {
       where: { id: lojaId },
       data,
     });
+  }
+
+  async updateCadastro(
+    lojaId: string,
+    dto: UpdateCadastroLojaDto,
+  ): Promise<loja & { url_canonica: string }> {
+    const data: Record<string, unknown> = { atualizado_em: new Date() };
+
+    if (dto.nome !== undefined) data.nome = dto.nome.trim();
+    if (dto.razao_social !== undefined) {
+      data.razao_social = dto.razao_social?.trim() || null;
+    }
+    if (dto.nome_fantasia !== undefined) {
+      data.nome_fantasia = dto.nome_fantasia?.trim() || null;
+    }
+    if (dto.email !== undefined) {
+      data.email = dto.email.trim().toLowerCase();
+    }
+    if (dto.telefone !== undefined) data.telefone = dto.telefone.trim();
+
+    if (dto.cnpj !== undefined || dto.cpf !== undefined) {
+      const cnpjRaw = dto.cnpj === undefined ? undefined : dto.cnpj;
+      const cpfRaw = dto.cpf === undefined ? undefined : dto.cpf;
+      if (cnpjRaw !== undefined) {
+        if (!cnpjRaw || !String(cnpjRaw).trim()) {
+          data.cnpj = null;
+        } else {
+          const n = normalizeCnpj(cnpjRaw);
+          if (!isValidCnpj(n)) {
+            throw new BadRequestException('CNPJ inválido.');
+          }
+          data.cnpj = formatCnpj(n);
+          data.cpf = null;
+        }
+      }
+      if (cpfRaw !== undefined && data.cnpj === undefined) {
+        if (!cpfRaw || !String(cpfRaw).trim()) {
+          data.cpf = null;
+        } else {
+          const n = normalizeCpf(cpfRaw);
+          if (!isValidCpf(n)) {
+            throw new BadRequestException('CPF inválido.');
+          }
+          data.cpf = formatCpf(n);
+          data.cnpj = null;
+        }
+      }
+    }
+
+    if (dto.inscricao_estadual !== undefined) {
+      data.inscricao_estadual = dto.inscricao_estadual?.trim() || null;
+    }
+    if (dto.inscricao_municipal !== undefined) {
+      data.inscricao_municipal = dto.inscricao_municipal?.trim() || null;
+    }
+
+    if (dto.slug !== undefined) {
+      const slug = normalizeLojaSlugCandidate(dto.slug);
+      if (!isValidLojaSlug(slug)) {
+        throw new BadRequestException(
+          'Slug inválido ou reservado. Use 3–48 caracteres (a-z, 0-9, hífen).',
+        );
+      }
+      const taken = await this.prisma.loja.findFirst({
+        where: { slug, NOT: { id: lojaId } },
+        select: { id: true },
+      });
+      if (taken) {
+        throw new ConflictException('Este endereço de URL já está em uso.');
+      }
+      data.slug = slug;
+    }
+
+    const addressFields = [
+      'cep',
+      'logradouro',
+      'numero',
+      'complemento',
+      'bairro',
+      'cidade',
+      'uf',
+    ] as const;
+    for (const field of addressFields) {
+      if (dto[field] !== undefined) {
+        const value = dto[field];
+        if (field === 'uf' && value) {
+          data.uf = String(value).trim().toUpperCase().slice(0, 2) || null;
+        } else {
+          data[field] = value?.toString().trim() || null;
+        }
+      }
+    }
+
+    const loja = await this.prisma.loja.update({
+      where: { id: lojaId },
+      data,
+    });
+
+    return {
+      ...loja,
+      url_canonica: buildCanonicalLojaUrl(loja.slug),
+    };
   }
 
   update(id: string, updateLojaDto: UpdateLojaDto) {

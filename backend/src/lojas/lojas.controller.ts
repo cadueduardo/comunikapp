@@ -28,6 +28,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public, CurrentUser, CurrentLojaId } from '../auth/decorators';
 import { AuthenticatedUser } from '../auth/auth.service';
 import { UpdateConfiguracoesLojaDto } from './dto/update-configuracoes-loja.dto';
+import { UpdateCadastroLojaDto } from './dto/update-cadastro-loja.dto';
 import { Request } from 'express';
 
 @UseGuards(JwtAuthGuard)
@@ -122,6 +123,15 @@ export class LojasController {
       lojaId,
       updateConfiguracoesLojaDto,
     );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('cadastro')
+  updateCadastro(
+    @CurrentLojaId() lojaId: string,
+    @Body() updateCadastroLojaDto: UpdateCadastroLojaDto,
+  ) {
+    return this.lojasService.updateCadastro(lojaId, updateCadastroLojaDto);
   }
 
   @UseGuards(JwtAuthGuard)

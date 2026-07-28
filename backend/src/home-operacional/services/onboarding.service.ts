@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ONBOARDING_ETAPAS_CATALOGO } from '../catalogos/onboarding-etapas.catalogo';
 import { OnboardingStatus } from '../enums/onboarding-status.enum';
 import { OnboardingStepId } from '../enums/onboarding-step.enum';
+import { isValidLojaSlug } from '../../lojas/loja-slug';
 import {
   OnboardingEtapaCatalogo,
   OnboardingEtapaEstado,
@@ -223,6 +224,7 @@ export class OnboardingService {
           telefone: true,
           cnpj: true,
           cpf: true,
+          slug: true,
           margem_lucro_padrao: true,
           impostos_padrao: true,
           comissao_padrao: true,
@@ -259,6 +261,9 @@ export class OnboardingService {
     if (loja) {
       resultado[OnboardingStepId.DADOS_EMPRESA] =
         !!loja.nome && !!loja.telefone && (!!loja.cnpj || !!loja.cpf);
+      resultado[OnboardingStepId.DEFINIR_SLUG] = isValidLojaSlug(
+        loja.slug || '',
+      );
       resultado[OnboardingStepId.MARGEM_IMPOSTO] =
         loja.margem_lucro_padrao !== null &&
         loja.impostos_padrao !== null &&

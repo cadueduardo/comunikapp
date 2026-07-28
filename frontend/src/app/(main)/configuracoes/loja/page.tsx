@@ -1,5 +1,4 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -26,13 +25,14 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { useUser } from '@/contexts/UserContext';
 import { configuracoesModuleNav } from '@/lib/module-nav';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { buildApiUrl } from '@/lib/config';
+import { hasClientSession } from '@/lib/session-auth';
 
 const formatPercentage = (value: unknown): string => {
   if (value === null || value === undefined || value === '') return '';
@@ -50,10 +50,7 @@ const normalizePercentageInput = (value: string): string =>
 
 const parsePercentage = (value?: string): number | null => {
   if (value === undefined) return null;
-  const cleaned = value
-    .trim()
-    .replace(/\s/g, '')
-    .replace(/%/g, '');
+  const cleaned = value.trim().replace(/\s/g, '').replace(/%/g, '');
   const normalized = cleaned.includes(',')
     ? cleaned.replace(/\./g, '').replace(',', '.')
     : cleaned;
@@ -63,7 +60,36 @@ const parsePercentage = (value?: string): number | null => {
   return Number.isFinite(numberValue) ? numberValue : null;
 };
 
+const emptyToUndef = (v: string | undefined) => {
+  const t = v?.trim();
+  return t ? t : undefined;
+};
+
 const formSchema = z.object({
+  nome: z.string().min(2, 'Informe o nome da loja'),
+  razao_social: z.string().optional(),
+  nome_fantasia: z.string().optional(),
+  email: z.string().email('E-mail inválido'),
+  telefone: z.string().min(8, 'Informe o telefone'),
+  documento_tipo: z.enum(['cnpj', 'cpf']),
+  documento: z.string().optional(),
+  inscricao_estadual: z.string().optional(),
+  inscricao_municipal: z.string().optional(),
+  slug: z
+    .string()
+    .min(3, 'Mínimo 3 caracteres')
+    .max(48, 'Máximo 48 caracteres')
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      'Use apenas letras minúsculas, números e hífens',
+    ),
+  cep: z.string().optional(),
+  logradouro: z.string().optional(),
+  numero: z.string().optional(),
+  complemento: z.string().optional(),
+  bairro: z.string().optional(),
+  cidade: z.string().optional(),
+  uf: z.string().max(2).optional(),
   logo_url: z.string().optional(),
   cabecalho_orcamento: z.string().optional(),
   margem_lucro_padrao: z.string().optional(),
@@ -83,6 +109,23 @@ export default function ConfiguracoesLojaPage() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      nome: '',
+      razao_social: '',
+      nome_fantasia: '',
+      email: '',
+      telefone: '',
+      documento_tipo: 'cnpj',
+      documento: '',
+      inscricao_estadual: '',
+      inscricao_municipal: '',
+      slug: '',
+      cep: '',
+      logradouro: '',
+      numero: '',
+      complemento: '',
+      bairro: '',
+      cidade: '',
+      uf: '',
       logo_url: '',
       cabecalho_orcamento: '',
       margem_lucro_padrao: '',
@@ -94,184 +137,518 @@ export default function ConfiguracoesLojaPage() {
   });
 
   useEffect(() => {
-    if (user?.loja) {
-      const { loja } = user;
-      const initialValues = {
-        logo_url: loja.logo_url ?? '',
-        cabecalho_orcamento: loja.cabecalho_orcamento ?? '',
-        margem_lucro_padrao: formatPercentage(loja.margem_lucro_padrao),
-        impostos_padrao: formatPercentage(loja.impostos_padrao),
-        comissao_padrao: formatPercentage(loja.comissao_padrao),
-        horas_produtivas_mensais: String(loja.horas_produtivas_mensais ?? 352),
-        tipo_margem_lucro: (loja.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro') as 'markup' | 'margem_por_dentro',
-      };
-      form.reset(initialValues);
-    }
-  }, [user?.loja, form.reset]);
+    if (!user?.loja) return;
+    const { loja } = user;
+    const hasCnpj = Boolean(loja.cnpj);
+    form.reset({
+      nome: loja.nome ?? '',
+      razao_social: loja.razao_social ?? '',
+      nome_fantasia: loja.nome_fantasia ?? loja.nome ?? '',
+      email: loja.email ?? user.email ?? '',
+      telefone: loja.telefone ?? user.telefone ?? '',
+      documento_tipo: hasCnpj ? 'cnpj' : 'cpf',
+      documento: (hasCnpj ? loja.cnpj : loja.cpf) ?? '',
+      inscricao_estadual: loja.inscricao_estadual ?? '',
+      inscricao_municipal: loja.inscricao_municipal ?? '',
+      slug: loja.slug ?? '',
+      cep: loja.cep ?? '',
+      logradouro: loja.logradouro ?? '',
+      numero: loja.numero ?? '',
+      complemento: loja.complemento ?? '',
+      bairro: loja.bairro ?? '',
+      cidade: loja.cidade ?? '',
+      uf: loja.uf ?? '',
+      logo_url: loja.logo_url ?? '',
+      cabecalho_orcamento: loja.cabecalho_orcamento ?? '',
+      margem_lucro_padrao: formatPercentage(loja.margem_lucro_padrao),
+      impostos_padrao: formatPercentage(loja.impostos_padrao),
+      comissao_padrao: formatPercentage(loja.comissao_padrao),
+      horas_produtivas_mensais: String(loja.horas_produtivas_mensais ?? 352),
+      tipo_margem_lucro:
+        loja.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro',
+    });
+  }, [user, form]);
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  const slugWatch = form.watch('slug');
+  const urlCanonico = useMemo(() => {
+    if (!slugWatch) return '';
+    return `https://${slugWatch}.comunikapp.com.br`;
+  }, [slugWatch]);
+
+  async function onSubmit(values: FormValues) {
     setIsSaving(true);
     let newLogoUrl: string | null = null;
 
     try {
-      const token = getClientSessionToken();
-      if (!token) {
-        throw new Error('Token de autenticação não encontrado.');
+      if (!hasClientSession()) {
+        throw new Error('Sessão não encontrada. Faça login novamente.');
       }
 
-      // Etapa 1: Se um novo logo foi selecionado, faça o upload primeiro.
       if (selectedFile) {
-        const logoFormData = new FormData();
-        logoFormData.append('logo', selectedFile);
-
+        const formData = new FormData();
+        formData.append('logo', selectedFile);
         const uploadResponse = await fetch(buildApiUrl('/lojas/logo'), {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: logoFormData,
+          credentials: 'include',
+          body: formData,
         });
-
         if (!uploadResponse.ok) {
-          throw new Error('Falha ao fazer upload do logo.');
+          const err = await uploadResponse.json().catch(() => ({}));
+          throw new Error(err.message || 'Falha ao enviar o logo.');
         }
-
         const uploadResult = await uploadResponse.json();
         newLogoUrl = uploadResult.logo_url;
       }
 
-      // Etapa 2: Prepare e salve todas as outras configurações.
-      const payload: Partial<FormValues> = {};
-      
-      // Adicionar apenas campos que não estão vazios
-      if (values.cabecalho_orcamento) payload.cabecalho_orcamento = values.cabecalho_orcamento;
-      const margemLucroPadrao = parsePercentage(values.margem_lucro_padrao);
-      const impostosPadrao = parsePercentage(values.impostos_padrao);
-      const comissaoPadrao = parsePercentage(values.comissao_padrao);
-      if (margemLucroPadrao !== null) payload.margem_lucro_padrao = String(margemLucroPadrao);
-      if (impostosPadrao !== null) payload.impostos_padrao = String(impostosPadrao);
-      if (comissaoPadrao !== null) payload.comissao_padrao = String(comissaoPadrao);
-      if (values.horas_produtivas_mensais) payload.horas_produtivas_mensais = String(parseInt(values.horas_produtivas_mensais));
-      if (values.tipo_margem_lucro) payload.tipo_margem_lucro = values.tipo_margem_lucro;
+      const cadastroPayload = {
+        nome: values.nome.trim(),
+        razao_social: emptyToUndef(values.razao_social) ?? null,
+        nome_fantasia: emptyToUndef(values.nome_fantasia) ?? null,
+        email: values.email.trim().toLowerCase(),
+        telefone: values.telefone.trim(),
+        slug: values.slug.trim().toLowerCase(),
+        inscricao_estadual: emptyToUndef(values.inscricao_estadual) ?? null,
+        inscricao_municipal: emptyToUndef(values.inscricao_municipal) ?? null,
+        cep: emptyToUndef(values.cep) ?? null,
+        logradouro: emptyToUndef(values.logradouro) ?? null,
+        numero: emptyToUndef(values.numero) ?? null,
+        complemento: emptyToUndef(values.complemento) ?? null,
+        bairro: emptyToUndef(values.bairro) ?? null,
+        cidade: emptyToUndef(values.cidade) ?? null,
+        uf: emptyToUndef(values.uf)?.toUpperCase() ?? null,
+        ...(values.documento_tipo === 'cnpj'
+          ? { cnpj: emptyToUndef(values.documento) ?? null, cpf: null }
+          : { cpf: emptyToUndef(values.documento) ?? null, cnpj: null }),
+      };
 
-      // Se tivermos uma nova URL do logo, adicione-a ao payload.
-      if (newLogoUrl) {
-        payload.logo_url = newLogoUrl;
-      }
-
-              const settingsResponse = await fetch(buildApiUrl('/lojas/configuracoes'), {
+      const cadastroRes = await fetch(buildApiUrl('/lojas/cadastro'), {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cadastroPayload),
       });
-
-      if (!settingsResponse.ok) {
-        const errorData = await settingsResponse.json();
-        throw new Error(errorData.message || 'Falha ao salvar as configurações da loja.');
+      if (!cadastroRes.ok) {
+        const err = await cadastroRes.json().catch(() => ({}));
+        throw new Error(err.message || 'Erro ao salvar cadastro da loja.');
       }
-      
-      await refetchUser();
-      toast.success("Configurações da loja salvas com sucesso!");
 
+      const configPayload = {
+        logo_url: newLogoUrl ?? values.logo_url,
+        cabecalho_orcamento: values.cabecalho_orcamento,
+        margem_lucro_padrao: parsePercentage(values.margem_lucro_padrao),
+        impostos_padrao: parsePercentage(values.impostos_padrao),
+        comissao_padrao: parsePercentage(values.comissao_padrao),
+        horas_produtivas_mensais: values.horas_produtivas_mensais
+          ? Number(values.horas_produtivas_mensais)
+          : null,
+        tipo_margem_lucro: values.tipo_margem_lucro,
+      };
+
+      const configRes = await fetch(buildApiUrl('/lojas/configuracoes'), {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(configPayload),
+      });
+      if (!configRes.ok) {
+        const err = await configRes.json().catch(() => ({}));
+        throw new Error(err.message || 'Erro ao salvar parâmetros da loja.');
+      }
+
+      setSelectedFile(null);
+      await refetchUser();
+      toast.success('Configurações da loja salvas com sucesso!');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao salvar as configurações.");
-      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : 'Erro ao salvar configurações.',
+      );
     } finally {
       setIsSaving(false);
     }
   }
-  
-  if (loading) {
+
+  if (loading || !user) {
     return (
-      <div>
-        <Skeleton className="h-10 w-1/3 mb-4" />
+      <div className="space-y-6 p-4 md:p-6">
+        <Skeleton className="h-10 w-64" />
         <Skeleton className="h-96 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 p-4 md:p-6">
       <ModuleHeader
-        nav={configuracoesModuleNav}
-        title="Configurações da Loja"
-        subtitle="Gerencie os dados da sua empresa, custos e parâmetros de negócio."
-        backHref="/configuracoes"
+        module={configuracoesModuleNav}
+        title="Loja"
+        description="Cadastro, endereço, URL canônica, branding e parâmetros de negócio."
       />
-      <Separator />
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Dados da Empresa</h2>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">Identidade e cadastro</h2>
+              <p className="text-sm text-muted-foreground">
+                Dados da empresa. Base para orçamentos e, no futuro, emissão de NF.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="nome"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome de exibição</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="nome_fantasia"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome fantasia</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="razao_social"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Razão social</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mail da loja</FormLabel>
+                    <FormControl>
+                      <Input type="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="telefone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="documento_tipo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de documento</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="cnpj">CNPJ</SelectItem>
+                        <SelectItem value="cpf">CPF</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="documento"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {form.watch('documento_tipo') === 'cnpj' ? 'CNPJ' : 'CPF'}
+                    </FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="inscricao_estadual"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Inscrição estadual</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Opcional" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="inscricao_municipal"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Inscrição municipal</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Opcional" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </section>
+
+          <Separator />
+
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">Endereço</h2>
+              <p className="text-sm text-muted-foreground">
+                Preparado para futura integração fiscal / NF. Pode preencher agora.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-6">
+              <FormField
+                control={form.control}
+                name="cep"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>CEP</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="uf"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-1">
+                    <FormLabel>UF</FormLabel>
+                    <FormControl>
+                      <Input maxLength={2} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="cidade"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-3">
+                    <FormLabel>Cidade</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="logradouro"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-4">
+                    <FormLabel>Logradouro</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="numero"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Número</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="bairro"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-3">
+                    <FormLabel>Bairro</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="complemento"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-3">
+                    <FormLabel>Complemento</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </section>
+
+          <Separator />
+
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">Acesso e URL</h2>
+              <p className="text-sm text-muted-foreground">
+                Defina o slug da loja. Em breve o login será neste endereço.
+              </p>
+            </div>
             <FormField
               control={form.control}
-              name="logo_url"
+              name="slug"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Logo da Empresa</FormLabel>
+                  <FormLabel>Slug (endereço)</FormLabel>
                   <FormControl>
-                    <ImageUpload 
-                      onFileSelect={setSelectedFile} 
-                      currentImageUrl={field.value}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="cabecalho_orcamento"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cabeçalho para Orçamentos</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Ex: Nome da Empresa - Rua Exemplo, 123 - (11) 99999-9999"
-                      className="resize-y"
+                    <Input
                       {...field}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value
+                            .toLowerCase()
+                            .replace(/[^a-z0-9-]/g, ''),
+                        )
+                      }
                     />
                   </FormControl>
                   <FormDescription>
-                    Este texto aparecerá no topo de todos os seus orçamentos.
+                    URL canônica (informativa):{' '}
+                    <span className="font-mono text-foreground">
+                      {urlCanonico || '—'}
+                    </span>
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
-          </div>
+            <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+              Domínio próprio (ex.: sistema.minhaloja.com.br) chegará em uma
+              próxima etapa, com wizard de DNS no onboarding.
+            </p>
+          </section>
 
           <Separator />
 
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Parâmetros de Negócio</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">Branding</h2>
+              <p className="text-sm text-muted-foreground">
+                Logo e cabeçalho usados em orçamentos e documentos.
+              </p>
+            </div>
+            <FormItem>
+              <FormLabel>Logo</FormLabel>
+              <FormControl>
+                <ImageUpload
+                  currentImageUrl={form.watch('logo_url') || undefined}
+                  onFileSelect={setSelectedFile}
+                />
+              </FormControl>
+            </FormItem>
+            <FormField
+              control={form.control}
+              name="cabecalho_orcamento"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cabeçalho do orçamento</FormLabel>
+                  <FormControl>
+                    <Textarea rows={4} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </section>
+
+          <Separator />
+
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">Parâmetros de negócio</h2>
+              <p className="text-sm text-muted-foreground">
+                Padrões aplicados em novos orçamentos.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
               <FormField
                 control={form.control}
                 name="tipo_margem_lucro"
                 render={({ field }) => (
                   <FormItem>
-                    <InfoTooltip content="Margem por dentro: % sobre o preço final. Markup: % sobre o custo.">
-                      <FormLabel>Tipo de margem de lucro (padrão)</FormLabel>
-                    </InfoTooltip>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value ?? 'margem_por_dentro'}
-                    >
+                    <FormLabel className="inline-flex items-center gap-1">
+                      Tipo de margem
+                      <InfoTooltip text="Markup (por fora) ou margem por dentro." />
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
+                          <SelectValue />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="margem_por_dentro">Margem por dentro</SelectItem>
-                        <SelectItem value="markup">Markup (por fora)</SelectItem>
+                        <SelectItem value="margem_por_dentro">
+                          Margem por dentro
+                        </SelectItem>
+                        <SelectItem value="markup">Markup</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="horas_produtivas_mensais"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Horas produtivas mensais</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -281,13 +658,13 @@ export default function ConfiguracoesLojaPage() {
                 name="margem_lucro_padrao"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Margem de Lucro Padrão (%)</FormLabel>
+                    <FormLabel>Margem de lucro (%)</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="30"
-                        {...field} 
-                        inputMode="decimal"
-                        onChange={(e) => field.onChange(normalizePercentageInput(e.target.value))}
+                      <Input
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(normalizePercentageInput(e.target.value))
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -299,13 +676,13 @@ export default function ConfiguracoesLojaPage() {
                 name="impostos_padrao"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Impostos Padrão (%)</FormLabel>
+                    <FormLabel>Impostos (%)</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="18"
-                        {...field} 
-                        inputMode="decimal"
-                        onChange={(e) => field.onChange(normalizePercentageInput(e.target.value))}
+                      <Input
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(normalizePercentageInput(e.target.value))
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -317,52 +694,29 @@ export default function ConfiguracoesLojaPage() {
                 name="comissao_padrao"
                 render={({ field }) => (
                   <FormItem>
-                    <InfoTooltip content="Percentual aplicado automaticamente em novos orçamentos. Use 0 se não paga comissão ao vendedor.">
-                      <FormLabel>Comissão do vendedor padrão (%)</FormLabel>
-                    </InfoTooltip>
+                    <FormLabel>Comissão padrão (%)</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="0"
                         {...field}
-                        inputMode="decimal"
-                        onChange={(e) => field.onChange(normalizePercentageInput(e.target.value))}
+                        onChange={(e) =>
+                          field.onChange(normalizePercentageInput(e.target.value))
+                        }
                       />
                     </FormControl>
-                    <FormDescription>
-                      Valor inicial do campo Comissão ao criar um orçamento.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="horas_produtivas_mensais"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Horas Produtivas Mensais</FormLabel>
-                    <FormControl>
-                       <Input 
-                        placeholder="352" 
-                        {...field}
-                        type="number"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Total de horas produtivas por mês (ex: 2 colaboradores × 176 horas = 352)
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-          </div>
+          </section>
 
-          <Button type="submit" disabled={isSaving}>
-            {isSaving ? 'Salvando...' : 'Salvar Alterações'}
-          </Button>
+          <div className="flex justify-end">
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? 'Salvando…' : 'Salvar configurações'}
+            </Button>
+          </div>
         </form>
       </Form>
     </div>
   );
-} 
+}

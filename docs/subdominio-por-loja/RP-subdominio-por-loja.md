@@ -1,6 +1,6 @@
 # RP — Subdomínio por loja
 
-**Status:** proposta inicial pronta para implementação  
+**Status:** Fatia A em implementação (dados/UI/onboarding); runtime host = Fatia B  
 **Produto:** ComunikApp  
 **Feature:** Tenant por hostname (`{slug}.comunikapp.com.br`)  
 **Público:** lojas (tenant), TI/proxy corporativo do cliente, operação ComunikApp  
@@ -73,13 +73,25 @@ Na tabela `loja`:
 | Campo | Tipo | Regras |
 |---|---|---|
 | `slug` | `String` único, indexado | lowercase, `[a-z0-9-]+`, 3–48 chars, sem iniciar/terminar com `-` |
+| `razao_social` | `String?` | pré-NF |
+| `nome_fantasia` | `String?` | pré-NF |
+| `inscricao_estadual` | `String?` | pré-NF |
+| `inscricao_municipal` | `String?` | pré-NF |
+| `cep` | `String?` | endereço |
+| `logradouro` | `String?` | endereço |
+| `numero` | `String?` | endereço |
+| `complemento` | `String?` | endereço |
+| `bairro` | `String?` | endereço |
+| `cidade` | `String?` | endereço |
+| `uf` | `String?` (2) | endereço |
 
-Opcional no MVP (útil depois):
+Opcional depois:
 
 | Campo | Tipo | Uso |
 |---|---|---|
 | `slug_atualizado_em` | `DateTime?` | auditoria de mudança |
 | `slug_anterior` | `String?` | redirect 301 temporário após rename |
+| `dominio_custom` | `String?` | Fatia C |
 
 ### 4.2 Slugs reservados (nunca atribuir a loja)
 
@@ -219,48 +231,63 @@ Nginx CORS map precisa passar a aceitar origem `https://*.comunikapp.com.br`
   **links públicos gerados passam a usar o subdomain da loja** quando slug
   existir; links antigos do apex continuam resolvendo pelo id no path.
 
-## 10. UX / branding (MVP mínimo)
+## 10. UX — Configurações da loja e onboarding (Fatia A)
+
+### 10.1 `/configuracoes/loja` (hub)
+
+Seções:
+
+1. **Identidade / cadastro** — nome, razão social, fantasia, CPF/CNPJ, e-mail, telefone, IE, IM  
+2. **Endereço** — CEP, logradouro, número, complemento, bairro, cidade, UF (pré-NF)  
+3. **Acesso e URL** — slug + URL canônica informativa `https://{slug}.comunikapp.com.br` + placeholder “domínio próprio em breve”  
+4. **Branding** — logo + cabeçalho de orçamento  
+5. **Parâmetros de negócio** — margem, impostos, comissão, horas
+
+Sem emissão de NF nesta fatia; campos fiscais/endereço existem para integração futura.
+
+### 10.2 Onboarding
+
+Nova etapa obrigatória `definir_slug`:
+
+- título: Definir endereço da loja (URL)
+- `acao_href`: `/configuracoes/loja`
+- conclusão automática: `loja.slug` preenchido e válido
+- lojas legadas herdam a etapa pendente até definirem/aceitarem o slug (backfill já preenche — etapa auto-conclui se slug existir)
+
+`dados_empresa` continua exigindo nome + doc + telefone; a página passa a editar esses campos de verdade.
+
+### 10.3 Login no subdomain (Fatia B)
 
 - Em `{slug}/login`: mostrar nome da loja (e logo se houver).
-- Apex `/login`: campo opcional “slug da loja” **ou** só e-mail (resolve loja
-  pelo usuário) + redirect — preferir só e-mail para não confundir legado.
+- Apex `/login`: só e-mail + redirect pós-sucesso para subdomain.
 - 404 de slug: mensagem clara + CTA para suporte/apex.
 
 ## 11. Fases de implementação
 
-### Fase 0 — Preparação (docs + DNS)
+### Fatia A — Dados + UI + onboarding (atual)
 
-- [x] RP neste diretório
+- [x] RP neste diretório (atualizado)
+- [ ] Migration `loja.slug` + campos cadastro/endereço + backfill
+- [ ] API PATCH cadastro/slug
+- [ ] Reformulação `/configuracoes/loja`
+- [ ] Etapa onboarding `definir_slug`
+
+### Fatia B — Runtime tenant-by-host
+
 - [ ] Wildcard DNS `*.comunikapp.com.br` no Cloudflare
-- [ ] Validar TLS/proxy com um slug de teste (`sandbox.comunikapp.com.br`)
-
-### Fase 1 — Dados + backfill
-
-- [ ] Migration `loja.slug` unique not null (após backfill)
-- [ ] Script de backfill idempotente
-- [ ] API interna: `GET /lojas/por-slug/:slug` (ou equivalente público controlado)
-- [ ] UI em Configurações → Loja: visualizar/editar slug
-
-### Fase 2 — Runtime tenant-by-host
-
+- [ ] Validar TLS/proxy com slug de teste
 - [ ] Nginx `server_name` com wildcard
 - [ ] Next middleware: resolve slug → contexto
 - [ ] BFF login valida slug do host
 - [ ] Nest rejeita mismatch JWT ↔ tenant do host
 - [ ] CORS map para origens `https://*.comunikapp.com.br`
-
-### Fase 3 — Redirects legados
-
 - [ ] Pós-login no apex → subdomain
-- [ ] Deep-links autenticados no apex → subdomain
-- [ ] Banner/opcional e-mail com URL canônica
-- [ ] Métrica: % sessões ainda no apex (para decidir sunset)
 
-### Fase 4 — Endurecimento (pós-MVP)
+### Fatia C — Domínio custom + endurecimento
 
-- [ ] Sunset do login no apex para lojas com slug
+- [ ] Wizard DNS no onboarding/config (CNAME/TXT + verificar)
 - [ ] `slug_anterior` + 301
-- [ ] Domínio customizado do cliente
+- [ ] Sunset do login no apex (após métricas)
 - [ ] Isolamento de sessão mais rígido (se necessário)
 
 ## 12. Critérios de aceite (MVP)

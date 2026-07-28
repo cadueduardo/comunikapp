@@ -3,6 +3,7 @@
 // Ver docs/fase-0-home-operacional/03-onboarding-etapas.md
 export enum OnboardingStepId {
   DADOS_EMPRESA = 'dados_empresa',
+  DEFINIR_SLUG = 'definir_slug',
   PRIMEIRO_CLIENTE = 'primeiro_cliente',
   PRIMEIRO_MATERIAL = 'primeiro_material',
   PRIMEIRA_MAQUINA = 'primeira_maquina',
