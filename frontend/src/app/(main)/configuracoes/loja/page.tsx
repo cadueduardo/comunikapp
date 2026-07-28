@@ -279,9 +279,9 @@ export default function ConfiguracoesLojaPage() {
   return (
     <div className="space-y-6 p-4 md:p-6">
       <ModuleHeader
-        module={configuracoesModuleNav}
+        nav={configuracoesModuleNav}
         title="Loja"
-        description="Cadastro, endereço, URL canônica, branding e parâmetros de negócio."
+        subtitle="Cadastro, endereço, URL canônica, branding e parâmetros de negócio."
       />
 
       <Form {...form}>
