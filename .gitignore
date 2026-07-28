@@ -26,6 +26,10 @@ tmp/
 # Local exports containing production data
 docs/comunikapp.json
 
+# Runbooks locais para agentes (não versionar — secrets/ops)
+docs/LOCAL-acesso-vps-cloudflare.md
+docs/LOCAL-*.md
+
 # Local diagnostics and agent settings
 /*.log
 /.claude/settings.local.json
