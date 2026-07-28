@@ -20,8 +20,8 @@ Usuário de app: `comunikapp` (deploy)
 - [x] Nginx `real_ip` + `X-Forwarded-For` na VPS
 - [x] `cloudflared` instalado na VPS (`admin@147.93.190.212`)
 - [x] `cloudflared` instalado no Windows local
-- [ ] Túnel remoto criado no Zero Trust
-- [ ] Serviço `cloudflared` rodando na VPS (Healthy)
+- [x] Túnel remoto criado no Zero Trust (`comunikapp-ssh`)
+- [x] Serviço `cloudflared` rodando na VPS (Healthy / QUIC)
 - [ ] Published application `ssh` → `ssh://localhost:22`
 - [ ] Access application + política (e-mail do admin)
 - [ ] `~/.ssh/config` no Windows
