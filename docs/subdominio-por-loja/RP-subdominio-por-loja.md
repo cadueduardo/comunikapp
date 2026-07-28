@@ -277,8 +277,8 @@ Nova etapa obrigatória `definir_slug`:
 
 ### Fatia B — Runtime tenant-by-host
 
-- [ ] Wildcard DNS `*.comunikapp.com.br` no Cloudflare
-- [ ] Validar TLS/proxy com slug de teste
+- [x] Wildcard DNS `*.comunikapp.com.br` no Cloudflare
+- [x] Validar TLS/proxy com slug de teste (Origin Cert + Full strict)
 - [x] Nginx `server_name` com wildcard
 - [x] Next middleware: resolve slug → contexto
 - [x] BFF login valida slug do host
@@ -289,6 +289,9 @@ Nova etapa obrigatória `definir_slug`:
 ### Fatia C — Domínio custom + endurecimento
 
 - [ ] Wizard DNS no onboarding/config (CNAME/TXT + verificar)
+- [ ] Aceitar **ambos** os formatos do domínio da loja:
+  - subdomínio: `sistema.minhaloja.com.br` (CNAME → canônico ComunikApp)
+  - apex da loja: `minhaloja.com.br` (ALIAS/ANAME ou A + verificação)
 - [ ] `slug_anterior` + 301
 - [ ] Sunset do login no apex (após métricas)
 - [ ] Isolamento de sessão mais rígido (se necessário)
