@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 export default function LojaNaoEncontradaPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-6 text-center">
-      <BrandLogo variant="horizontal" heightPx={40} />
+      <BrandLogo variant="logoPlatform" heightPx={40} />
       <div className="max-w-md space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">
           Loja não encontrada
