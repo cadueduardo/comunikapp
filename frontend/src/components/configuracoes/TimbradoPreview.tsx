@@ -119,12 +119,30 @@ function formatCnpjHeader(data: TimbradoLojaData): string {
   return '';
 }
 
+function formatCepDisplay(cep?: string | null): string {
+  const digits = (cep ?? '').replace(/\D/g, '');
+  if (digits.length !== 8) return (cep ?? '').trim();
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
+
 function enderecoLinhas(data: TimbradoLojaData): {
   linha1: string;
   linha2: string;
 } {
-  const linha1 = [data.logradouro, data.numero].filter(Boolean).join(', ');
-  const linha2 = [data.cidade, data.uf].filter(Boolean).join(' / ');
+  const ruaNumero = [data.logradouro?.trim(), data.numero?.trim()]
+    .filter(Boolean)
+    .join(', ');
+  const complemento = data.complemento?.trim();
+  const linha1 = [ruaNumero, complemento].filter(Boolean).join(' — ');
+
+  const cidadeUf = [data.cidade?.trim(), data.uf?.trim()]
+    .filter(Boolean)
+    .join('/');
+  const cepFmt = formatCepDisplay(data.cep);
+  const linha2 = cepFmt
+    ? [cidadeUf, `CEP: ${cepFmt}`].filter(Boolean).join(' - ')
+    : cidadeUf;
+
   return { linha1, linha2 };
 }
 
@@ -312,12 +330,12 @@ export function TimbradoPreview({
           {linha1 ? (
             <p className="truncate">{linha1}</p>
           ) : (
-            <p className="truncate text-gray-300">Rua, número</p>
+            <p className="truncate text-gray-300">Rua, número — complemento</p>
           )}
           {linha2 ? (
             <p className="truncate">{linha2}</p>
           ) : (
-            <p className="truncate text-gray-300">Cidade / UF</p>
+            <p className="truncate text-gray-300">Cidade/UF - CEP</p>
           )}
         </div>
       </div>
