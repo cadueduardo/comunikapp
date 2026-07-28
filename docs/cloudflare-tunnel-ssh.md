@@ -22,11 +22,11 @@ Usuário de app: `comunikapp` (deploy)
 - [x] `cloudflared` instalado no Windows local
 - [x] Túnel remoto criado no Zero Trust (`comunikapp-ssh`)
 - [x] Serviço `cloudflared` rodando na VPS (Healthy / QUIC)
-- [ ] Published application `ssh` → `ssh://localhost:22`
-- [ ] Access application + política (e-mail do admin)
-- [ ] `~/.ssh/config` no Windows
-- [ ] Teste `ssh comunikapp-vps` (Access no browser + chave SSH)
-- [ ] Porta 22 fechada no UFW (somente depois do teste)
+- [x] Published application `ssh` → `ssh://localhost:22`
+- [x] Access application + política (e-mail do admin)
+- [x] `~/.ssh/config` no Windows (`Host comunikapp-vps`)
+- [x] Teste `ssh comunikapp-vps` OK (`admin` / `vmi3319136`)
+- [ ] Porta 22 fechada no UFW (somente depois de estabilizar)
 
 ## Passo manual no painel (você)
 
