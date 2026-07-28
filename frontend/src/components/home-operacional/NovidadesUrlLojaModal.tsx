@@ -105,7 +105,7 @@ export function NovidadesUrlLojaModal() {
             Agora não
           </Button>
           <Button asChild onClick={dispensar}>
-            <Link href="/configuracoes/loja">
+            <Link href="/configuracoes/loja#acesso-url">
               {precisaPersonalizar
                 ? 'Escolher meu endereço'
                 : 'Ver ou alterar endereço'}

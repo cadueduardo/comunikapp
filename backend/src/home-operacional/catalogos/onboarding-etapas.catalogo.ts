@@ -27,9 +27,9 @@ export const ONBOARDING_ETAPAS_CATALOGO: ReadonlyArray<OnboardingEtapaCatalogo> 
       obrigatoria: true,
       titulo: 'Definir endereço da loja (URL)',
       descricao_curta:
-        'Escolha o slug da sua loja. Em breve o acesso será minhaloja.comunikapp.com.br.',
+        'Escolha o endereço próprio da sua loja (ex.: minhaloja.comunikapp.com.br).',
       acao_label: 'Definir URL da loja',
-      acao_href: '/configuracoes/loja',
+      acao_href: '/configuracoes/loja#acesso-url',
     },
     {
       step_id: OnboardingStepId.PRIMEIRO_CLIENTE,

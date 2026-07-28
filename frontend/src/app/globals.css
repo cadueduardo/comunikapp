@@ -214,3 +214,24 @@
     cursor: not-allowed !important;
   }
 }
+
+/* Destaque guiado (ex.: modal de novidade → /configuracoes/loja#acesso-url) */
+@keyframes highlight-url-fade {
+  0% {
+    background-color: rgb(254 240 138 / 0.9);
+    box-shadow: 0 0 0 2px rgb(250 204 21 / 0.55);
+  }
+  35% {
+    background-color: rgb(254 240 138 / 0.55);
+    box-shadow: 0 0 0 2px rgb(250 204 21 / 0.35);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.highlight-url-pulse {
+  animation: highlight-url-fade 2.6s ease-out forwards;
+  border-radius: 0.5rem;
+}

@@ -37,6 +37,7 @@ import {
   isProvisionalLojaSlug,
   suggestLojaSlugFromNome,
 } from '@/lib/loja-slug';
+import { cn } from '@/lib/utils';
 
 const formatPercentage = (value: unknown): string => {
   if (value === null || value === undefined || value === '') return '';
@@ -109,6 +110,7 @@ export default function ConfiguracoesLojaPage() {
   const { user, refetchUser, loading } = useUser();
   const [isSaving, setIsSaving] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [highlightAcessoUrl, setHighlightAcessoUrl] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -172,6 +174,29 @@ export default function ConfiguracoesLojaPage() {
         loja.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro',
     });
   }, [user, form]);
+
+  useEffect(() => {
+    if (loading || !user) return;
+    if (typeof window === 'undefined') return;
+    if (window.location.hash !== '#acesso-url') return;
+
+    const scrollTimer = window.setTimeout(() => {
+      const el = document.getElementById('acesso-url');
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightAcessoUrl(true);
+    }, 180);
+
+    return () => window.clearTimeout(scrollTimer);
+  }, [loading, user]);
+
+  useEffect(() => {
+    if (!highlightAcessoUrl) return;
+    const clearTimer = window.setTimeout(() => {
+      setHighlightAcessoUrl(false);
+    }, 2800);
+    return () => window.clearTimeout(clearTimer);
+  }, [highlightAcessoUrl]);
 
   const slugWatch = form.watch('slug');
   const nomeWatch = form.watch('nome');
@@ -546,11 +571,17 @@ export default function ConfiguracoesLojaPage() {
 
           <Separator />
 
-          <section className="space-y-4">
+          <section
+            id="acesso-url"
+            className={cn(
+              'scroll-mt-24 space-y-4 p-3 -mx-3',
+              highlightAcessoUrl && 'highlight-url-pulse',
+            )}
+          >
             <div>
               <h2 className="text-lg font-semibold">Acesso e URL</h2>
               <p className="text-sm text-muted-foreground">
-                Defina o slug da loja a partir do nome (ex.: Cacau Placas →
+                Defina o endereço da loja a partir do nome (ex.: Cacau Placas →
                 cacauplacas). O login no subdomínio usa este endereço.
               </p>
             </div>
@@ -559,7 +590,7 @@ export default function ConfiguracoesLojaPage() {
               name="slug"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Slug (endereço)</FormLabel>
+                  <FormLabel>Endereço da loja</FormLabel>
                   <FormControl>
                     <Input
                       {...field}

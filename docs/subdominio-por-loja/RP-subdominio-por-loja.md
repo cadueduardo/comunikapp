@@ -253,7 +253,7 @@ Sem emissão de NF nesta fatia; campos fiscais/endereço existem para integraç�
 Nova etapa obrigatória `definir_slug`:
 
 - título: Definir endereço da loja (URL)
-- `acao_href`: `/configuracoes/loja`
+- `acao_href`: `/configuracoes/loja#acesso-url`
 - conclusão automática: `loja.slug` preenchido e válido
 - lojas legadas herdam a etapa pendente até definirem/aceitarem o slug (backfill já preenche — etapa auto-conclui se slug existir)
 
@@ -285,6 +285,16 @@ Nova etapa obrigatória `definir_slug`:
 - [x] Nest rejeita mismatch JWT ↔ tenant do host
 - [x] CORS map para origens `https://*.comunikapp.com.br`
 - [x] Pós-login no apex → subdomain
+
+### Fatia B+ — Polimento UX (deploy junto com a próxima fase)
+
+Não subir sozinho em produção; empacotar no próximo deploy (início Fatia C ou release seguinte).
+
+- [x] Modal de novidade “endereço próprio” no dashboard (admins)
+- [x] CTA do modal / onboarding `definir_slug` → `/configuracoes/loja#acesso-url`
+- [x] Scroll + highlight amarelo com fade-out (~2,6s) na seção Acesso e URL
+- [ ] Página amigável estável para slug inexistente (hoje pode 500)
+- [ ] Rotacionar Cloudflare Origin Cert (chave exposta em chat operacional)
 
 ### Fatia C — Domínio custom + endurecimento
 

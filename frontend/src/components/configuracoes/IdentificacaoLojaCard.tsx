@@ -179,7 +179,7 @@ export function IdentificacaoLojaCard() {
                       : '—')}
                 </p>
                 <a
-                  href="/configuracoes/loja"
+                  href="/configuracoes/loja#acesso-url"
                   className="text-xs text-primary underline-offset-2 hover:underline"
                 >
                   Editar em Configurações → Loja

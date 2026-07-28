@@ -15,7 +15,7 @@
 | ordem | step_id | titulo | obrigatoria | critério de conclusão | rota da ação |
 | --- | --- | --- | --- | --- | --- |
 | 1 | `dados_empresa` | Confirmar dados da empresa | sim | `loja.nome`, `loja.cnpj` ou `loja.cpf`, `loja.telefone` preenchidos | `/configuracoes/loja` |
-| 2 | `definir_slug` | Definir endereço da loja (URL) | sim | `loja.slug` preenchido e válido (3–48, `[a-z0-9-]+`) | `/configuracoes/loja` |
+| 2 | `definir_slug` | Definir endereço da loja (URL) | sim | `loja.slug` preenchido e válido (3–48, `[a-z0-9-]+`) | `/configuracoes/loja#acesso-url` |
 | 3 | `primeiro_cliente` | Cadastrar primeiro cliente | sim | existe ≥ 1 `cliente` ativo na loja | `/clientes/novo` |
 | 4 | `primeiro_material` | Cadastrar materiais principais | sim | existe ≥ 1 `Insumo` ativo na loja | `/insumos/novo` |
 | 5 | `primeira_maquina` | Cadastrar máquinas ou processos | sim | existe ≥ 1 `maquina` ativa OR ≥ 1 `servico_manual` ativo | `/centros-de-trabalho/maquinas/novo` |

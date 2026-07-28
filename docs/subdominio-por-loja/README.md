@@ -11,7 +11,10 @@ Especificação para servir cada loja em um hostname próprio
 
 | Fatia | Conteúdo | Status |
 |---|---|---|
-| **A** | `loja.slug` + cadastro/endereço (pré-NF) + reformulação `/configuracoes/loja` + onboarding `definir_slug` | em implementação |
+| **A** | `loja.slug` + cadastro/endereço (pré-NF) + reformulação `/configuracoes/loja` + onboarding `definir_slug` | feito |
+| **B** | Runtime tenant-by-host (DNS wildcard, Nginx, middleware, CORS, login) | feito |
+| **B+** | Polimento UX (modal novidade, `#acesso-url` + highlight) — **deploy junto com a próxima fase** | no branch, aguardando |
+| **C** | Domínio custom (`sistema.loja.com.br` **ou** `loja.com.br`) + harden | próximo |
 | **B** | DNS wildcard, Nginx, middleware tenant-by-host, login no subdomain | depois |
 | **C** | Domínio custom do cliente + wizard DNS | depois |
 
