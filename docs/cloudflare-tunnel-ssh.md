@@ -26,31 +26,9 @@ Usuário de app: `comunikapp` (deploy)
 - [x] Access application + política (e-mail do admin)
 - [x] `~/.ssh/config` no Windows (`Host comunikapp-vps`)
 - [x] Teste `ssh comunikapp-vps` OK (`admin` / `vmi3319136`)
-- [ ] Porta 22 fechada no UFW (somente depois de estabilizar)
+- [x] Porta 22 fechada no UFW (2026-07-28) — direto dá timeout; Tunnel OK
 
-## Passo manual no painel (você)
-
-O token `comunikapp-ops` **não** tem permissão de Tunnel/Access. Crie o túnel no dashboard:
-
-1. Abra [Zero Trust → Networks → Tunnels](https://one.dash.cloudflare.com/)  
-   (ou Cloudflare Dashboard → Zero Trust → Networks → Tunnels)
-2. **Create a tunnel** → tipo **Cloudflared**
-3. Nome: `comunikapp-ssh`
-4. **Save tunnel**
-5. Escolha **Debian** / **Ubuntu** e **copie o comando de instalação**  
-   (começa com `sudo cloudflared service install ...`)
-6. **Não rode ainda na VPS** — cole o comando aqui no chat (ou só o token longo depois de `install`).  
-   Eu aplico na VPS.
-7. Depois que o túnel ficar **Healthy**, em **Routes → Published application**:
-   - Subdomain: `ssh`
-   - Domain: `comunikapp.com.br`
-   - Type/Service: `SSH` → `localhost:22`
-8. Em **Access → Applications** (self-hosted):
-   - Application: `ssh.comunikapp.com.br`
-   - Policy: Allow para o e-mail do admin (One-time PIN / Google)
-   - Action: Allow (ou Service Auth depois, para automação headless)
-
-## Config SSH no Windows (após o hostname existir)
+## Config SSH no Windows
 
 Arquivo: `C:\Users\cadu\.ssh\config`
 
@@ -59,11 +37,9 @@ Host comunikapp-vps
     HostName ssh.comunikapp.com.br
     User admin
     IdentityFile ~/.ssh/id_ed25519
-    ProxyCommand cloudflared access ssh --hostname %h
+    ProxyCommand C:/Users/cadu/AppData/Local/Microsoft/WinGet/Links/cloudflared.exe access ssh --hostname %h
     IdentitiesOnly yes
 ```
-
-Teste (porta 22 ainda aberta como fallback):
 
 ```powershell
 ssh comunikapp-vps "whoami; hostname"
@@ -71,19 +47,17 @@ ssh comunikapp-vps "whoami; hostname"
 
 Na primeira vez o `cloudflared` abre o browser para autenticar no Access.
 
-## Fechar a porta 22 (somente depois)
+## Porta 22 fechada (concluído em 2026-07-28)
 
-Quando `ssh comunikapp-vps` funcionar de forma estável:
+Removidas as regras UFW `OpenSSH` (IPv4 e IPv6). Restam apenas 80/443.
 
-```bash
-# Na VPS — manter sessão Tunnel aberta em outro terminal
-sudo ufw status verbose
-# Liberar apenas o necessário; NÃO corte SSH sem Tunnel validado
-sudo ufw delete allow 22/tcp   # ou regra equivalente — conferir antes
-sudo ufw reload
-```
+Validação:
+- `ssh comunikapp-vps` → OK
+- `ssh admin@147.93.190.212` → Connection timed out
 
-Manter console/VNC da Contabo testado como recuperação.
+Recuperação se o Tunnel cair: console/VNC da Contabo.
+
+Pendente recomendado: regenerar o token do túnel (exposto no chat) e reinstalar o serviço.
 
 ## Token API separado (opcional, depois)
 
