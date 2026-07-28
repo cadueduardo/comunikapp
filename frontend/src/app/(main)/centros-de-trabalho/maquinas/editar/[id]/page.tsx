@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -41,7 +42,7 @@ export default function EditarMaquinaCTPage({ params }: { params: Promise<{ id: 
 
   const fetchMaquina = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const data = await maquinasApi.getById(id, token);
@@ -57,7 +58,7 @@ export default function EditarMaquinaCTPage({ params }: { params: Promise<{ id: 
   const handleSubmit = async (data: MaquinaFormValues) => {
     try {
       setSubmitting(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado');
         return;

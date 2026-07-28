@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -50,7 +51,7 @@ export default function ProdutosFinitosPage() {
   const carregar = async () => {
     setCarregando(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       const resposta = (await produtosFinitosApi.getAll(token, {
         limit: 100,
@@ -79,7 +80,7 @@ export default function ProdutosFinitosPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       await produtosFinitosApi.delete(id, token);
       setItens((prev) => prev.filter((item) => item.id !== id));

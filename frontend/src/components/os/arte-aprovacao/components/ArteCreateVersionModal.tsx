@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import React, { useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -113,7 +114,7 @@ export function ArteCreateVersionModal({
     formData.append('nome_original', uploadFile.file.name);
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       console.log(`📤 Upload de arquivo para versão: ${versaoId}`);
       const response = await fetch(`/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`, {
         method: 'POST',
@@ -145,7 +146,7 @@ export function ArteCreateVersionModal({
 
     try {
       // 1. Criar a versão
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const createResponse = await fetch('/api/arte-aprovacao/versoes', {
         method: 'POST',
         headers: {

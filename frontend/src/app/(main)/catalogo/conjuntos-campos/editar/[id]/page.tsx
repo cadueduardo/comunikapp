@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -34,7 +35,7 @@ export default function EditarConjuntoCamposPage() {
   useEffect(() => {
     (async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) {
           toast.error('Token de autenticação não encontrado.');
           router.push('/catalogo/conjuntos-campos');
@@ -76,7 +77,7 @@ export default function EditarConjuntoCamposPage() {
   const handleSave = async (formData: ConjuntoCamposFormValues) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado.');
         return;

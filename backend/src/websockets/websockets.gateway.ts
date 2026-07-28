@@ -11,11 +11,16 @@ import { Injectable, Logger } from '@nestjs/common';
 import { WebsocketsService } from './websockets.service';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  extractJwtFromSocketHandshake,
+  getSocketCorsOrigins,
+} from '../auth/socket-jwt';
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: getSocketCorsOrigins(),
     methods: ['GET', 'POST'],
+    credentials: true,
   },
 })
 @Injectable()
@@ -41,10 +46,7 @@ export class WebsocketsGateway
   async handleConnection(client: Socket) {
     this.logger.log(`Cliente conectado: ${client.id}`);
 
-    // Extrair token do handshake
-    const token =
-      client.handshake.auth.token ||
-      client.handshake.headers.authorization?.replace('Bearer ', '');
+    const token = extractJwtFromSocketHandshake(client.handshake);
 
     if (token) {
       try {

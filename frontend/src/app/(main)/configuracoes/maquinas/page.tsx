@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -147,7 +148,7 @@ export default function MaquinasPage() {
 
   const fetchMaquinas = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const data = await maquinasApi.getAll(token);
@@ -162,7 +163,7 @@ export default function MaquinasPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       await maquinasApi.delete(id, token);

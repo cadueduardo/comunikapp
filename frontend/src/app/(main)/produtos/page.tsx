@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,7 @@ export default function ProdutosPage() {
   const fetchProdutos = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error("Token de autenticação não encontrado.");
         return;
@@ -48,7 +49,7 @@ export default function ProdutosPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error("Token de autenticação não encontrado.");
         return;

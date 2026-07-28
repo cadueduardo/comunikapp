@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,7 +52,7 @@ export default function WorkflowsPage() {
   const fetchWorkflows = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       if (!token) {
         throw new Error('Token de autenticação não encontrado. Faça login novamente.');
@@ -83,7 +84,7 @@ export default function WorkflowsPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       const response = await fetch(`/api/pcp/workflow-templates/${id}`, {
         method: 'DELETE',

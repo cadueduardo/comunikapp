@@ -72,13 +72,18 @@ export const resolveAssetUrl = (path?: string | null): string | null => {
 };
 
 // Função helper para obter headers com autenticação.
-// Sem token explícito, a sessão vai no cookie HttpOnly (credentials: 'include').
+// Sem token JWT explícito, a sessão vai no cookie HttpOnly (credentials: 'include').
 export const getAuthHeaders = (token?: string | null) => {
   const headers: Record<string, string> = {
     ...API_CONFIG.defaultHeaders,
   };
 
-  if (token && token !== 'null' && token !== 'undefined') {
+  if (
+    token &&
+    token !== 'null' &&
+    token !== 'undefined' &&
+    token !== 'cookie-session'
+  ) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 

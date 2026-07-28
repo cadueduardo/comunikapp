@@ -1,3 +1,4 @@
+import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
 import {
   FinalidadeAnexoValor,
   PoliticaCobrancaArteValor,
@@ -36,9 +37,11 @@ export interface SyncArteProdutoResult {
 function authHeaders(): HeadersInit {
   const token =
     typeof window !== 'undefined'
-      ? localStorage.getItem('access_token')
+      ? getClientSessionToken()
       : null;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return isUsableBearerToken(token)
+    ? { Authorization: `Bearer ${token}` }
+    : {};
 }
 
 export async function fetchArteConfiguracaoStatus(): Promise<ArteConfiguracaoStatus> {

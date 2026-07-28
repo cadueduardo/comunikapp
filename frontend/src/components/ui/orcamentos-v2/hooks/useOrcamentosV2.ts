@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { orcamentosApi } from '@/lib/api-client';
@@ -45,7 +46,7 @@ export function useOrcamentosV2(): UseOrcamentosV2Return {
       setLoading(true);
       setError(null);
       
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         throw new Error('Token de autenticação não encontrado');
       }

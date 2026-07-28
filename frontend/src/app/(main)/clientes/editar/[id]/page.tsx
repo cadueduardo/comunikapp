@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -53,7 +54,7 @@ export default function EditarClientePage({ params }: { params: Promise<{ id: st
     const fetchCliente = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) {
           router.push('/login');
           return;
@@ -77,7 +78,7 @@ export default function EditarClientePage({ params }: { params: Promise<{ id: st
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Sessão expirada. Faça login novamente.');
         return;

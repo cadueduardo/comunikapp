@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import { resolverUrlAnexoInstalacao } from '@/lib/instalacao/instalacao-anexo-url';
@@ -36,7 +37,7 @@ export function AnexoInstalacaoImagem({
 
       const token =
         typeof window !== 'undefined'
-          ? localStorage.getItem('access_token')
+          ? getClientSessionToken()
           : null;
 
       if (!token) return;

@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -32,7 +33,7 @@ export default function EditarServicoManualCTPage({ params }: { params: Promise<
   useEffect(() => {
     (async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) return;
         const data = await servicosManuaisApi.getById(id, token);
         setRegistro(data);
@@ -47,7 +48,7 @@ export default function EditarServicoManualCTPage({ params }: { params: Promise<
   const handleSave = async (data: ServicoManualFormValues) => {
     try {
       setSubmitting(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) { toast.error('Token não encontrado'); return; }
       
       // Transformar dados para o backend (mesmo código da criação)

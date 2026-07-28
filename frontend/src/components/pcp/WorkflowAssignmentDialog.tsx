@@ -1,3 +1,4 @@
+import { getClientSessionToken } from '@/lib/session-auth';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
@@ -127,7 +128,7 @@ export function WorkflowAssignmentDialog({
         setProdutos([]);
         setSelectedProductIds([]);
 
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) {
           throw new Error('Token de autenticacao nao encontrado.');
         }
@@ -403,7 +404,7 @@ export function WorkflowAssignmentDialog({
 
     try {
       setSubmitting(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         throw new Error('Token de autenticacao nao encontrado.');
       }

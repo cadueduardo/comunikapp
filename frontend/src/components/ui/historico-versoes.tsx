@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,7 +36,7 @@ export function HistoricoVersoes({ orcamentoId, onVersaoSelecionada }: Historico
   const carregarVersoes = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const response = await fetch(buildApiUrl(`/orcamentos/${orcamentoId}/versoes`), {
         headers: {
           'Authorization': `Bearer ${token}`,

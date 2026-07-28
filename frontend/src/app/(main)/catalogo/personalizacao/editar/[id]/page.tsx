@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -26,7 +27,7 @@ export default function EditarProcessoDecoracaoPage() {
   useEffect(() => {
     (async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) {
           toast.error('Token de autenticação não encontrado.');
           router.push('/catalogo/personalizacao');
@@ -72,7 +73,7 @@ export default function EditarProcessoDecoracaoPage() {
   const handleSave = async (formData: ProcessoDecoracaoFormValues) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado.');
         return;

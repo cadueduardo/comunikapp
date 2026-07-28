@@ -1,4 +1,5 @@
 "use client";
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -24,7 +25,7 @@ export default function ImprimirOSPage() {
       setLoading(true);
       
       // Obter token de autenticação
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         throw new Error('Token de autenticação não encontrado. Faça login novamente.');
       }

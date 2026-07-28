@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -27,7 +28,7 @@ export default function EditarModalidadeEntregaPage() {
   useEffect(() => {
     (async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) {
           toast.error('Token de autenticação não encontrado.');
           router.push('/centros-de-trabalho/modalidades-entrega');
@@ -58,7 +59,7 @@ export default function EditarModalidadeEntregaPage() {
   const handleSave = async (data: ModalidadeEntregaFormValues) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado.');
         return;

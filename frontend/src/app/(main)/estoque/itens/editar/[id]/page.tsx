@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
@@ -92,7 +93,7 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
 
   const fetchItem = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       let data: any = null;
       const normalizedId = normalizeId(id);
 
@@ -158,7 +159,7 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
 
   const fetchInsumos = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       console.log('🔑 Token para insumos:', token ? token.substring(0, 50) + '...' : 'Nenhum token');
       console.log('👤 Usuário atual:', user);
       
@@ -186,7 +187,7 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
 
   const fetchLocalizacoes = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       console.log('🔑 Token para localizações:', token ? token.substring(0, 50) + '...' : 'Nenhum token');
       
       const response = await fetch('/api/estoque/localizacoes', {
@@ -213,7 +214,7 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
 
   const fetchFornecedores = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       console.log('🔑 Token para fornecedores:', token ? token.substring(0, 50) + '...' : 'Nenhum token');
       
       const response = await fetch('/api/fornecedores', {
@@ -256,7 +257,7 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
     setSaving(true);
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const itemIdToUpdate = normalizeId(resolvedItemId || id);
       const response = await fetch(`/api/estoque/itens/${itemIdToUpdate}`, {
         method: 'PUT',

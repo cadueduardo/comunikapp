@@ -1,8 +1,9 @@
+import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
 export async function conferirPreflightArteCliente(
   versaoId: string,
   observacao?: string,
 ): Promise<void> {
-  const token = localStorage.getItem('access_token');
+  const token = getClientSessionToken();
   if (!token) {
     throw new Error('Token de autenticação não encontrado');
   }

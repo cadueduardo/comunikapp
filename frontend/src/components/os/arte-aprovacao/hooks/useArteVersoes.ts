@@ -1,3 +1,4 @@
+import { getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect, useCallback } from 'react';
 import { ArteVersao, CreateArteVersaoRequest, UpdateArteVersaoRequest } from '../types/arte-types';
 
@@ -25,7 +26,7 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
       }
       setError(null);
       
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const response = await fetch(`/api/arte-aprovacao/versoes/os/${osId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -55,7 +56,7 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
 
   const createVersao = async (data: CreateArteVersaoRequest): Promise<ArteVersao> => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const response = await fetch('/api/arte-aprovacao/versoes', {
         method: 'POST',
         headers: {
@@ -81,7 +82,7 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
 
   const updateVersao = async (id: string, data: UpdateArteVersaoRequest): Promise<ArteVersao> => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       console.log('🔄 [useArteVersoes] Atualizando versão:', {
         id,
@@ -140,7 +141,7 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
 
   const deleteVersao = async (id: string): Promise<void> => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       console.log('🗑️ [useArteVersoes] Removendo versão:', {
         id,

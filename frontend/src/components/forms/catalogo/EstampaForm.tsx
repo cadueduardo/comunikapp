@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import Link from 'next/link';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -149,7 +150,7 @@ export function EstampaForm({
   useEffect(() => {
     (async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) return;
 
         const [listaProcessos, listaConjuntos] = await Promise.all([
@@ -227,7 +228,7 @@ export function EstampaForm({
 
     try {
       setEnviandoArte(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const resposta = (await catalogoEstampasApi.uploadArteMestra(

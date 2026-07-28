@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
@@ -74,7 +75,7 @@ export default function EditarSetorPage() {
   const fetchSetor = async () => {
     try {
       setLoadingData(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       if (!token) {
         throw new Error('Sessão expirada. Faça login novamente.');
@@ -125,7 +126,7 @@ export default function EditarSetorPage() {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       if (!token) {
         throw new Error('Sessão expirada. Faça login novamente.');

@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
@@ -118,7 +119,7 @@ export function MatrizFornecedoresCard({
   }, [initialRows]);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) {
       setLoadingFornecedores(false);
       return;
@@ -155,7 +156,7 @@ export function MatrizFornecedoresCard({
       return false;
     }
 
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) {
       toast.error('Sessão expirada. Faça login novamente.');
       return false;

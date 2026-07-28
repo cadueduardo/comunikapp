@@ -10,6 +10,10 @@ import React, {
 import { useRouter } from 'next/navigation';
 import { authAPI } from '@/lib/api';
 import {
+  clearClientSessionActive,
+  markClientSessionActive,
+} from '@/lib/session-auth';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -71,6 +75,7 @@ export const useUser = () => {
 function clearLegacyAuthStorage() {
   if (typeof window === 'undefined') return;
   try {
+    clearClientSessionActive();
     localStorage.removeItem('access_token');
     localStorage.removeItem('loja_id');
     localStorage.removeItem('user_roles');
@@ -90,33 +95,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [reauthEmail, setReauthEmail] = useState('');
   const [reauthPassword, setReauthPassword] = useState('');
 
-  const persistTenantHints = (userData: User) => {
-    if (typeof window === 'undefined') return;
-    try {
-      if (userData?.loja?.id || userData?.loja_id) {
-        localStorage.setItem(
-          'loja_id',
-          String(userData.loja?.id || userData.loja_id),
-        );
-      }
-      if (userData?.id) {
-        localStorage.setItem('user_id', String(userData.id));
-      }
-      if (userData?.funcao) {
-        localStorage.setItem('user_roles', userData.funcao);
-      }
-      localStorage.removeItem('access_token');
-    } catch {
-      // ignore
-    }
-  };
-
   const fetchUserData = useCallback(async () => {
     setLoading(true);
     try {
       const userData = await authAPI.getCurrentUser();
       setUser(userData);
-      persistTenantHints(userData);
+      markClientSessionActive();
     } catch (error) {
       console.error('❌ UserContext: Erro ao buscar dados do usuário:', error);
 

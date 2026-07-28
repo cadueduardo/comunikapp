@@ -5,6 +5,7 @@
 
 'use client';
 
+import { getClientSessionToken } from '@/lib/session-auth';
 import React, { useState, useEffect } from 'react';
 import { PrazoProdutoComponent } from './PrazoProdutoComponent';
 import { AlertTriangle, Package, CheckCircle, ExternalLink } from 'lucide-react';
@@ -59,7 +60,7 @@ export function ListaProdutosComPrazo({
   const carregarProdutos = async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       const response = await fetch(`/api/os/produtos/${osId}/status-produtos`, {
         headers: {

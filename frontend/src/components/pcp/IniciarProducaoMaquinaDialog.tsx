@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import {
@@ -50,7 +51,7 @@ export function IniciarProducaoMaquinaDialog({
     const carregar = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) return;
         const res = (await pcpApi.getCapacidadeMaquinas(token, {
           setorId,

@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -106,7 +107,7 @@ export function ArteAprovacaoSidebar({
       // Aprovar a versão mais recente
       const versaoParaAprovar = versoesProduto[0];
       
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         throw new Error('Token de autenticação não encontrado');
       }
@@ -154,7 +155,7 @@ export function ArteAprovacaoSidebar({
         throw new Error('Nenhuma versão encontrada para aprovação');
       }
 
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         throw new Error('Token de autenticação não encontrado');
       }

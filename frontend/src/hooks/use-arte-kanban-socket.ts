@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { hasClientSession } from '@/lib/session-auth';
 
 export interface ArteMensagemSocketPayload {
   id?: string;
@@ -63,7 +64,7 @@ interface UseArteKanbanSocketOptions {
 
 /**
  * Escuta eventos da sala `loja_{lojaId}` no namespace arte-aprovacao.
- * Atualiza o kanban em tempo real quando o cliente envia mensagem ou quando a equipe lê.
+ * Auth: cookie HttpOnly via withCredentials.
  */
 export function useArteKanbanSocket({
   habilitado = true,
@@ -84,34 +85,14 @@ export function useArteKanbanSocket({
     const socketBaseUrl = resolveSocketBaseUrl();
     if (!socketBaseUrl) return;
 
-    const token =
-      typeof window !== 'undefined'
-        ? localStorage.getItem('access_token')
-        : null;
-    if (!token) return;
-
-    const lojaId =
-      typeof window !== 'undefined'
-        ? localStorage.getItem('loja_id') ?? undefined
-        : undefined;
-    const usuarioId =
-      typeof window !== 'undefined'
-        ? localStorage.getItem('user_id') ?? undefined
-        : undefined;
+    if (!hasClientSession()) return;
 
     const socket: Socket = io(`${socketBaseUrl}/arte-aprovacao`, {
       transports: ['websocket', 'polling'],
       timeout: 10000,
       reconnection: true,
       reconnectionAttempts: 10,
-      auth: { token },
-      query: {
-        lojaId,
-        usuarioId,
-      },
-      extraHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
+      withCredentials: true,
     });
 
     const handleNovaMensagem = (data: unknown) => {

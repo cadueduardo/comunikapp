@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -70,7 +71,7 @@ export function OSMateriaisPanel({ osId }: { osId: string }) {
   const carregar = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       const response = (await osApi.getMateriais(osId, token)) as MateriaisOSResponse;
       setData(response);
@@ -106,7 +107,7 @@ export function OSMateriaisPanel({ osId }: { osId: string }) {
   };
 
   const handleIgnorar = (itemId: string) => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
     void executarAcao(
       () => osApi.ignorarSobra(osId, itemId, token),
@@ -115,7 +116,7 @@ export function OSMateriaisPanel({ osId }: { osId: string }) {
   };
 
   const handleAnotar = (itemId: string) => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
     void executarAcao(
       () =>
@@ -135,7 +136,7 @@ export function OSMateriaisPanel({ osId }: { osId: string }) {
       return;
     }
 
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
 
     void executarAcao(

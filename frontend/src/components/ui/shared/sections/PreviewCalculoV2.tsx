@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -273,7 +274,7 @@ const PreviewCalculoV2: React.FC<PreviewCalculoV2Props> = ({
   useEffect(() => {
     if (!form || !dadosCarregados) return;
 
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
 
     let cancelado = false;

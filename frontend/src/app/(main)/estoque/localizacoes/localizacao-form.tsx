@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -53,7 +54,7 @@ export default function LocalizacaoForm({ localizacaoId }: LocalizacaoFormProps)
 
   const fetchLocalizacao = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const response = await fetch(`/api/estoque/localizacoes/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store',
@@ -108,7 +109,7 @@ export default function LocalizacaoForm({ localizacaoId }: LocalizacaoFormProps)
 
       const method = localizacaoId ? 'PUT' : 'POST';
 
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const response = await fetch(url, {
         method,
         headers: {

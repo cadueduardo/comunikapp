@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -115,7 +116,7 @@ export function ProdutoSelectionModal({ open, onClose, onSelect }: ProdutoSelect
   const fetchProdutos = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       console.log('🔍 Token encontrado:', token ? 'Sim' : 'Não');
       
       if (!token) {

@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -64,7 +65,7 @@ export default function NovoWorkflowPage() {
   useEffect(() => {
     const carregarSetores = async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         const response = await fetch(
           '/api/centros-de-trabalho/setores-produtivos',
           {
@@ -179,7 +180,7 @@ export default function NovoWorkflowPage() {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
 
       const payload = {
         nome,

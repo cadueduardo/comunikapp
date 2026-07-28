@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -113,7 +114,7 @@ export default function ConfiguracoesLojaPage() {
     let newLogoUrl: string | null = null;
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         throw new Error('Token de autenticação não encontrado.');
       }

@@ -38,17 +38,11 @@ export function useWebSocket(options: UseWebSocketOptions) {
     try {
       // console.log('🔍 Polling: Verificando novas mensagens para orçamento:', options.orcamentoId);
       
-      const token = options.isPublic ? null : localStorage.getItem('access_token');
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
 
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-        // console.log('🔍 Polling: Token encontrado');
-      } else {
-        // console.log('🔍 Polling: Sem token (modo público)');
-      }
+      // Sessão autenticada via cookie HttpOnly (credentials: 'include')
 
       // Usar endpoint público se estiver em modo público - SEGUINDO PADRÃO DO LEGADO
       const endpoint = options.isPublic 
@@ -63,6 +57,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
       const response = await fetch(fullUrl, {
         headers,
+        credentials: options.isPublic ? 'omit' : 'include',
         signal: controller.signal,
       });
 
@@ -177,7 +172,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
 
     try {
-      const token = options.isPublic ? null : localStorage.getItem('access_token');
+      const token = options.isPublic ? null : getClientSessionToken();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };

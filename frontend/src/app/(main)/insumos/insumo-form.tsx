@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -576,7 +577,7 @@ export function InsumoForm({
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) return;
 
         // Usar APIs centralizadas em vez de URLs hardcoded
@@ -635,7 +636,7 @@ export function InsumoForm({
     name: string,
     type: 'categoria' | 'fornecedor'
   ) => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
     
     try {
@@ -670,7 +671,7 @@ export function InsumoForm({
   };
 
   const salvarFornecedorCompleto = async (values: FornecedorFormValues) => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) {
       toast.error('Sua sessão expirou. Entre novamente para continuar.');
       return;

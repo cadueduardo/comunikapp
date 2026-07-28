@@ -1,4 +1,5 @@
 "use client";
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -46,7 +47,7 @@ export default function FuncoesCTPage() {
     (async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem("access_token");
+        const token = getClientSessionToken();
         if (!token) return;
         const data = await funcoesApi.getAll(token);
         setFuncoes(Array.isArray(data) ? data : []);
@@ -68,7 +69,7 @@ export default function FuncoesCTPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       await funcoesApi.delete(id, token);
       setFuncoes((prev) => prev.filter((x) => x.id !== id));

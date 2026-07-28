@@ -1,3 +1,4 @@
+import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
 export type LojaConexaoStatus =
   | 'DESCONECTADO'
   | 'CONECTADO'
@@ -17,7 +18,7 @@ export interface LojaConexaoPublica {
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('access_token');
+  return getClientSessionToken();
 }
 
 export async function fetchConexoes(): Promise<LojaConexaoPublica[]> {

@@ -1,3 +1,4 @@
+import { getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import {
@@ -166,7 +167,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
     if (storedUserId) {
       setOperadorId(storedUserId);
     } else {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (token) {
         try {
           const payload = JSON.parse(atob(token.split('.')[1]));
@@ -202,7 +203,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
         setLoading(true);
         setError(null);
 
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) {
           throw new Error('Token de autenticação não encontrado.');
         }
@@ -479,7 +480,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
           return;
         }
 
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
 
         const response = await fetch(`/api/pcp/kanban/iniciar/${itemId}`, {
           method: 'POST',
@@ -527,7 +528,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
           return;
         }
 
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
 
         const response = await fetch(`/api/pcp/kanban/concluir/${itemId}`, {
           method: 'POST',
@@ -576,7 +577,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
           return;
         }
 
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
 
         const response = await fetch(`/api/pcp/kanban/pausar/${itemId}`, {
           method: 'POST',
@@ -619,7 +620,7 @@ export function useMeuSetor(): UseMeuSetorReturn {
           return;
         }
 
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         const response = await fetch(
           `/api/pcp/kanban/mover-setor/${itemId}`,
           {

@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
@@ -109,7 +110,7 @@ const LOGICAS_CONSUMO: Array<{ value: string; label: string }> = [
 
 function obterToken(): string {
   if (typeof window === 'undefined') return '';
-  return localStorage.getItem('access_token') || '';
+  return getClientSessionToken() || '';
 }
 
 function parseDecimalInput(value: string): number {

@@ -1,3 +1,4 @@
+import { getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect } from 'react';
 import { Cliente, Insumo, Maquina, Funcao, ServicoManual } from '../../shared/types/common.types';
 import { clientesApi, insumosApi, maquinasApi, funcoesApi, servicosManuaisApi, custosIndiretosApi } from '@/lib/api-client';
@@ -12,7 +13,7 @@ export function useOrcamentoData() {
 
   const fetchClientes = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const data = await clientesApi.getAll(token);
@@ -24,7 +25,7 @@ export function useOrcamentoData() {
 
   const fetchInsumos = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const data = await insumosApi.getAll(token);
@@ -36,7 +37,7 @@ export function useOrcamentoData() {
 
   const fetchMaquinas = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const data = await maquinasApi.getAll(token);
@@ -48,7 +49,7 @@ export function useOrcamentoData() {
 
   const fetchFuncoes = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const data = await funcoesApi.getAll(token);
@@ -60,7 +61,7 @@ export function useOrcamentoData() {
 
   const fetchServicos = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const data = await servicosManuaisApi.getAll(token);
@@ -72,7 +73,7 @@ export function useOrcamentoData() {
 
   const fetchCustosIndiretos = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const data = await custosIndiretosApi.getAll(token);

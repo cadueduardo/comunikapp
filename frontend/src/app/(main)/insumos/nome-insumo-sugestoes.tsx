@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -38,7 +39,7 @@ export function NomeInsumoSugestoes({ nome }: NomeInsumoSugestoesProps) {
     let cancelled = false;
     setAberto(true);
     const timer = window.setTimeout(async () => {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       setLoading(true);
       try {
@@ -73,7 +74,7 @@ export function NomeInsumoSugestoes({ nome }: NomeInsumoSugestoesProps) {
   const matchExato = sugestoes.find((item) => item.match_exato);
 
   const handleReativar = async (item: InsumoNomeSugestao) => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) {
       toast.error('Sessão expirada. Faça login novamente.');
       return;

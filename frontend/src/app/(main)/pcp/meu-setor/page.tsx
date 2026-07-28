@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -112,7 +113,7 @@ export default function MeuSetorPage() {
   useEffect(() => {
     const carregarNivelPcp = async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) return;
 
         const response = await fetch('/api/pcp/configuracao', {
@@ -144,7 +145,7 @@ export default function MeuSetorPage() {
 
       try {
         setLoadingCapacidade(true);
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) return;
 
         const [carga, maquinas] = await Promise.all([

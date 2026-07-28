@@ -1,3 +1,4 @@
+import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
 import { toast } from 'sonner';
 
 export interface FilaArteItem {
@@ -22,7 +23,7 @@ export interface FilaArteItem {
 
 function obterToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('access_token');
+  return getClientSessionToken();
 }
 
 function headersAuth(): Record<string, string> {
@@ -30,7 +31,7 @@ function headersAuth(): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (isUsableBearerToken(token)) headers.Authorization = `Bearer ${token}`;
   return headers;
 }
 

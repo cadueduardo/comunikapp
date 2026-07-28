@@ -12,7 +12,12 @@ export function extractJwtFromRequest(req: {
   const authHeader = req.headers?.authorization;
   if (authHeader?.startsWith('Bearer ')) {
     const bearer = authHeader.slice(7).trim();
-    if (bearer && bearer !== 'null' && bearer !== 'undefined') {
+    if (
+      bearer &&
+      bearer !== 'null' &&
+      bearer !== 'undefined' &&
+      bearer !== 'cookie-session'
+    ) {
       return bearer;
     }
   }

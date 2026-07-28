@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState, useCallback } from 'react';
 
@@ -19,7 +20,7 @@ export function useArteItensContexto(osId: string) {
 
   useEffect(() => {
     const carregar = async () => {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token || !osId) {
         setLoading(false);
         return;

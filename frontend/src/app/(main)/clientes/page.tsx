@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -25,7 +26,7 @@ export default function ClientesPage() {
 
   const fetchClientes = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const data = await clientesApi.getAll(token);
@@ -48,7 +49,7 @@ export default function ClientesPage() {
     }
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const data = await clientesApi.search(searchTerm, token);
@@ -68,7 +69,7 @@ export default function ClientesPage() {
     setConfirmDialog(prev => ({ ...prev, loading: true }));
     
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         throw new Error('Token de autenticação não encontrado.');
       }

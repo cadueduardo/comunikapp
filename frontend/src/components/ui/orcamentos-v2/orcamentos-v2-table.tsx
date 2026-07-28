@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -182,7 +183,7 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
     setDeleteDialog((previous) => ({ ...previous, loading: true }));
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         throw new Error('Token de autenticacao nao encontrado.');
       }

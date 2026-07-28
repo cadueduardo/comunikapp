@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -164,7 +165,7 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
 
   useEffect(() => {
     fetchMaquinas();
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
     fetch('/api/centros-de-trabalho/setores-produtivos?ativo=true', { headers })
@@ -175,7 +176,7 @@ export function FuncaoForm({ onSave, initialData, loading = false }: FuncaoFormP
 
   const fetchMaquinas = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const data = await maquinasApi.getAll(token);

@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -29,7 +30,7 @@ export default function EditarSolicitacaoPage({
 
   const carregar = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       const data = await comprasApi.getSolicitacao(id, token);
       setSolicitacao(data);
@@ -51,7 +52,7 @@ export default function EditarSolicitacaoPage({
   const salvar = async (values: SolicitacaoFormValues) => {
     setSalvando(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado.');
         return;
@@ -73,7 +74,7 @@ export default function EditarSolicitacaoPage({
     fn: (id: string, token: string) => Promise<SolicitacaoCompraApi>,
     okMsg: string,
   ) => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
     setBusy(true);
     try {

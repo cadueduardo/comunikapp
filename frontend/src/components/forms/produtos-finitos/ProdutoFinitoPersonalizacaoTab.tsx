@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { Layers, Paintbrush, Plus, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -86,7 +87,7 @@ export function ProdutoFinitoPersonalizacaoTab({
   const carregarEstampas = useCallback(async () => {
     setCarregandoEstampas(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       const lista = await catalogoEstampasApi.getAll(token, { ativo: true });
       setEstampas(Array.isArray(lista) ? (lista as EstampaOpcao[]) : []);
@@ -100,7 +101,7 @@ export function ProdutoFinitoPersonalizacaoTab({
   const carregarProcessos = useCallback(async () => {
     setCarregandoProcessos(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       const lista = await catalogoPersonalizacaoApi.getAll(token, { ativo: true });
       setProcessos(Array.isArray(lista) ? (lista as ProcessoOpcao[]) : []);

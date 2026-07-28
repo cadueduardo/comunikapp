@@ -1,4 +1,5 @@
 'use client'
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -26,7 +27,7 @@ export default function EditarLotePage() {
   const carregar = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('access_token')
+      const token = getClientSessionToken()
       const res = await fetch(`/api/estoque/lotes/${loteId}`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store',
@@ -63,7 +64,7 @@ export default function EditarLotePage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const token = localStorage.getItem('access_token')
+      const token = getClientSessionToken()
       const formData = {
         numeroLote: form.numeroLote || undefined,
         dataFabricacao: form.dataFabricacao || null,

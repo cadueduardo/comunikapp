@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { Banknote, Grid3X3, List } from 'lucide-react';
 import Link from 'next/link';
@@ -26,7 +27,7 @@ export default function ContasPagarListPage() {
 
   const carregar = useCallback(async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       const data = await contasPagarApi.list(token, {
         status: statusFiltro,

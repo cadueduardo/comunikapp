@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
@@ -67,7 +68,7 @@ export const columns: ColumnDef<CustoIndireto>[] = [
         }
 
         try {
-          const token = localStorage.getItem('access_token');
+          const token = getClientSessionToken();
           if (!token) return;
 
           await custosIndiretosApi.delete(custoIndireto.id, token);

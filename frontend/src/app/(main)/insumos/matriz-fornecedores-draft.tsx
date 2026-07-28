@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useState } from 'react';
 import { ExternalLink, Plus, Trash2 } from 'lucide-react';
@@ -37,7 +38,7 @@ export function MatrizFornecedoresDraft({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) {
       setLoading(false);
       return;

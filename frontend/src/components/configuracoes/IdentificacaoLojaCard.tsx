@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { Building2, Copy, Loader2 } from 'lucide-react';
@@ -100,7 +101,7 @@ export function IdentificacaoLojaCard() {
     }
 
     const load = async () => {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         setLoading(false);
         return;

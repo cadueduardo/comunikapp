@@ -1,3 +1,4 @@
+import { getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect } from 'react';
 
 interface UltimaMensagem {
@@ -30,7 +31,7 @@ export function useUltimasMensagens(osId: string): UseUltimasMensagensReturn {
       setLoading(true);
       setError(null);
       
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         throw new Error('Token de autenticação não encontrado');
       }

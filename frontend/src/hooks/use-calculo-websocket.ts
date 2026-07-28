@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { hasClientSession } from '@/lib/session-auth';
 
 const WEBSOCKET_DISABLED = false;
 
@@ -12,8 +13,6 @@ const resolveSocketBaseUrl = () => {
 
   if (!configuredUrl || configuredUrl === '/api') {
     if (process.env.NODE_ENV !== 'production') {
-      // Em device/mobile na mesma rede, localhost aponta para o telefone — não para o PC.
-      // Prefira NEXT_PUBLIC_WS_URL com IP da máquina (ex.: http://192.168.x.x:4000).
       if (typeof window !== 'undefined') {
         const host = window.location.hostname;
         if (host && host !== 'localhost' && host !== '127.0.0.1') {
@@ -50,6 +49,7 @@ export interface CalculoWebSocketHook {
 
 /**
  * Socket compartilhado — evita 2 conexões (form + Preview) no mobile.
+ * Auth: cookie HttpOnly (withCredentials); loja/usuário vêm do JWT no Nest.
  */
 let sharedSocket: Socket | null = null;
 let sharedRefCount = 0;
@@ -85,18 +85,10 @@ export const useCalculoWebSocket = (
   );
 
   const resolveIdentifiers = useCallback(() => {
-    const lojaId =
-      options.lojaId ??
-      (typeof window !== 'undefined'
-        ? (localStorage.getItem('loja_id') ?? undefined)
-        : undefined);
-    const usuarioId =
-      options.usuarioId ??
-      (typeof window !== 'undefined'
-        ? (localStorage.getItem('user_id') ?? undefined)
-        : undefined);
-
-    identifiersRef.current = { lojaId, usuarioId };
+    identifiersRef.current = {
+      lojaId: options.lojaId,
+      usuarioId: options.usuarioId,
+    };
     return identifiersRef.current;
   }, [options.lojaId, options.usuarioId]);
 
@@ -126,25 +118,12 @@ export const useCalculoWebSocket = (
       return;
     }
 
-    const token =
-      (typeof window !== 'undefined'
-        ? localStorage.getItem('access_token')
-        : null) ||
-      (typeof window !== 'undefined'
-        ? sessionStorage.getItem('access_token')
-        : null);
-
-    if (!token) {
+    if (!hasClientSession()) {
       setStatusSafe('disconnected');
       return;
     }
 
-    const { lojaId, usuarioId } = resolveIdentifiers();
-
-    if (!lojaId || !usuarioId) {
-      setStatusSafe('disconnected');
-      return;
-    }
+    resolveIdentifiers();
 
     const baseUrl = resolveSocketBaseUrl();
     if (!baseUrl) {
@@ -156,9 +135,6 @@ export const useCalculoWebSocket = (
     setStatusSafe('connecting');
     shouldReconnectRef.current = true;
 
-    // Polling primeiro: mais estável em Safari/mobile e redes com proxy.
-    // extraHeaders NÃO funciona no browser — usar auth.
-    // reconnection limitado: evita spam de "xhr poll error" no overlay do Next.
     const socket = io(`${baseUrl}/calculo-v2`, {
       transports: ['polling', 'websocket'],
       upgrade: true,
@@ -167,12 +143,7 @@ export const useCalculoWebSocket = (
       reconnection: true,
       reconnectionAttempts: 1,
       reconnectionDelay: 2500,
-      auth: { token },
-      query: {
-        token,
-        lojaId,
-        usuarioId,
-      },
+      withCredentials: true,
     });
 
     sharedSocket = socket;

@@ -1,3 +1,4 @@
+import { getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect, useCallback } from 'react';
 import { buildApiUrl } from '@/lib/config';
 import { Insumo, Maquina, Funcao } from '../../shared/types/common.types';
@@ -11,7 +12,7 @@ export function useProdutoData() {
   const fetchInsumos = useCallback(async () => {
     try {
       setLoading((s) => ({ ...s, insumos: true }));
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const response = await fetch(buildApiUrl('/insumos'), {
@@ -32,7 +33,7 @@ export function useProdutoData() {
   const fetchMaquinas = useCallback(async () => {
     try {
       setLoading((s) => ({ ...s, maquinas: true }));
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const response = await fetch(buildApiUrl('/maquinas'), {
@@ -53,7 +54,7 @@ export function useProdutoData() {
   const fetchFuncoes = useCallback(async () => {
     try {
       setLoading((s) => ({ ...s, funcoes: true }));
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const response = await fetch(buildApiUrl('/funcoes'), {

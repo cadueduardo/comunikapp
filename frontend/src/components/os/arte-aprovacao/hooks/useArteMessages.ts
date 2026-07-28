@@ -1,3 +1,4 @@
+import { getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect } from 'react';
 
 interface Mensagem {
@@ -40,7 +41,7 @@ export function useArteMessages(osId: string): UseArteMessagesReturn {
       
       console.log('🔄 [useArteMessages] Buscando mensagens não lidas para OS:', osId);
       
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         throw new Error('Token de autenticação não encontrado');
       }
@@ -114,7 +115,7 @@ export function useArteMessages(osId: string): UseArteMessagesReturn {
 
   const enviarMensagem = async (produtoId: string, mensagem: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         throw new Error('Token de autenticação não encontrado');
       }

@@ -1,3 +1,4 @@
+import { getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect, useCallback } from 'react';
 import { useOSProdutos } from './useOSProdutos';
 import { ArteStatus } from '../types/arte-types';
@@ -33,7 +34,7 @@ export function useArteProdutos(osId: string) {
       }
 
       // Buscar todas as versões de arte da OS
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       if (!token) {
         console.error('Token de autenticação não encontrado');

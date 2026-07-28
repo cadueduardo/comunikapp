@@ -12,12 +12,17 @@ import { Server, Socket } from 'socket.io';
 import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../../prisma/prisma.service';
+import {
+  extractJwtFromSocketHandshake,
+  getSocketCorsOrigins,
+} from '../../../auth/socket-jwt';
 
 @WebSocketGateway({
   namespace: '/arte-aprovacao',
   cors: {
-    origin: '*',
+    origin: getSocketCorsOrigins(),
     methods: ['GET', 'POST'],
+    credentials: true,
   },
 })
 @Injectable()
@@ -41,10 +46,7 @@ export class ArteWebSocketGateway
   async handleConnection(client: Socket) {
     this.logger.debug(`WS arte conectado socket=${client.id}`);
 
-    // Extrair token do handshake
-    const token =
-      client.handshake.auth.token ||
-      client.handshake.headers.authorization?.replace('Bearer ', '');
+    const token = extractJwtFromSocketHandshake(client.handshake);
 
     if (token) {
       try {

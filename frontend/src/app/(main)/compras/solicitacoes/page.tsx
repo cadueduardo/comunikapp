@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { ClipboardList, Grid3X3, List, Plus } from 'lucide-react';
 import Link from 'next/link';
@@ -23,7 +24,7 @@ export default function SolicitacoesListPage() {
 
   const carregar = useCallback(async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       const data = await comprasApi.listSolicitacoes(token);
       setItens(data);

@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import {
   type ClipboardEvent as ReactClipboardEvent,
@@ -136,7 +137,7 @@ function detectarCategoria(file: File): CategoriaDetectada {
 
 function obterToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('access_token');
+  return getClientSessionToken();
 }
 
 interface UploadResponse {

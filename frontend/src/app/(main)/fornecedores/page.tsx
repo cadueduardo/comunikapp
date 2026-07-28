@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { Building2, Grid3X3, List, Plus } from 'lucide-react';
 import Link from 'next/link';
@@ -25,7 +26,7 @@ export default function FornecedoresConfigPage() {
 
   const carregarFornecedores = useCallback(async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       const data = await fornecedoresApi.getAll(token);
       setFornecedores(data);
@@ -52,7 +53,7 @@ export default function FornecedoresConfigPage() {
     if (!fornecedor) return;
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       await fornecedoresApi.delete(fornecedor.id, token);
       toast.success('Fornecedor excluído com sucesso.');

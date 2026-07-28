@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -288,7 +289,7 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
 
       // Adicionar token apenas se não for público
       if (!isPublic) {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
         }
@@ -341,7 +342,7 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
 
   const marcarComoLidas = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       // Filtrar apenas mensagens que não são temporárias e não estão visualizadas
       const mensagensNaoLidas = mensagens.filter(msg => 
         !msg.visualizada && 
@@ -444,7 +445,7 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
 
       // Adicionar token apenas se não for público
       if (!isPublic) {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
         }

@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from "react";
 import * as z from "zod";
@@ -39,7 +40,7 @@ export default function CategoriasConfigPage() {
   const fetchCategorias = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (token) {
         const categorias = await categoriasApi.getAll(token);
         setData(categorias);
@@ -55,7 +56,7 @@ export default function CategoriasConfigPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (token) {
         await categoriasApi.delete(id, token);
         toast.success("Categoria excluída com sucesso!");
@@ -94,7 +95,7 @@ export default function CategoriasConfigPage() {
     setIsSubmitting(true);
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (token) {
         if (editingCategory) {
           await categoriasApi.update(editingCategory.id, values, token);

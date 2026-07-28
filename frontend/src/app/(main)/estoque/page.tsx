@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import {
@@ -57,7 +58,7 @@ export default function EstoquePage() {
       setLoading(true);
       setError(null);
       
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         throw new Error('Token de acesso não encontrado');
       }

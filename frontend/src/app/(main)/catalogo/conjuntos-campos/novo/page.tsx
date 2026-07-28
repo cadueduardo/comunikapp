@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -17,7 +18,7 @@ export default function NovoConjuntoCamposPage() {
   const handleSave = async (data: ConjuntoCamposFormValues) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado.');
         return;

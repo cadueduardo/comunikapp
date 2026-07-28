@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -184,7 +185,7 @@ export default function TerceirizacaoPCPPage() {
   const carregar = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       const data = await pcpApi.getTerceirizacoes(token);
       setOrdens(Array.isArray(data) ? (data as OrdemTerceirizacao[]) : []);
@@ -217,7 +218,7 @@ export default function TerceirizacaoPCPPage() {
   ) => {
     setAtualizandoId(ordem.id);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       await pcpApi.updateTerceirizacaoStatus(ordem.id, status, token);
       toast.success(`Ordem atualizada para ${statusLabel[status]}.`);

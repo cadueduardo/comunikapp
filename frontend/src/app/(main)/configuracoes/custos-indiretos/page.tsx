@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -27,7 +28,7 @@ export default function CustosIndiretosPage() {
 
   const fetchCustosIndiretos = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado');
         return;

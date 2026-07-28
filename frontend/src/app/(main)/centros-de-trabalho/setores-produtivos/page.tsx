@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,7 +42,7 @@ export default function SetoresProdutivosPage() {
   const fetchSetores = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       if (!token) {
         throw new Error('Token de autenticação não encontrado. Faça login novamente.');
@@ -73,7 +74,7 @@ export default function SetoresProdutivosPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       const response = await fetch(`/api/centros-de-trabalho/setores-produtivos/${id}`, {
         method: 'DELETE',

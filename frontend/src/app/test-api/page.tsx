@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState } from 'react';
 import { apiRequest, authAPI } from '@/lib/api';
@@ -31,7 +32,7 @@ export default function TestAPIPage() {
 
   const testAuth = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         setResult('❌ Nenhum token encontrado no localStorage');
         return;

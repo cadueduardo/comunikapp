@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -40,7 +41,7 @@ export function useSidebarMenuOrder(
 
     async function carregar() {
       setCarregando(true);
-      const token = localStorage.getItem('access_token') ?? undefined;
+      const token = getClientSessionToken() ?? undefined;
       let aplicou = false;
 
       if (token) {
@@ -113,7 +114,7 @@ export function useSidebarMenuOrder(
 
       if (!userId) return;
 
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         localStorage.setItem(
           storageKeySidebarOrder(userId),

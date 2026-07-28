@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -80,7 +81,7 @@ export default function CustoIndiretoForm({ custoIndireto }: CustoIndiretoFormPr
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
     const headers = { Authorization: `Bearer ${token}` };
 
@@ -132,7 +133,7 @@ export default function CustoIndiretoForm({ custoIndireto }: CustoIndiretoFormPr
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado');
         return;

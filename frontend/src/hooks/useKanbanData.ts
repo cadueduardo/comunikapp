@@ -1,3 +1,4 @@
+import { getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
@@ -86,7 +87,7 @@ export function useKanbanData(lojaId?: string): UseKanbanDataReturn {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const queryParams = new URLSearchParams();
       
       // Adicionar filtros à query
@@ -157,7 +158,7 @@ export function useKanbanData(lojaId?: string): UseKanbanDataReturn {
   // Mudança de status
   const handleStatusChange = useCallback(async (osId: string, newStatus: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       const response = await fetch(`/api/pcp/kanban/status/${osId}`, {
         method: 'PUT',

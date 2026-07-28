@@ -7,11 +7,16 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { Logger, UseGuards } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { MotorCalculoV2Service } from '../services/motor-calculo-v2.service';
 import { DTOCalculo, EventoCalculo } from '../interfaces/calculo.interface';
+import { PrismaService } from '../../prisma/prisma.service';
+import {
+  extractJwtFromSocketHandshake,
+  getSocketCorsOrigins,
+} from '../../auth/socket-jwt';
 
 /**
  * Gateway WebSocket para cálculos em tempo real
@@ -19,7 +24,7 @@ import { DTOCalculo, EventoCalculo } from '../interfaces/calculo.interface';
  */
 @WebSocketGateway({
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: getSocketCorsOrigins(),
     credentials: true,
   },
   namespace: '/calculo-v2',
@@ -36,20 +41,57 @@ export class CalculoWebSocketGateway
     { socket: Socket; lojaId: string; usuarioId: string }
   >();
 
-  constructor(private readonly motorCalculoV2Service: MotorCalculoV2Service) {}
+  constructor(
+    private readonly motorCalculoV2Service: MotorCalculoV2Service,
+    private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   /**
-   * Cliente conectado
+   * Cliente conectado — autentica via cookie HttpOnly / auth.token
    */
   async handleConnection(client: Socket) {
     try {
-      // TODO: Implementar autenticação via token
-      const lojaId = client.handshake.query.lojaId as string;
-      const usuarioId = client.handshake.query.usuarioId as string;
+      const token = extractJwtFromSocketHandshake(client.handshake);
+      if (!token) {
+        this.logger.warn(`⚠️ Cliente ${client.id} sem JWT de sessão`);
+        client.disconnect();
+        return;
+      }
+
+      let lojaId: string | undefined;
+      let usuarioId: string | undefined;
+
+      try {
+        const payload = this.jwtService.verify(token) as {
+          sub?: string;
+          loja_id?: string;
+        };
+        if (payload?.sub) {
+          const user = await this.prisma.usuario.findUnique({
+            where: { id: payload.sub },
+            select: { id: true, loja_id: true },
+          });
+          if (user) {
+            usuarioId = user.id;
+            lojaId = user.loja_id;
+          }
+        }
+      } catch {
+        this.logger.warn(`⚠️ JWT inválido no WS cálculo (${client.id})`);
+        client.disconnect();
+        return;
+      }
+
+      // Fallback legado (query) só se JWT não trouxe tenant — ainda exige JWT válido acima
+      if (!lojaId || !usuarioId) {
+        lojaId = (client.handshake.query.lojaId as string) || lojaId;
+        usuarioId = (client.handshake.query.usuarioId as string) || usuarioId;
+      }
 
       if (!lojaId || !usuarioId) {
         this.logger.warn(
-          `⚠️ Cliente ${client.id} conectou sem lojaId/usuarioId`,
+          `⚠️ Cliente ${client.id} autenticado sem lojaId/usuarioId`,
         );
         client.disconnect();
         return;
@@ -63,7 +105,6 @@ export class CalculoWebSocketGateway
 
       this.logger.log(`🔗 Cliente conectado: ${client.id} (Loja: ${lojaId})`);
 
-      // Enviar status de conexão
       client.emit('status', {
         conectado: true,
         timestamp: new Date(),

@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -76,7 +77,7 @@ export function NotificacoesDropdown() {
         setLoadingMore(true);
       }
 
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
 
       if (!token) {
         console.log('Token não encontrado, pulando carregamento de notificações');
@@ -189,7 +190,7 @@ export function NotificacoesDropdown() {
 
   const carregarContador = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
 
       if (!token || token.trim() === '') {
         console.log('Token não encontrado ou vazio, pulando carregamento do contador');
@@ -211,7 +212,7 @@ export function NotificacoesDropdown() {
 
   const marcarComoVisualizada = async (notificacaoId: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (token) {
         await notificacoesApi.markAsRead(notificacaoId, token);
         await carregarNotificacoes(true); // Reset para recarregar tudo
@@ -224,7 +225,7 @@ export function NotificacoesDropdown() {
 
   const deletarNotificacao = async (notificacaoId: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (token) {
         await notificacoesApi.delete(notificacaoId, token);
         await carregarNotificacoes(true); // Reset para recarregar tudo

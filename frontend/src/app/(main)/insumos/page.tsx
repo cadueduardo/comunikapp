@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -61,7 +62,7 @@ export default function InsumosPage() {
   const fetchInsumos = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (token) {
         const data = (await insumosApi.getAll(token)) as Insumo[];
         setData(data);
@@ -83,7 +84,7 @@ export default function InsumosPage() {
   }, [data, statusFilter]);
 
   const handleDownloadTemplate = async () => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) {
       throw new Error('Você precisa estar autenticado para baixar o template.');
     }
@@ -92,7 +93,7 @@ export default function InsumosPage() {
   };
 
   const handleImportFile = async (file: File) => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) {
       throw new Error('Você precisa estar autenticado para importar.');
     }
@@ -104,7 +105,7 @@ export default function InsumosPage() {
 
   const handleInactivate = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (token) {
         await insumosApi.delete(id, token);
         toast.success('Insumo inativado com sucesso!');
@@ -120,7 +121,7 @@ export default function InsumosPage() {
 
   const handleReactivate = async (id: string, nome: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Você precisa estar autenticado.');
         return;
@@ -138,7 +139,7 @@ export default function InsumosPage() {
 
   const handleDuplicate = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Você precisa estar autenticado.');
         return;

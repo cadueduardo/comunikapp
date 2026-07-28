@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -100,7 +101,7 @@ export default function RelatoriosPage() {
     setLoading(true);
     setErro(null);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) throw new Error('Sessão expirada');
 
       const [ocupacao, comparativo] = await Promise.all([

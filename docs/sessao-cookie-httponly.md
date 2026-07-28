@@ -1,6 +1,6 @@
 # Sessão JWT em cookie HttpOnly
 
-**Status:** Fatia 1 implementada (2026-07-28)
+**Status:** Fatia 1 + Fatia 2 (2026-07-28)
 
 ## Contrato
 
@@ -11,10 +11,11 @@
 | Domain (prod) | `.comunikapp.com.br` (front + `api.`) |
 | Domain (dev) | host-only (localhost) |
 | Max-Age | 24h (alinhado ao JWT Nest) |
+| Flag client | `sessionStorage.comunikapp_session_active=1` (não é JWT) |
 
-O JWT **não** é mais gravado em `localStorage`.
+O JWT **não** fica em `localStorage`. Leituras legadas usam `getClientSessionToken()` (sentinel `cookie-session` só para `if (!token)`); `Authorization` só recebe JWT/token de link real.
 
-## Fluxo
+## Fluxo HTTP
 
 1. Browser → `POST /api/auth/login` (Next BFF)
 2. Next → Nest `POST /lojas/login`
@@ -24,14 +25,21 @@ O JWT **não** é mais gravado em `localStorage`.
 
 Rotas BFF: `/api/auth/login`, `/api/auth/login/2fa`, `/api/auth/logout`, `/api/auth/me`
 
-## Fatia 2 (pendente)
+## WebSocket (Fatia 2)
 
-- WebSocket (Arte/Expedição/PCP) ainda pode ler `localStorage` em alguns hooks — migrar para cookie/`withCredentials` ou ticket curto.
-- Remover leituras pontuais restantes de `access_token` no client.
+- Client: `withCredentials: true` (Arte, Expedição, Cálculo)
+- Nest: `extractJwtFromSocketHandshake` lê `auth.token`, Bearer **ou** cookie
+- CORS do Socket.IO com origins explícitos + `credentials: true` (não `*`)
+- Cálculo V2 deriva `lojaId`/`usuarioId` do JWT (não confia só na query)
+
+## Tenant hints
+
+`loja_id` / `user_roles` / `user_id` **não** são mais gravados no `localStorage` após `/me`. Tenant vem do JWT no backend.
 
 ## Validação rápida
 
-- Login → cookie presente; `localStorage.access_token` ausente
-- Refresh da página → sessão mantida via `/api/auth/me`
-- Logout → cookie limpo; API retorna 401
+- Login → cookie HttpOnly; sem JWT em `localStorage`
+- Refresh → `/api/auth/me` + `session_active`
+- Logout → cookie limpo; WS não reconecta
+- Socket autenticado sem `auth.token` no browser (só cookie)
 - CORS: um único `Access-Control-Allow-Origin` com credentials

@@ -1,3 +1,4 @@
+import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
 /**
  * Resolução de URLs de arquivos de arte (preview/download).
  *
@@ -178,7 +179,7 @@ export function resolveArteAuthenticatedFileUrl(
 export async function fetchArteFileBlob(url: string): Promise<string> {
   const token =
     typeof window !== 'undefined'
-      ? localStorage.getItem('access_token')
+      ? getClientSessionToken()
       : null;
 
   const response = await fetch(url, {

@@ -1,3 +1,4 @@
+import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
 /** URL do workspace de arte para um item de OS. */
 export function urlArteWorkspace(osId: string, itemId: string): string {
   return `/arte/trabalho/${osId}/${itemId}`;
@@ -13,7 +14,7 @@ export function urlArteFila(osId?: string): string {
 export async function resolverRedirectArteLegado(osId: string): Promise<string> {
   const token =
     typeof window !== 'undefined'
-      ? localStorage.getItem('access_token')
+      ? getClientSessionToken()
       : null;
   if (!token) return '/arte';
 

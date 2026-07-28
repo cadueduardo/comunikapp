@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
@@ -78,7 +79,7 @@ export function FornecedorPrevistoMaterial({
   useEffect(() => {
     let cancelado = false;
     const carregar = async () => {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token || !insumoId) return;
       setCarregando(true);
       setErro(null);

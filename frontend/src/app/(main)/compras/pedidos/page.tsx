@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { Grid3X3, List, Plus, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
@@ -23,7 +24,7 @@ export default function PedidosListPage() {
 
   const carregar = useCallback(async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       const data = await comprasApi.listPedidos(token);
       setItens(data);

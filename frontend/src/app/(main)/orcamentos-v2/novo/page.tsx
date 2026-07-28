@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -70,7 +71,7 @@ export default function NovoOrcamentoV2Page() {
           console.log('🔍 Carregando dados do orçamento para edição:', editId);
           
           // Carregar dados reais do backend
-          const token = localStorage.getItem('access_token');
+          const token = getClientSessionToken();
           if (!token) {
             throw new Error('Token de autenticação não encontrado');
           }
@@ -408,7 +409,7 @@ export default function NovoOrcamentoV2Page() {
 
     const preencherCliente = async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) return;
 
         const cliente = await clientesApi.getById(clienteIdFromQuery, token);

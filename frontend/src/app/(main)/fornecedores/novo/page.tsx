@@ -1,4 +1,5 @@
 "use client";
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -13,7 +14,7 @@ export default function NovoFornecedorPage() {
   const salvar = async (values: FornecedorFormValues) => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("access_token");
+      const token = getClientSessionToken();
       if (!token) {
         toast.error("Token de autenticação não encontrado.");
         return;

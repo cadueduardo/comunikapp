@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -28,7 +29,7 @@ export function useDuplicarOrcamento() {
     async (orcamentoId: string, opcoes?: DuplicarOpcoes) => {
       setDuplicandoId(orcamentoId);
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) {
           throw new Error('Token de autenticação não encontrado.');
         }

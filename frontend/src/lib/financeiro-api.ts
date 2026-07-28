@@ -1,12 +1,13 @@
+import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
 function getAuthHeaders(): HeadersInit {
   const token =
     typeof window !== 'undefined'
-      ? localStorage.getItem('access_token')
+      ? getClientSessionToken()
       : null;
 
   return {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(isUsableBearerToken(token) ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 
@@ -221,7 +222,7 @@ export async function exportarCobrancasCsv(filtros: FiltrosCobranca = {}): Promi
   });
   const token =
     typeof window !== 'undefined'
-      ? localStorage.getItem('access_token')
+      ? getClientSessionToken()
       : null;
   const response = await fetch(`/api/financeiro/cobrancas/export.csv${qs}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},

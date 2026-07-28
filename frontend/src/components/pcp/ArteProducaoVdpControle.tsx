@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState } from 'react';
 import { IconDownload } from '@tabler/icons-react';
@@ -43,7 +44,7 @@ export function ArteProducaoVdpControle({
     event.stopPropagation();
     event.preventDefault();
 
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) {
       toast.error('Sessão expirada. Faça login novamente.');
       return;

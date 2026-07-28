@@ -1,3 +1,4 @@
+import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
 export interface ArteLinkAprovacao {
   id: string;
   token_publico: string;
@@ -8,7 +9,7 @@ export interface ArteLinkAprovacao {
 }
 
 function authHeaders(): HeadersInit {
-  const token = localStorage.getItem('access_token');
+  const token = getClientSessionToken();
   if (!token) throw new Error('Token de autenticação não encontrado');
   return {
     Authorization: `Bearer ${token}`,

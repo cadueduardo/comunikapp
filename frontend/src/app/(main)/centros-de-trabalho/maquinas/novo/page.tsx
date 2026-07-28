@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -11,7 +12,7 @@ export default function NovaMaquinaCTPage() {
 
   const handleSave = async (data: MaquinaFormValues) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado.');
         return;

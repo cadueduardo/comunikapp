@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, Save } from 'lucide-react';
@@ -96,7 +97,7 @@ export function PedidoForm({
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
     void fornecedoresApi
       .getAll(token)

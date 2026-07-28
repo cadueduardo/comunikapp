@@ -1,4 +1,5 @@
 "use client";
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -38,7 +39,7 @@ export default function CustosIndiretosCTPage() {
     (async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem("access_token");
+        const token = getClientSessionToken();
         if (!token) return;
         const data = await custosIndiretosApi.getAll(token);
         setRegistros(Array.isArray(data) ? data : []);
@@ -60,7 +61,7 @@ export default function CustosIndiretosCTPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       await custosIndiretosApi.delete(id, token);
       setRegistros((prev) => prev.filter((x) => x.id !== id));

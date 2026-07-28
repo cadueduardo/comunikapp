@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -36,7 +37,7 @@ export default function PersonalizacaoPage() {
   const carregar = async () => {
     setCarregando(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       const resposta = await catalogoPersonalizacaoApi.getAll(token, { ativo: true });
       setItens(Array.isArray(resposta) ? resposta : []);
@@ -62,7 +63,7 @@ export default function PersonalizacaoPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       await catalogoPersonalizacaoApi.delete(id, token);
       setItens((prev) => prev.filter((item) => item.id !== id));

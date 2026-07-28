@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useCallback, useState } from 'react';
 import Link from 'next/link';
@@ -58,7 +59,7 @@ export default function NovaSobraPage() {
   const [salvandoId, setSalvandoId] = useState<string | null>(null);
 
   const buscarOrcamentos = useCallback(async () => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
 
     setBuscando(true);
@@ -77,7 +78,7 @@ export default function NovaSobraPage() {
   }, [busca]);
 
   const selecionarOrcamento = async (orcamento: OrcamentoResumo) => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
 
     setOrcamentoSelecionado(orcamento);
@@ -123,7 +124,7 @@ export default function NovaSobraPage() {
   };
 
   const registrar = async (candidato: CandidatoSobra) => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
 
     const form = formularios[candidato.item_insumo_id];

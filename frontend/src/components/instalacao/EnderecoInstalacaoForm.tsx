@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -74,7 +75,7 @@ export function EnderecoInstalacaoForm({
   useEffect(() => {
     const token =
       typeof window !== 'undefined'
-        ? localStorage.getItem('access_token')
+        ? getClientSessionToken()
         : null;
     if (!token || !exibirAgenda) return;
     fornecedoresApi

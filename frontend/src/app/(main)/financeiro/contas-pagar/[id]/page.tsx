@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -82,7 +83,7 @@ export default function ContaPagarDetalhePage({
 
   const carregar = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       const data = await contasPagarApi.get(id, token);
       setConta(data);
@@ -99,7 +100,7 @@ export default function ContaPagarDetalhePage({
   }, [id]);
 
   const tokenOrThrow = () => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) throw new Error('Sessão expirada.');
     return token;
   };

@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useCallback, useEffect, useState } from 'react';
 import { ArteAprovacaoTab } from '@/components/os/arte-aprovacao/ArteAprovacaoTab';
@@ -30,7 +31,7 @@ export function ArteWorkspacePanel({
 
   useEffect(() => {
     const carregar = async () => {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token || !osId || !itemId) return;
       try {
         const res = await fetch(`/api/arte-aprovacao/os/${osId}/itens-contexto`, {

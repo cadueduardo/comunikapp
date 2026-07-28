@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,7 +43,7 @@ export function CategoryForm({ onSubmit, defaultValues, isSubmitting, categoriaI
   });
 
   const nome = form.watch('nome');
-  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  const token = typeof window !== 'undefined' ? getClientSessionToken() : null;
 
   // Hook de validação
   const { isValidating, validationMessage: hookMessage, isValid } = useCategoriaValidation({

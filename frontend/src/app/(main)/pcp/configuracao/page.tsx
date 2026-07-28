@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import type React from 'react';
 import { useEffect, useState } from 'react';
@@ -64,7 +65,7 @@ export default function ConfiguracaoPCPPage() {
   async function carregarConfiguracao() {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const response = await fetch('/api/pcp/configuracao', {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -83,7 +84,7 @@ export default function ConfiguracaoPCPPage() {
   async function aplicarPadrao() {
     setSalvando('ORGANIZADO');
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const response = await fetch('/api/pcp/configuracao/aplicar-padrao', {
         method: 'POST',
         headers: {
@@ -108,7 +109,7 @@ export default function ConfiguracaoPCPPage() {
   async function salvarNivel(nivel: NivelPCP) {
     setSalvando(nivel);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const response = await fetch('/api/pcp/configuracao', {
         method: 'PUT',
         headers: {

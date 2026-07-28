@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { use, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -82,7 +83,7 @@ export default function EditarPedidoPage({
   const [salvandoFornecedor, setSalvandoFornecedor] = useState(false);
 
   const carregarFornecedores = async () => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
     try {
       const data = await fornecedoresApi.getAll(token);
@@ -94,7 +95,7 @@ export default function EditarPedidoPage({
 
   const carregar = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       const data = await comprasApi.getPedido(id, token);
       setPedido(data);
@@ -136,7 +137,7 @@ export default function EditarPedidoPage({
   };
 
   const salvarFornecedorCompleto = async (values: FornecedorFormValues) => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) {
       toast.error('Sessão expirada.');
       return;
@@ -175,7 +176,7 @@ export default function EditarPedidoPage({
   const salvar = async (values: PedidoFormValues) => {
     setSalvando(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado.');
         return;
@@ -235,7 +236,7 @@ export default function EditarPedidoPage({
   };
 
   const tokenOrThrow = () => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) throw new Error('Sessão expirada.');
     return token;
   };

@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useFormContext, useFieldArray } from 'react-hook-form';
@@ -861,7 +862,7 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
   useEffect(() => {
     const token =
       typeof window !== 'undefined'
-        ? localStorage.getItem('access_token')
+        ? getClientSessionToken()
         : null;
     if (!token) return;
 
@@ -1318,7 +1319,7 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
       ).replace(/\/$/, '');
       const tokenAuth =
         typeof window !== 'undefined'
-          ? localStorage.getItem('access_token')
+          ? getClientSessionToken()
           : null;
       const headers: Record<string, string> = {};
       if (tokenAuth) headers['Authorization'] = `Bearer ${tokenAuth}`;

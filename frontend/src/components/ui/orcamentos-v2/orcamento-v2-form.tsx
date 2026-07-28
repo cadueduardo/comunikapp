@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
@@ -857,7 +858,7 @@ export function OrcamentoV2Form({
     if (pendentes.length === 0) return;
 
     void (async () => {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       for (const { item, index } of pendentes) {
@@ -2360,7 +2361,7 @@ export function OrcamentoV2Form({
     if (isAtualizando) return;
     setIsAtualizando(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado');
         return;
@@ -2463,7 +2464,7 @@ export function OrcamentoV2Form({
 
     try {
       setSalvandoModelo(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado');
         return;
@@ -2511,7 +2512,7 @@ export function OrcamentoV2Form({
 
   const handleSalvarRascunho = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado');
         return;
@@ -2605,7 +2606,7 @@ export function OrcamentoV2Form({
     if (isEnviando) return;
     setIsEnviando(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado');
         return;
@@ -2688,7 +2689,7 @@ export function OrcamentoV2Form({
     setIsFechandoPedido(true);
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado');
         return;
@@ -2808,7 +2809,7 @@ export function OrcamentoV2Form({
       const index = selectedProdutoIndex;
       if (index == null || index < 0) return;
 
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       let catalogoRegras: CatalogoRegrasOrcamento | undefined;
       let precoCustoDoCatalogo: number | null = null;
       if (token) {
@@ -2937,7 +2938,7 @@ export function OrcamentoV2Form({
     itens_orcamento?: Array<Record<string, unknown>>;
   }) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       let produtoCompleto = produto;
 
       if (token && produto.id) {

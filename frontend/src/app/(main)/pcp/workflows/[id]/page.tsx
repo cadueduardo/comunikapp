@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -54,7 +55,7 @@ export default function ViewWorkflowPage() {
 
   const fetchWorkflow = async (id: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const response = await fetch(`/api/pcp/workflow-templates/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -87,7 +88,7 @@ export default function ViewWorkflowPage() {
     }
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const response = await fetch(`/api/pcp/workflow-templates/${params.id}`, {
         method: 'DELETE',
         headers: {

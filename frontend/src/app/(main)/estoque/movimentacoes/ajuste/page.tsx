@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -44,7 +45,7 @@ export default function AjusteMovimentacaoPage() {
 
   const fetchItensEstoque = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const response = await fetch('/api/estoque/itens', {
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store',
@@ -79,7 +80,7 @@ export default function AjusteMovimentacaoPage() {
     }
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const response = await fetch('/api/estoque/movimentacoes', {
         method: 'POST',
         headers: {

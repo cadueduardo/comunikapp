@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -252,7 +253,7 @@ export default function PCPPage() {
   const carregarDashboard = useCallback(async () => {
     setLoadingDashboard(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const response = await fetch('/api/pcp/dashboard', {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -279,7 +280,7 @@ export default function PCPPage() {
     setErroSetores(null);
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const query = montarQueryKanbanPorSetores(filtrosSetores);
       const endpoint = query
         ? `/api/pcp/kanban/por-setores?${query}`
@@ -311,7 +312,7 @@ export default function PCPPage() {
     setErroCapacidade(null);
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         throw new Error('Sessao expirada');
       }
@@ -876,7 +877,7 @@ export default function PCPPage() {
                 error={erroSetores}
                 setoresVisiveis={setoresVisiveis}
                 onMoverItem={async (instanciaSetorId, setorDestinoId) => {
-                  const token = localStorage.getItem('access_token');
+                  const token = getClientSessionToken();
                   const response = await fetch(
                     `/api/pcp/kanban/mover-setor/${instanciaSetorId}`,
                     {

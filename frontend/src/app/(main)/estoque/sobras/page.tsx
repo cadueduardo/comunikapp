@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -155,7 +156,7 @@ export default function SobrasPage() {
   const confirmDelete = async () => {
     if (!deleteDialog.sobraId) return;
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const res = await fetch(`/api/estoque/sobras/${deleteDialog.sobraId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },

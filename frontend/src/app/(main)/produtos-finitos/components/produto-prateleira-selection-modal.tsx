@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -64,7 +65,7 @@ export function ProdutoPrateleiraSelectionModal({
     (async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) {
           toast.error('Token de autenticação não encontrado.');
           return;

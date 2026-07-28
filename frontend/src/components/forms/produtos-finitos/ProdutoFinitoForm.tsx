@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import Link from 'next/link';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -201,7 +202,7 @@ export function ProdutoFinitoForm({
 
   useEffect(() => {
     (async () => {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       const lista = (await produtosFinitosApi.listarCategorias(token, true)) as Array<{
         id: string;
@@ -238,7 +239,7 @@ export function ProdutoFinitoForm({
     const totalSalvas = itens.filter((item) => item.kind === 'salva').length;
     if (totalSalvas <= 1) return;
 
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
 
     setReordenandoImagens(true);
@@ -343,7 +344,7 @@ export function ProdutoFinitoForm({
   const onSubmit = async (values: ProdutoFinitoFormValues) => {
     setSalvando(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado.');
         return;
@@ -400,7 +401,7 @@ export function ProdutoFinitoForm({
   };
 
   const criarCategoriaInline = async (nome: string) => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
     const criada = (await produtosFinitosApi.criarCategoria(nome.trim(), token)) as {
       id: string;
@@ -446,7 +447,7 @@ export function ProdutoFinitoForm({
     }
 
     if (!produtoId) return;
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
 
     await produtosFinitosApi.removerImagem(produtoId, id, token);

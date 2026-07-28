@@ -1,4 +1,5 @@
 "use client";
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -24,7 +25,7 @@ export default function EditarFornecedorPage({
   useEffect(() => {
     const carregar = async () => {
       try {
-        const token = localStorage.getItem("access_token");
+        const token = getClientSessionToken();
         if (!token) return;
         const data = await fornecedoresApi.getById(id, token);
         setFornecedor(data as FornecedorFormData);
@@ -41,7 +42,7 @@ export default function EditarFornecedorPage({
   const salvar = async (values: FornecedorFormValues) => {
     setSalvando(true);
     try {
-      const token = localStorage.getItem("access_token");
+      const token = getClientSessionToken();
       if (!token) {
         toast.error("Token de autenticação não encontrado.");
         return;

@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useFormContext, useWatch } from 'react-hook-form';
 import { useEffect, useState, useMemo } from 'react';
@@ -68,7 +69,7 @@ export function CalculoPreview({
   useEffect(() => {
     const fetchCustosIndiretos = async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) return;
 
         const data = await custosIndiretosApi.getAll(token);

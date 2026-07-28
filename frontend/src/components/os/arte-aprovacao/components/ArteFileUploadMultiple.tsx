@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import React, { useState, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -141,7 +142,7 @@ export function ArteFileUploadMultiple({
       const response = await fetch(`/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        'Authorization': `Bearer ${getClientSessionToken()}`,
       },
       body: formData,
     });

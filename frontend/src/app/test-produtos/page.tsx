@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ export default function TestProdutosPage() {
     setResult('Testando...\n');
     
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       setResult(prev => prev + `Token encontrado: ${token ? 'Sim' : 'Não'}\n`);
       
       if (!token) {

@@ -1,3 +1,4 @@
+import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
 import type {
   AprovarConclusaoLoteGestaoPayload,
   ContadoresOcorrenciasResposta,
@@ -28,20 +29,22 @@ import { InstaladorApiError } from './instalador-api';
 function getAuthHeaders(): HeadersInit {
   const token =
     typeof window !== 'undefined'
-      ? localStorage.getItem('access_token')
+      ? getClientSessionToken()
       : null;
   return {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(isUsableBearerToken(token) ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 
 function getAuthHeadersSemContentType(): HeadersInit {
   const token =
     typeof window !== 'undefined'
-      ? localStorage.getItem('access_token')
+      ? getClientSessionToken()
       : null;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return isUsableBearerToken(token)
+    ? { Authorization: `Bearer ${token}` }
+    : {};
 }
 
 async function tratarResposta<T>(response: Response): Promise<T> {
@@ -280,7 +283,7 @@ export const instalacaoApi = {
   },
 
   async abrirRelatorioPdf(pdfToken: string): Promise<void> {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     const response = await fetch(
       `/api/instalacao/relatorios/${pdfToken}`,
       {

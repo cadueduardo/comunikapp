@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import {
@@ -30,7 +31,7 @@ export function useOsStatus(osId: string) {
       }
 
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) {
           setStatusTexto('Em análise de materiais e aguardando aprovação final.');
           setLoading(false);

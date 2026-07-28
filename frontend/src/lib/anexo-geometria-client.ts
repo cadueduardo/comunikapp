@@ -1,3 +1,4 @@
+import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
 import { buildApiUrl } from '@/lib/config';
 import { toast } from 'sonner';
 
@@ -7,7 +8,7 @@ export function isAnexoGeometriaUrl(path?: string | null): boolean {
 
 function obterToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('access_token');
+  return getClientSessionToken();
 }
 
 export function urlAnexoGeometriaParaFetch(path: string): string {

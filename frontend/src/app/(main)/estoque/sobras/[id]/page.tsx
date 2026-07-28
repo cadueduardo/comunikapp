@@ -1,4 +1,5 @@
 'use client'
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
@@ -132,7 +133,7 @@ export default function VerSobraPage() {
   const podeDescartar = sobra && sobra.status !== 'APROVEITADA' && sobra.status !== 'DESCARTADA'
 
   const handleAproveitar = async () => {
-    const token = localStorage.getItem('access_token')
+    const token = getClientSessionToken()
     if (!token || !sobra) return
     const quantidade = Number(quantidadeAproveitada.replace(',', '.'))
     const economia = Number(economiaGerada.replace(',', '.'))
@@ -162,7 +163,7 @@ export default function VerSobraPage() {
   }
 
   const handleDescartar = async () => {
-    const token = localStorage.getItem('access_token')
+    const token = getClientSessionToken()
     if (!token || !sobra) return
     if (!motivoDescarte.trim()) {
       toast.error('Informe o motivo do descarte')

@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { Settings } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,7 +29,7 @@ function TwoFactorSecurityCard() {
   const [loading, setLoading] = useState(false);
 
   const getToken = () =>
-    typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    typeof window !== 'undefined' ? getClientSessionToken() : null;
 
   useEffect(() => {
     const loadStatus = async () => {

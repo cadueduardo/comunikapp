@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -48,7 +49,7 @@ export default function NovoRecebimentoPage() {
   useEffect(() => {
     const carregar = async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         if (!token) return;
         const [p, locs] = await Promise.all([
           comprasApi.getPedido(pedidoId, token),
@@ -100,7 +101,7 @@ export default function NovoRecebimentoPage() {
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token || !pedido) return;
 
     const itens = linhas

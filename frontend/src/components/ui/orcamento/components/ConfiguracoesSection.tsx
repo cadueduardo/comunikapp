@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
@@ -73,7 +74,7 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
   useEffect(() => {
     const token =
       typeof window !== 'undefined'
-        ? localStorage.getItem('access_token')
+        ? getClientSessionToken()
         : null;
     if (!token) return;
 

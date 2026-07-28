@@ -1,3 +1,4 @@
+import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
 import { apiRequest } from './api';
 
 // ====================================================================
@@ -402,7 +403,7 @@ export async function fetchContadoresMenu(
   const qs = params.toString() ? `?${params.toString()}` : '';
   const token =
     typeof window !== 'undefined'
-      ? localStorage.getItem('access_token')
+      ? getClientSessionToken()
       : null;
 
   const response = await fetch(`/api/home-operacional/contadores-menu${qs}`, {

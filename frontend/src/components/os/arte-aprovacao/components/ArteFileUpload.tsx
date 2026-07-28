@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -97,7 +98,7 @@ export function ArteFileUpload({
         formData.append('arquivo', file);
         formData.append('nome_original', file.name);
         
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         const response = await fetch(`/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`, {
           method: 'POST',
           headers: {

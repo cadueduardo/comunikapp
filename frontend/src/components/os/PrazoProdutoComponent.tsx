@@ -5,6 +5,7 @@
 
 'use client';
 
+import { getClientSessionToken } from '@/lib/session-auth';
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -127,7 +128,7 @@ export function PrazoProdutoComponent({
     }
     
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const response = await fetch(`/api/orcamentos-v2/produto/${produtoId}/detalhes`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -184,7 +185,7 @@ export function PrazoProdutoComponent({
 
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       const requestData = {
         data_prazo_produto: new Date(formData.data_prazo_produto).toISOString(),
@@ -240,7 +241,7 @@ export function PrazoProdutoComponent({
     
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       const response = await fetch(`/api/os/produtos/${osId}/item/${itemId}/definir-prazo`, {
         method: 'POST',

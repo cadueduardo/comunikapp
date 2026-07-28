@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useState } from 'react';
 import { Copy, Loader2, MailPlus, Megaphone, RefreshCw, ShieldAlert, XCircle } from 'lucide-react';
@@ -59,7 +60,7 @@ function getInitialInviteForm() {
 
 function getToken() {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('access_token');
+  return getClientSessionToken();
 }
 
 function formatDate(value?: string | null) {

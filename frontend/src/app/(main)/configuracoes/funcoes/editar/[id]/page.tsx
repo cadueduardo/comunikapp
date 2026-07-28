@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -28,7 +29,7 @@ export default function EditarFuncaoPage({ params }: { params: Promise<{ id: str
 
   const fetchFuncao = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const data = await funcoesApi.getById(id, token);
@@ -44,7 +45,7 @@ export default function EditarFuncaoPage({ params }: { params: Promise<{ id: str
 
   const handleSave = async (data: FuncaoFormValues) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       if (!token) {
         toast.error('Token de autenticação não encontrado.');

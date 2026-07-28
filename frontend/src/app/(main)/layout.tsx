@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -59,7 +60,7 @@ export default function DashboardLayout({
       const reminderKey = `comunikapp:2fa-reminder-seen:${user.id}`;
       if (localStorage.getItem(reminderKey) === '1') return;
 
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       try {

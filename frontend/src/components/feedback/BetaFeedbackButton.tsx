@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
@@ -97,7 +98,7 @@ export function BetaFeedbackButton() {
       return;
     }
 
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) {
       toast.error('Sessão expirada. Faça login novamente.');
       return;

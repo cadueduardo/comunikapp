@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -68,7 +69,7 @@ export default function EditarWorkflowPage() {
   useEffect(() => {
     const carregarSetores = async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         const response = await fetch(
           '/api/centros-de-trabalho/setores-produtivos',
           {
@@ -98,7 +99,7 @@ export default function EditarWorkflowPage() {
   useEffect(() => {
     const carregarTemplate = async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        const token = getClientSessionToken();
         const response = await fetch(
           `/api/pcp/workflow-templates/${workflowId}`,
           {
@@ -246,7 +247,7 @@ export default function EditarWorkflowPage() {
 
     try {
       setSalvando(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
 
       const payload = {
         nome,

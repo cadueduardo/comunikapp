@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -86,7 +87,7 @@ export function ArteResumoOsPanel({ osId }: ArteResumoOsPanelProps) {
   const [loading, setLoading] = useState(true);
 
   const carregar = useCallback(async () => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token || !osId) {
       setLoading(false);
       return;

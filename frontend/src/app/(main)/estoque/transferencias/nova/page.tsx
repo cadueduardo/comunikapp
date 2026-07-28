@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -56,7 +57,7 @@ export default function NovaTransferenciaPage() {
 
   const fetchItensEstoque = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const data = await estoqueApi.getItens(token);
@@ -68,7 +69,7 @@ export default function NovaTransferenciaPage() {
 
   const fetchLocalizacoes = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
 
       const data = await estoqueApi.getLocalizacoes(token);
@@ -83,7 +84,7 @@ export default function NovaTransferenciaPage() {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado');
         return;

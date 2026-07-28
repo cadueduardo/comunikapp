@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -72,7 +73,7 @@ export function TipoMaterialForm({ defaultValues }: TipoMaterialFormProps) {
     setIsSubmitting(true);
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error("Token de acesso não encontrado.");
         return;

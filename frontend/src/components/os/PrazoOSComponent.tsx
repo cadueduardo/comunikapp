@@ -5,6 +5,7 @@
 
 'use client';
 
+import { getClientSessionToken } from '@/lib/session-auth';
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,7 +80,7 @@ export function PrazoOSComponent({
   const carregarStatusPrazo = async () => {
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       const response = await fetch(`/api/os/prazo/${osId}/status`, {
         headers: {
@@ -132,7 +133,7 @@ export function PrazoOSComponent({
 
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       const requestData: DefinirPrazoRequest = {
         data_prazo: new Date(formData.data_prazo).toISOString(),
@@ -181,7 +182,7 @@ export function PrazoOSComponent({
     
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       const response = await fetch(`/api/os/prazo/${osId}/definir`, {
         method: 'POST',

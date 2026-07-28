@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import { ImageIcon } from 'lucide-react';
@@ -37,7 +38,7 @@ export function ProdutoFinitoThumb({
         const fullUrl = buildApiUrl(path);
         const token =
           typeof window !== 'undefined'
-            ? localStorage.getItem('access_token')
+            ? getClientSessionToken()
             : null;
         const response = await fetch(fullUrl, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},

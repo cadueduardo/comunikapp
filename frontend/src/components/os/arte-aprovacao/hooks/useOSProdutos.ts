@@ -3,6 +3,7 @@
  * Usa a mesma API que a aba Resumo usa para garantir consistência
  */
 
+import { getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect } from 'react';
 
 interface OSProduto {
@@ -33,7 +34,7 @@ export function useOSProdutos(osId: string): UseOSProdutosReturn {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         throw new Error('Token de autenticação não encontrado');
       }

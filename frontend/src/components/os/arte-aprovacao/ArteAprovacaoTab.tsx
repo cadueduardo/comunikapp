@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -135,7 +136,7 @@ export function ArteAprovacaoTab({
   // useEffect(() => {
   //   const fetchOsData = async () => {
   //     try {
-  //       const token = localStorage.getItem('access_token');
+  //       const token = getClientSessionToken();
   //       if (!token) return;
   //       
   //       const response = await fetch(`/api/os/${osId}`, {
@@ -389,7 +390,7 @@ export function ArteAprovacaoTab({
         return;
       }
 
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       const fetchUrl = resolveArteAuthenticatedFileUrl(arquivoRef, false);
       const response = await fetch(fetchUrl, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -583,7 +584,7 @@ export function ArteAprovacaoTab({
     let toastId: string | number | undefined;
     
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Erro de autenticação');
         return;
@@ -663,7 +664,7 @@ export function ArteAprovacaoTab({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Authorization': `Bearer ${getClientSessionToken()}`,
         },
         body: JSON.stringify({
           versao_id: versaoId,

@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Save } from 'lucide-react';
@@ -40,7 +41,7 @@ export default function ConfiguracaoArteAprovacaoPage() {
   const [alertaStatus, setAlertaStatus] = useState<string | undefined>();
 
   const carregar = useCallback(async () => {
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
 
     setLoading(true);
@@ -80,7 +81,7 @@ export default function ConfiguracaoArteAprovacaoPage() {
 
   const salvar = async () => {
     if (!config) return;
-    const token = localStorage.getItem('access_token');
+    const token = getClientSessionToken();
     if (!token) return;
 
     setSaving(true);

@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -36,7 +37,7 @@ export default function EditarFuncaoCTPage({ params }: { params: Promise<{ id: s
 
   const fetchRegistro = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) return;
       const data = await funcoesApi.getById(id, token);
       setRegistro(data);
@@ -51,7 +52,7 @@ export default function EditarFuncaoCTPage({ params }: { params: Promise<{ id: s
   const handleSubmit = async (data: FuncaoFormValues) => {
     try {
       setSubmitting(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       if (!token) {
         toast.error('Token de autenticação não encontrado');
         return;

@@ -4,6 +4,7 @@ import {
   EXPEDICAO_SOCKET_URL,
   EXPEDICAO_WS_EVENTOS,
 } from '@/lib/expedicao/expedicao-socket';
+import { hasClientSession } from '@/lib/session-auth';
 
 export interface ExpedicaoSocketEvento {
   tipo?: string;
@@ -16,7 +17,7 @@ export interface ExpedicaoSocketEvento {
 
 /**
  * Escuta eventos da sala `loja_{lojaId}` e força re-fetch do kanban.
- * Fonte da verdade = servidor (sem reconciliação otimista vs WS).
+ * Auth: cookie HttpOnly via withCredentials (sem JWT no JS).
  */
 export function useExpedicaoSocket(
   onRefresh: (evento?: ExpedicaoSocketEvento) => void | Promise<void>,
@@ -30,19 +31,14 @@ export function useExpedicaoSocket(
       return;
     }
 
-    const token =
-      typeof window !== 'undefined'
-        ? localStorage.getItem('access_token')
-        : null;
-
-    if (!token) {
+    if (!hasClientSession()) {
       return;
     }
 
     let socket: Socket | null = null;
 
     socket = io(EXPEDICAO_SOCKET_URL, {
-      auth: { token },
+      withCredentials: true,
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 10,

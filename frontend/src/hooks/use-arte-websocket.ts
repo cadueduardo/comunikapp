@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { normalizeArteMensagemSocketPayload } from '@/lib/arte-mensagem-socket';
+import { hasClientSession, isUsableBearerToken } from '@/lib/session-auth';
 
 const resolveSocketBaseUrl = () => {
   const configuredUrl = (process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
@@ -27,7 +28,8 @@ const resolveSocketBaseUrl = () => {
 
 interface UseArteWebSocketOptions {
   versaoId?: string;
-  token?: string; // Para cliente público
+  /** Token de link público (cliente) — não é o JWT de sessão loja. */
+  token?: string;
   lojaId?: string;
   usuarioId?: string;
 }
@@ -87,11 +89,10 @@ export const useArteWebSocket = (
       return;
     }
 
-    const token = options.token || 
-      (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null) ||
-      (typeof window !== 'undefined' ? sessionStorage.getItem('access_token') : null);
+    const publicToken = isUsableBearerToken(options.token) ? options.token : undefined;
+    const loggedIn = hasClientSession();
 
-    if (!token) {
+    if (!publicToken && !loggedIn) {
       setConnectionStatus('disconnected');
       return;
     }
@@ -112,7 +113,6 @@ export const useArteWebSocket = (
     }
 
     const socket = io(`${baseUrl}/arte-aprovacao`, {
-      // Polling primeiro: mais estável em mobile/Safari
       transports: ['polling', 'websocket'],
       upgrade: true,
       timeout: 8000,
@@ -120,9 +120,8 @@ export const useArteWebSocket = (
       reconnection: true,
       reconnectionAttempts: 1,
       reconnectionDelay: 2500,
-      auth: {
-        token: token,
-      },
+      withCredentials: true,
+      ...(publicToken ? { auth: { token: publicToken } } : {}),
       query: {
         lojaId: options.lojaId,
         usuarioId: options.usuarioId,

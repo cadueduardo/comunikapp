@@ -1,4 +1,5 @@
 'use client';
+import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -62,7 +63,7 @@ export default function NovoSetorPage() {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
+      const token = getClientSessionToken();
       
       const response = await fetch('/api/centros-de-trabalho/setores-produtivos', {
         method: 'POST',
