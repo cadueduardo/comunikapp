@@ -215,9 +215,13 @@ export function DominioCustomSection({
         <Label htmlFor="dominio-custom">Endereço desejado</Label>
         <Input
           id="dominio-custom"
+          name="dominio_custom_loja"
           value={dominioInput}
           onChange={(e) => setDominioInput(e.target.value.toLowerCase())}
           placeholder="sistema.minhaloja.com.br"
+          autoComplete="off"
+          data-1p-ignore
+          data-lpignore="true"
           disabled={busy}
         />
         <p className="text-xs text-muted-foreground">

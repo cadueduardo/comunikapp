@@ -356,7 +356,11 @@ export default function ConfiguracoesLojaPage() {
       />
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-10"
+          autoComplete="off"
+        >
           <section className="space-y-4">
             <div>
               <h2 className="text-lg font-semibold">Identidade e cadastro</h2>
@@ -515,6 +519,7 @@ export default function ConfiguracoesLojaPage() {
                     <FormControl>
                       <Input
                         {...field}
+                        autoComplete="off"
                         inputMode="numeric"
                         placeholder="00000-000"
                         disabled={buscandoCep}
@@ -575,7 +580,7 @@ export default function ConfiguracoesLojaPage() {
                   <FormItem className="md:col-span-1">
                     <FormLabel>UF</FormLabel>
                     <FormControl>
-                      <Input maxLength={2} {...field} />
+                      <Input maxLength={2} {...field} autoComplete="off" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -588,7 +593,7 @@ export default function ConfiguracoesLojaPage() {
                   <FormItem className="md:col-span-3">
                     <FormLabel>Cidade</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} autoComplete="off" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -601,7 +606,7 @@ export default function ConfiguracoesLojaPage() {
                   <FormItem className="md:col-span-4">
                     <FormLabel>Logradouro</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} autoComplete="off" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -614,7 +619,7 @@ export default function ConfiguracoesLojaPage() {
                   <FormItem className="md:col-span-2">
                     <FormLabel>Número</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} autoComplete="off" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -627,7 +632,7 @@ export default function ConfiguracoesLojaPage() {
                   <FormItem className="md:col-span-3">
                     <FormLabel>Bairro</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} autoComplete="off" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -640,7 +645,7 @@ export default function ConfiguracoesLojaPage() {
                   <FormItem className="md:col-span-3">
                     <FormLabel>Complemento</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} autoComplete="off" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -674,6 +679,9 @@ export default function ConfiguracoesLojaPage() {
                   <FormControl>
                     <Input
                       {...field}
+                      autoComplete="off"
+                      data-1p-ignore
+                      data-lpignore="true"
                       onChange={(e) =>
                         field.onChange(
                           e.target.value

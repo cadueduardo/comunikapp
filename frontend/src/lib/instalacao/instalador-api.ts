@@ -29,6 +29,14 @@ function getAuthHeaders(): HeadersInit {
   };
 }
 
+/** Sessão HttpOnly exige credentials; Bearer só quando houver JWT real. */
+function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return fetch(input, {
+    ...init,
+    credentials: 'include',
+  });
+}
+
 function getAuthHeadersSemContentType(): HeadersInit {
   const token =
     typeof window !== 'undefined'
@@ -61,21 +69,21 @@ async function tratarResposta<T>(response: Response): Promise<T> {
 
 export const instaladorApi = {
   async listarLotes(): Promise<LoteInstaladorResumo[]> {
-    const response = await fetch('/api/instalador/lotes', {
+    const response = await apiFetch('/api/instalador/lotes', {
       headers: getAuthHeaders(),
     });
     return tratarResposta(response);
   },
 
   async obterLote(id: string): Promise<LoteInstaladorDetalhe> {
-    const response = await fetch(`/api/instalador/lotes/${id}`, {
+    const response = await apiFetch(`/api/instalador/lotes/${id}`, {
       headers: getAuthHeaders(),
     });
     return tratarResposta(response);
   },
 
   async iniciarLote(id: string): Promise<{ id: string; status_instalacao: string }> {
-    const response = await fetch(`/api/instalador/lotes/${id}/iniciar`, {
+    const response = await apiFetch(`/api/instalador/lotes/${id}/iniciar`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
     });
@@ -86,7 +94,7 @@ export const instaladorApi = {
     id: string,
     dados: { fotos_evidencia?: string[]; assinatura_url?: string },
   ): Promise<unknown> {
-    const response = await fetch(`/api/instalador/lotes/${id}/concluir`, {
+    const response = await apiFetch(`/api/instalador/lotes/${id}/concluir`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify(dados),
@@ -98,7 +106,7 @@ export const instaladorApi = {
     id: string,
     dados: EnderecoLoteForm,
   ): Promise<unknown> {
-    const response = await fetch(`/api/instalador/lotes/${id}/endereco`, {
+    const response = await apiFetch(`/api/instalador/lotes/${id}/endereco`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify({
@@ -125,7 +133,7 @@ export const instaladorApi = {
     data_retorno_previsao?: string;
     turno_retorno_previsao?: string;
   }): Promise<OcorrenciaInstalador> {
-    const response = await fetch('/api/instalador/ocorrencias', {
+    const response = await apiFetch('/api/instalador/ocorrencias', {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(dados),
@@ -135,7 +143,7 @@ export const instaladorApi = {
 
   async buscarCep(cep: string): Promise<ResultadoBuscaCep> {
     const cepLimpo = cep.replace(/\D/g, '');
-    const response = await fetch(`/api/instalacao/cep/${cepLimpo}`, {
+    const response = await apiFetch(`/api/instalacao/cep/${cepLimpo}`, {
       headers: getAuthHeaders(),
     });
     return tratarResposta(response);
@@ -145,7 +153,7 @@ export const instaladorApi = {
     const formData = new FormData();
     formData.append('arquivo', arquivo);
 
-    const response = await fetch('/api/instalador/anexos/upload', {
+    const response = await apiFetch('/api/instalador/anexos/upload', {
       method: 'POST',
       headers: getAuthHeadersSemContentType(),
       body: formData,

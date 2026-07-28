@@ -37,6 +37,14 @@ function getAuthHeaders(): HeadersInit {
   };
 }
 
+/** Sessão HttpOnly exige credentials; Bearer só quando houver JWT real. */
+function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return fetch(input, {
+    ...init,
+    credentials: 'include',
+  });
+}
+
 function getAuthHeadersSemContentType(): HeadersInit {
   const token =
     typeof window !== 'undefined'
@@ -80,7 +88,7 @@ export const instalacaoApi = {
       params.set('busca', filtros.busca.trim());
     }
     const query = params.toString();
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/instalacao/os${query ? `?${query}` : ''}`,
       { headers: getAuthHeaders() },
     );
@@ -95,7 +103,7 @@ export const instalacaoApi = {
       data_inicio: intervalo.data_inicio,
       data_fim: intervalo.data_fim,
     });
-    const response = await fetch(`/api/instalacao/agenda?${params}`, {
+    const response = await apiFetch(`/api/instalacao/agenda?${params}`, {
       headers: getAuthHeaders(),
     });
     return tratarResposta(response);
@@ -109,7 +117,7 @@ export const instalacaoApi = {
       data_inicio: intervalo.data_inicio,
       data_fim: intervalo.data_fim,
     });
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/instalacao/agenda/conflitos?${params}`,
       { headers: getAuthHeaders() },
     );
@@ -117,7 +125,7 @@ export const instalacaoApi = {
   },
 
   async listarLotes(): Promise<LoteGestao[]> {
-    const response = await fetch('/api/instalacao/lotes', {
+    const response = await apiFetch('/api/instalacao/lotes', {
       headers: getAuthHeaders(),
     });
     return tratarResposta(response);
@@ -126,7 +134,7 @@ export const instalacaoApi = {
   async criarLote(
     dados: CriarLoteInstalacaoPayload,
   ): Promise<CriarLoteInstalacaoResposta> {
-    const response = await fetch('/api/instalacao/lotes', {
+    const response = await apiFetch('/api/instalacao/lotes', {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(dados),
@@ -135,7 +143,7 @@ export const instalacaoApi = {
   },
 
   async obterPainelOs(osId: string): Promise<PainelOsInstalacao> {
-    const response = await fetch(`/api/instalacao/os/${osId}/painel`, {
+    const response = await apiFetch(`/api/instalacao/os/${osId}/painel`, {
       headers: getAuthHeaders(),
     });
     return tratarResposta(response);
@@ -162,7 +170,7 @@ export const instalacaoApi = {
       custo_incluido_cotacao?: boolean;
     },
   ): Promise<unknown> {
-    const response = await fetch(`/api/instalacao/lotes/${id}`, {
+    const response = await apiFetch(`/api/instalacao/lotes/${id}`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify(dados),
@@ -174,7 +182,7 @@ export const instalacaoApi = {
     loteId: string,
     dados: AprovarConclusaoLoteGestaoPayload,
   ): Promise<unknown> {
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/instalacao/lotes/${loteId}/aprovar-conclusao`,
       {
         method: 'PATCH',
@@ -189,7 +197,7 @@ export const instalacaoApi = {
     id: string,
     status_instalacao: StatusInstalacao,
   ): Promise<{ id: string; status_instalacao: StatusInstalacao }> {
-    const response = await fetch(`/api/instalacao/lotes/${id}/status`, {
+    const response = await apiFetch(`/api/instalacao/lotes/${id}/status`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify({ status_instalacao }),
@@ -207,7 +215,7 @@ export const instalacaoApi = {
     data_retorno_previsao?: string;
     turno_retorno_previsao?: TurnoPrevisaoInstalacao;
   }): Promise<unknown> {
-    const response = await fetch('/api/instalacao/ocorrencias', {
+    const response = await apiFetch('/api/instalacao/ocorrencias', {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(dados),
@@ -217,14 +225,14 @@ export const instalacaoApi = {
 
   async buscarCep(cep: string): Promise<ResultadoBuscaCep> {
     const cepLimpo = cep.replace(/\D/g, '');
-    const response = await fetch(`/api/instalacao/cep/${cepLimpo}`, {
+    const response = await apiFetch(`/api/instalacao/cep/${cepLimpo}`, {
       headers: getAuthHeaders(),
     });
     return tratarResposta(response);
   },
 
   async obterMargemReal(osId: string): Promise<MargemRealOs> {
-    const response = await fetch(`/api/instalacao/os/${osId}/margem-real`, {
+    const response = await apiFetch(`/api/instalacao/os/${osId}/margem-real`, {
       headers: getAuthHeaders(),
     });
     return tratarResposta(response);
@@ -233,7 +241,7 @@ export const instalacaoApi = {
   async gerarPreviaRelatorioTecnico(
     osId: string,
   ): Promise<{ pdf_url: string; pdf_token: string; previa: boolean }> {
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/instalacao/os/${osId}/relatorio-tecnico/previa`,
       {
         method: 'POST',
@@ -244,7 +252,7 @@ export const instalacaoApi = {
   },
 
   async gerarRelatorioTecnico(osId: string): Promise<RelatorioTecnicoResposta> {
-    const response = await fetch(`/api/instalacao/os/${osId}/relatorio-tecnico`, {
+    const response = await apiFetch(`/api/instalacao/os/${osId}/relatorio-tecnico`, {
       method: 'POST',
       headers: getAuthHeaders(),
     });
@@ -254,7 +262,7 @@ export const instalacaoApi = {
   async aprovarFinanceiroOs(
     osId: string,
   ): Promise<RelatorioTecnicoResposta & { aprovacao_financeira_em: string }> {
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/instalacao/os/${osId}/aprovar-financeiro`,
       {
         method: 'POST',
@@ -265,7 +273,7 @@ export const instalacaoApi = {
   },
 
   async obterSplitFiscal(osId: string): Promise<SplitFiscalOs> {
-    const response = await fetch(`/api/instalacao/os/${osId}/split-fiscal`, {
+    const response = await apiFetch(`/api/instalacao/os/${osId}/split-fiscal`, {
       headers: getAuthHeaders(),
     });
     return tratarResposta(response);
@@ -274,7 +282,7 @@ export const instalacaoApi = {
   async obterRelatorioEmitido(
     osId: string,
   ): Promise<RelatorioTecnicoEmitido | null> {
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/instalacao/os/${osId}/relatorio-tecnico`,
       { headers: getAuthHeaders() },
     );
@@ -284,7 +292,7 @@ export const instalacaoApi = {
 
   async abrirRelatorioPdf(pdfToken: string): Promise<void> {
     const token = getClientSessionToken();
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/instalacao/relatorios/${pdfToken}`,
       {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -303,7 +311,7 @@ export const instalacaoApi = {
     const formData = new FormData();
     formData.append('arquivo', arquivo);
 
-    const response = await fetch('/api/instalacao/anexos/upload', {
+    const response = await apiFetch('/api/instalacao/anexos/upload', {
       method: 'POST',
       headers: getAuthHeadersSemContentType(),
       body: formData,
@@ -325,7 +333,7 @@ export const instalacaoApi = {
       params.set('por_pagina', String(filtros.por_pagina));
     }
     const query = params.toString();
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/instalacao/ocorrencias/fila-precificacao${query ? `?${query}` : ''}`,
       { headers: getAuthHeaders() },
     );
@@ -333,7 +341,7 @@ export const instalacaoApi = {
   },
 
   async obterContadoresOcorrencias(): Promise<ContadoresOcorrenciasResposta> {
-    const response = await fetch('/api/instalacao/ocorrencias/contadores', {
+    const response = await apiFetch('/api/instalacao/ocorrencias/contadores', {
       headers: getAuthHeaders(),
     });
     return tratarResposta(response);
@@ -348,7 +356,7 @@ export const instalacaoApi = {
       observacao_gestor?: string;
     },
   ): Promise<OcorrenciaGestaoDetalhe> {
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/instalacao/ocorrencias/${id}/precificar`,
       {
         method: 'PATCH',
@@ -363,7 +371,7 @@ export const instalacaoApi = {
     id: string,
     dados: { versao: number; observacao_gestor: string },
   ): Promise<OcorrenciaGestaoDetalhe> {
-    const response = await fetch(`/api/instalacao/ocorrencias/${id}/abonar`, {
+    const response = await apiFetch(`/api/instalacao/ocorrencias/${id}/abonar`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify(dados),
@@ -375,7 +383,7 @@ export const instalacaoApi = {
     osPaiId: string,
     ocorrenciaIds?: string[],
   ): Promise<GerarOsAditivaResposta> {
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/instalacao/os/${osPaiId}/gerar-os-aditiva`,
       {
         method: 'POST',
@@ -389,7 +397,7 @@ export const instalacaoApi = {
   },
 
   async listarOsAditivas(osPaiId: string): Promise<OsAditivaResumo[]> {
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/instalacao/os/${osPaiId}/os-aditivas`,
       { headers: getAuthHeaders() },
     );
@@ -397,7 +405,7 @@ export const instalacaoApi = {
   },
 
   async obterConfiguracaoInstalacao(): Promise<ConfiguracaoInstalacaoResposta> {
-    const response = await fetch('/api/instalacao/configuracao', {
+    const response = await apiFetch('/api/instalacao/configuracao', {
       headers: getAuthHeaders(),
     });
     return tratarResposta(response);
@@ -406,7 +414,7 @@ export const instalacaoApi = {
   async atualizarOsAditivaHabilitada(
     habilitada: boolean,
   ): Promise<{ os_aditiva_habilitada: boolean; ocorrencias_migradas?: number }> {
-    const response = await fetch('/api/instalacao/configuracao/os-aditiva', {
+    const response = await apiFetch('/api/instalacao/configuracao/os-aditiva', {
       method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify({ habilitada }),

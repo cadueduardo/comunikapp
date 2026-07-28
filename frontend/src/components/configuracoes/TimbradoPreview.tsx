@@ -200,7 +200,7 @@ export function TimbradoPreview({
         className,
       )}
     >
-      {/* Cabeçalho: logo | site + CNPJ */}
+      {/* Cabeçalho: logo (ou iniciais+nome) | site + CNPJ */}
       <div
         className={cn(
           'flex items-center justify-between gap-3 border-b border-gray-300',
@@ -219,14 +219,26 @@ export function TimbradoPreview({
               )}
             />
           ) : (
-            <div
-              className={cn(
-                'flex items-center justify-center rounded bg-gray-100 font-bold text-gray-500',
-                compact ? 'h-11 w-11 text-base' : 'h-14 w-14 text-xl',
-              )}
-            >
-              {iniciais}
-            </div>
+            <>
+              <div
+                className={cn(
+                  'flex shrink-0 items-center justify-center rounded bg-gray-100 font-bold text-gray-500',
+                  compact ? 'h-11 w-11 text-base' : 'h-14 w-14 text-xl',
+                )}
+              >
+                {iniciais}
+              </div>
+              <div className="min-w-0">
+                <p
+                  className={cn(
+                    'truncate font-semibold text-gray-900',
+                    compact ? 'text-sm' : 'text-base',
+                  )}
+                >
+                  {nome}
+                </p>
+              </div>
+            </>
           )}
         </div>
         <div className={cn('shrink-0 text-right text-gray-600', textCls)}>
@@ -390,11 +402,25 @@ export function TimbradoCabecalhoDocumento({
             className="h-16 w-16 object-contain"
           />
         ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded bg-gray-200">
-            <span className="text-2xl font-bold text-gray-600">
-              {nome.charAt(0)}
-            </span>
-          </div>
+          <>
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded bg-gray-200">
+              <span className="text-2xl font-bold text-gray-600">
+                {nome.charAt(0)}
+              </span>
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-2xl font-bold text-gray-900">
+                {nome}
+              </h1>
+              {data.razao_social?.trim() &&
+              data.nome_destaque?.trim() &&
+              data.razao_social.trim() !== data.nome_destaque.trim() ? (
+                <p className="truncate text-sm text-gray-600">
+                  {data.razao_social}
+                </p>
+              ) : null}
+            </div>
+          </>
         )}
       </div>
 

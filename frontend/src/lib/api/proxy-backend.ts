@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildApiUrl } from '@/lib/config';
 
+/**
+ * Proxy BFF → Nest.
+ * Auth: Bearer (legado) e/ou cookie HttpOnly `comunikapp_session`.
+ */
 export async function proxyBackend(
   request: NextRequest,
   path: string,
@@ -8,20 +12,35 @@ export async function proxyBackend(
 ): Promise<NextResponse> {
   try {
     const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
+    const cookieHeader = request.headers.get('cookie');
+
+    const hasBearer =
+      !!authHeader &&
+      authHeader.toLowerCase().startsWith('bearer ') &&
+      authHeader.slice(7).trim() !== '' &&
+      authHeader.slice(7).trim() !== 'cookie-session';
+
+    if (!hasBearer && !cookieHeader) {
       return NextResponse.json(
         { error: 'Token de autorização não fornecido' },
         { status: 401 },
       );
     }
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(init?.headers as Record<string, string> | undefined),
+    };
+    if (hasBearer && authHeader) {
+      headers.Authorization = authHeader;
+    }
+    if (cookieHeader) {
+      headers.Cookie = cookieHeader;
+    }
+
     const response = await fetch(buildApiUrl(path), {
       ...init,
-      headers: {
-        Authorization: authHeader,
-        'Content-Type': 'application/json',
-        ...(init?.headers ?? {}),
-      },
+      headers,
     });
 
     const data = await response.json().catch(() => ({}));
