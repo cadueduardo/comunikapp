@@ -26,6 +26,8 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   onRowClick?: (row: TData) => void;
   getRowClassName?: (row: TData) => string | undefined;
+  /** Quando false, renderiza todas as linhas e omite a paginação local. */
+  enablePagination?: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -33,6 +35,7 @@ export function DataTable<TData, TValue>({
   data,
   onRowClick,
   getRowClassName,
+  enablePagination = true,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
@@ -40,7 +43,9 @@ export function DataTable<TData, TValue>({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    getPaginationRowModel: enablePagination
+      ? getPaginationRowModel()
+      : undefined,
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
     state: {
@@ -116,24 +121,26 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          Anterior
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          Próximo
-        </Button>
-      </div>
+      {enablePagination && (
+        <div className="flex items-center justify-end space-x-2 py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Anterior
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Próximo
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
