@@ -11,5 +11,6 @@ import { PlatformService } from './platform.service';
   imports: [AuthModule, MailModule, PrismaModule, LojasModule],
   controllers: [PlatformController],
   providers: [PlatformAdminGuard, PlatformService],
+  exports: [PlatformService],
 })
 export class PlatformModule {}

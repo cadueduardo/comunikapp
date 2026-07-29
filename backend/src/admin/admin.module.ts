@@ -28,18 +28,22 @@ import { AdminUsersController } from './admin-users.controller';
 import { AdminUsersService } from './admin-users.service';
 import { AdminTwoFactorService } from './admin-two-factor.service';
 import { MailModule } from '../mail/mail.module';
+import { PlatformModule } from '../platform/platform.module';
 import {
   DeployProductUpdatesController,
   ProductUpdatesController,
   PublicProductUpdatesController,
 } from './product-updates.controller';
 import { ProductUpdatesService } from './product-updates.service';
+import { AdminSignupInvitationsController } from './admin-signup-invitations.controller';
+import { AdminSignupInvitationsService } from './admin-signup-invitations.service';
 
 @Module({
   imports: [
     PrismaModule,
     PassportModule,
     MailModule,
+    PlatformModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -57,6 +61,7 @@ import { ProductUpdatesService } from './product-updates.service';
     AdminStoresController,
     AdminStoreUserInvitationsController,
     AdminStoreUserInvitationAcceptController,
+    AdminSignupInvitationsController,
     ProductUpdatesController,
     DeployProductUpdatesController,
     PublicProductUpdatesController,
@@ -72,6 +77,7 @@ import { ProductUpdatesService } from './product-updates.service';
     AdminPermissionsGuard,
     AdminStoresService,
     AdminStoreUserInvitationsService,
+    AdminSignupInvitationsService,
     AdminTwoFactorService,
     ProductUpdatesService,
     {

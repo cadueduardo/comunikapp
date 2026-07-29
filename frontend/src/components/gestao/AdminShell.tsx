@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   LogOut,
   Megaphone,
+  Send,
   ShieldCheck,
   Users,
   type LucideIcon,
@@ -19,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAdmin } from '@/contexts/AdminContext';
 import { ADMIN_ROLE_LABELS } from '@/lib/gestao/admin-labels';
+import { AdminRole } from '@/lib/gestao/admin-types';
 import { cn } from '@/lib/utils';
 
 interface AdminNavigationItem {
@@ -26,6 +28,7 @@ interface AdminNavigationItem {
   label: string;
   icon: LucideIcon;
   superAdminOnly?: boolean;
+  roles?: readonly AdminRole[];
   disabled?: boolean;
 }
 
@@ -39,6 +42,12 @@ const NAVIGATION: readonly AdminNavigationItem[] = [
     href: '/gestao/lojas',
     label: 'Lojas',
     icon: Building2,
+  },
+  {
+    href: '/gestao/convites-beta',
+    label: 'Convites beta',
+    icon: Send,
+    roles: ['SUPER_ADMIN', 'OPERACAO', 'SUPORTE'],
   },
   {
     href: '/gestao/administradores',
@@ -82,9 +91,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
     );
   }
 
-  const visibleNavigation = NAVIGATION.filter(
-    (item) => !item.superAdminOnly || admin.role === 'SUPER_ADMIN',
-  );
+  const visibleNavigation = NAVIGATION.filter((item) => {
+    if (item.superAdminOnly && admin.role !== 'SUPER_ADMIN') return false;
+    if (item.roles && !item.roles.includes(admin.role)) return false;
+    return true;
+  });
 
   const handleLogout = async () => {
     await logout();

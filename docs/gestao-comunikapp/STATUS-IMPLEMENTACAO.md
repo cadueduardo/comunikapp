@@ -200,8 +200,21 @@ Não implementado ainda:
 - `/primeiro-acesso` + `reenviar-codigo` / `definir-senha` permanecem apenas para
   pendências já emitidas no fluxo antigo.
 - Login aponta novos convites para `/convite-loja`.
-- `ConviteCadastro` (cadastro de loja nova / admin-plataforma) **não** foi
-  desativado — domínio diferente.
+- `ConviteCadastro` (cadastro de loja nova / beta) **migrou para a Gestão** em
+  29/07/2026 (`/gestao/convites-beta`); o painel legado
+  `/admin-plataforma/convites` apenas redireciona.
+
+### Convites beta / cadastro de loja nova — 29/07/2026
+
+- permissão `SIGNUP_INVITE_MANAGE` (`SUPER_ADMIN`, `OPERACAO`, `SUPORTE`);
+- API admin `GET/POST /admin/v1/signup-invitations`,
+  `POST .../:id/resend`, `DELETE .../:id`;
+- reutiliza `PlatformService` + `sendSignupInviteEmail` (e-mail preservado);
+- fluxos públicos intactos: `/beta`, `/cadastro?convite=`,
+  `POST /platform/interesse-beta`, validação de token;
+- UI `/gestao/convites-beta` com templates WhatsApp, criar/reenviar/revogar;
+- item de menu **Convites beta** na Gestão;
+- auditoria `SIGNUP_INVITE_*`.
 
 ## 5. Novidades e changelog implementados
 
@@ -451,6 +464,6 @@ O próximo incremento recomendado é **ativar/inativar usuário da loja** pela G
 e completar as abas restantes do detalhe (uso, plano/módulos), seguido pelos
 **testes e2e HTTP** de autenticação/isolamento.
 
-Hostname de produção planejado: `https://gestao.comunikapp.com.br` (local continua
-em `/gestao`). Sem migration/deploy de produção até validação local autorizada.
+Hostname de produção: `https://gestao.comunikapp.com.br` (local continua em
+`/gestao`). Sem migration/deploy de produção até validação local autorizada.
 

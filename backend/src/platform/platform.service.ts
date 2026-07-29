@@ -215,6 +215,69 @@ export class PlatformService {
     return this.toInviteResponse(updated);
   }
 
+  async resendInvite(id: string) {
+    await this.expireOldInvites();
+
+    const invite = await this.prisma.conviteCadastro.findUnique({
+      where: { id },
+    });
+    if (!invite) {
+      throw new NotFoundException('Convite nao encontrado.');
+    }
+    if (invite.status !== INVITE_STATUS.PENDENTE) {
+      throw new BadRequestException(
+        'Somente convites pendentes podem ser reenviados.',
+      );
+    }
+    if (invite.expira_em.getTime() <= Date.now()) {
+      await this.prisma.conviteCadastro.update({
+        where: { id },
+        data: { status: INVITE_STATUS.EXPIRADO },
+      });
+      throw new BadRequestException(
+        'Este convite expirou. Crie um novo convite.',
+      );
+    }
+
+    const token = await this.regenerateInviteToken(invite.id);
+    const inviteUrl = this.getSignupInviteUrl(token);
+    const emailMode =
+      invite.origem === INVITE_ORIGEM.LANDING ? 'beta' : 'default';
+    const mensagemWhatsapp = renderConviteIndividualWhatsapp(
+      CONVITE_INDIVIDUAL_WHATSAPP,
+      { nome: invite.nome || 'convidado(a)', link: inviteUrl },
+    );
+
+    let emailSent = true;
+    let emailError: string | null = null;
+    try {
+      await this.mailService.sendSignupInviteEmail(invite.email, inviteUrl, {
+        nome: invite.nome,
+        expiresAt: invite.expira_em,
+        mode: emailMode,
+      });
+    } catch (error) {
+      emailSent = false;
+      emailError =
+        error instanceof Error ? error.message : 'Falha ao enviar e-mail.';
+      this.logger.error(
+        `Falha ao reenviar e-mail de convite para ${invite.email}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
+
+    return {
+      ...this.toInviteResponse(invite),
+      invite_url: inviteUrl,
+      mensagem_whatsapp: mensagemWhatsapp,
+      email_enviado: emailSent,
+      email_erro: emailError,
+      message: emailSent
+        ? 'Convite reenviado por e-mail com sucesso.'
+        : 'Convite renovado, mas o e-mail nao foi enviado.',
+    };
+  }
+
   async validateInviteToken(token: string) {
     if (!token?.trim()) {
       throw new BadRequestException('Token de convite obrigatorio.');

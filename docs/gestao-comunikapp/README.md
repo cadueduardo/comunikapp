@@ -41,7 +41,9 @@ A primeira fatia contém:
 - criação idempotente e não bloqueante de rascunho após o deploy;
 - gestão de administradores ativos (perfil, inativação, proteção do último
   `SUPER_ADMIN`);
-- convite de usuário vinculado a uma loja (aba Usuários no detalhe).
+- convite de usuário vinculado a uma loja (aba Usuários no detalhe);
+- convites beta para cadastro de loja nova (`/gestao/convites-beta`), com e-mail
+  e templates de divulgação.
 
 ### Configuração local
 

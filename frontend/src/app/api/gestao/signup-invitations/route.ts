@@ -1,0 +1,15 @@
+import { NextRequest } from 'next/server';
+import { proxyAdminBackend } from '@/lib/api/proxy-admin-backend';
+
+export async function GET(request: NextRequest) {
+  return proxyAdminBackend(request, '/admin/v1/signup-invitations', {
+    method: 'GET',
+  });
+}
+
+export async function POST(request: NextRequest) {
+  return proxyAdminBackend(request, '/admin/v1/signup-invitations', {
+    method: 'POST',
+    body: await request.text(),
+  });
+}

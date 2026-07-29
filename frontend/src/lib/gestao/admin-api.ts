@@ -211,4 +211,30 @@ export const adminApi = {
       `/product-updates/${encodeURIComponent(id)}/publish`,
       { method: 'POST' },
     ),
+
+  listSignupInvitations: <T>() =>
+    adminRequest<T>('/signup-invitations'),
+
+  createSignupInvitation: <T>(data: {
+    nome: string;
+    email: string;
+    validade_dias?: number;
+    mensagem?: string;
+  }) =>
+    adminRequest<T>('/signup-invitations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  resendSignupInvitation: <T>(id: string) =>
+    adminRequest<T>(
+      `/signup-invitations/${encodeURIComponent(id)}/resend`,
+      { method: 'POST' },
+    ),
+
+  revokeSignupInvitation: <T>(id: string) =>
+    adminRequest<T>(
+      `/signup-invitations/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
+    ),
 };
