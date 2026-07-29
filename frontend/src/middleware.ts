@@ -70,9 +70,8 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname === '/api/gestao' ||
       request.nextUrl.pathname.startsWith('/api/gestao/');
     if (!isGestaoPath) {
-      const destination = request.nextUrl.clone();
-      destination.pathname = '/gestao';
-      destination.search = '';
+      // Não usar nextUrl.clone(): atrás do proxy o host interno vira localhost:3001.
+      const destination = new URL('https://gestao.comunikapp.com.br/gestao');
       return NextResponse.redirect(destination);
     }
     return NextResponse.next();
