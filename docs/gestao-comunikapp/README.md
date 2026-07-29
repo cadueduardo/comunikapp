@@ -42,17 +42,18 @@ A primeira fatia contém:
 
 ### Configuração local
 
-Defina chaves diferentes e fortes no `backend/.env`:
+Defina chaves diferentes e fortes no `backend/.env` (não no Git). Gere cada
+valor com `openssl rand -base64 48`:
 
 ```env
-ADMIN_JWT_SECRET="uma-chave-exclusiva-com-pelo-menos-32-caracteres"
-ADMIN_TWO_FACTOR_ENCRYPTION_KEY="outra-chave-exclusiva-com-pelo-menos-32-caracteres"
-ADMIN_DEPLOY_WEBHOOK_SECRET="terceira-chave-exclusiva-com-pelo-menos-32-caracteres"
+ADMIN_JWT_SECRET=
+ADMIN_TWO_FACTOR_ENCRYPTION_KEY=
+ADMIN_DEPLOY_WEBHOOK_SECRET=
 ADMIN_SESSION_TTL_MINUTES="480"
 GESTAO_FRONTEND_URL="http://localhost:3000/gestao"
 ```
 
-Em produção, as duas chaves administrativas são obrigatórias.
+Em produção, as chaves administrativas são obrigatórias.
 `ADMIN_JWT_SECRET` não pode ser igual a `JWT_SECRET`.
 
 ### Primeiro `SUPER_ADMIN`

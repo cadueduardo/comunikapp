@@ -300,12 +300,15 @@ erro e vazio. Classes compatíveis com temas, sem CSS inline.
 Obrigatórias para a Gestão:
 
 ```env
-ADMIN_JWT_SECRET="segredo exclusivo"
-ADMIN_TWO_FACTOR_ENCRYPTION_KEY="segredo exclusivo diferente"
-ADMIN_DEPLOY_WEBHOOK_SECRET="segredo exclusivo diferente"
+ADMIN_JWT_SECRET=
+ADMIN_TWO_FACTOR_ENCRYPTION_KEY=
+ADMIN_DEPLOY_WEBHOOK_SECRET=
 ADMIN_SESSION_TTL_MINUTES="480"
 GESTAO_FRONTEND_URL="http://localhost:3000/gestao"
 ```
+
+Gere cada chave com `openssl rand -base64 48` e guarde somente no `.env` local
+(ignorado pelo Git).
 
 Em produção:
 
