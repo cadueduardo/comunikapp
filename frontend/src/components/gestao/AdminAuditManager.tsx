@@ -8,6 +8,7 @@ import {
   Search,
 } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createAdminAuditColumns } from '@/components/gestao/admin-audit-columns';
 import { AdminAuditCard } from '@/components/gestao/AdminAuditCard';
 import {
@@ -64,12 +65,19 @@ function formatJson(value: unknown) {
 }
 
 export function AdminAuditManager() {
+  const searchParams = useSearchParams();
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<AdminCrudViewMode>('table');
   const [entries, setEntries] = useState<AdminAuditEntry[]>([]);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [action, setAction] = useState<string>('ALL');
+  const [lojaIdInput, setLojaIdInput] = useState(
+    searchParams.get('lojaId')?.trim() || '',
+  );
+  const [lojaId, setLojaId] = useState(
+    searchParams.get('lojaId')?.trim() || '',
+  );
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -87,6 +95,7 @@ export function AdminAuditManager() {
       });
       if (search) query.set('search', search);
       if (action !== 'ALL') query.set('action', action);
+      if (lojaId) query.set('lojaId', lojaId);
       const response = await adminApi.listAudit<AuditListResponse>(query);
       setEntries(response.data);
       setTotal(response.pagination.total);
@@ -100,7 +109,7 @@ export function AdminAuditManager() {
     } finally {
       setLoading(false);
     }
-  }, [action, page, search]);
+  }, [action, lojaId, page, search]);
 
   useEffect(() => {
     void load();
@@ -110,6 +119,7 @@ export function AdminAuditManager() {
     event.preventDefault();
     setPage(1);
     setSearch(searchInput.trim());
+    setLojaId(lojaIdInput.trim());
   };
 
   const openDetail = useCallback((entry: AdminAuditEntry) => {
@@ -139,7 +149,7 @@ export function AdminAuditManager() {
       <Card>
         <CardContent className="pt-6">
           <form
-            className="grid gap-3 md:grid-cols-[minmax(0,1fr)_260px_auto]"
+            className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_220px_auto]"
             onSubmit={submitSearch}
           >
             <div className="relative">
@@ -152,6 +162,13 @@ export function AdminAuditManager() {
                 maxLength={160}
               />
             </div>
+            <Input
+              value={lojaIdInput}
+              onChange={(event) => setLojaIdInput(event.target.value)}
+              placeholder="Filtrar por ID da loja"
+              maxLength={191}
+              aria-label="ID da loja"
+            />
             <Select
               value={action}
               onValueChange={(value) => {
@@ -176,6 +193,12 @@ export function AdminAuditManager() {
               Buscar
             </Button>
           </form>
+          {lojaId && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Filtrando ações administrativas da loja{' '}
+              <span className="font-medium text-foreground">{lojaId}</span>.
+            </p>
+          )}
         </CardContent>
       </Card>
 

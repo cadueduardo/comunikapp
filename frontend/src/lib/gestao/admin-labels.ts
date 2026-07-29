@@ -75,6 +75,20 @@ export function formatAdminAuditAction(action: string) {
   return AUDIT_ACTION_LABELS[action] || action;
 }
 
+export function formatAdminTimelineTitle(event: {
+  source: string;
+  type: string;
+  title: string;
+}) {
+  if (event.source === 'ADMIN_AUDIT') {
+    return formatAdminAuditAction(event.type);
+  }
+  if (event.type === 'ORCAMENTO_EXCLUIDO') {
+    return event.title;
+  }
+  return event.title;
+}
+
 export function formatAdminDate(value?: string | null) {
   if (!value) return '—';
   return new Intl.DateTimeFormat('pt-BR', {

@@ -21,6 +21,7 @@ import { getAdminRequestContext } from './admin-request-context';
 import { AdminStoresService } from './admin-stores.service';
 import { AuthenticatedAdmin } from './admin.types';
 import { ListAdminStoresDto } from './dto/list-admin-stores.dto';
+import { ListAdminStoreTimelineDto } from './dto/list-admin-store-timeline.dto';
 import { UpdateAdminStoreStatusDto } from './dto/update-admin-store-status.dto';
 
 @Controller('admin/v1/stores')
@@ -35,6 +36,16 @@ export class AdminStoresController {
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
     return this.storesService.list(query, admin);
+  }
+
+  @Get(':id/timeline')
+  @RequireAdminPermissions(ADMIN_PERMISSIONS.STORE_READ)
+  timeline(
+    @Param('id') id: string,
+    @Query() query: ListAdminStoreTimelineDto,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.storesService.timeline(id, admin, query.limit);
   }
 
   @Get(':id')

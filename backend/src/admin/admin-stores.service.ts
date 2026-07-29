@@ -193,6 +193,165 @@ export class AdminStoresService {
     );
   }
 
+  async timeline(id: string, admin: AuthenticatedAdmin, limit = 50) {
+    const store = await this.prisma.loja.findUnique({
+      where: { id },
+      select: { id: true, nome: true },
+    });
+    if (!store) {
+      throw new NotFoundException('Loja não encontrada.');
+    }
+
+    const [deletedBudgets, adminEvents] = await Promise.all([
+      this.prisma.orcamento.findMany({
+        where: {
+          loja_id: id,
+          excluido_em: { not: null },
+        },
+        orderBy: { excluido_em: 'desc' },
+        take: limit,
+        select: {
+          id: true,
+          numero: true,
+          nome_servico: true,
+          status: true,
+          excluido_em: true,
+          excluido_por: true,
+          motivo_exclusao: true,
+          criado_em: true,
+        },
+      }),
+      this.prisma.admin_audit_log.findMany({
+        where: { loja_id: id },
+        orderBy: { occurred_at: 'desc' },
+        take: limit,
+        select: {
+          id: true,
+          occurred_at: true,
+          action: true,
+          resource_type: true,
+          resource_id: true,
+          reason: true,
+          category: true,
+          admin_role: true,
+          admin_user: {
+            select: {
+              id: true,
+              nome: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const deleterIds = [
+      ...new Set(
+        deletedBudgets
+          .map((budget) => budget.excluido_por)
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ];
+    const deleters =
+      deleterIds.length === 0
+        ? []
+        : await this.prisma.usuario.findMany({
+            where: {
+              id: { in: deleterIds },
+              loja_id: id,
+            },
+            select: {
+              id: true,
+              nome_completo: true,
+              nome: true,
+              email: true,
+            },
+          });
+    const deleterById = new Map(deleters.map((user) => [user.id, user]));
+    const exposeSensitive = admin.role !== 'ANALISTA';
+
+    const budgetEvents = deletedBudgets.map((budget) => {
+      const actor = budget.excluido_por
+        ? deleterById.get(budget.excluido_por)
+        : undefined;
+      return {
+        id: `orcamento-excluido:${budget.id}`,
+        at: budget.excluido_em!.toISOString(),
+        source: 'STORE_OPERATION' as const,
+        type: 'ORCAMENTO_EXCLUIDO' as const,
+        title: `Orçamento ${budget.numero} excluído`,
+        summary: budget.nome_servico,
+        reason: budget.motivo_exclusao,
+        actor: actor
+          ? {
+              id: actor.id,
+              nome: actor.nome_completo || actor.nome || 'Usuário da loja',
+              email: exposeSensitive ? actor.email : undefined,
+              kind: 'STORE_USER' as const,
+            }
+          : budget.excluido_por
+            ? {
+                id: budget.excluido_por,
+                nome: 'Usuário não encontrado',
+                kind: 'STORE_USER' as const,
+              }
+            : null,
+        resource: {
+          type: 'orcamento',
+          id: budget.id,
+          label: budget.numero,
+        },
+      };
+    });
+
+    const adminTimeline = adminEvents.map((event) => ({
+      id: `admin-audit:${event.id}`,
+      at: event.occurred_at.toISOString(),
+      source: 'ADMIN_AUDIT' as const,
+      type: event.action,
+      title: event.action,
+      summary: event.resource_type,
+      reason: event.reason,
+      category: event.category,
+      actor: event.admin_user
+        ? {
+            id: event.admin_user.id,
+            nome: event.admin_user.nome,
+            email: exposeSensitive ? event.admin_user.email : undefined,
+            role: event.admin_user.role,
+            kind: 'ADMIN_USER' as const,
+          }
+        : null,
+      resource: {
+        type: event.resource_type,
+        id: event.resource_id,
+        label: event.resource_id,
+      },
+    }));
+
+    const data = [...budgetEvents, ...adminTimeline]
+      .sort(
+        (left, right) =>
+          new Date(right.at).getTime() - new Date(left.at).getTime(),
+      )
+      .slice(0, limit);
+
+    return {
+      store: {
+        id: store.id,
+        nome: store.nome,
+      },
+      data,
+      definitions: {
+        scope:
+          'Eventos da loja para suporte: exclusões de orçamento e ações administrativas vinculadas.',
+        orcamentoExcluido:
+          'Soft delete com excluido_por, excluido_em e motivo_exclusao.',
+      },
+    };
+  }
+
   async updateStatus(
     id: string,
     dto: UpdateAdminStoreStatusDto,

@@ -175,3 +175,26 @@ export interface AdminAuditEntry {
     slug: string;
   } | null;
 }
+
+export interface AdminStoreTimelineEvent {
+  id: string;
+  at: string;
+  source: 'STORE_OPERATION' | 'ADMIN_AUDIT';
+  type: string;
+  title: string;
+  summary?: string | null;
+  reason?: string | null;
+  category?: string | null;
+  actor?: {
+    id: string;
+    nome: string;
+    email?: string;
+    role?: AdminRole;
+    kind: 'STORE_USER' | 'ADMIN_USER';
+  } | null;
+  resource?: {
+    type: string;
+    id?: string | null;
+    label?: string | null;
+  } | null;
+}

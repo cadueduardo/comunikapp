@@ -92,4 +92,52 @@ describe('AdminStoresService', () => {
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  it('monta timeline com orçamento excluído e ator da loja', async () => {
+    const auditService = { record: jest.fn() };
+    const prisma = {
+      loja: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'loja-1',
+          nome: 'Loja Demo',
+        }),
+      },
+      orcamento: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'orc-1',
+            numero: '2026-001',
+            nome_servico: 'Fachada',
+            status: 'EXCLUIDO',
+            excluido_em: new Date('2026-07-29T12:00:00.000Z'),
+            excluido_por: 'user-1',
+            motivo_exclusao: 'Duplicado',
+            criado_em: new Date('2026-07-20T12:00:00.000Z'),
+          },
+        ]),
+      },
+      admin_audit_log: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      usuario: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'user-1',
+            nome_completo: 'Maria Silva',
+            nome: 'Maria',
+            email: 'maria@loja.com',
+          },
+        ]),
+      },
+      $transaction: jest.fn(),
+    };
+    const service = new AdminStoresService(prisma as any, auditService as any);
+
+    const result = await service.timeline('loja-1', admin, 20);
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].type).toBe('ORCAMENTO_EXCLUIDO');
+    expect(result.data[0].actor?.nome).toBe('Maria Silva');
+    expect(result.data[0].reason).toBe('Duplicado');
+  });
 });

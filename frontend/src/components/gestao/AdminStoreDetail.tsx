@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { AdminStatusBadge } from '@/components/gestao/AdminStatusBadge';
 import { AdminStoreStatusDialog } from '@/components/gestao/AdminStoreStatusDialog';
+import { AdminStoreTimeline } from '@/components/gestao/AdminStoreTimeline';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -226,6 +227,8 @@ export function AdminStoreDetail({ storeId }: { storeId: string }) {
           </CardContent>
         </Card>
       </div>
+
+      <AdminStoreTimeline storeId={store.id} />
 
       {admin && (
         <AdminStoreStatusDialog

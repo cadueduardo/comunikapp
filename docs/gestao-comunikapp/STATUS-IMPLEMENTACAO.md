@@ -249,6 +249,7 @@ GET    /admin/v1/audit
 
 GET    /admin/v1/stores
 GET    /admin/v1/stores/:id
+GET    /admin/v1/stores/:id/timeline
 PATCH  /admin/v1/stores/:id/status
 
 GET    /admin/v1/product-updates
@@ -297,8 +298,13 @@ Componentes globais em `frontend/src/components/gestao`:
 - `AdminAuditManager`;
 - `AdminStoresManager`;
 - `AdminStoreDetail`;
+- `AdminStoreTimeline`;
 - `AdminStoreStatusDialog`;
 - `AdminProductUpdatesManager`.
+
+O detalhe da loja inclui timeline de suporte com orçamentos excluídos
+(`excluido_por` / `excluido_em` / motivo) e eventos da auditoria administrativa
+filtrados por `loja_id`. A tela `/gestao/auditoria` aceita filtro por ID da loja.
 
 As listagens (lojas, administradores/convites e novidades) seguem o template
 CRUD de fornecedores: `DataTable` no desktop, cards em grid no mobile, toggle
@@ -355,7 +361,8 @@ filtro executado.
 2. ~~consulta visual de auditoria;~~ **entregue em 29/07/2026**
 3. gestão de administradores ativos;
 4. convite de usuário vinculado a uma loja;
-5. completar detalhe da loja com usuários e timeline;
+5. ~~completar detalhe da loja com usuários e timeline;~~ timeline de suporte
+   entregue em 29/07/2026 (usuários e abas completas ainda pendentes);
 6. testes e2e HTTP de autenticação e isolamento.
 
 ### P1 — adoção e sucesso do cliente

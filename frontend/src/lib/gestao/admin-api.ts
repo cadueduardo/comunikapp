@@ -80,6 +80,11 @@ export const adminApi = {
   getStore: <T>(id: string) =>
     adminRequest<T>(`/stores/${encodeURIComponent(id)}`),
 
+  getStoreTimeline: <T>(id: string, limit = 50) =>
+    adminRequest<T>(
+      `/stores/${encodeURIComponent(id)}/timeline?limit=${encodeURIComponent(String(limit))}`,
+    ),
+
   updateStoreStatus: <T>(
     id: string,
     data: {
