@@ -101,6 +101,23 @@ export const adminApi = {
   listInvitations: <T>() =>
     adminRequest<T>('/administrator-invitations'),
 
+  listAdministrators: <T>(query = new URLSearchParams()) =>
+    adminRequest<T>(`/administrators?${query.toString()}`),
+
+  updateAdministrator: <T>(
+    id: string,
+    data: {
+      role?: string;
+      status?: string;
+      currentPassword?: string;
+      reason: string;
+    },
+  ) =>
+    adminRequest<T>(`/administrators/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
   createInvitation: <T>(data: {
     nome: string;
     email: string;

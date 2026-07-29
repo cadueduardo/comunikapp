@@ -43,7 +43,14 @@ import {
 
 const ROLES = Object.keys(ADMIN_ROLE_LABELS) as AdminRole[];
 
-export function AdminInvitationsManager() {
+interface AdminInvitationsManagerProps {
+  /** Quando true, omite o PageHeader (usado dentro de abas). */
+  embedded?: boolean;
+}
+
+export function AdminInvitationsManager({
+  embedded = false,
+}: AdminInvitationsManagerProps) {
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<AdminCrudViewMode>('table');
   const [invitations, setInvitations] = useState<AdminInvitation[]>([]);
@@ -59,6 +66,18 @@ export function AdminInvitationsManager() {
     role: 'SUPORTE' as AdminRole,
     mensagem: '',
   });
+
+  const inviteActions = (
+    <>
+      {!isMobile && (
+        <AdminCrudViewToggle value={viewMode} onChange={setViewMode} />
+      )}
+      <Button onClick={() => setCreateOpen(true)}>
+        <MailPlus className="mr-2 h-4 w-4" />
+        Novo convite
+      </Button>
+    </>
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -176,22 +195,18 @@ export function AdminInvitationsManager() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Administradores"
-        subtitle="Convide pessoas para a equipe interna com menor privilégio."
-        icon={<Users className="h-7 w-7" />}
-        actions={
-          <>
-            {!isMobile && (
-              <AdminCrudViewToggle value={viewMode} onChange={setViewMode} />
-            )}
-            <Button onClick={() => setCreateOpen(true)}>
-              <MailPlus className="mr-2 h-4 w-4" />
-              Novo convite
-            </Button>
-          </>
-        }
-      />
+      {embedded ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {inviteActions}
+        </div>
+      ) : (
+        <PageHeader
+          title="Administradores"
+          subtitle="Convide pessoas para a equipe interna com menor privilégio."
+          icon={<Users className="h-7 w-7" />}
+          actions={inviteActions}
+        />
+      )}
 
       {error && (
         <Alert variant="destructive">

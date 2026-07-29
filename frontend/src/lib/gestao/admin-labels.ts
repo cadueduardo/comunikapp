@@ -21,6 +21,15 @@ export const STORE_STATUS_LABELS: Record<StoreStatus, string> = {
   BLOQUEADO: 'Bloqueada',
 };
 
+export const ADMIN_USER_STATUS_LABELS: Record<
+  import('./admin-types').AdminUserStatus,
+  string
+> = {
+  ACTIVE: 'Ativo',
+  INACTIVE: 'Inativo',
+  BLOCKED: 'Bloqueado',
+};
+
 export const INVITATION_STATUS_LABELS: Record<
   AdminInvitation['status'],
   string
@@ -64,6 +73,9 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   ADMIN_INVITATION_ACCEPTED: 'Convite aceito',
   ADMIN_INVITATION_EMAIL_FAILED: 'Falha no e-mail do convite',
   ADMIN_TWO_FACTOR_ENABLED: '2FA habilitado',
+  ADMIN_ROLE_CHANGED: 'Perfil administrativo alterado',
+  ADMIN_INACTIVATED: 'Administrador inativado',
+  ADMIN_REACTIVATED: 'Administrador reativado',
   STORE_STATUS_CHANGED: 'Status da loja alterado',
   'product_update.created': 'Novidade criada',
   'product_update.updated': 'Novidade editada',

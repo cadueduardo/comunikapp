@@ -38,7 +38,9 @@ A primeira fatia contém:
 - preparação para `gestao.comunikapp.com.br`.
 - gestão editorial de novidades com revisão e publicação humana;
 - changelog público em `/novidades`;
-- criação idempotente e não bloqueante de rascunho após o deploy.
+- criação idempotente e não bloqueante de rascunho após o deploy;
+- gestão de administradores ativos (perfil, inativação, proteção do último
+  `SUPER_ADMIN`).
 
 ### Configuração local
 

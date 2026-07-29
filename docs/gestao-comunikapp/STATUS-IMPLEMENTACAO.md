@@ -135,13 +135,18 @@ cd backend
 npm run admin:bootstrap -- --name "Nome completo" --email "email@dominio.com"
 ```
 
-Não implementado ainda:
+Também implementado (administradores ativos — 29/07/2026):
 
-- listar e editar administradores já ativos;
-- alterar perfil;
-- inativar administrador e revogar todas as sessões;
-- proteção específica do último `SUPER_ADMIN`;
-- reautenticação para promover alguém a `SUPER_ADMIN`.
+- `GET/PATCH /admin/v1/administrators` (somente `ADMIN_MANAGE`);
+- listar com busca, filtro por status/perfil e paginação;
+- alterar perfil; inativar/reativar com justificativa;
+- revogar sessões ao inativar ou mudar perfil;
+- proteção do último `SUPER_ADMIN` ativo (não rebaixa/inativa);
+- reautenticação por senha atual ao promover a `SUPER_ADMIN`;
+- não permite inativar a própria conta;
+- auditoria `ADMIN_ROLE_CHANGED`, `ADMIN_INACTIVATED`, `ADMIN_REACTIVATED`;
+- UI em `/gestao/administradores` com abas Ativos | Convites (CRUD
+  tabela/cards no padrão fornecedores).
 
 ## 4. Gestão de lojas implementada
 
@@ -294,6 +299,10 @@ Componentes globais em `frontend/src/components/gestao`:
 - `AdminLoginForm`;
 - `AdminInvitationAcceptance`;
 - `AdminInvitationsManager`;
+- `AdminAdministratorsPage`;
+- `AdminUsersManager`;
+- `AdminUserActionDialog`;
+- `AdminUserCard`;
 - `AdminDashboard`;
 - `AdminAuditManager`;
 - `AdminStoresManager`;
@@ -305,6 +314,8 @@ Componentes globais em `frontend/src/components/gestao`:
 O detalhe da loja inclui timeline de suporte com orçamentos excluídos
 (`excluido_por` / `excluido_em` / motivo) e eventos da auditoria administrativa
 filtrados por `loja_id`. A tela `/gestao/auditoria` aceita filtro por ID da loja.
+
+`/gestao/administradores` tem abas Ativos (gestão de contas) e Convites.
 
 As listagens (lojas, administradores/convites e novidades) seguem o template
 CRUD de fornecedores: `DataTable` no desktop, cards em grid no mobile, toggle
@@ -359,7 +370,7 @@ filtro executado.
 
 1. ~~dashboard real com contagens e filtros;~~ **entregue em 29/07/2026**
 2. ~~consulta visual de auditoria;~~ **entregue em 29/07/2026**
-3. gestão de administradores ativos;
+3. ~~gestão de administradores ativos;~~ **entregue em 29/07/2026**
 4. convite de usuário vinculado a uma loja;
 5. ~~completar detalhe da loja com usuários e timeline;~~ timeline de suporte
    entregue em 29/07/2026 (usuários e abas completas ainda pendentes);
@@ -400,9 +411,9 @@ filtro executado.
 
 ## 12. Ponto exato de retomada
 
-O próximo incremento recomendado é a **gestão de administradores ativos**
-(listar/editar perfil, inativar, revogar sessões e proteger o último
-`SUPER_ADMIN`), seguida pelo **convite de usuário vinculado a uma loja**.
+O próximo incremento recomendado é o **convite de usuário vinculado a uma loja**,
+seguido pela **aba de usuários no detalhe da loja** e pelos **testes e2e HTTP**
+de autenticação/isolamento.
 
 Hostname de produção planejado: `https://gestao.comunikapp.com.br` (local continua
 em `/gestao`). Sem migration/deploy de produção até validação local autorizada.

@@ -176,6 +176,21 @@ export interface AdminAuditEntry {
   } | null;
 }
 
+export type AdminUserStatus = 'ACTIVE' | 'INACTIVE' | 'BLOCKED';
+
+export interface AdminUser {
+  id: string;
+  nome: string;
+  email: string;
+  role: AdminRole;
+  status: AdminUserStatus;
+  twoFactorEnabled: boolean;
+  lastLoginAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  activeSessions: number;
+}
+
 export interface AdminStoreTimelineEvent {
   id: string;
   at: string;

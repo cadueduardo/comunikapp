@@ -1,6 +1,5 @@
-import { AdminInvitationsManager } from '@/components/gestao/AdminInvitationsManager';
+import { AdminAdministratorsPage } from '@/components/gestao/AdminAdministratorsPage';
 
-export default function AdminAdministratorsPage() {
-  return <AdminInvitationsManager />;
+export default function AdministradoresPage() {
+  return <AdminAdministratorsPage />;
 }
-

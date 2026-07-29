@@ -19,6 +19,8 @@ import { AdminDashboardController } from './admin-dashboard.controller';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { AdminStoresController } from './admin-stores.controller';
 import { AdminStoresService } from './admin-stores.service';
+import { AdminUsersController } from './admin-users.controller';
+import { AdminUsersService } from './admin-users.service';
 import { AdminTwoFactorService } from './admin-two-factor.service';
 import { MailModule } from '../mail/mail.module';
 import {
@@ -44,6 +46,7 @@ import { ProductUpdatesService } from './product-updates.service';
   controllers: [
     AdminAuthController,
     AdminInvitationsController,
+    AdminUsersController,
     AdminDashboardController,
     AdminAuditController,
     AdminStoresController,
@@ -57,6 +60,7 @@ import { ProductUpdatesService } from './product-updates.service';
     AdminAuthService,
     AdminJwtStrategy,
     AdminInvitationsService,
+    AdminUsersService,
     AdminDashboardService,
     AdminPermissionsGuard,
     AdminStoresService,
