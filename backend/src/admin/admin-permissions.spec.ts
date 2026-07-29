@@ -43,4 +43,13 @@ describe('adminRoleHasPermissions', () => {
       ]),
     ).toBe(false);
   });
+
+  it('permite leitura de auditoria para OPERAÇÃO e ANALISTA', () => {
+    expect(
+      adminRoleHasPermissions('OPERACAO', [ADMIN_PERMISSIONS.AUDIT_READ]),
+    ).toBe(true);
+    expect(
+      adminRoleHasPermissions('ANALISTA', [ADMIN_PERMISSIONS.AUDIT_READ]),
+    ).toBe(true);
+  });
 });

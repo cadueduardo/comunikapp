@@ -54,6 +54,27 @@ export const PRODUCT_UPDATE_STATUS_LABELS: Record<
   ARCHIVED: 'Arquivado',
 };
 
+export const AUDIT_ACTION_LABELS: Record<string, string> = {
+  ADMIN_LOGIN_SUCCEEDED: 'Login bem-sucedido',
+  ADMIN_LOGIN_FAILED: 'Login falhou',
+  ADMIN_LOGOUT: 'Logout',
+  ADMIN_INVITATION_CREATED: 'Convite criado',
+  ADMIN_INVITATION_RESENT: 'Convite reenviado',
+  ADMIN_INVITATION_CANCELLED: 'Convite cancelado',
+  ADMIN_INVITATION_ACCEPTED: 'Convite aceito',
+  ADMIN_INVITATION_EMAIL_FAILED: 'Falha no e-mail do convite',
+  ADMIN_TWO_FACTOR_ENABLED: '2FA habilitado',
+  STORE_STATUS_CHANGED: 'Status da loja alterado',
+  'product_update.created': 'Novidade criada',
+  'product_update.updated': 'Novidade editada',
+  'product_update.published': 'Novidade publicada',
+  'product_update.review_requested': 'Novidade enviada para revisão',
+};
+
+export function formatAdminAuditAction(action: string) {
+  return AUDIT_ACTION_LABELS[action] || action;
+}
+
 export function formatAdminDate(value?: string | null) {
   if (!value) return '—';
   return new Intl.DateTimeFormat('pt-BR', {

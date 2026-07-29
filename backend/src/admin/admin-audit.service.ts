@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { admin_role, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminRequestContext } from './admin-request-context';
+import { AuthenticatedAdmin } from './admin.types';
+import { ListAdminAuditDto } from './dto/list-admin-audit.dto';
 
 const SENSITIVE_KEY_PATTERN =
   /password|senha|token|secret|segredo|authorization|cookie|codigo|code/i;
@@ -89,5 +91,107 @@ export class AdminAuditService {
       },
     });
   }
-}
 
+  async list(dto: ListAdminAuditDto, admin: AuthenticatedAdmin) {
+    const search = dto.search?.trim();
+    const where: Prisma.admin_audit_logWhereInput = {
+      action: dto.action || undefined,
+      resource_type: dto.resourceType || undefined,
+      loja_id: dto.lojaId || undefined,
+      admin_user_id: dto.adminUserId || undefined,
+      occurred_at: {
+        gte: dto.from ? new Date(dto.from) : undefined,
+        lte: dto.to ? new Date(dto.to) : undefined,
+      },
+      ...(search
+        ? {
+            OR: [
+              { action: { contains: search } },
+              { resource_type: { contains: search } },
+              { resource_id: { contains: search } },
+              { loja_id: { contains: search } },
+              { reason: { contains: search } },
+              { category: { contains: search } },
+              { correlation_id: { contains: search } },
+              {
+                admin_user: {
+                  OR: [
+                    { nome: { contains: search } },
+                    { email: { contains: search } },
+                  ],
+                },
+              },
+              {
+                loja: {
+                  OR: [
+                    { nome: { contains: search } },
+                    { slug: { contains: search } },
+                  ],
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const skip = (dto.page - 1) * dto.limit;
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.admin_audit_log.count({ where }),
+      this.prisma.admin_audit_log.findMany({
+        where,
+        orderBy: [{ occurred_at: 'desc' }, { id: 'desc' }],
+        skip,
+        take: dto.limit,
+        select: {
+          id: true,
+          occurred_at: true,
+          admin_user_id: true,
+          admin_role: true,
+          action: true,
+          resource_type: true,
+          resource_id: true,
+          loja_id: true,
+          previous_state: true,
+          new_state: true,
+          reason: true,
+          category: true,
+          ip_address: true,
+          user_agent: true,
+          correlation_id: true,
+          metadata: true,
+          admin_user: {
+            select: {
+              id: true,
+              nome: true,
+              email: true,
+              role: true,
+            },
+          },
+          loja: {
+            select: {
+              id: true,
+              nome: true,
+              slug: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const exposeNetwork = admin.role !== 'ANALISTA';
+
+    return {
+      data: rows.map((row) => ({
+        ...row,
+        ip_address: exposeNetwork ? row.ip_address : null,
+        user_agent: exposeNetwork ? row.user_agent : null,
+      })),
+      pagination: {
+        page: dto.page,
+        limit: dto.limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / dto.limit)),
+      },
+    };
+  }
+}

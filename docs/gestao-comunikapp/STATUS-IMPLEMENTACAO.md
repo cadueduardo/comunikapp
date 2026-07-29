@@ -105,9 +105,12 @@ Permissões implementadas:
 Matriz atual:
 
 - `SUPER_ADMIN`: todas as permissões;
-- `OPERACAO`: leitura e status de lojas; leitura e edição de novidades;
-- `SUPORTE`, `FINANCEIRO_SAAS` e `ANALISTA`: leitura de lojas e novidades;
-- publicação de novidades: somente `SUPER_ADMIN`.
+- `OPERACAO`: leitura e status de lojas; leitura e edição de novidades; leitura de
+  auditoria;
+- `SUPORTE`, `FINANCEIRO_SAAS` e `ANALISTA`: leitura de lojas, novidades e
+  auditoria;
+- publicação de novidades: somente `SUPER_ADMIN`;
+- `ANALISTA`: IP e user-agent da auditoria são mascarados.
 
 O `AdminBoundaryGuard` protege por padrão todo o namespace `/admin/v1`. Rotas
 públicas nesse namespace precisam de `@AdminPublic()` e de uma proteção própria,
@@ -242,6 +245,8 @@ DELETE /admin/v1/administrator-invitations/:id
 
 GET    /admin/v1/dashboard/summary
 
+GET    /admin/v1/audit
+
 GET    /admin/v1/stores
 GET    /admin/v1/stores/:id
 PATCH  /admin/v1/stores/:id/status
@@ -276,6 +281,7 @@ Rotas:
 - `/gestao/lojas/[id]`;
 - `/gestao/administradores`;
 - `/gestao/novidades`;
+- `/gestao/auditoria`;
 - `/novidades`;
 - `/novidades/[slug]`.
 
@@ -288,6 +294,7 @@ Componentes globais em `frontend/src/components/gestao`:
 - `AdminInvitationAcceptance`;
 - `AdminInvitationsManager`;
 - `AdminDashboard`;
+- `AdminAuditManager`;
 - `AdminStoresManager`;
 - `AdminStoreDetail`;
 - `AdminStoreStatusDialog`;
@@ -345,7 +352,7 @@ filtro executado.
 ### P0 — concluir controle operacional
 
 1. ~~dashboard real com contagens e filtros;~~ **entregue em 29/07/2026**
-2. consulta visual de auditoria;
+2. ~~consulta visual de auditoria;~~ **entregue em 29/07/2026**
 3. gestão de administradores ativos;
 4. convite de usuário vinculado a uma loja;
 5. completar detalhe da loja com usuários e timeline;
@@ -386,7 +393,10 @@ filtro executado.
 
 ## 12. Ponto exato de retomada
 
-O próximo incremento recomendado é a **consulta visual de auditoria**, seguida
-pela **gestão de administradores ativos**. O dashboard (`GET /admin/v1/dashboard/summary`
-e `/gestao`) já consome contagens das entidades existentes.
+O próximo incremento recomendado é a **gestão de administradores ativos**
+(listar/editar perfil, inativar, revogar sessões e proteger o último
+`SUPER_ADMIN`), seguida pelo **convite de usuário vinculado a uma loja**.
+
+Hostname de produção planejado: `https://gestao.comunikapp.com.br` (local continua
+em `/gestao`). Sem migration/deploy de produção até validação local autorizada.
 

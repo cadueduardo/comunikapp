@@ -74,6 +74,9 @@ export const adminApi = {
   getDashboardSummary: <T>(days: number) =>
     adminRequest<T>(`/dashboard/summary?days=${encodeURIComponent(String(days))}`),
 
+  listAudit: <T>(query: URLSearchParams) =>
+    adminRequest<T>(`/audit?${query.toString()}`),
+
   getStore: <T>(id: string) =>
     adminRequest<T>(`/stores/${encodeURIComponent(id)}`),
 

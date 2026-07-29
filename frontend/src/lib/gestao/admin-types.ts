@@ -145,3 +145,33 @@ export interface AdminDashboardSummary {
   };
   definitions: Record<string, string>;
 }
+
+export interface AdminAuditEntry {
+  id: string;
+  occurred_at: string;
+  admin_user_id?: string | null;
+  admin_role?: AdminRole | null;
+  action: string;
+  resource_type: string;
+  resource_id?: string | null;
+  loja_id?: string | null;
+  previous_state?: unknown;
+  new_state?: unknown;
+  reason?: string | null;
+  category?: string | null;
+  ip_address?: string | null;
+  user_agent?: string | null;
+  correlation_id?: string | null;
+  metadata?: unknown;
+  admin_user?: {
+    id: string;
+    nome: string;
+    email: string;
+    role: AdminRole;
+  } | null;
+  loja?: {
+    id: string;
+    nome: string;
+    slug: string;
+  } | null;
+}

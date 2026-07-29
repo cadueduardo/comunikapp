@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AdminAuditController } from './admin-audit.controller';
 import { AdminAuditService } from './admin-audit.service';
 import { AdminBoundaryGuard } from './admin-boundary.guard';
 import { AdminAuthController } from './admin-auth.controller';
@@ -44,6 +45,7 @@ import { ProductUpdatesService } from './product-updates.service';
     AdminAuthController,
     AdminInvitationsController,
     AdminDashboardController,
+    AdminAuditController,
     AdminStoresController,
     ProductUpdatesController,
     DeployProductUpdatesController,

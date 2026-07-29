@@ -55,7 +55,6 @@ const NAVIGATION: readonly AdminNavigationItem[] = [
     href: '/gestao/auditoria',
     label: 'Auditoria',
     icon: ClipboardList,
-    disabled: true,
   },
 ];
 
