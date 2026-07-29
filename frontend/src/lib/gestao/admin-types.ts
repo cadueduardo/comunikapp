@@ -105,3 +105,43 @@ export interface ProductUpdateInput {
   emailEnabled: boolean;
   changeReason?: string;
 }
+
+export interface AdminDashboardSummary {
+  timezone: string;
+  generatedAt: string;
+  period: {
+    days: number;
+    from: string;
+    to: string;
+  };
+  stores: {
+    total: number;
+    byStatus: Record<StoreStatus, number>;
+    newInPeriod: number;
+    withSubscription: number;
+    trialsInProgress: number;
+    trialsExpiringIn7Days: number;
+    activeInLast7Days: number;
+    activeInLast30Days: number;
+    withoutActivity7Days: number;
+    withoutActivity14Days: number;
+    withoutActivity30Days: number;
+  };
+  users: {
+    activeTotal: number;
+  };
+  volume: {
+    orcamentosInPeriod: number;
+    ordensServicoInPeriod: number;
+    storesWithActivityInPeriod: number;
+  };
+  activation: {
+    newStoresInPeriod: number;
+    activatedInPeriod: number;
+    ratePercent: number;
+  };
+  series: {
+    newStoresByDay: Array<{ date: string; count: number }>;
+  };
+  definitions: Record<string, string>;
+}

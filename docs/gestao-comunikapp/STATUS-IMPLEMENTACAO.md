@@ -240,6 +240,8 @@ POST   /admin/v1/administrator-invitations
 POST   /admin/v1/administrator-invitations/:id/resend
 DELETE /admin/v1/administrator-invitations/:id
 
+GET    /admin/v1/dashboard/summary
+
 GET    /admin/v1/stores
 GET    /admin/v1/stores/:id
 PATCH  /admin/v1/stores/:id/status
@@ -285,6 +287,7 @@ Componentes globais em `frontend/src/components/gestao`:
 - `AdminLoginForm`;
 - `AdminInvitationAcceptance`;
 - `AdminInvitationsManager`;
+- `AdminDashboard`;
 - `AdminStoresManager`;
 - `AdminStoreDetail`;
 - `AdminStoreStatusDialog`;
@@ -341,7 +344,7 @@ filtro executado.
 
 ### P0 — concluir controle operacional
 
-1. dashboard real com contagens e filtros;
+1. ~~dashboard real com contagens e filtros;~~ **entregue em 29/07/2026**
 2. consulta visual de auditoria;
 3. gestão de administradores ativos;
 4. convite de usuário vinculado a uma loja;
@@ -383,8 +386,7 @@ filtro executado.
 
 ## 12. Ponto exato de retomada
 
-O próximo incremento recomendado é o **dashboard administrativo real**, seguido
-pela **consulta visual de auditoria**. Ambos aproveitam os modelos e permissões
-já existentes e completam a Fase 1 sem introduzir dependência de fornecedor
-externo.
+O próximo incremento recomendado é a **consulta visual de auditoria**, seguida
+pela **gestão de administradores ativos**. O dashboard (`GET /admin/v1/dashboard/summary`
+e `/gestao`) já consome contagens das entidades existentes.
 

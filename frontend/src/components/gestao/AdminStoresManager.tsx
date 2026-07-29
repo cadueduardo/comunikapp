@@ -8,6 +8,7 @@ import {
   Search,
 } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { createAdminStoreColumns } from '@/components/gestao/admin-store-columns';
 import {
@@ -47,12 +48,18 @@ interface StoreListResponse {
 
 export function AdminStoresManager() {
   const { admin } = useAdmin();
+  const searchParams = useSearchParams();
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<AdminCrudViewMode>('table');
   const [stores, setStores] = useState<AdminStore[]>([]);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<StoreStatus | 'ALL'>('ALL');
+  const initialStatus = searchParams.get('status');
+  const [status, setStatus] = useState<StoreStatus | 'ALL'>(
+    initialStatus && initialStatus in STORE_STATUS_LABELS
+      ? (initialStatus as StoreStatus)
+      : 'ALL',
+  );
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);

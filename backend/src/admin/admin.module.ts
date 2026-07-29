@@ -14,6 +14,8 @@ import { getRequiredAdminJwtSecret } from './admin-jwt-secret';
 import { AdminInvitationsController } from './admin-invitations.controller';
 import { AdminInvitationsService } from './admin-invitations.service';
 import { AdminPermissionsGuard } from './admin-permissions.guard';
+import { AdminDashboardController } from './admin-dashboard.controller';
+import { AdminDashboardService } from './admin-dashboard.service';
 import { AdminStoresController } from './admin-stores.controller';
 import { AdminStoresService } from './admin-stores.service';
 import { AdminTwoFactorService } from './admin-two-factor.service';
@@ -41,6 +43,7 @@ import { ProductUpdatesService } from './product-updates.service';
   controllers: [
     AdminAuthController,
     AdminInvitationsController,
+    AdminDashboardController,
     AdminStoresController,
     ProductUpdatesController,
     DeployProductUpdatesController,
@@ -52,6 +55,7 @@ import { ProductUpdatesService } from './product-updates.service';
     AdminAuthService,
     AdminJwtStrategy,
     AdminInvitationsService,
+    AdminDashboardService,
     AdminPermissionsGuard,
     AdminStoresService,
     AdminTwoFactorService,
