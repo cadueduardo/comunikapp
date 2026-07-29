@@ -383,32 +383,73 @@ export default function OrcamentoV2PublicoPage() {
 
   return (
     <>
-      {/* Estilos específicos para impressão */}
+      {/* Estilos específicos para impressão / PDF */}
       <style jsx global>{`
         @media print {
-          body { margin: 0; padding: 0; }
-          .print\\:shadow-none { box-shadow: none !important; }
-          .print\\:max-w-none { max-width: none !important; }
-          .print\\:p-0 { padding: 0 !important; }
-          .print\\:p-4 { padding: 1rem !important; }
-          .print\\:bg-white { background-color: white !important; }
-          .print\\:hidden { display: none !important; }
-          
-          /* Configuração de página A4 */
+          body {
+            margin: 0;
+            padding: 0;
+          }
+          .print\\:shadow-none {
+            box-shadow: none !important;
+          }
+          .print\\:max-w-none {
+            max-width: none !important;
+          }
+          .print\\:p-0 {
+            padding: 0 !important;
+          }
+          .print\\:p-4 {
+            padding: 1rem !important;
+          }
+          .print\\:bg-white {
+            background-color: white !important;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+
           @page {
             size: A4;
-            margin: 0.5cm;
+            margin: 0;
           }
-          
-          /* Quebra de página */
+
+          /* Timbrado fixo em todas as páginas impressas */
+          .orcamento-print-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 20;
+            background: white;
+          }
+          .orcamento-print-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 20;
+            background: white;
+          }
+          .orcamento-print-body {
+            padding-top: 42mm;
+            padding-bottom: 28mm;
+          }
+
           .page-break {
             page-break-before: always;
           }
-          
-          /* Forçar cores de fundo em impressão */
+
           * {
             -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
             color-adjust: exact !important;
+          }
+
+          a,
+          a:visited {
+            color: inherit !important;
+            text-decoration: none !important;
           }
         }
       `}</style>
@@ -446,32 +487,30 @@ export default function OrcamentoV2PublicoPage() {
       )}
 
       <div className="min-h-screen bg-gray-100 p-4 print:p-0 print:bg-white">
-        <div className="max-w-[210mm] mx-auto bg-white shadow-lg print:shadow-none print:max-w-none" style={{ minHeight: '297mm' }}>
-          {/* Cabeçalho timbrado: logo | site + CNPJ + nº orçamento */}
-          <TimbradoCabecalhoDocumento
-            data={{
-              logo_url: orcamento.loja?.logo_url,
-              nome_destaque:
-                orcamento.loja?.nome_fantasia || orcamento.loja?.nome,
-              razao_social: orcamento.loja?.razao_social,
-              cnpj: orcamento.loja?.cnpj,
-              cpf: orcamento.loja?.cpf,
-              site_url: orcamento.loja?.site_url,
-            }}
-            rightSlot={
-              <div className="text-right">
-                <h2 className="text-xl font-bold text-gray-900">ORÇAMENTO</h2>
-                <p className="text-lg text-gray-600">#{orcamento.numero}</p>
-                <p className="text-sm text-gray-500">
-                  {new Date(orcamento.criado_em).toLocaleDateString('pt-BR')}
-                </p>
-              </div>
-            }
-          />
+        <div
+          className="orcamento-folha mx-auto max-w-[210mm] bg-white shadow-lg print:max-w-none print:shadow-none"
+          style={{ minHeight: '297mm' }}
+        >
+          <div className="orcamento-print-header">
+            <TimbradoCabecalhoDocumento
+              data={{
+                logo_url: orcamento.loja?.logo_url,
+                nome_destaque:
+                  orcamento.loja?.nome_fantasia || orcamento.loja?.nome,
+                razao_social: orcamento.loja?.razao_social,
+                cnpj: orcamento.loja?.cnpj,
+                cpf: orcamento.loja?.cpf,
+              }}
+              metaLinha={`#${orcamento.numero} / ${new Date(
+                orcamento.criado_em,
+              ).toLocaleDateString('pt-BR')}`}
+              tituloDocumento="ORÇAMENTO"
+            />
+          </div>
 
+          <div className="orcamento-print-body p-6 print:px-6 print:py-0">
           {/* Dados do Cliente */}
-          <div className="p-6 print:p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-6 mb-6">
+            <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-2 print:grid-cols-2">
               {orcamento.cliente?.tipo_pessoa === 'PESSOA_JURIDICA' ? (
                 <>
                   {/* Coluna 1: Dados do Cliente PJ (Contato Responsável) */}
@@ -899,35 +938,37 @@ export default function OrcamentoV2PublicoPage() {
               <div className="mt-6 text-center">
                 <p>Agradecemos seu contato e estamos à disposição para maiores informações.</p>
               </div>
-
-              {orcamento.loja ? (
-                <TimbradoRodapeDocumento
-                  data={{
-                    nome_destaque:
-                      orcamento.loja.nome_fantasia || orcamento.loja.nome,
-                    razao_social: orcamento.loja.razao_social,
-                    cnpj: orcamento.loja.cnpj,
-                    cpf: orcamento.loja.cpf,
-                    inscricao_estadual: orcamento.loja.inscricao_estadual,
-                    inscricao_municipal: orcamento.loja.inscricao_municipal,
-                    cep: orcamento.loja.cep,
-                    logradouro: orcamento.loja.logradouro,
-                    numero: orcamento.loja.numero,
-                    complemento: orcamento.loja.complemento,
-                    bairro: orcamento.loja.bairro,
-                    cidade: orcamento.loja.cidade,
-                    uf: orcamento.loja.uf,
-                    telefone: orcamento.loja.telefone,
-                    email: orcamento.loja.email,
-                    site_url: orcamento.loja.site_url,
-                    instagram_url: orcamento.loja.instagram_url,
-                    facebook_url: orcamento.loja.facebook_url,
-                    linkedin_url: orcamento.loja.linkedin_url,
-                  }}
-                />
-              ) : null}
             </div>
           </div>
+
+          {orcamento.loja ? (
+            <div className="orcamento-print-footer mt-6 print:mt-0">
+              <TimbradoRodapeDocumento
+                data={{
+                  nome_destaque:
+                    orcamento.loja.nome_fantasia || orcamento.loja.nome,
+                  razao_social: orcamento.loja.razao_social,
+                  cnpj: orcamento.loja.cnpj,
+                  cpf: orcamento.loja.cpf,
+                  inscricao_estadual: orcamento.loja.inscricao_estadual,
+                  inscricao_municipal: orcamento.loja.inscricao_municipal,
+                  cep: orcamento.loja.cep,
+                  logradouro: orcamento.loja.logradouro,
+                  numero: orcamento.loja.numero,
+                  complemento: orcamento.loja.complemento,
+                  bairro: orcamento.loja.bairro,
+                  cidade: orcamento.loja.cidade,
+                  uf: orcamento.loja.uf,
+                  telefone: orcamento.loja.telefone,
+                  email: orcamento.loja.email,
+                  site_url: orcamento.loja.site_url,
+                  instagram_url: orcamento.loja.instagram_url,
+                  facebook_url: orcamento.loja.facebook_url,
+                  linkedin_url: orcamento.loja.linkedin_url,
+                }}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 

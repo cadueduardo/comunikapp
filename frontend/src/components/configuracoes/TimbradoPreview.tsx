@@ -1,6 +1,5 @@
 'use client';
 
-import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   Facebook,
@@ -128,32 +127,16 @@ function BlocoSiteRedes({
   data,
   iconCls,
   placeholder,
-  asLinks,
 }: {
   data: TimbradoLojaData;
   iconCls: string;
   placeholder?: boolean;
-  asLinks?: boolean;
 }) {
   const site = formatSiteDisplay(data.site_url);
-  const siteHref = data.site_url?.trim()
-    ? normalizeHref(data.site_url.trim())
-    : '';
   const redes = selecionarRedesTimbrado(data);
 
   const siteEl = site ? (
-    asLinks ? (
-      <a
-        href={siteHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block truncate text-blue-700 underline"
-      >
-        {site}
-      </a>
-    ) : (
-      <p className="truncate text-gray-800">{site}</p>
-    )
+    <p className="truncate text-gray-800">{site}</p>
   ) : placeholder ? (
     <p className="truncate text-gray-300">website.com.br</p>
   ) : null;
@@ -161,37 +144,19 @@ function BlocoSiteRedes({
   const redesEl =
     redes.length > 0 ? (
       <p className="flex min-w-0 items-center gap-1.5">
-        {redes.map((r, i) => {
-          const content = (
-            <>
+        {redes.map((r, i) => (
+          <span key={r.key} className="flex min-w-0 items-center gap-1.5">
+            {i > 0 ? (
+              <span className="shrink-0 text-gray-400" aria-hidden>
+                |
+              </span>
+            ) : null}
+            <span className="flex min-w-0 items-center gap-1 truncate">
               <r.Icon className={cn(iconCls, 'shrink-0 text-gray-500')} />
               <span className="truncate">{r.handle}</span>
-            </>
-          );
-          return (
-            <span key={r.key} className="flex min-w-0 items-center gap-1.5">
-              {i > 0 ? (
-                <span className="shrink-0 text-gray-400" aria-hidden>
-                  |
-                </span>
-              ) : null}
-              {asLinks ? (
-                <a
-                  href={r.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex min-w-0 items-center gap-1 truncate"
-                >
-                  {content}
-                </a>
-              ) : (
-                <span className="flex min-w-0 items-center gap-1 truncate">
-                  {content}
-                </span>
-              )}
             </span>
-          );
-        })}
+          </span>
+        ))}
       </p>
     ) : placeholder ? (
       <p className="flex items-center gap-1.5 text-gray-300">
@@ -353,12 +318,13 @@ export function TimbradoPreview({
           )}
         </div>
         <div className={cn('min-w-0 max-w-[55%] shrink text-right text-gray-600', textCls)}>
-          {razao ? (
-            <p className="truncate text-gray-800">{razao}</p>
+          {razao || doc ? (
+            <p className="truncate text-gray-800">
+              {[razao, doc].filter(Boolean).join(' - ')}
+            </p>
           ) : (
-            <p className="text-gray-300">Razão social</p>
+            <p className="text-gray-300">Razão social - CNPJ</p>
           )}
-          {doc ? <p>{doc}</p> : <p className="text-gray-300">CNPJ</p>}
         </div>
       </div>
 
@@ -423,8 +389,8 @@ export function TimbradoRodapeDocumento({ data }: { data: TimbradoLojaData }) {
   const { linha1, linha2 } = enderecoLinhas(data);
 
   return (
-    <div className="mt-6 border-t border-gray-300 pt-3 text-xs text-gray-600 print:text-[10px]">
-      <div className="grid grid-cols-3 gap-4">
+    <div className="border-t border-gray-300 bg-white pt-3 text-xs text-gray-600 print:text-[10px]">
+      <div className="grid grid-cols-3 gap-4 px-6 pb-4 print:px-4 print:pb-3">
         <div className="min-w-0 space-y-1">
           {data.telefone ? (
             <p className="flex items-center gap-1.5 truncate">
@@ -433,17 +399,14 @@ export function TimbradoRodapeDocumento({ data }: { data: TimbradoLojaData }) {
             </p>
           ) : null}
           {data.email ? (
-            <a
-              href={`mailto:${data.email}`}
-              className="flex items-center gap-1.5 truncate text-blue-700 underline"
-            >
+            <p className="flex items-center gap-1.5 truncate">
               <Mail className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{data.email}</span>
-            </a>
+            </p>
           ) : null}
         </div>
 
-        <BlocoSiteRedes data={data} iconCls="h-3.5 w-3.5" asLinks />
+        <BlocoSiteRedes data={data} iconCls="h-3.5 w-3.5" />
 
         <div className="min-w-0 space-y-1 text-right">
           {linha1 ? <p className="truncate">{linha1}</p> : null}
@@ -454,13 +417,24 @@ export function TimbradoRodapeDocumento({ data }: { data: TimbradoLojaData }) {
   );
 }
 
-/** Cabeçalho do documento: logo | razão social + CNPJ */
+/**
+ * Cabeçalho do documento:
+ * Logo | razão social - CNPJ
+ *      | #número / data
+ * ----------------
+ *            TITULO (centralizado)
+ */
 export function TimbradoCabecalhoDocumento({
   data,
-  rightSlot,
+  metaLinha,
+  tituloDocumento = 'ORÇAMENTO',
+  mostrarTitulo = true,
 }: {
   data: TimbradoLojaData;
-  rightSlot?: ReactNode;
+  /** Ex.: "#ORC-... / 23/07/2026" */
+  metaLinha?: string | null;
+  tituloDocumento?: string;
+  mostrarTitulo?: boolean;
 }) {
   const logoSrc = resolveAssetUrl(data.logo_url);
   const nome =
@@ -469,40 +443,52 @@ export function TimbradoCabecalhoDocumento({
     'Comunikapp';
   const razao = razaoSocialHeader(data);
   const doc = formatCnpjHeader(data);
+  const linhaEmpresa = [razao, doc].filter(Boolean).join(' - ');
 
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-gray-300 p-6 print:p-4">
-      <div className="flex min-w-0 items-center gap-3">
-        {logoSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={logoSrc}
-            alt="Logo"
-            className="h-16 w-16 object-contain"
-          />
-        ) : (
-          <>
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded bg-gray-200">
-              <span className="text-2xl font-bold text-gray-600">
-                {nome.charAt(0)}
-              </span>
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-2xl font-bold text-gray-900">
-                {nome}
-              </h1>
-            </div>
-          </>
-        )}
+    <div className="bg-white">
+      <div className="flex items-center justify-between gap-4 px-6 pb-3 pt-6 print:px-4 print:pb-2 print:pt-4">
+        <div className="flex min-w-0 items-center gap-3">
+          {logoSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoSrc}
+              alt="Logo"
+              className="h-16 w-16 object-contain print:h-12 print:w-12"
+            />
+          ) : (
+            <>
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded bg-gray-200 print:h-12 print:w-12">
+                <span className="text-2xl font-bold text-gray-600 print:text-xl">
+                  {nome.charAt(0)}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <h1 className="truncate text-2xl font-bold text-gray-900 print:text-xl">
+                  {nome}
+                </h1>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="min-w-0 max-w-[60%] text-right text-sm text-gray-600">
+          {linhaEmpresa ? (
+            <p className="truncate text-gray-800">{linhaEmpresa}</p>
+          ) : null}
+          {metaLinha?.trim() ? (
+            <p className="truncate text-gray-600">{metaLinha.trim()}</p>
+          ) : null}
+        </div>
       </div>
 
-      <div className="flex min-w-0 shrink-0 items-start gap-6">
-        <div className="min-w-0 max-w-[14rem] text-right text-sm text-gray-600 sm:max-w-xs">
-          {razao ? <p className="truncate text-gray-800">{razao}</p> : null}
-          {doc ? <p>{doc}</p> : null}
-        </div>
-        {rightSlot}
-      </div>
+      <div className="border-t border-gray-300" />
+
+      {mostrarTitulo ? (
+        <h2 className="py-3 text-center text-xl font-bold tracking-wide text-gray-900 print:py-2 print:text-lg">
+          {tituloDocumento}
+        </h2>
+      ) : null}
     </div>
   );
 }

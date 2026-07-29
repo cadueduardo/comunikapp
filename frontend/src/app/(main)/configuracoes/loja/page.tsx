@@ -743,9 +743,10 @@ export default function ConfiguracoesLojaPage() {
               </h2>
               <p className="text-sm text-muted-foreground">
                 O <strong>cabeçalho</strong> mostra logo à esquerda e razão
-                social + CNPJ à direita. O <strong>rodapé</strong> tem 3
+                social - CNPJ à direita. O <strong>rodapé</strong> tem 3
                 blocos: WhatsApp e e-mail, site + até 2 redes lado a lado, e
-                endereço. Preview ao lado atualiza ao digitar.
+                endereço. No orçamento impresso, o título fica centralizado
+                abaixo da linha e o timbrado se repete em cada página.
               </p>
             </div>
 
