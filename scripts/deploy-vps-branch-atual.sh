@@ -151,6 +151,8 @@ install_system_packages() {
 
   log 'Instalando/atualizando pacotes de sistema necessarios...'
   apt-get update
+  # Preferir mysql-client (nao mariadb-client): no Ubuntu, mariadb-client
+  # pode remover mysql-server/mysql-client e derrubar o banco de producao.
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
     ca-certificates \
     curl \
@@ -161,8 +163,6 @@ install_system_packages() {
     make \
     g++ \
     pkg-config \
-    # mysql-client (nao mariadb-client): no Ubuntu, mariadb-client remove
-    # mysql-server/mysql-client e derruba o banco de producao.
     mysql-client \
     gzip \
     libvips42 \
