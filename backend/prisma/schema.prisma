@@ -727,6 +727,7 @@ model loja {
   estampas                           Estampa[]
   workflow_instancias_setor          WorkflowInstanciaSetor[]
   admin_audit_logs                   admin_audit_log[]
+  store_user_invitations             store_user_invitation[]
 }
 
 model InsumoFornecedor {
@@ -1992,6 +1993,7 @@ model usuario {
   password_reset_tokens              PasswordResetToken[]
   orcamentos_responsavel             orcamento[]
   os_logs                            OrdemServicoLog[]
+  store_user_invitations             store_user_invitation[]
 
   // Relacionamentos Arte & Aprovação
   artes_autor       ArteVersao[]     @relation("ArteAutor")
@@ -2078,6 +2080,7 @@ model admin_user {
   sessions                  admin_session[]
   invitations_sent          admin_invitation[]        @relation("AdminInvitationInviter")
   invitation_accepted       admin_invitation?         @relation("AdminInvitationAcceptedUser")
+  store_user_invitations_sent store_user_invitation[] @relation("StoreUserInvitationInviter")
   audit_logs                admin_audit_log[]
   product_updates_authored  product_update[]          @relation("ProductUpdateAuthor")
   product_updates_reviewed  product_update[]          @relation("ProductUpdateReviewer")
@@ -2126,6 +2129,36 @@ model admin_invitation {
   @@index([status, expires_at], map: "admin_invitation_status_expires_idx")
   @@index([invited_by_id], map: "admin_invitation_invited_by_id_idx")
   @@map("admin_invitation")
+}
+
+model store_user_invitation {
+  id            String                       @id @default(cuid())
+  loja_id       String
+  usuario_id    String
+  nome          String                       @db.VarChar(160)
+  email         String                       @db.VarChar(320)
+  funcao        usuario_funcao
+  telefone      String?                      @db.VarChar(32)
+  mensagem      String?                      @db.Text
+  token_hash    String                       @unique(map: "store_user_invitation_token_hash_key") @db.VarChar(64)
+  status        store_user_invitation_status @default(PENDING)
+  expires_at    DateTime
+  accepted_at   DateTime?
+  cancelled_at  DateTime?
+  invited_by_id String?
+  created_at    DateTime                     @default(now())
+  updated_at    DateTime                     @updatedAt
+  loja          loja                         @relation(fields: [loja_id], references: [id], onDelete: Restrict, map: "store_user_invitation_loja_id_fkey")
+  usuario       usuario                      @relation(fields: [usuario_id], references: [id], onDelete: Restrict, map: "store_user_invitation_usuario_id_fkey")
+  invited_by    admin_user?                  @relation("StoreUserInvitationInviter", fields: [invited_by_id], references: [id], onDelete: Restrict, map: "store_user_invitation_invited_by_id_fkey")
+
+  @@index([loja_id, status], map: "store_user_invitation_loja_status_idx")
+  @@index([loja_id, email], map: "store_user_invitation_loja_email_idx")
+  @@index([email, status], map: "store_user_invitation_email_status_idx")
+  @@index([status, expires_at], map: "store_user_invitation_status_expires_idx")
+  @@index([usuario_id], map: "store_user_invitation_usuario_id_idx")
+  @@index([invited_by_id], map: "store_user_invitation_invited_by_id_idx")
+  @@map("store_user_invitation")
 }
 
 model admin_audit_log {
@@ -2465,6 +2498,13 @@ enum admin_user_status {
 }
 
 enum admin_invitation_status {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+enum store_user_invitation_status {
   PENDING
   ACCEPTED
   EXPIRED

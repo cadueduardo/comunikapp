@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { AdminStatusBadge } from '@/components/gestao/AdminStatusBadge';
 import { AdminStoreStatusDialog } from '@/components/gestao/AdminStoreStatusDialog';
 import { AdminStoreTimeline } from '@/components/gestao/AdminStoreTimeline';
+import { AdminStoreUsersManager } from '@/components/gestao/AdminStoreUsersManager';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAdmin } from '@/contexts/AdminContext';
 import { adminApi } from '@/lib/gestao/admin-api';
 import { formatAdminDate } from '@/lib/gestao/admin-labels';
@@ -127,108 +129,125 @@ export function AdminStoreDetail({ storeId }: { storeId: string }) {
         }
       />
 
-      <Card>
-        <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">
-              Situação atual
-            </p>
-            <div className="mt-2">
-              <AdminStatusBadge status={store.status} />
-            </div>
-          </div>
-          <div className="text-sm sm:text-right">
-            <p className="text-muted-foreground">Assinatura</p>
-            <p className="font-medium">
-              {store.assinatura_ativa ? 'Ativa' : 'Inativa'}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="resumo">
+        <TabsList>
+          <TabsTrigger value="resumo">Resumo</TabsTrigger>
+          <TabsTrigger value="usuarios">Usuários</TabsTrigger>
+        </TabsList>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          ['Usuários ativos', store.counts.users],
-          ['Clientes', store.counts.clients],
-          ['Orçamentos', store.counts.budgets],
-          ['Ordens de serviço', store.counts.serviceOrders],
-        ].map(([label, value]) => (
-          <Card key={label}>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground">{label}</p>
-              <p className="mt-1 text-2xl font-semibold">{value}</p>
+        <TabsContent value="resumo" className="mt-6 space-y-6">
+          <Card>
+            <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Situação atual
+                </p>
+                <div className="mt-2">
+                  <AdminStatusBadge status={store.status} />
+                </div>
+              </div>
+              <div className="text-sm sm:text-right">
+                <p className="text-muted-foreground">Assinatura</p>
+                <p className="font-medium">
+                  {store.assinatura_ativa ? 'Ativa' : 'Inativa'}
+                </p>
+              </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Cadastro</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <div className="flex gap-3">
-              <Mail className="mt-0.5 h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-muted-foreground">E-mail</p>
-                <p className="break-all font-medium">{store.email}</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <Phone className="mt-0.5 h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-muted-foreground">Telefone</p>
-                <p className="font-medium">{store.telefone}</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <CalendarDays className="mt-0.5 h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-muted-foreground">Cadastro</p>
-                <p className="font-medium">
-                  {formatAdminDate(store.criado_em)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              ['Usuários ativos', store.counts.users],
+              ['Clientes', store.counts.clients],
+              ['Orçamentos', store.counts.budgets],
+              ['Ordens de serviço', store.counts.serviceOrders],
+            ].map(([label, value]) => (
+              <Card key={label}>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground">{label}</p>
+                  <p className="mt-1 text-2xl font-semibold">{value}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Endereços</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <div className="flex gap-3">
-              <Globe2 className="mt-0.5 h-4 w-4 text-muted-foreground" />
-              <div className="min-w-0">
-                <p className="text-muted-foreground">URL ComunikApp</p>
-                <p className="break-all font-medium">
-                  {store.slug}.comunikapp.com.br
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <Globe2 className="mt-0.5 h-4 w-4 text-muted-foreground" />
-              <div className="min-w-0">
-                <p className="text-muted-foreground">Domínio próprio</p>
-                <p className="break-all font-medium">
-                  {store.dominio_custom || 'Não configurado'}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <Users className="mt-0.5 h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-muted-foreground">Usuários ativos</p>
-                <p className="font-medium">{store.counts.users}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Cadastro</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                <div className="flex gap-3">
+                  <Mail className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground">E-mail</p>
+                    <p className="break-all font-medium">{store.email}</p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Phone className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground">Telefone</p>
+                    <p className="font-medium">{store.telefone}</p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <CalendarDays className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground">Cadastro</p>
+                    <p className="font-medium">
+                      {formatAdminDate(store.criado_em)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-      <AdminStoreTimeline storeId={store.id} />
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Endereços</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                <div className="flex gap-3">
+                  <Globe2 className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                  <div className="min-w-0">
+                    <p className="text-muted-foreground">URL ComunikApp</p>
+                    <p className="break-all font-medium">
+                      {store.slug}.comunikapp.com.br
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Globe2 className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                  <div className="min-w-0">
+                    <p className="text-muted-foreground">Domínio próprio</p>
+                    <p className="break-all font-medium">
+                      {store.dominio_custom || 'Não configurado'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Users className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground">Usuários ativos</p>
+                    <p className="font-medium">{store.counts.users}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <AdminStoreTimeline storeId={store.id} />
+        </TabsContent>
+
+        <TabsContent value="usuarios" className="mt-6">
+          <AdminStoreUsersManager
+            storeId={store.id}
+            storeStatus={store.status}
+            storeName={store.nome}
+          />
+        </TabsContent>
+      </Tabs>
 
       {admin && (
         <AdminStoreStatusDialog

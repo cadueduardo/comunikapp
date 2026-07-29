@@ -173,11 +173,23 @@ Proteção das sessões das lojas:
 
 Não implementado ainda:
 
-- convite de usuário para uma loja pela Gestão;
-- abas completas de usuários, uso, plano/módulos e auditoria;
+- ~~convite de usuário para uma loja pela Gestão;~~ **entregue em 29/07/2026**
+- abas completas de uso, plano/módulos e auditoria no detalhe;
 - observações internas;
 - exportação CSV;
-- ações administrativas sobre usuários da loja.
+- ações administrativas de ativar/inativar usuário da loja (aba Usuários já lista
+  e convida; status mutável ainda pendente).
+
+### Convite de usuário para loja (F01.2) — 29/07/2026
+
+- modelo `store_user_invitation` + migration aditiva;
+- permissão `STORE_USER_INVITE` (`SUPER_ADMIN`, `OPERACAO`, `SUPORTE`);
+- `POST/GET/PATCH/DELETE` e reenvio em `/admin/v1/stores/:id/user-invitations`;
+- `GET /admin/v1/stores/:id/users` (e-mail mascarado para `ANALISTA`);
+- aceite público `GET/POST /admin/v1/store-user-invitations/*`;
+- cria `usuario` pendente + token 72h; cancelamento inativa o pendente;
+- loja não ativa: só `SUPER_ADMIN` com justificativa;
+- UI: aba Usuários no detalhe da loja + página `/convite-loja`.
 
 ## 5. Novidades e changelog implementados
 
@@ -255,7 +267,15 @@ GET    /admin/v1/audit
 GET    /admin/v1/stores
 GET    /admin/v1/stores/:id
 GET    /admin/v1/stores/:id/timeline
+GET    /admin/v1/stores/:id/users
+GET    /admin/v1/stores/:id/user-invitations
+POST   /admin/v1/stores/:id/user-invitations
+PATCH  /admin/v1/stores/:id/user-invitations/:invitationId
+POST   /admin/v1/stores/:id/user-invitations/:invitationId/resend
+DELETE /admin/v1/stores/:id/user-invitations/:invitationId
 PATCH  /admin/v1/stores/:id/status
+GET    /admin/v1/store-user-invitations/validate
+POST   /admin/v1/store-user-invitations/accept
 
 GET    /admin/v1/product-updates
 POST   /admin/v1/product-updates
@@ -307,13 +327,16 @@ Componentes globais em `frontend/src/components/gestao`:
 - `AdminAuditManager`;
 - `AdminStoresManager`;
 - `AdminStoreDetail`;
+- `AdminStoreUsersManager`;
+- `StoreUserInvitationAcceptance`;
 - `AdminStoreTimeline`;
 - `AdminStoreStatusDialog`;
 - `AdminProductUpdatesManager`.
 
-O detalhe da loja inclui timeline de suporte com orçamentos excluídos
-(`excluido_por` / `excluido_em` / motivo) e eventos da auditoria administrativa
-filtrados por `loja_id`. A tela `/gestao/auditoria` aceita filtro por ID da loja.
+O detalhe da loja inclui abas Resumo | Usuários, timeline de suporte com
+orçamentos excluídos (`excluido_por` / `excluido_em` / motivo) e eventos da
+auditoria administrativa filtrados por `loja_id`. A tela `/gestao/auditoria`
+aceita filtro por ID da loja.
 
 `/gestao/administradores` tem abas Ativos (gestão de contas) e Convites.
 
@@ -371,9 +394,10 @@ filtro executado.
 1. ~~dashboard real com contagens e filtros;~~ **entregue em 29/07/2026**
 2. ~~consulta visual de auditoria;~~ **entregue em 29/07/2026**
 3. ~~gestão de administradores ativos;~~ **entregue em 29/07/2026**
-4. convite de usuário vinculado a uma loja;
-5. ~~completar detalhe da loja com usuários e timeline;~~ timeline de suporte
-   entregue em 29/07/2026 (usuários e abas completas ainda pendentes);
+4. ~~convite de usuário vinculado a uma loja;~~ **entregue em 29/07/2026**
+5. ~~completar detalhe da loja com usuários e timeline;~~ timeline e aba Usuários
+   (lista + convites) entregues em 29/07/2026 (ativar/inativar usuário e demais
+   abas ainda pendentes);
 6. testes e2e HTTP de autenticação e isolamento.
 
 ### P1 — adoção e sucesso do cliente
@@ -411,10 +435,14 @@ filtro executado.
 
 ## 12. Ponto exato de retomada
 
-O próximo incremento recomendado é o **convite de usuário vinculado a uma loja**,
-seguido pela **aba de usuários no detalhe da loja** e pelos **testes e2e HTTP**
-de autenticação/isolamento.
+O próximo incremento recomendado é **ativar/inativar usuário da loja** pela Gestão
+e completar as abas restantes do detalhe (uso, plano/módulos), seguido pelos
+**testes e2e HTTP** de autenticação/isolamento.
 
 Hostname de produção planejado: `https://gestao.comunikapp.com.br` (local continua
 em `/gestao`). Sem migration/deploy de produção até validação local autorizada.
+
+Migration local nova desta entrega: `20260729180000_add_store_user_invitation`
+(aplicar com `npx prisma migrate deploy` no backend após parar o `npm run dev`
+se necessário para `prisma generate`).
 

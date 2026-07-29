@@ -98,6 +98,47 @@ export const adminApi = {
       body: JSON.stringify(data),
     }),
 
+  listStoreUsers: <T>(storeId: string) =>
+    adminRequest<T>(
+      `/stores/${encodeURIComponent(storeId)}/users`,
+    ),
+
+  listStoreUserInvitations: <T>(storeId: string) =>
+    adminRequest<T>(
+      `/stores/${encodeURIComponent(storeId)}/user-invitations`,
+    ),
+
+  createStoreUserInvitation: <T>(
+    storeId: string,
+    data: {
+      nome: string;
+      email: string;
+      funcao: string;
+      telefone?: string;
+      mensagem?: string;
+      exceptionReason?: string;
+    },
+  ) =>
+    adminRequest<T>(
+      `/stores/${encodeURIComponent(storeId)}/user-invitations`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      },
+    ),
+
+  resendStoreUserInvitation: <T>(storeId: string, invitationId: string) =>
+    adminRequest<T>(
+      `/stores/${encodeURIComponent(storeId)}/user-invitations/${encodeURIComponent(invitationId)}/resend`,
+      { method: 'POST' },
+    ),
+
+  cancelStoreUserInvitation: <T>(storeId: string, invitationId: string) =>
+    adminRequest<T>(
+      `/stores/${encodeURIComponent(storeId)}/user-invitations/${encodeURIComponent(invitationId)}`,
+      { method: 'DELETE' },
+    ),
+
   listInvitations: <T>() =>
     adminRequest<T>('/administrator-invitations'),
 

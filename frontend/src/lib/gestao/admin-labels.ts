@@ -40,6 +40,27 @@ export const INVITATION_STATUS_LABELS: Record<
   CANCELLED: 'Cancelado',
 };
 
+export const STORE_USER_FUNCAO_LABELS: Record<
+  import('./admin-types').StoreUserFuncao,
+  string
+> = {
+  ADMINISTRADOR: 'Administrador',
+  FINANCEIRO: 'Financeiro',
+  PRODUCAO: 'Produção',
+  VENDAS: 'Vendas',
+  ESTOQUE: 'Estoque',
+};
+
+export const STORE_USER_STATUS_LABELS: Record<
+  import('./admin-types').StoreUserStatus,
+  string
+> = {
+  PENDENTE_VERIFICACAO: 'Pendente',
+  ATIVO: 'Ativo',
+  INATIVO: 'Inativo',
+  BLOQUEADO: 'Bloqueado',
+};
+
 export const PRODUCT_UPDATE_CATEGORY_LABELS: Record<
   ProductUpdateCategory,
   string
@@ -77,6 +98,12 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   ADMIN_INACTIVATED: 'Administrador inativado',
   ADMIN_REACTIVATED: 'Administrador reativado',
   STORE_STATUS_CHANGED: 'Status da loja alterado',
+  STORE_USER_INVITATION_CREATED: 'Convite de usuário criado',
+  STORE_USER_INVITATION_UPDATED: 'Convite de usuário atualizado',
+  STORE_USER_INVITATION_RESENT: 'Convite de usuário reenviado',
+  STORE_USER_INVITATION_CANCELLED: 'Convite de usuário cancelado',
+  STORE_USER_INVITATION_ACCEPTED: 'Convite de usuário aceito',
+  STORE_USER_INVITATION_EMAIL_FAILED: 'Falha no e-mail do convite de usuário',
   'product_update.created': 'Novidade criada',
   'product_update.updated': 'Novidade editada',
   'product_update.published': 'Novidade publicada',

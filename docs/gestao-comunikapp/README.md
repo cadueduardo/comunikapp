@@ -40,7 +40,8 @@ A primeira fatia contém:
 - changelog público em `/novidades`;
 - criação idempotente e não bloqueante de rascunho após o deploy;
 - gestão de administradores ativos (perfil, inativação, proteção do último
-  `SUPER_ADMIN`).
+  `SUPER_ADMIN`);
+- convite de usuário vinculado a uma loja (aba Usuários no detalhe).
 
 ### Configuração local
 

@@ -19,6 +19,11 @@ import { AdminDashboardController } from './admin-dashboard.controller';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { AdminStoresController } from './admin-stores.controller';
 import { AdminStoresService } from './admin-stores.service';
+import {
+  AdminStoreUserInvitationAcceptController,
+  AdminStoreUserInvitationsController,
+} from './admin-store-user-invitations.controller';
+import { AdminStoreUserInvitationsService } from './admin-store-user-invitations.service';
 import { AdminUsersController } from './admin-users.controller';
 import { AdminUsersService } from './admin-users.service';
 import { AdminTwoFactorService } from './admin-two-factor.service';
@@ -50,6 +55,8 @@ import { ProductUpdatesService } from './product-updates.service';
     AdminDashboardController,
     AdminAuditController,
     AdminStoresController,
+    AdminStoreUserInvitationsController,
+    AdminStoreUserInvitationAcceptController,
     ProductUpdatesController,
     DeployProductUpdatesController,
     PublicProductUpdatesController,
@@ -64,6 +71,7 @@ import { ProductUpdatesService } from './product-updates.service';
     AdminDashboardService,
     AdminPermissionsGuard,
     AdminStoresService,
+    AdminStoreUserInvitationsService,
     AdminTwoFactorService,
     ProductUpdatesService,
     {

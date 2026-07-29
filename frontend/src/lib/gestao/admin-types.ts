@@ -191,6 +191,54 @@ export interface AdminUser {
   activeSessions: number;
 }
 
+export type StoreUserFuncao =
+  | 'ADMINISTRADOR'
+  | 'FINANCEIRO'
+  | 'PRODUCAO'
+  | 'VENDAS'
+  | 'ESTOQUE';
+
+export type StoreUserStatus =
+  | 'PENDENTE_VERIFICACAO'
+  | 'ATIVO'
+  | 'INATIVO'
+  | 'BLOQUEADO';
+
+export interface StoreUser {
+  id: string;
+  nome: string;
+  email: string;
+  funcao: StoreUserFuncao;
+  status: StoreUserStatus;
+  telefone?: string | null;
+  emailVerificado: boolean;
+  twoFactorEnabled: boolean;
+  criadoEm: string;
+  atualizadoEm: string;
+}
+
+export interface StoreUserInvitation {
+  id: string;
+  lojaId: string;
+  usuarioId: string;
+  nome: string;
+  email: string;
+  funcao: StoreUserFuncao;
+  telefone?: string | null;
+  mensagem?: string | null;
+  status: 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'CANCELLED';
+  expiresAt: string;
+  acceptedAt?: string | null;
+  cancelledAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  invitedBy?: {
+    id: string;
+    nome: string;
+    email: string;
+  } | null;
+}
+
 export interface AdminStoreTimelineEvent {
   id: string;
   at: string;

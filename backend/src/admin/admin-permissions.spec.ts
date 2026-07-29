@@ -44,6 +44,24 @@ describe('adminRoleHasPermissions', () => {
     ).toBe(false);
   });
 
+  it('permite convite de usuário de loja para OPERAÇÃO e SUPORTE', () => {
+    expect(
+      adminRoleHasPermissions('OPERACAO', [
+        ADMIN_PERMISSIONS.STORE_USER_INVITE,
+      ]),
+    ).toBe(true);
+    expect(
+      adminRoleHasPermissions('SUPORTE', [
+        ADMIN_PERMISSIONS.STORE_USER_INVITE,
+      ]),
+    ).toBe(true);
+    expect(
+      adminRoleHasPermissions('ANALISTA', [
+        ADMIN_PERMISSIONS.STORE_USER_INVITE,
+      ]),
+    ).toBe(false);
+  });
+
   it('permite leitura de auditoria para OPERAÇÃO e ANALISTA', () => {
     expect(
       adminRoleHasPermissions('OPERACAO', [ADMIN_PERMISSIONS.AUDIT_READ]),
