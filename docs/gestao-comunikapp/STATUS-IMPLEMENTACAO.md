@@ -191,6 +191,18 @@ Não implementado ainda:
 - loja não ativa: só `SUPER_ADMIN` com justificativa;
 - UI: aba Usuários no detalhe da loja + página `/convite-loja`.
 
+### Desativação do convite legado da loja — 29/07/2026
+
+- `POST /usuarios` **exige senha**; não cria mais pendente nem envia e-mail de
+  convite pela área da loja.
+- Tela `/usuarios/gestao/novo` remove a opção “convidar sem senha” e orienta que
+  o convite por e-mail é só pela Gestão.
+- `/primeiro-acesso` + `reenviar-codigo` / `definir-senha` permanecem apenas para
+  pendências já emitidas no fluxo antigo.
+- Login aponta novos convites para `/convite-loja`.
+- `ConviteCadastro` (cadastro de loja nova / admin-plataforma) **não** foi
+  desativado — domínio diferente.
+
 ## 5. Novidades e changelog implementados
 
 Modelos:
@@ -441,8 +453,4 @@ e completar as abas restantes do detalhe (uso, plano/módulos), seguido pelos
 
 Hostname de produção planejado: `https://gestao.comunikapp.com.br` (local continua
 em `/gestao`). Sem migration/deploy de produção até validação local autorizada.
-
-Migration local nova desta entrega: `20260729180000_add_store_user_invitation`
-(aplicar com `npx prisma migrate deploy` no backend após parar o `npm run dev`
-se necessário para `prisma generate`).
 

@@ -22,8 +22,13 @@ export class CreateUsuarioDto {
   @IsEnum(usuario_funcao)
   funcao!: usuario_funcao;
 
-  @IsOptional()
+  /**
+   * Obrigatória na criação pela loja. Convites sem senha (link por e-mail)
+   * passam exclusivamente pela Gestão ComunikApp (`store_user_invitation`).
+   */
   @IsString()
-  @MinLength(8)
-  senha?: string;
+  @MinLength(8, {
+    message: 'A senha deve ter no mínimo 8 caracteres.',
+  })
+  senha!: string;
 }

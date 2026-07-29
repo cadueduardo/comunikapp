@@ -102,7 +102,9 @@ function PrimeiroAcessoContent() {
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">Primeiro acesso</h1>
           <p className="text-sm text-muted-foreground">
-            Defina sua senha para ativar sua conta no Comunikapp.
+            Use esta tela apenas se você recebeu um código de verificação por
+            e-mail (fluxo antigo). Novos convites da Gestão usam o link
+            dedicado em /convite-loja.
           </p>
         </div>
 

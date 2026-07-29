@@ -89,50 +89,43 @@ export class UsuariosService {
   }
 
   async criar(lojaId: string, dto: CreateUsuarioDto) {
-    const exists = await this.prisma.usuario.findFirst({
-      where: { email: dto.email, loja_id: lojaId },
-    });
-    if (exists)
-      throw new BadRequestException('E-mail ja cadastrado para esta loja');
-
-    const data: any = { ...dto, loja_id: lojaId };
-    if (dto.senha) {
-      const salt = await bcrypt.genSalt();
-      data.senha = await bcrypt.hash(dto.senha, salt);
-      data.status = usuario_status.ATIVO;
-      data.email_verificado = true;
-    } else {
-      const temp = Math.random().toString(36).slice(-12);
-      const salt = await bcrypt.genSalt();
-      data.senha = await bcrypt.hash(temp, salt);
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiration = new Date();
-      expiration.setMinutes(expiration.getMinutes() + 15);
-      data.status = usuario_status.PENDENTE_VERIFICACAO;
-      data.email_verificado = false;
-      data.codigo_verificacao_email = code;
-      data.codigo_verificacao_email_expiracao = expiration;
-    }
-
-    const created = await this.prisma.usuario.create({ data });
-    if (!dto.senha) {
-      const loja = await this.prisma.loja.findUnique({
-        where: { id: lojaId },
-        select: { nome: true },
-      });
-      const activationLink = `${
-        process.env.FRONTEND_URL || 'https://comunikapp.com.br'
-      }/primeiro-acesso?email=${encodeURIComponent(created.email)}`;
-      await this.mail.sendVerificationEmail(
-        created.email,
-        created.codigo_verificacao_email,
-        {
-          mode: 'convite',
-          activationLink,
-          lojaNome: loja?.nome || undefined,
-        },
+    if (!dto.senha?.trim()) {
+      throw new BadRequestException(
+        'O convite por e-mail sem senha foi desativado nesta área. Use a Gestão ComunikApp para convidar usuários, ou informe uma senha para criar o usuário já ativo.',
       );
     }
+
+    const email = this.normalizeEmail(dto.email);
+    const exists = await this.prisma.usuario.findUnique({
+      where: { email },
+      select: { id: true, loja_id: true },
+    });
+    if (exists) {
+      throw new BadRequestException(
+        exists.loja_id === lojaId
+          ? 'E-mail já cadastrado para esta loja.'
+          : 'Este e-mail já está vinculado a outra loja.',
+      );
+    }
+
+    const salt = await bcrypt.genSalt();
+    const senhaHash = await bcrypt.hash(dto.senha, salt);
+
+    const created = await this.prisma.usuario.create({
+      data: {
+        loja_id: lojaId,
+        email,
+        nome_completo: dto.nome_completo.trim(),
+        telefone: dto.telefone?.trim() || null,
+        funcao: dto.funcao,
+        senha: senhaHash,
+        status: usuario_status.ATIVO,
+        email_verificado: true,
+        ativo: true,
+      },
+      select: { id: true },
+    });
+
     return { id: created.id };
   }
 

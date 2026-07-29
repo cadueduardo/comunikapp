@@ -328,9 +328,15 @@ function LoginContent() {
                             </Link>
                         </div>
                         <div className="text-center text-sm">
-                            Foi convidado pela sua empresa?{' '}
+                            Foi convidado pela Gestão?{' '}
+                            <Link href="/convite-loja" className="underline">
+                                Aceitar convite
+                            </Link>
+                        </div>
+                        <div className="text-center text-sm text-muted-foreground">
+                            Tem código antigo de primeiro acesso?{' '}
                             <Link href="/primeiro-acesso" className="underline">
-                                Ativar primeiro acesso
+                                Ativar com código
                             </Link>
                         </div>
                     </div>
