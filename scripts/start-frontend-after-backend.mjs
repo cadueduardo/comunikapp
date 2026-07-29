@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 
 const host = process.env.BACKEND_STARTUP_HOST || '127.0.0.1';
 const port = Number(process.env.BACKEND_STARTUP_PORT || process.env.PORT || 4000);
-const timeoutMs = Number(process.env.BACKEND_STARTUP_TIMEOUT_MS || 120_000);
+const timeoutMs = Number(process.env.BACKEND_STARTUP_TIMEOUT_MS || 300_000);
 const startedAt = Date.now();
 
 function canConnect() {
