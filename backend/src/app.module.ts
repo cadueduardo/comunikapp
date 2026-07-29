@@ -39,6 +39,7 @@ import { CatalogoModule } from './catalogo/catalogo.module';
 import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
 import { PlatformModule } from './platform/platform.module';
 import { ConexoesModule } from './conexoes/conexoes.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -91,6 +92,7 @@ import { ConexoesModule } from './conexoes/conexoes.module';
     CatalogoModule, // Catálogo de produtos e personalização
     PlatformModule,
     ConexoesModule,
+    AdminModule,
   ],
 })
 export class AppModule {

@@ -43,6 +43,7 @@ async function bootstrap() {
     const defaultProduction = [
       'https://comunikapp.com.br',
       'https://www.comunikapp.com.br',
+      'https://gestao.comunikapp.com.br',
     ];
     const devOrigins = isProd
       ? []
@@ -155,6 +156,33 @@ async function bootstrap() {
     const path = String(req.path || req.url || '').split('?')[0];
     if (isRotaSensivelFinanceiro(String(req.method || ''), path)) {
       return sensitiveLimiter(req, res, next);
+    }
+    return next();
+  });
+
+  const adminAuthLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: isProd ? 10 : 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      statusCode: 429,
+      message:
+        'Muitas tentativas de autenticação. Aguarde alguns minutos e tente novamente.',
+    },
+    skip: (req: any) => req.method === 'OPTIONS',
+    validate: { xForwardedForHeader: false },
+  }) as any;
+
+  app.use((req: any, res: any, next: any) => {
+    const path = String(req.path || req.url || '').split('?')[0];
+    const isAdminAuthMutation =
+      req.method === 'POST' &&
+      /^\/(?:api\/)?admin\/v1\/auth\/(?:login|invitation\/accept|2fa\/confirm)\/?$/.test(
+        path,
+      );
+    if (isAdminAuthMutation) {
+      return adminAuthLimiter(req, res, next);
     }
     return next();
   });

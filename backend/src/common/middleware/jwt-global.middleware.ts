@@ -66,7 +66,20 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       '/api/arte-aprovacao/mensagens/publico',
       '/conexoes/google/callback',
       '/api/conexoes/google/callback',
+      '/public/v1/product-updates',
+      '/api/public/v1/product-updates',
     ];
+
+    // A Gestão usa identidade, estratégia JWT, cookie e sessão próprios.
+    // Cada rota administrativa é protegida pelos guards do AdminModule.
+    if (
+      req.path === '/admin/v1' ||
+      req.path.startsWith('/admin/v1/') ||
+      req.path === '/api/admin/v1' ||
+      req.path.startsWith('/api/admin/v1/')
+    ) {
+      return next();
+    }
 
     if (process.env.NODE_ENV !== 'production') {
       publicRoutes.push(
@@ -126,15 +139,67 @@ export class JwtGlobalMiddleware implements NestMiddleware {
     try {
       const payload = this.jwtService.verify(token);
 
-      req['user'] = {
-        sub: payload.sub,
-        email: payload.email,
-        loja_id: payload.loja_id,
-        funcao: payload.funcao,
-        nome_completo: payload.nome_completo,
-        loja: {
-          id: payload.loja_id,
+      if (
+        !payload?.sub ||
+        !payload?.loja_id ||
+        payload?.typ === 'admin' ||
+        payload?.sid
+      ) {
+        throw new UnauthorizedException('Token de loja inválido');
+      }
+
+      const usuario = await this.prisma.usuario.findFirst({
+        where: {
+          id: payload.sub,
+          loja_id: payload.loja_id,
+          status: 'ATIVO',
+          ativo: true,
+          email_verificado: true,
         },
+        select: {
+          id: true,
+          email: true,
+          loja_id: true,
+          funcao: true,
+          nome_completo: true,
+          loja: {
+            select: {
+              id: true,
+              nome: true,
+              slug: true,
+              status: true,
+              session_version: true,
+            },
+          },
+        },
+      });
+
+      if (!usuario) {
+        throw new UnauthorizedException('Usuário inativo ou sessão inválida');
+      }
+
+      if (usuario.loja.status !== 'ATIVO') {
+        throw new ForbiddenException(
+          'O acesso desta loja está temporariamente indisponível. Entre em contato com o suporte.',
+        );
+      }
+
+      if (
+        (payload.loja_session_version ?? 0) !==
+        usuario.loja.session_version
+      ) {
+        throw new UnauthorizedException(
+          'Sessão revogada. Faça login novamente.',
+        );
+      }
+
+      req['user'] = {
+        sub: usuario.id,
+        email: usuario.email,
+        loja_id: usuario.loja_id,
+        funcao: usuario.funcao,
+        nome_completo: usuario.nome_completo,
+        loja: usuario.loja,
       };
 
       const headerSlug = req.headers['x-tenant-slug'];
@@ -147,11 +212,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
         extractTenantSlugFromHost(req.headers.host);
 
       if (tenantSlug) {
-        const loja = await this.prisma.loja.findUnique({
-          where: { slug: tenantSlug },
-          select: { id: true },
-        });
-        if (!loja || loja.id !== payload.loja_id) {
+        if (usuario.loja.slug !== tenantSlug) {
           this.logger.warn(
             `tenant_mismatch path=${req.path} slug=${tenantSlug} jwtLoja=${payload.loja_id}`,
           );

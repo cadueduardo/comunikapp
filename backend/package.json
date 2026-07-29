@@ -35,6 +35,7 @@
     "test:insumo-fornecedor:crud": "node --test scripts/insumo-fornecedor-crud.test.js",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
+    "admin:bootstrap": "node scripts/bootstrap-admin-invitation.js",
     "migrate:arte-comentarios": "ts-node src/modules/arte-aprovacao/scripts/migrate-comentarios-to-mensagens.ts",
     "migrate:os-materiais": "ts-node ./scripts/migrar-os-materiais-corretos.ts",
     "corrigir:os-materiais": "ts-node ./scripts/corrigir-os-materiais-completo.ts"

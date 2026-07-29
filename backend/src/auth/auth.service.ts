@@ -9,6 +9,7 @@ export interface JwtPayload {
   loja_id: string;
   funcao: string;
   nome_completo: string;
+  loja_session_version: number;
   loja?: loja;
 }
 
@@ -44,6 +45,7 @@ export class AuthService {
       loja_id: user.loja_id,
       funcao: user.funcao,
       nome_completo: user.nome_completo,
+      loja_session_version: user.loja?.session_version ?? 0,
       loja: user.loja,
     };
 

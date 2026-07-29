@@ -1,0 +1,16 @@
+export const ADMIN_SESSION_COOKIE_NAME = 'comunikapp_admin_session';
+export const ADMIN_JWT_STRATEGY = 'admin-jwt';
+export const ADMIN_PUBLIC_KEY = 'admin_public';
+
+export const ADMIN_PERMISSIONS = {
+  ADMIN_MANAGE: 'ADMIN_MANAGE',
+  AUDIT_READ: 'AUDIT_READ',
+  STORE_READ: 'STORE_READ',
+  STORE_STATUS_CHANGE: 'STORE_STATUS_CHANGE',
+  PRODUCT_UPDATE_READ: 'PRODUCT_UPDATE_READ',
+  PRODUCT_UPDATE_WRITE: 'PRODUCT_UPDATE_WRITE',
+  PRODUCT_UPDATE_PUBLISH: 'PRODUCT_UPDATE_PUBLISH',
+} as const;
+
+export type AdminPermission =
+  (typeof ADMIN_PERMISSIONS)[keyof typeof ADMIN_PERMISSIONS];

@@ -1,14 +1,34 @@
 # RP — Gestão Administrativa do ComunikApp
 
-**Status:** proposta inicial pronta para implementação  
+**Status:** em implementação — Fases 1 e 2 iniciadas em 29/07/2026
 **Produto:** ComunikApp  
 **Módulo:** Gestão interna da plataforma (backoffice SaaS)  
 **Público:** proprietário e equipe interna do ComunikApp  
-**Última atualização:** 24/07/2026
+**Última atualização:** 29/07/2026
 
 ## 1. Resumo executivo
 
 O ComunikApp precisa de um painel administrativo separado da operação cotidiana das lojas. Esse painel deve permitir que a equipe interna veja quais lojas participam da plataforma, controle seu acesso, acompanhe adoção, identifique riscos e administre aspectos comerciais básicos.
+
+A implementação da Fase 1 foi iniciada em 29/07/2026. O estado técnico e as
+instruções de bootstrap ficam registrados em
+`docs/gestao-comunikapp/README.md`; as regras funcionais permanecem neste RP.
+O inventário verificável do código, das migrations aplicadas localmente, das
+validações e das pendências está em
+`docs/gestao-comunikapp/STATUS-IMPLEMENTACAO.md`. Esse documento deve ser lido
+antes de qualquer retomada por outro agente.
+
+### 1.1 Marco validado em 29/07/2026
+
+- identidade administrativa, sessão revogável, RBAC, convites e 2FA
+  implementados;
+- lista, detalhe e controle do status das lojas implementados;
+- bloqueio/inativação invalida sessões existentes por `session_version`;
+- fundação de Novidades implementada com rascunho pós-deploy, revisão humana e
+  changelog público;
+- migrations administrativas aplicadas somente no banco local;
+- primeiro `SUPER_ADMIN` ativado e login local confirmado pelo proprietário;
+- produção permanece sem migration ou deploy desta entrega.
 
 A primeira versão deve privilegiar controle, segurança e dados acionáveis. Não deve tentar substituir CRM comercial, billing completo ou observabilidade técnica. O foco é responder rapidamente:
 
@@ -93,8 +113,14 @@ Princípios:
 6. **Alertas**
 7. **Auditoria**
 8. **Administradores** — somente `SUPER_ADMIN`
+9. **Novidades** — changelog, notas da versão e comunicação de produto
 
-O painel pode viver inicialmente no frontend atual, em área isolada `/gestao`, desde que use guardas e API administrativas próprias. No médio prazo, pode ser extraído para aplicação separada.
+O painel viverá inicialmente no frontend atual, em área isolada `/gestao`, servido
+preferencialmente pelo hostname dedicado `https://gestao.comunikapp.com.br`. Deve
+usar guardas, API, identidade e cookie administrativos próprios. O cookie
+administrativo será host-only e nunca compartilhará o nome ou o escopo de
+`comunikapp_session`. No médio prazo, a área poderá ser extraída para uma aplicação
+separada sem alterar seus contratos de API.
 
 ## 6. Funcionalidades
 
@@ -463,6 +489,103 @@ Logs de auditoria são append-only na aplicação. Não haverá exclusão/ediç�
 - limite de período e volume;
 - arquivo temporário com expiração.
 
+### F12 — Novidades, changelog e notas da versão
+
+A Gestão deve centralizar a preparação, revisão, publicação e distribuição das
+mudanças relevantes do ComunikApp. Um único conteúdo editorial será a fonte das
+apresentações nos diferentes canais:
+
+- **Novidades do ComunikApp / Changelog:** página pública, cronológica e
+  amigável para clientes, inicialmente em `/novidades`;
+- **Notas da versão:** registro detalhado de cada versão/deploy, com impacto,
+  módulos afetados, correções e eventuais ações necessárias;
+- **O que há de novo:** experiência resumida dentro do produto, segmentada pelos
+  módulos e público afetados;
+- **Resumo de novidades:** e-mail curto com os destaques e link para a publicação
+  completa.
+
+#### Fluxo editorial
+
+1. O pipeline identifica os PRs/commits desde o último deploy bem-sucedido.
+2. Durante o deploy, prepara uma nota preliminar com versão, commit, ambiente,
+   módulos, categorias e rastreabilidade técnica.
+3. Somente após deploy e health checks bem-sucedidos, a automação cria ou
+   atualiza um rascunho em `/gestao/novidades`.
+4. Um administrador autorizado revisa linguagem, conteúdo, público e canais.
+5. O administrador pode enviar um teste, publicar/agendar o changelog e,
+   separadamente, autorizar/agendar o e-mail e a novidade dentro do produto.
+6. Publicação, edição, agendamento, cancelamento e envio são auditados.
+
+O deploy não pode depender da disponibilidade do módulo de novidades. Falha ao
+criar o rascunho não reverte nem bloqueia o deploy; deve produzir alerta
+operacional e permitir reprocessamento idempotente.
+
+#### Conteúdo da publicação
+
+- título, slug público, resumo e conteúdo detalhado;
+- versão/tag, commit SHA, ambiente e data do deploy;
+- categoria: `NEW_MODULE | FEATURE | IMPROVEMENT | FIX | SECURITY | NOTICE`;
+- módulos afetados e público-alvo;
+- destaque principal, imagens, vídeo e CTA opcionais;
+- conteúdo específico ou derivado para changelog, produto e e-mail;
+- status editorial: `DRAFT | IN_REVIEW | SCHEDULED | PUBLISHED | ARCHIVED`;
+- canais habilitados e datas de publicação/envio;
+- autor, revisor, publicador e histórico de alterações;
+- origem `DEPLOY_AUTOMATION | MANUAL`;
+- chave idempotente do deploy, inicialmente `environment + commit_sha`.
+
+As notas geradas automaticamente são sugestões e devem aparecer identificadas
+como tal. Nenhum conteúdo é publicado e nenhum e-mail é disparado sem aprovação
+humana explícita.
+
+#### Classificação dos PRs
+
+O processo de desenvolvimento deve adotar labels equivalentes a:
+
+- `release:feature`, `release:improvement`, `release:fix`;
+- `release:security`, `release:breaking`;
+- `release:internal`, `release:skip`;
+- `module:<codigo-do-modulo>`.
+
+Itens `internal` ou `skip` podem permanecer na rastreabilidade interna, mas não
+entram automaticamente no texto destinado ao cliente. Informações sensíveis de
+segurança, infraestrutura, segredos, vulnerabilidades ainda não divulgadas,
+nomes de clientes e dados pessoais nunca devem compor o rascunho público.
+
+#### Publicação e distribuição
+
+- publicar no changelog não implica enviar e-mail;
+- pequenos deploys podem ser agrupados em um resumo periódico;
+- e-mails são recomendados para novo módulo, mudança relevante, ação exigida,
+  melhoria significativa ou comunicado de segurança apropriado;
+- deve existir preview por canal e envio de e-mail de teste;
+- a audiência pode ser todas as lojas ou um segmento por status, plano, módulo,
+  perfil do destinatário ou lista explícita;
+- o padrão inicial é enviar somente aos administradores ativos das lojas
+  elegíveis;
+- preferências de comunicação, descadastro, supressões, bounces e reclamações
+  devem ser respeitados;
+- destinatários e conteúdo efetivamente enviados devem ficar congelados em um
+  snapshot auditável;
+- reenvio exige nova confirmação e não pode duplicar destinatários por acidente;
+- rollback não apaga publicação anterior: permite cancelar o agendamento,
+  arquivar o conteúdo ainda não comunicado ou publicar aviso de reversão.
+
+#### Automação do deploy
+
+O pipeline chamará um endpoint interno autenticado por credencial de serviço de
+escopo mínimo. Essa credencial não representa um administrador humano, deve ser
+rotacionável e só poderá criar/atualizar rascunhos originados por deploy.
+
+O payload deve conter apenas metadados allowlisted. A API validará assinatura,
+timestamp/replay, ambiente permitido e chave idempotente. O pipeline poderá
+reprocessar a mesma versão com segurança e deverá registrar correlation ID sem
+registrar a credencial.
+
+Uma futura geração assistida por IA poderá resumir PRs e adaptar o tom para cada
+canal, mas o conteúdo de entrada será sanitizado e a revisão humana continuará
+obrigatória.
+
 ## 7. Indicadores e definições
 
 | Indicador | Definição inicial |
@@ -536,7 +659,15 @@ Nomes finais devem seguir a convenção do schema existente.
 - `loja_id`, `plan_id`;
 - status, início/fim de trial, início/fim de vigência;
 - cancelamento e motivo;
-- fornecedor externo/ID externo futuramente.
+- `billing_provider` e IDs externos genéricos e opcionais;
+- dados de cobrança específicos do provedor ficam em integração/adaptador, não
+  no domínio de assinatura.
+
+Planos, assinatura, vigência, módulos e entitlements pertencem ao domínio do
+ComunikApp. A futura operadora de cobrança será uma integração substituível. Seus
+webhooks devem ser autenticados, idempotentes e convertidos para comandos/eventos
+internos, sem tornar as regras de acesso dependentes de Stripe, Mercado Pago ou
+qualquer fornecedor específico.
 
 ### `loja_module_entitlement`
 
@@ -563,6 +694,43 @@ Agregado diário por loja para evitar consultas pesadas nas tabelas transacionai
 ### `loja_internal_note`
 
 - loja, autor, categoria, conteúdo, fixada e timestamps.
+
+### `product_update`
+
+- título, slug, resumo, corpo detalhado e categoria;
+- status editorial, origem e canais habilitados;
+- versão, tag, commit SHA, ambiente e chave idempotente do deploy;
+- módulos/públicos afetados em relações próprias ou filtros `Json` validados;
+- datas de deploy, revisão, agendamento e publicação;
+- administrador autor, revisor e publicador, quando houver;
+- índices por status/data, slug público e chave única do deploy.
+
+### `product_update_revision`
+
+- publicação, número da revisão, conteúdo/campos editoriais em snapshot;
+- autor da alteração, origem, data e motivo;
+- append-only para preservar o histórico editorial.
+
+### `product_update_delivery`
+
+- publicação, canal (`PUBLIC_CHANGELOG | IN_APP | EMAIL`);
+- status, audiência congelada/snapshot, agendamento, início e conclusão;
+- provedor externo opcional e chave idempotente;
+- totais agregados de destinatários, entregas, falhas e descadastros.
+
+### `product_update_recipient`
+
+- entrega, loja e usuário/destinatário quando aplicável;
+- endereço normalizado ou referência interna, status e timestamps;
+- identificador externo opcional, erro sanitizado e chave de deduplicação;
+- índices iniciados por `loja_id` quando o registro pertencer a uma loja;
+- retenção e minimização definidas antes de persistir eventos detalhados.
+
+### `product_update_read`
+
+- publicação, `loja_id`, `usuario_id`, primeira visualização e confirmação
+  opcional;
+- chave única por publicação/usuário e índices iniciados por `loja_id`.
 
 ### Campos complementares
 
@@ -606,6 +774,26 @@ POST   /stores/:id/notes
 GET    /plans
 POST   /exports/stores
 GET    /audit
+GET    /product-updates
+POST   /product-updates
+GET    /product-updates/:id
+PATCH  /product-updates/:id
+POST   /product-updates/:id/request-review
+POST   /product-updates/:id/publish
+POST   /product-updates/:id/schedule
+POST   /product-updates/:id/email/test
+POST   /product-updates/:id/email/send
+POST   /product-updates/:id/archive
+POST   /internal/deploy-product-updates
+```
+
+Rotas públicas/autenticadas de consumo ficam fora do namespace administrativo:
+
+```text
+GET    /api/public/v1/product-updates
+GET    /api/public/v1/product-updates/:slug
+GET    /api/v1/product-updates/in-app
+POST   /api/v1/product-updates/:id/read
 ```
 
 Requisitos:
@@ -633,6 +821,12 @@ Requisitos:
 - Bloqueio de loja deve revogar sessões.
 - Alterações críticas podem exigir reautenticação.
 - Definir retenção e descarte de telemetria conforme LGPD antes da produção.
+- Credenciais de automação de deploy usam escopo mínimo, rotação e proteção
+  contra replay; nunca autorizam publicação ou envio.
+- Conteúdo público e HTML de e-mail devem ser sanitizados para impedir XSS,
+  URLs perigosas e vazamento de metadados internos.
+- Disparos respeitam preferências, supressões e limites do provedor; listas de
+  destinatários não são exportadas para o changelog público.
 
 ## 11. Requisitos não funcionais
 
@@ -690,13 +884,23 @@ Exibir:
 15. O convidado define a própria senha por link de uso único; nenhuma senha é enviada por e-mail.
 16. Convites expirados, cancelados ou já utilizados não podem ser aceitos.
 17. Convites administrativos e de loja geram auditoria em todas as mudanças de estado.
+18. Um deploy bem-sucedido pode criar idempotentemente um rascunho de notas da
+    versão sem bloquear o deploy se a integração estiver indisponível.
+19. O rascunho não é publicado nem enviado sem aprovação humana explícita.
+20. Uma publicação aprovada pode alimentar separadamente o changelog público, a
+    central “O que há de novo” e o resumo por e-mail.
+21. O envio permite teste, segmentação, agendamento, deduplicação e respeita
+    preferências/supressões.
+22. Conteúdo interno, segredos e dados pessoais não aparecem nas notas públicas.
+23. Edição, revisão, publicação, agendamento, envio, falha e arquivamento geram
+    auditoria e possuem proteção contra duplo processamento.
 
 ## 14. Fases de implementação
 
 ### Fase 0 — Contratos e segurança
 
-- confirmar papéis e matriz de permissão;
-- decidir fonte de verdade de trial/assinatura;
+- documentar papéis confirmados e matriz de permissão;
+- registrar a fonte de verdade transitória e a migração futura de trial/assinatura;
 - inventariar módulos e eventos;
 - criar ADR sobre identidade administrativa;
 - testes de status da loja em autenticação e requests;
@@ -723,6 +927,9 @@ Exibir:
 - saúde e alertas;
 - observações internas;
 - exportação.
+- fundação editorial de novidades/changelog;
+- integração idempotente do deploy para criação de rascunhos;
+- página pública de novidades e central “O que há de novo”.
 
 ### Fase 3 — Comercial e produto
 
@@ -730,7 +937,8 @@ Exibir:
 - histórico de assinatura;
 - dependências de módulos;
 - trial automatizado;
-- integração futura com cobrança.
+- integração futura com cobrança por adaptador neutro;
+- segmentação, agendamento e distribuição de novidades por e-mail.
 
 ### Fase 4 — Escala
 
@@ -762,6 +970,8 @@ Exibir:
 - planos/módulos;
 - observações;
 - exportação.
+- novidades/changelog com rascunho automatizado pelo deploy;
+- página pública e comunicação dentro do produto.
 
 ### P2 — evolução
 
@@ -772,6 +982,8 @@ Exibir:
 - tarefas e responsáveis;
 - impersonação controlada;
 - API/webhooks externos.
+- geração assistida de notas da versão;
+- campanhas avançadas e experimentos de comunicação.
 
 ## 16. Riscos e mitigação
 
@@ -786,21 +998,53 @@ Exibir:
 | Desabilitar menu sem bloquear API | entitlement obrigatório no backend |
 | Auditoria contendo segredo | sanitização e allowlist de campos |
 | Score de saúde enganoso | regras visíveis e fatores explicáveis |
+| Nota automática expõe conteúdo interno | labels, allowlist, sanitização e revisão humana obrigatória |
+| Falha no changelog interrompe deploy | integração desacoplada, retry e alerta não bloqueante |
+| Publicação ou e-mail duplicado | chave idempotente, confirmação e deduplicação por destinatário |
+| Acoplamento à futura operadora | domínio próprio de assinatura e adaptadores por provedor |
 
-## 17. Decisões pendentes antes de codificar
+## 17. Decisões fechadas e pendências não bloqueantes
 
-1. Quem serão os primeiros administradores e quais papéis são realmente necessários?
-2. A identidade administrativa ficará em tabela separada ou provedor de identidade externo?
-3. Qual é a fonte de verdade atual da assinatura?
-4. Quais módulos comerciais existem no lançamento e quais dependências são oficiais?
-5. Qual é o marco de ativação da loja para o negócio?
-6. Quais valores financeiros podem aparecer para suporte, operação e analistas?
-7. Qual retenção será adotada para eventos, auditoria e exportações?
-8. Loja inativa pode acessar uma tela de cobrança ou fica totalmente impedida?
-9. O trial é prorrogável? Quem pode prorrogá-lo e por quanto tempo?
-10. Quais lojas internas/demonstração devem ser excluídas das métricas?
+### 17.1 Decisões fechadas em 29/07/2026
 
-As perguntas não impedem a construção da Fase 1, desde que sejam usados defaults conservadores e feature flags.
+1. O primeiro ciclo seguirá o entregável seguro da Fase 1; dashboard visual,
+   planos avançados e telemetria não atrasam sua fundação.
+2. A identidade administrativa será separada em `admin_user` e `admin_session`;
+   `usuario` e o JWT das lojas nunca autorizam `/gestao`.
+3. O primeiro `SUPER_ADMIN` será criado por comando/seed explícito, idempotente e
+   restrito ao ambiente, recebendo nome/e-mail e sem senha fixa em migration.
+4. O mecanismo legado `PLATFORM_ADMIN_EMAILS` será apenas ponte de bootstrap. A
+   funcionalidade de `/admin-plataforma` será migrada para `/gestao` e o guard
+   por lista de e-mails será descontinuado.
+5. A Gestão usará preferencialmente `gestao.comunikapp.com.br`, cookie
+   administrativo host-only e sessão distinta da sessão de loja.
+6. Os cinco papéis do RP existem desde o início, com matriz explícita e negação
+   por padrão, mesmo que inicialmente só haja contas `SUPER_ADMIN`.
+7. Na transição, `loja.status` e `loja.assinatura_ativa` permanecem fontes atuais.
+   `trial_restante_dias` é legado e não recebe novas escritas. A Fase 3 migra a
+   fonte de verdade para `loja_subscription`, baseada em datas.
+8. Planos e assinaturas são agnósticos à operadora; cobrança externa entra por
+   adaptador e webhooks idempotentes.
+9. Novidades são administradas na Gestão e publicadas como changelog, conteúdo
+   dentro do produto e e-mail, sempre com revisão humana.
+10. Após deploy e health checks, o pipeline cria rascunho idempotente das notas
+    da versão. A indisponibilidade dessa integração não bloqueia o deploy.
+
+### 17.2 Pendências não bloqueantes
+
+1. Quais módulos comerciais existem no lançamento e quais dependências são oficiais?
+2. Qual é o marco de ativação da loja para o negócio?
+3. Quais valores financeiros podem aparecer para suporte, operação e analistas?
+4. Qual retenção será adotada para eventos, auditoria, exportações e entregas?
+5. Loja inativa pode acessar uma tela de cobrança ou fica totalmente impedida?
+6. O trial é prorrogável? Quem pode prorrogá-lo e por quanto tempo?
+7. Quais lojas internas/demonstração devem ser excluídas das métricas?
+8. Qual provedor de e-mail transacional/campanhas será utilizado inicialmente?
+9. Qual cadência padrão será usada para agrupar atualizações pequenas?
+
+Essas perguntas não impedem a Fase 1. Até serem fechadas, devem ser usados
+defaults conservadores, feature flags e nenhuma coleta/distribuição além do
+necessário.
 
 ## 18. Orientação para o próximo agente
 

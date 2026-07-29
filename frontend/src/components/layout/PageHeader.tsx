@@ -15,8 +15,8 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, backHref, icon, subtitle, actions }: PageHeaderProps) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex min-w-0 items-start gap-4">
         {backHref && (
           <Link href={backHref}>
             <Button variant="outline" size="sm">
@@ -26,14 +26,14 @@ export function PageHeader({ title, backHref, icon, subtitle, actions }: PageHea
           </Link>
         )}
         <div>
-          <h1 className="flex items-center gap-2 text-3xl font-bold text-foreground">
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground sm:text-3xl">
             {icon}
             {title}
           </h1>
           {subtitle && <p className="mt-1 text-muted-foreground">{subtitle}</p>}
         </div>
       </div>
-      {actions && <div className="flex gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>
   );
 }

@@ -8,57 +8,57 @@ datasource db {
 }
 
 model Insumo {
-  id                      String                 @id @default(cuid())
-  loja_id                 String
-  nome                    String
-  descricao_tecnica       String?
-  descricao               String? // Campo para V2
-  codigo                  String? // Campo para V2
-  custo_unitario          Decimal                @db.Decimal(10, 2)
-  estoque_minimo          Int?
-  estoque_atual           Decimal?               @db.Decimal(10, 3) // Campo para V2
-  codigo_interno          String?
-  observacoes             String?
-  categoriaId             String
-  fornecedorId            String
-  atualizado_em           DateTime               @updatedAt
-  criado_em               DateTime               @default(now())
-  ativo                   Boolean                @default(true)
-  fator_conversao         Decimal                @db.Decimal(10, 4)
-  quantidade_compra       Decimal                @db.Decimal(10, 3)
-  unidade_uso             String
-  altura                  Decimal?               @db.Decimal(10, 2)
-  gramatura               Decimal?               @db.Decimal(10, 1)
-  largura                 Decimal?               @db.Decimal(10, 2)
-  unidade_compra          String
-  tipo_calculo            String?
-  unidade_dimensao        String?
-  tipoMaterialId          String?
-  logica_consumo          LogicaConsumoInsumo    @default(area)
-  parametros_consumo      String?                @db.LongText
-  formato_material        String?                @db.VarChar(32)
-  largura_comercial       Decimal?               @db.Decimal(10, 3)
-  altura_comercial        Decimal?               @db.Decimal(10, 3)
-  comprimento_comercial   Decimal?               @db.Decimal(10, 3)
-  area_comercial          Decimal?               @db.Decimal(10, 4)
-  perda_padrao_percent    Decimal?               @db.Decimal(5, 2)
-  permite_simulacao_chapa Boolean                @default(false)
-  controla_estoque        Boolean                @default(false)
-  permite_registrar_sobra Boolean                @default(false)
-  retalho_min_largura     Decimal?               @db.Decimal(10, 3)
-  retalho_min_altura      Decimal?               @db.Decimal(10, 3)
-  retalho_min_area        Decimal?               @db.Decimal(10, 4)
-  metodo_cobranca_padrao  String?                @db.VarChar(32)
-  historico_precos        HistoricoPrecoInsumo[]
-  categoria               Categoria              @relation(fields: [categoriaId], references: [id])
-  fornecedor              fornecedor             @relation(fields: [fornecedorId], references: [id])
-  loja                    loja                   @relation(fields: [loja_id], references: [id], onDelete: Cascade)
-  tipoMaterial            tipomaterial?          @relation(fields: [tipoMaterialId], references: [id])
-  itens_template          ItemTemplateProduto[]
-  itemorcamento           itemorcamento[]
-  itemInsumo              ItemInsumo[]
-  estoque                 estoque[]
-  fornecedores_associados InsumoFornecedor[]
+  id                       String                  @id @default(cuid())
+  loja_id                  String
+  nome                     String
+  descricao_tecnica        String?
+  descricao                String? // Campo para V2
+  codigo                   String? // Campo para V2
+  custo_unitario           Decimal                 @db.Decimal(10, 2)
+  estoque_minimo           Int?
+  estoque_atual            Decimal?                @db.Decimal(10, 3) // Campo para V2
+  codigo_interno           String?
+  observacoes              String?
+  categoriaId              String
+  fornecedorId             String
+  atualizado_em            DateTime                @updatedAt
+  criado_em                DateTime                @default(now())
+  ativo                    Boolean                 @default(true)
+  fator_conversao          Decimal                 @db.Decimal(10, 4)
+  quantidade_compra        Decimal                 @db.Decimal(10, 3)
+  unidade_uso              String
+  altura                   Decimal?                @db.Decimal(10, 2)
+  gramatura                Decimal?                @db.Decimal(10, 1)
+  largura                  Decimal?                @db.Decimal(10, 2)
+  unidade_compra           String
+  tipo_calculo             String?
+  unidade_dimensao         String?
+  tipoMaterialId           String?
+  logica_consumo           LogicaConsumoInsumo     @default(area)
+  parametros_consumo       String?                 @db.LongText
+  formato_material         String?                 @db.VarChar(32)
+  largura_comercial        Decimal?                @db.Decimal(10, 3)
+  altura_comercial         Decimal?                @db.Decimal(10, 3)
+  comprimento_comercial    Decimal?                @db.Decimal(10, 3)
+  area_comercial           Decimal?                @db.Decimal(10, 4)
+  perda_padrao_percent     Decimal?                @db.Decimal(5, 2)
+  permite_simulacao_chapa  Boolean                 @default(false)
+  controla_estoque         Boolean                 @default(false)
+  permite_registrar_sobra  Boolean                 @default(false)
+  retalho_min_largura      Decimal?                @db.Decimal(10, 3)
+  retalho_min_altura       Decimal?                @db.Decimal(10, 3)
+  retalho_min_area         Decimal?                @db.Decimal(10, 4)
+  metodo_cobranca_padrao   String?                 @db.VarChar(32)
+  historico_precos         HistoricoPrecoInsumo[]
+  categoria                Categoria               @relation(fields: [categoriaId], references: [id])
+  fornecedor               fornecedor              @relation(fields: [fornecedorId], references: [id])
+  loja                     loja                    @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  tipoMaterial             tipomaterial?           @relation(fields: [tipoMaterialId], references: [id])
+  itens_template           ItemTemplateProduto[]
+  itemorcamento            itemorcamento[]
+  itemInsumo               ItemInsumo[]
+  estoque                  estoque[]
+  fornecedores_associados  InsumoFornecedor[]
   solicitacao_compra_itens SolicitacaoCompraItem[]
   pedido_compra_itens      PedidoCompraItem[]
 
@@ -543,15 +543,15 @@ model fornecedor {
   especialidades Json?
 
   // Relacionamentos
-  loja                           loja                     @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Fornecedor_loja_id_fkey")
+  loja                           loja                 @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Fornecedor_loja_id_fkey")
   insumos                        Insumo[]
   itens_terceirizados            ItemOS[]
   produtos_orcados_terceirizados ProdutoOrcamento[]
   ordens_terceirizacao           OrdemTerceirizacao[]
-  produtos_orcados_instalacao    ProdutoOrcamento[]       @relation("ProdutoOrcamentoFornecedorInstalacao")
-  lotes_instalacao_terceirizados ItemOSInstalacao[]       @relation("ItemOSInstalacaoFornecedor")
+  produtos_orcados_instalacao    ProdutoOrcamento[]   @relation("ProdutoOrcamentoFornecedorInstalacao")
+  lotes_instalacao_terceirizados ItemOSInstalacao[]   @relation("ItemOSInstalacaoFornecedor")
   insumos_associados             InsumoFornecedor[]
-  itens_insumo_previstos         ItemInsumo[]              @relation("ItemInsumoFornecedorPrevisto")
+  itens_insumo_previstos         ItemInsumo[]         @relation("ItemInsumoFornecedorPrevisto")
   pedidos_compra                 PedidoCompra[]
   contas_pagar                   ContaPagar[]
 
@@ -616,58 +616,59 @@ model itemorcamento {
 }
 
 model loja {
-  id                       String      @id @default(cuid())
-  email                    String      @unique(map: "Loja_email_key")
-  status                   loja_status @default(PENDENTE_VERIFICACAO)
-  assinatura_ativa         Boolean     @default(false)
-  atualizado_em            DateTime
-  cabecalho_orcamento      String?     @db.Text
-  cnpj                     String?     @unique(map: "Loja_cnpj_key")
-  cpf                      String?     @unique(map: "Loja_cpf_key")
-  criado_em                DateTime    @default(now())
-  custo_maodeobra_hora     Decimal?    @db.Decimal(10, 2)
-  custo_maquinaria_hora    Decimal?    @db.Decimal(10, 2)
-  custos_indiretos_mensais Decimal?    @db.Decimal(10, 2)
-  data_inicio_trial        DateTime?
-  impostos_padrao          Decimal?    @db.Decimal(5, 2)
-  comissao_padrao          Decimal?    @db.Decimal(5, 2)
-  logo_url                 String?
-  site_url                 String?     @db.VarChar(255)
-  instagram_url            String?     @db.VarChar(255)
-  facebook_url             String?     @db.VarChar(255)
-  linkedin_url             String?     @db.VarChar(255)
-  margem_lucro_padrao      Decimal?    @db.Decimal(5, 2)
-  tipo_margem_lucro        String?     @db.VarChar(24) // 'markup' | 'margem_por_dentro'; padrão da loja
-  nome                     String
-  slug                     String      @unique(map: "Loja_slug_key")
-  slug_anterior            String?     @unique(map: "Loja_slug_anterior_key")
-  slug_atualizado_em       DateTime?
-  dominio_custom           String?     @unique(map: "Loja_dominio_custom_key") @db.VarChar(253)
+  id                           String      @id @default(cuid())
+  email                        String      @unique(map: "Loja_email_key")
+  status                       loja_status @default(PENDENTE_VERIFICACAO)
+  assinatura_ativa             Boolean     @default(false)
+  session_version              Int         @default(0)
+  atualizado_em                DateTime
+  cabecalho_orcamento          String?     @db.Text
+  cnpj                         String?     @unique(map: "Loja_cnpj_key")
+  cpf                          String?     @unique(map: "Loja_cpf_key")
+  criado_em                    DateTime    @default(now())
+  custo_maodeobra_hora         Decimal?    @db.Decimal(10, 2)
+  custo_maquinaria_hora        Decimal?    @db.Decimal(10, 2)
+  custos_indiretos_mensais     Decimal?    @db.Decimal(10, 2)
+  data_inicio_trial            DateTime?
+  impostos_padrao              Decimal?    @db.Decimal(5, 2)
+  comissao_padrao              Decimal?    @db.Decimal(5, 2)
+  logo_url                     String?
+  site_url                     String?     @db.VarChar(255)
+  instagram_url                String?     @db.VarChar(255)
+  facebook_url                 String?     @db.VarChar(255)
+  linkedin_url                 String?     @db.VarChar(255)
+  margem_lucro_padrao          Decimal?    @db.Decimal(5, 2)
+  tipo_margem_lucro            String?     @db.VarChar(24) // 'markup' | 'margem_por_dentro'; padrão da loja
+  nome                         String
+  slug                         String      @unique(map: "Loja_slug_key")
+  slug_anterior                String?     @unique(map: "Loja_slug_anterior_key")
+  slug_atualizado_em           DateTime?
+  dominio_custom               String?     @unique(map: "Loja_dominio_custom_key") @db.VarChar(253)
   /// NONE | PENDENTE | VERIFICADO | ERRO
-  dominio_custom_status    String?     @db.VarChar(24)
-  dominio_custom_token     String?     @db.VarChar(64)
+  dominio_custom_status        String?     @db.VarChar(24)
+  dominio_custom_token         String?     @db.VarChar(64)
   dominio_custom_verificado_em DateTime?
-  dominio_custom_cf_id     String?     @db.VarChar(64)
-  dominio_custom_cf_status String?     @db.VarChar(64)
-  dominio_custom_cf_ssl_status String? @db.VarChar(64)
+  dominio_custom_cf_id         String?     @db.VarChar(64)
+  dominio_custom_cf_status     String?     @db.VarChar(64)
+  dominio_custom_cf_ssl_status String?     @db.VarChar(64)
   /// JSON: ownership + ssl validation_records da Cloudflare
   dominio_custom_cf_validation Json?
-  razao_social             String?
-  nome_fantasia            String?
-  inscricao_estadual       String?
-  inscricao_municipal      String?
-  cep                      String?     @db.VarChar(16)
-  logradouro               String?
-  numero                   String?     @db.VarChar(32)
-  complemento              String?
-  bairro                   String?
-  cidade                   String?
-  uf                       String?     @db.VarChar(2)
-  stripe_customer_id       String?     @unique(map: "Loja_stripe_customer_id_key")
-  telefone                 String
-  trial_restante_dias      Int?
-  horas_produtivas_mensais Int?        @default(352)
-  pcp_nivel                String?     @db.VarChar(24) // ESSENCIAL | ORGANIZADO | COMPLETO
+  razao_social                 String?
+  nome_fantasia                String?
+  inscricao_estadual           String?
+  inscricao_municipal          String?
+  cep                          String?     @db.VarChar(16)
+  logradouro                   String?
+  numero                       String?     @db.VarChar(32)
+  complemento                  String?
+  bairro                       String?
+  cidade                       String?
+  uf                           String?     @db.VarChar(2)
+  stripe_customer_id           String?     @unique(map: "Loja_stripe_customer_id_key")
+  telefone                     String
+  trial_restante_dias          Int?
+  horas_produtivas_mensais     Int?        @default(352)
+  pcp_nivel                    String?     @db.VarChar(24) // ESSENCIAL | ORGANIZADO | COMPLETO
 
   // Condicao de pagamento padrao da loja (Home operacional / Fase 1)
   // Tipo: 'ENTRADA_SALDO' | 'A_VISTA' | 'FATURADO_30'
@@ -675,56 +676,57 @@ model loja {
   condicao_pagamento_padrao_entrada_pct Decimal? @db.Decimal(5, 2)
   condicao_pagamento_padrao_descricao   String?  @db.VarChar(255)
 
-  categorias                     Categoria[]
-  cliente                        cliente[]
-  custoindireto                  custoindireto[]
-  fornecedor                     fornecedor[]
-  funcao                         funcao[]
-  insumos                        Insumo[]
-  insumos_fornecedores           InsumoFornecedor[]
-  solicitacoes_compra            SolicitacaoCompra[]
-  pedidos_compra                 PedidoCompra[]
-  compras_historico              CompraHistorico[]
-  fechamentos_financeiros_os     FechamentoFinanceiroOS[]
-  recebimentos_compra            RecebimentoCompra[]
-  aceites_servico                AceiteServico[]
-  contas_pagar                   ContaPagar[]
-  contas_pagar_parcelas          ContaPagarParcela[]
-  pagamentos_fornecedor          PagamentoFornecedor[]
+  categorias                         Categoria[]
+  cliente                            cliente[]
+  custoindireto                      custoindireto[]
+  fornecedor                         fornecedor[]
+  funcao                             funcao[]
+  insumos                            Insumo[]
+  insumos_fornecedores               InsumoFornecedor[]
+  solicitacoes_compra                SolicitacaoCompra[]
+  pedidos_compra                     PedidoCompra[]
+  compras_historico                  CompraHistorico[]
+  fechamentos_financeiros_os         FechamentoFinanceiroOS[]
+  recebimentos_compra                RecebimentoCompra[]
+  aceites_servico                    AceiteServico[]
+  contas_pagar                       ContaPagar[]
+  contas_pagar_parcelas              ContaPagarParcela[]
+  pagamentos_fornecedor              PagamentoFornecedor[]
   pagamentos_fornecedor_apropriacoes PagamentoFornecedorApropriacao[]
-  maquina                        maquina[]
-  notificacao                    notificacao[]
-  orcamento                      orcamento[]
-  perfis_acesso                  perfil_acesso[]
-  template_produtos              TemplateProduto[]
-  tipomaterial                   tipomaterial[]
-  usuario                        usuario[]
-  servico_manual                 servico_manual[]
-  modalidades_entrega            ModalidadeEntrega[]
-  tipos_instalacao               TipoInstalacao[]
-  ordens_servico                 OrdemServico[]
-  workflows_os                   WorkflowOS[]
-  workflow_categorias            WorkflowCategoria[]
-  regras_validacao               RegraValidacao[]
-  setores_produtivos             SetorProdutivo[]
-  onboarding_operacional         OnboardingOperacional[]
-  cobrancas                      Cobranca[] // Fase 6 - financeiro minimo
-  categorias_produto_finito      CategoriaProdutoFinito[]
-  produtos_finitos               ProdutoFinito[]
-  expedicoes_logistica           ExpedicaoLogistica[]
-  configuracao_arte              ConfiguracaoArteLoja?
-  configuracao_instalacao        ConfiguracaoInstalacaoLoja?
-  conexoes                       LojaConexao[]
-  taxas_ocorrencia_instalacao    TaxaOcorrenciaLoja[]
-  itens_os_instalacao            ItemOSInstalacao[]
-  ordens_terceirizacao           OrdemTerceirizacao[]
-  ocorrencias_instalacao         OcorrenciaInstalacao[]
-  relatorios_tecnicos_instalacao RelatorioTecnicoInstalacao[]
-  orcamentos_aditivos_instalacao OrcamentoAditivoInstalacao[]
-  processos_decoracao            ProcessoDecoracao[]
-  conjuntos_campos               ConjuntoCampos[]
-  estampas                       Estampa[]
-  workflow_instancias_setor      WorkflowInstanciaSetor[]
+  maquina                            maquina[]
+  notificacao                        notificacao[]
+  orcamento                          orcamento[]
+  perfis_acesso                      perfil_acesso[]
+  template_produtos                  TemplateProduto[]
+  tipomaterial                       tipomaterial[]
+  usuario                            usuario[]
+  servico_manual                     servico_manual[]
+  modalidades_entrega                ModalidadeEntrega[]
+  tipos_instalacao                   TipoInstalacao[]
+  ordens_servico                     OrdemServico[]
+  workflows_os                       WorkflowOS[]
+  workflow_categorias                WorkflowCategoria[]
+  regras_validacao                   RegraValidacao[]
+  setores_produtivos                 SetorProdutivo[]
+  onboarding_operacional             OnboardingOperacional[]
+  cobrancas                          Cobranca[] // Fase 6 - financeiro minimo
+  categorias_produto_finito          CategoriaProdutoFinito[]
+  produtos_finitos                   ProdutoFinito[]
+  expedicoes_logistica               ExpedicaoLogistica[]
+  configuracao_arte                  ConfiguracaoArteLoja?
+  configuracao_instalacao            ConfiguracaoInstalacaoLoja?
+  conexoes                           LojaConexao[]
+  taxas_ocorrencia_instalacao        TaxaOcorrenciaLoja[]
+  itens_os_instalacao                ItemOSInstalacao[]
+  ordens_terceirizacao               OrdemTerceirizacao[]
+  ocorrencias_instalacao             OcorrenciaInstalacao[]
+  relatorios_tecnicos_instalacao     RelatorioTecnicoInstalacao[]
+  orcamentos_aditivos_instalacao     OrcamentoAditivoInstalacao[]
+  processos_decoracao                ProcessoDecoracao[]
+  conjuntos_campos                   ConjuntoCampos[]
+  estampas                           Estampa[]
+  workflow_instancias_setor          WorkflowInstanciaSetor[]
+  admin_audit_logs                   admin_audit_log[]
 }
 
 model InsumoFornecedor {
@@ -806,21 +808,21 @@ enum DestinoApropriacaoCompra {
 }
 
 model SolicitacaoCompra {
-  id              String                   @id @default(cuid())
+  id              String                  @id @default(cuid())
   loja_id         String
   numero          String
-  status          StatusSolicitacaoCompra  @default(RASCUNHO)
-  prioridade      PrioridadeCompra         @default(NORMAL)
-  origem_tipo     OrigemNecessidadeCompra  @default(MANUAL)
+  status          StatusSolicitacaoCompra @default(RASCUNHO)
+  prioridade      PrioridadeCompra        @default(NORMAL)
+  origem_tipo     OrigemNecessidadeCompra @default(MANUAL)
   origem_id       String?
   solicitante_id  String
-  justificativa   String?                  @db.Text
+  justificativa   String?                 @db.Text
   data_necessaria DateTime?
-  criado_em       DateTime                 @default(now())
-  atualizado_em   DateTime                 @updatedAt
+  criado_em       DateTime                @default(now())
+  atualizado_em   DateTime                @updatedAt
 
-  loja        loja                   @relation(fields: [loja_id], references: [id], onDelete: Cascade)
-  solicitante usuario                @relation("SolicitacaoCompraSolicitante", fields: [solicitante_id], references: [id], onDelete: Restrict)
+  loja        loja                    @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  solicitante usuario                 @relation("SolicitacaoCompraSolicitante", fields: [solicitante_id], references: [id], onDelete: Restrict)
   itens       SolicitacaoCompraItem[]
 
   @@unique([loja_id, numero])
@@ -831,21 +833,21 @@ model SolicitacaoCompra {
 }
 
 model SolicitacaoCompraItem {
-  id                      String         @id @default(cuid())
-  loja_id                 String
-  solicitacao_id          String
-  tipo                    TipoItemCompra
-  insumo_id               String?
-  descricao               String
-  quantidade              Decimal        @db.Decimal(12, 3)
-  unidade                 String
-  item_os_id              String?
-  ordem_terceirizacao_id  String?
-  criado_em               DateTime       @default(now())
+  id                     String         @id @default(cuid())
+  loja_id                String
+  solicitacao_id         String
+  tipo                   TipoItemCompra
+  insumo_id              String?
+  descricao              String
+  quantidade             Decimal        @db.Decimal(12, 3)
+  unidade                String
+  item_os_id             String?
+  ordem_terceirizacao_id String?
+  criado_em              DateTime       @default(now())
 
-  solicitacao         SolicitacaoCompra  @relation(fields: [solicitacao_id], references: [id], onDelete: Cascade)
-  insumo              Insumo?            @relation(fields: [insumo_id], references: [id], onDelete: Restrict)
-  item_os             ItemOS?            @relation(fields: [item_os_id], references: [id], onDelete: SetNull)
+  solicitacao         SolicitacaoCompra   @relation(fields: [solicitacao_id], references: [id], onDelete: Cascade)
+  insumo              Insumo?             @relation(fields: [insumo_id], references: [id], onDelete: Restrict)
+  item_os             ItemOS?             @relation(fields: [item_os_id], references: [id], onDelete: SetNull)
   ordem_terceirizacao OrdemTerceirizacao? @relation(fields: [ordem_terceirizacao_id], references: [id], onDelete: SetNull)
   pedido_itens        PedidoCompraItem[]
 
@@ -858,40 +860,40 @@ model SolicitacaoCompraItem {
 }
 
 model PedidoCompra {
-  id                     String             @id @default(cuid())
-  loja_id                String
-  numero                 String
-  fornecedor_id          String
-  status                 StatusPedidoCompra @default(RASCUNHO)
-  pedido_substituido_id  String?
-  motivo_substituicao    String?            @db.Text
-  moeda                  String             @default("BRL") @db.VarChar(3)
-  subtotal               Decimal            @default(0) @db.Decimal(12, 2)
-  desconto               Decimal            @default(0) @db.Decimal(12, 2)
-  frete                  Decimal            @default(0) @db.Decimal(12, 2)
-  total                  Decimal            @default(0) @db.Decimal(12, 2)
-  data_emissao           DateTime?
-  data_prevista          DateTime?
-  condicao_pagamento     String?            @db.VarChar(255)
-  observacoes            String?            @db.Text
-  aprovado_por           String?
-  aprovado_em            DateTime?
-  enviado_em             DateTime?
-  cancelado_em           DateTime?
-  cancelado_por          String?
-  motivo_cancelamento    String?            @db.Text
-  versao                 Int                @default(1)
-  criado_em              DateTime           @default(now())
-  atualizado_em          DateTime           @updatedAt
+  id                    String             @id @default(cuid())
+  loja_id               String
+  numero                String
+  fornecedor_id         String
+  status                StatusPedidoCompra @default(RASCUNHO)
+  pedido_substituido_id String?
+  motivo_substituicao   String?            @db.Text
+  moeda                 String             @default("BRL") @db.VarChar(3)
+  subtotal              Decimal            @default(0) @db.Decimal(12, 2)
+  desconto              Decimal            @default(0) @db.Decimal(12, 2)
+  frete                 Decimal            @default(0) @db.Decimal(12, 2)
+  total                 Decimal            @default(0) @db.Decimal(12, 2)
+  data_emissao          DateTime?
+  data_prevista         DateTime?
+  condicao_pagamento    String?            @db.VarChar(255)
+  observacoes           String?            @db.Text
+  aprovado_por          String?
+  aprovado_em           DateTime?
+  enviado_em            DateTime?
+  cancelado_em          DateTime?
+  cancelado_por         String?
+  motivo_cancelamento   String?            @db.Text
+  versao                Int                @default(1)
+  criado_em             DateTime           @default(now())
+  atualizado_em         DateTime           @updatedAt
 
-  loja               loja            @relation(fields: [loja_id], references: [id], onDelete: Cascade)
-  fornecedor         fornecedor      @relation(fields: [fornecedor_id], references: [id], onDelete: Restrict)
-  pedido_substituido PedidoCompra?   @relation("PedidoCompraSubstituicao", fields: [pedido_substituido_id], references: [id], onDelete: SetNull)
-  pedidos_substitutos PedidoCompra[] @relation("PedidoCompraSubstituicao")
-  itens              PedidoCompraItem[]
-  recebimentos       RecebimentoCompra[]
-  aceites            AceiteServico[]
-  contas_pagar       ContaPagar[]
+  loja                loja                @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  fornecedor          fornecedor          @relation(fields: [fornecedor_id], references: [id], onDelete: Restrict)
+  pedido_substituido  PedidoCompra?       @relation("PedidoCompraSubstituicao", fields: [pedido_substituido_id], references: [id], onDelete: SetNull)
+  pedidos_substitutos PedidoCompra[]      @relation("PedidoCompraSubstituicao")
+  itens               PedidoCompraItem[]
+  recebimentos        RecebimentoCompra[]
+  aceites             AceiteServico[]
+  contas_pagar        ContaPagar[]
 
   @@unique([loja_id, numero])
   @@index([loja_id, status])
@@ -921,10 +923,10 @@ model PedidoCompraItem {
   criado_em              DateTime       @default(now())
   atualizado_em          DateTime       @updatedAt
 
-  pedido              PedidoCompra                 @relation(fields: [pedido_id], references: [id], onDelete: Cascade)
-  solicitacao_item    SolicitacaoCompraItem?       @relation(fields: [solicitacao_item_id], references: [id], onDelete: SetNull)
-  insumo              Insumo?                      @relation(fields: [insumo_id], references: [id], onDelete: Restrict)
-  ordem_terceirizacao OrdemTerceirizacao?          @relation("PedidoCompraItemOrdemTerceirizacao", fields: [ordem_terceirizacao_id], references: [id], onDelete: SetNull)
+  pedido              PedidoCompra                  @relation(fields: [pedido_id], references: [id], onDelete: Cascade)
+  solicitacao_item    SolicitacaoCompraItem?        @relation(fields: [solicitacao_item_id], references: [id], onDelete: SetNull)
+  insumo              Insumo?                       @relation(fields: [insumo_id], references: [id], onDelete: Restrict)
+  ordem_terceirizacao OrdemTerceirizacao?           @relation("PedidoCompraItemOrdemTerceirizacao", fields: [ordem_terceirizacao_id], references: [id], onDelete: SetNull)
   apropriacoes        PedidoCompraItemApropriacao[]
   recebimento_itens   RecebimentoCompraItem[]
   aceite_itens        AceiteServicoItem[]
@@ -938,21 +940,21 @@ model PedidoCompraItem {
 }
 
 model PedidoCompraItemApropriacao {
-  id             String                    @id @default(cuid())
+  id             String                   @id @default(cuid())
   loja_id        String
   pedido_item_id String
   destino_tipo   DestinoApropriacaoCompra
   os_id          String?
   item_os_id     String?
   centro_custo   String?
-  percentual     Decimal?                  @db.Decimal(5, 2)
-  valor_previsto Decimal                   @db.Decimal(12, 2)
-  criado_em      DateTime                  @default(now())
-  atualizado_em  DateTime                  @updatedAt
+  percentual     Decimal?                 @db.Decimal(5, 2)
+  valor_previsto Decimal                  @db.Decimal(12, 2)
+  criado_em      DateTime                 @default(now())
+  atualizado_em  DateTime                 @updatedAt
 
-  pedido_item PedidoCompraItem @relation(fields: [pedido_item_id], references: [id], onDelete: Cascade)
-  os          OrdemServico?    @relation(fields: [os_id], references: [id], onDelete: SetNull)
-  item_os     ItemOS?          @relation("PedidoCompraApropriacaoItemOS", fields: [item_os_id], references: [id], onDelete: SetNull)
+  pedido_item             PedidoCompraItem                 @relation(fields: [pedido_item_id], references: [id], onDelete: Cascade)
+  os                      OrdemServico?                    @relation(fields: [os_id], references: [id], onDelete: SetNull)
+  item_os                 ItemOS?                          @relation("PedidoCompraApropriacaoItemOS", fields: [item_os_id], references: [id], onDelete: SetNull)
   pagamentos_apropriacoes PagamentoFornecedorApropriacao[]
 
   @@index([loja_id])
@@ -993,23 +995,23 @@ enum StatusFechamentoFinanceiroOS {
 }
 
 model FechamentoFinanceiroOS {
-  id                String                         @id @default(cuid())
+  id                String                       @id @default(cuid())
   loja_id           String
-  os_id             String                         @unique
-  status            StatusFechamentoFinanceiroOS   @default(PENDENTE)
+  os_id             String                       @unique
+  status            StatusFechamentoFinanceiroOS @default(PENDENTE)
   fechado_em        DateTime?
   fechado_por       String?
   reaberto_em       DateTime?
   reaberto_por      String?
-  motivo_reabertura String?                        @db.Text
-  versao            Int                            @default(1)
-  criado_em         DateTime                       @default(now())
-  atualizado_em     DateTime                       @updatedAt
+  motivo_reabertura String?                      @db.Text
+  versao            Int                          @default(1)
+  criado_em         DateTime                     @default(now())
+  atualizado_em     DateTime                     @updatedAt
 
-  loja           loja         @relation(fields: [loja_id], references: [id], onDelete: Cascade)
-  ordem_servico  OrdemServico @relation(fields: [os_id], references: [id], onDelete: Restrict)
-  usuario_fechou   usuario?   @relation("FechamentoFinanceiroFechadoPor", fields: [fechado_por], references: [id], onDelete: SetNull)
-  usuario_reabriu  usuario?   @relation("FechamentoFinanceiroReabertoPor", fields: [reaberto_por], references: [id], onDelete: SetNull)
+  loja            loja         @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  ordem_servico   OrdemServico @relation(fields: [os_id], references: [id], onDelete: Restrict)
+  usuario_fechou  usuario?     @relation("FechamentoFinanceiroFechadoPor", fields: [fechado_por], references: [id], onDelete: SetNull)
+  usuario_reabriu usuario?     @relation("FechamentoFinanceiroReabertoPor", fields: [reaberto_por], references: [id], onDelete: SetNull)
 
   @@unique([loja_id, os_id])
   @@index([loja_id])
@@ -1048,10 +1050,10 @@ model RecebimentoCompra {
   criado_em            DateTime                @default(now())
   atualizado_em        DateTime                @updatedAt
 
-  loja         loja                    @relation(fields: [loja_id], references: [id], onDelete: Cascade)
-  pedido       PedidoCompra            @relation(fields: [pedido_id], references: [id], onDelete: Restrict)
-  responsavel  usuario                 @relation("RecebimentoCompraResponsavel", fields: [responsavel_id], references: [id], onDelete: Restrict)
-  itens        RecebimentoCompraItem[]
+  loja        loja                    @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  pedido      PedidoCompra            @relation(fields: [pedido_id], references: [id], onDelete: Restrict)
+  responsavel usuario                 @relation("RecebimentoCompraResponsavel", fields: [responsavel_id], references: [id], onDelete: Restrict)
+  itens       RecebimentoCompraItem[]
 
   @@unique([loja_id, numero])
   @@unique([loja_id, chave_idempotente])
@@ -1062,22 +1064,22 @@ model RecebimentoCompra {
 }
 
 model RecebimentoCompraItem {
-  id                   String   @id @default(cuid())
-  loja_id              String
-  recebimento_id       String
-  pedido_item_id       String
-  quantidade_recebida  Decimal  @db.Decimal(12, 3)
-  quantidade_aceita    Decimal  @db.Decimal(12, 3)
-  quantidade_recusada  Decimal  @db.Decimal(12, 3)
-  localizacao_id       String?
-  estoque_item_id      String?
-  lote_codigo          String?
-  observacao           String?
-  movimento_ref        String?
-  criado_em            DateTime @default(now())
+  id                  String   @id @default(cuid())
+  loja_id             String
+  recebimento_id      String
+  pedido_item_id      String
+  quantidade_recebida Decimal  @db.Decimal(12, 3)
+  quantidade_aceita   Decimal  @db.Decimal(12, 3)
+  quantidade_recusada Decimal  @db.Decimal(12, 3)
+  localizacao_id      String?
+  estoque_item_id     String?
+  lote_codigo         String?
+  observacao          String?
+  movimento_ref       String?
+  criado_em           DateTime @default(now())
 
-  recebimento  RecebimentoCompra @relation(fields: [recebimento_id], references: [id], onDelete: Cascade)
-  pedido_item  PedidoCompraItem  @relation(fields: [pedido_item_id], references: [id], onDelete: Restrict)
+  recebimento RecebimentoCompra @relation(fields: [recebimento_id], references: [id], onDelete: Cascade)
+  pedido_item PedidoCompraItem  @relation(fields: [pedido_item_id], references: [id], onDelete: Restrict)
 
   @@index([loja_id])
   @@index([recebimento_id])
@@ -1088,7 +1090,7 @@ model RecebimentoCompraItem {
 }
 
 model AceiteServico {
-  id                String             @id @default(cuid())
+  id                String              @id @default(cuid())
   loja_id           String
   pedido_id         String
   numero            String
@@ -1096,11 +1098,11 @@ model AceiteServico {
   periodo_inicio    DateTime?
   periodo_fim       DateTime?
   responsavel_id    String
-  aceite_final      Boolean            @default(false)
-  observacao        String?            @db.Text
+  aceite_final      Boolean             @default(false)
+  observacao        String?             @db.Text
   chave_idempotente String?
-  criado_em         DateTime           @default(now())
-  atualizado_em     DateTime           @updatedAt
+  criado_em         DateTime            @default(now())
+  atualizado_em     DateTime            @updatedAt
 
   loja        loja                @relation(fields: [loja_id], references: [id], onDelete: Cascade)
   pedido      PedidoCompra        @relation(fields: [pedido_id], references: [id], onDelete: Restrict)
@@ -1126,7 +1128,7 @@ model AceiteServicoItem {
   observacao        String?
   criado_em         DateTime @default(now())
 
-  aceite      AceiteServico   @relation(fields: [aceite_id], references: [id], onDelete: Cascade)
+  aceite      AceiteServico    @relation(fields: [aceite_id], references: [id], onDelete: Cascade)
   pedido_item PedidoCompraItem @relation(fields: [pedido_item_id], references: [id], onDelete: Restrict)
 
   @@index([loja_id])
@@ -1169,11 +1171,11 @@ model ContaPagar {
   criado_em         DateTime         @default(now())
   atualizado_em     DateTime         @updatedAt
 
-  loja        loja                 @relation(fields: [loja_id], references: [id], onDelete: Cascade)
-  fornecedor  fornecedor           @relation(fields: [fornecedor_id], references: [id], onDelete: Restrict)
-  pedido      PedidoCompra?        @relation(fields: [pedido_id], references: [id], onDelete: SetNull)
-  parcelas    ContaPagarParcela[]
-  pagamentos  PagamentoFornecedor[]
+  loja       loja                  @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  fornecedor fornecedor            @relation(fields: [fornecedor_id], references: [id], onDelete: Restrict)
+  pedido     PedidoCompra?         @relation(fields: [pedido_id], references: [id], onDelete: SetNull)
+  parcelas   ContaPagarParcela[]
+  pagamentos PagamentoFornecedor[]
 
   @@unique([loja_id, fornecedor_id, tipo_documento, numero_documento])
   @@unique([loja_id, chave_idempotente])
@@ -1184,16 +1186,16 @@ model ContaPagar {
 }
 
 model ContaPagarParcela {
-  id               String                   @id @default(cuid())
-  loja_id          String
-  conta_pagar_id   String
-  numero_parcela   Int
-  valor_previsto   Decimal                  @db.Decimal(12, 2)
-  valor_pago       Decimal                  @default(0) @db.Decimal(12, 2)
-  data_vencimento  DateTime
-  status           StatusParcelaContaPagar  @default(PREVISTO)
-  criado_em        DateTime                 @default(now())
-  atualizado_em    DateTime                 @updatedAt
+  id              String                  @id @default(cuid())
+  loja_id         String
+  conta_pagar_id  String
+  numero_parcela  Int
+  valor_previsto  Decimal                 @db.Decimal(12, 2)
+  valor_pago      Decimal                 @default(0) @db.Decimal(12, 2)
+  data_vencimento DateTime
+  status          StatusParcelaContaPagar @default(PREVISTO)
+  criado_em       DateTime                @default(now())
+  atualizado_em   DateTime                @updatedAt
 
   loja       loja                  @relation(fields: [loja_id], references: [id], onDelete: Cascade)
   conta      ContaPagar            @relation(fields: [conta_pagar_id], references: [id], onDelete: Cascade)
@@ -1237,22 +1239,22 @@ model PagamentoFornecedor {
 }
 
 model PagamentoFornecedorApropriacao {
-  id                          String                    @id @default(cuid())
-  loja_id                     String
-  pagamento_id                String
-  destino_tipo                DestinoApropriacaoCompra
-  os_id                       String?
-  item_os_id                  String?
-  centro_custo                String?
-  pedido_item_apropriacao_id  String?
-  valor                       Decimal                   @db.Decimal(12, 2)
-  criado_em                   DateTime                  @default(now())
+  id                         String                   @id @default(cuid())
+  loja_id                    String
+  pagamento_id               String
+  destino_tipo               DestinoApropriacaoCompra
+  os_id                      String?
+  item_os_id                 String?
+  centro_custo               String?
+  pedido_item_apropriacao_id String?
+  valor                      Decimal                  @db.Decimal(12, 2)
+  criado_em                  DateTime                 @default(now())
 
-  loja                     loja                          @relation(fields: [loja_id], references: [id], onDelete: Cascade)
-  pagamento                PagamentoFornecedor           @relation(fields: [pagamento_id], references: [id], onDelete: Cascade)
-  os                       OrdemServico?                 @relation(fields: [os_id], references: [id], onDelete: SetNull)
-  item_os                  ItemOS?                       @relation("PagamentoApropriacaoItemOS", fields: [item_os_id], references: [id], onDelete: SetNull)
-  pedido_item_apropriacao  PedidoCompraItemApropriacao?  @relation(fields: [pedido_item_apropriacao_id], references: [id], onDelete: SetNull)
+  loja                    loja                         @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  pagamento               PagamentoFornecedor          @relation(fields: [pagamento_id], references: [id], onDelete: Cascade)
+  os                      OrdemServico?                @relation(fields: [os_id], references: [id], onDelete: SetNull)
+  item_os                 ItemOS?                      @relation("PagamentoApropriacaoItemOS", fields: [item_os_id], references: [id], onDelete: SetNull)
+  pedido_item_apropriacao PedidoCompraItemApropriacao? @relation(fields: [pedido_item_apropriacao_id], references: [id], onDelete: SetNull)
 
   @@index([loja_id])
   @@index([pagamento_id])
@@ -1362,7 +1364,7 @@ model ModalidadeEntrega {
   observacoes_padrao String?  @db.Text
   loja_id            String
 
-  loja       loja        @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  loja       loja               @relation(fields: [loja_id], references: [id], onDelete: Cascade)
   orcamentos orcamento[]
   produtos   ProdutoOrcamento[] @relation("ProdutoOrcamentoModalidadeEntrega")
 
@@ -1578,12 +1580,12 @@ model ProdutoOrcamento {
   instalacao_fornecedor_id         String?
   instalacao_incluida_cotacao      Boolean  @default(false)
   instalacao_distribuicao          String   @default("A_DEFINIR") @db.VarChar(24)
-  logistica_modo                    String   @default("RETIRADA_CLIENTE") @db.VarChar(32)
-  entrega_produto_modalidade_id     String?
-  entrega_produto_prazo_dias        Int?
-  entrega_produto_valor_cobrado     Decimal? @db.Decimal(12, 2)
-  entrega_produto_custo_estimado    Decimal? @db.Decimal(12, 2)
-  entrega_produto_observacoes       String?  @db.Text
+  logistica_modo                   String   @default("RETIRADA_CLIENTE") @db.VarChar(32)
+  entrega_produto_modalidade_id    String?
+  entrega_produto_prazo_dias       Int?
+  entrega_produto_valor_cobrado    Decimal? @db.Decimal(12, 2)
+  entrega_produto_custo_estimado   Decimal? @db.Decimal(12, 2)
+  entrega_produto_observacoes      String?  @db.Text
 
   // Geometria avancada (Fase 2 - Home operacional)
   // Ver docs/fase-0-home-operacional/04-campos-geometria.md
@@ -1627,18 +1629,18 @@ model ProdutoOrcamento {
   terceirizacao_observacoes       String?                  @db.Text
 
   // Relacionamentos
-  orcamento               orcamento                @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
-  instalacao_tipo         TipoInstalacao?          @relation(fields: [instalacao_tipo_id], references: [id])
-  produto_finito          ProdutoFinito?           @relation(fields: [produto_finito_id], references: [id], onDelete: SetNull)
-  fornecedor_terceirizado fornecedor?              @relation(fields: [fornecedor_terceirizado_id], references: [id], onDelete: SetNull, map: "ProdutoOrcamento_fornecedor_terceirizado_id_fkey")
-  fornecedor_instalacao   fornecedor?              @relation("ProdutoOrcamentoFornecedorInstalacao", fields: [instalacao_fornecedor_id], references: [id], onDelete: SetNull)
-  entrega_produto_modalidade ModalidadeEntrega?    @relation("ProdutoOrcamentoModalidadeEntrega", fields: [entrega_produto_modalidade_id], references: [id], onDelete: SetNull)
-  personalizacao          PersonalizacaoOrcamento?
-  insumos                 ItemInsumo[]
-  maquinas                ItemMaquina[]
-  funcoes                 ItemFuncao[]
-  servicos_manuais        ItemServicoManual[]
-  custos_indiretos        ItemCustoIndireto[]
+  orcamento                  orcamento                @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  instalacao_tipo            TipoInstalacao?          @relation(fields: [instalacao_tipo_id], references: [id])
+  produto_finito             ProdutoFinito?           @relation(fields: [produto_finito_id], references: [id], onDelete: SetNull)
+  fornecedor_terceirizado    fornecedor?              @relation(fields: [fornecedor_terceirizado_id], references: [id], onDelete: SetNull, map: "ProdutoOrcamento_fornecedor_terceirizado_id_fkey")
+  fornecedor_instalacao      fornecedor?              @relation("ProdutoOrcamentoFornecedorInstalacao", fields: [instalacao_fornecedor_id], references: [id], onDelete: SetNull)
+  entrega_produto_modalidade ModalidadeEntrega?       @relation("ProdutoOrcamentoModalidadeEntrega", fields: [entrega_produto_modalidade_id], references: [id], onDelete: SetNull)
+  personalizacao             PersonalizacaoOrcamento?
+  insumos                    ItemInsumo[]
+  maquinas                   ItemMaquina[]
+  funcoes                    ItemFuncao[]
+  servicos_manuais           ItemServicoManual[]
+  custos_indiretos           ItemCustoIndireto[]
 
   @@index([orcamento_id])
   @@index([instalacao_tipo_id])
@@ -1653,28 +1655,28 @@ model ProdutoOrcamento {
 }
 
 model ItemInsumo {
-  id                      String   @id @default(cuid())
-  produto_id              String
-  insumo_id               String
-  quantidade              Decimal  @db.Decimal(10, 3)
-  unidade                 String
-  preco_unitario          Decimal  @db.Decimal(10, 2)
-  preco_total             Decimal  @db.Decimal(10, 2)
-  material_do_cliente     Boolean  @default(false)
-  usa_medida_propria      Boolean  @default(false)
-  largura_material        Decimal? @db.Decimal(10, 2)
-  altura_material         Decimal? @db.Decimal(10, 2)
-  profundidade_material   Decimal? @db.Decimal(10, 2)
-  unidade_medida_material String?  @db.VarChar(4)
-  estoque_disponivel      Decimal? @db.Decimal(10, 3)
-  alerta_estoque          Boolean  @default(false)
-  calculo_chapa           String?  @db.LongText
-  fornecedor_previsto_id  String?
-  fornecedor_nome_snapshot String? @db.VarChar(191)
-  codigo_ref_snapshot     String?  @db.VarChar(191)
-  preco_compra_snapshot   Decimal? @db.Decimal(10, 2)
-  criado_em               DateTime @default(now())
-  data_criacao            DateTime @default(now())
+  id                       String   @id @default(cuid())
+  produto_id               String
+  insumo_id                String
+  quantidade               Decimal  @db.Decimal(10, 3)
+  unidade                  String
+  preco_unitario           Decimal  @db.Decimal(10, 2)
+  preco_total              Decimal  @db.Decimal(10, 2)
+  material_do_cliente      Boolean  @default(false)
+  usa_medida_propria       Boolean  @default(false)
+  largura_material         Decimal? @db.Decimal(10, 2)
+  altura_material          Decimal? @db.Decimal(10, 2)
+  profundidade_material    Decimal? @db.Decimal(10, 2)
+  unidade_medida_material  String?  @db.VarChar(4)
+  estoque_disponivel       Decimal? @db.Decimal(10, 3)
+  alerta_estoque           Boolean  @default(false)
+  calculo_chapa            String?  @db.LongText
+  fornecedor_previsto_id   String?
+  fornecedor_nome_snapshot String?  @db.VarChar(191)
+  codigo_ref_snapshot      String?  @db.VarChar(191)
+  preco_compra_snapshot    Decimal? @db.Decimal(10, 2)
+  criado_em                DateTime @default(now())
+  data_criacao             DateTime @default(now())
 
   // Relacionamentos
   produto             ProdutoOrcamento @relation(fields: [produto_id], references: [id], onDelete: Cascade)
@@ -2007,11 +2009,11 @@ model usuario {
   cobranca_logs         CobrancaLog[]
 
   // Relacionamentos Compras (MVP Fase 1)
-  solicitacoes_compra_solicitante SolicitacaoCompra[] @relation("SolicitacaoCompraSolicitante")
-  compras_historico               CompraHistorico[]   @relation("CompraHistoricoUsuario")
-  recebimentos_responsavel        RecebimentoCompra[] @relation("RecebimentoCompraResponsavel")
-  aceites_responsavel             AceiteServico[]     @relation("AceiteServicoResponsavel")
-  pagamentos_fornecedor           PagamentoFornecedor[] @relation("PagamentoFornecedorUsuario")
+  solicitacoes_compra_solicitante SolicitacaoCompra[]      @relation("SolicitacaoCompraSolicitante")
+  compras_historico               CompraHistorico[]        @relation("CompraHistoricoUsuario")
+  recebimentos_responsavel        RecebimentoCompra[]      @relation("RecebimentoCompraResponsavel")
+  aceites_responsavel             AceiteServico[]          @relation("AceiteServicoResponsavel")
+  pagamentos_fornecedor           PagamentoFornecedor[]    @relation("PagamentoFornecedorUsuario")
   fechamentos_financeiros_fechou  FechamentoFinanceiroOS[] @relation("FechamentoFinanceiroFechadoPor")
   fechamentos_financeiros_reabriu FechamentoFinanceiroOS[] @relation("FechamentoFinanceiroReabertoPor")
 
@@ -2056,6 +2058,154 @@ model ConviteCadastro {
   @@index([expira_em])
   @@index([origem])
   @@map("convites_cadastro")
+}
+
+model admin_user {
+  id                        String                    @id @default(cuid())
+  nome                      String                    @db.VarChar(160)
+  email                     String                    @unique(map: "admin_user_email_key") @db.VarChar(320)
+  password_hash             String                    @db.VarChar(255)
+  role                      admin_role
+  status                    admin_user_status         @default(ACTIVE)
+  two_factor_enabled        Boolean                   @default(false)
+  two_factor_secret         String?                   @db.Text
+  two_factor_confirmed_at   DateTime?
+  failed_login_attempts     Int                       @default(0)
+  locked_until              DateTime?
+  last_login_at             DateTime?
+  created_at                DateTime                  @default(now())
+  updated_at                DateTime                  @updatedAt
+  sessions                  admin_session[]
+  invitations_sent          admin_invitation[]        @relation("AdminInvitationInviter")
+  invitation_accepted       admin_invitation?         @relation("AdminInvitationAcceptedUser")
+  audit_logs                admin_audit_log[]
+  product_updates_authored  product_update[]          @relation("ProductUpdateAuthor")
+  product_updates_reviewed  product_update[]          @relation("ProductUpdateReviewer")
+  product_updates_published product_update[]          @relation("ProductUpdatePublisher")
+  product_update_revisions  product_update_revision[]
+
+  @@index([status, role], map: "admin_user_status_role_idx")
+  @@map("admin_user")
+}
+
+model admin_session {
+  id            String     @id @default(cuid())
+  admin_user_id String
+  expires_at    DateTime
+  revoked_at    DateTime?
+  revoke_reason String?    @db.VarChar(255)
+  last_seen_at  DateTime?
+  ip_address    String?    @db.VarChar(45)
+  user_agent    String?    @db.VarChar(512)
+  created_at    DateTime   @default(now())
+  admin_user    admin_user @relation(fields: [admin_user_id], references: [id], onDelete: Restrict, map: "admin_session_admin_user_id_fkey")
+
+  @@index([admin_user_id, revoked_at, expires_at], map: "admin_session_user_revoked_expires_idx")
+  @@index([expires_at], map: "admin_session_expires_at_idx")
+  @@map("admin_session")
+}
+
+model admin_invitation {
+  id                     String                  @id @default(cuid())
+  nome                   String                  @db.VarChar(160)
+  email                  String                  @db.VarChar(320)
+  role                   admin_role
+  token_hash             String                  @unique(map: "admin_invitation_token_hash_key") @db.VarChar(64)
+  status                 admin_invitation_status @default(PENDING)
+  expires_at             DateTime
+  accepted_at            DateTime?
+  cancelled_at           DateTime?
+  invited_by_id          String?
+  accepted_admin_user_id String?                 @unique(map: "admin_invitation_accepted_user_key")
+  created_at             DateTime                @default(now())
+  updated_at             DateTime                @updatedAt
+  invited_by             admin_user?             @relation("AdminInvitationInviter", fields: [invited_by_id], references: [id], onDelete: Restrict, map: "admin_invitation_invited_by_id_fkey")
+  accepted_admin_user    admin_user?             @relation("AdminInvitationAcceptedUser", fields: [accepted_admin_user_id], references: [id], onDelete: Restrict, map: "admin_invitation_accepted_user_id_fkey")
+
+  @@index([email, status], map: "admin_invitation_email_status_idx")
+  @@index([status, expires_at], map: "admin_invitation_status_expires_idx")
+  @@index([invited_by_id], map: "admin_invitation_invited_by_id_idx")
+  @@map("admin_invitation")
+}
+
+model admin_audit_log {
+  id             String      @id @default(cuid())
+  occurred_at    DateTime    @default(now())
+  admin_user_id  String?
+  admin_role     admin_role?
+  action         String      @db.VarChar(96)
+  resource_type  String      @db.VarChar(64)
+  resource_id    String?     @db.VarChar(191)
+  loja_id        String?
+  previous_state Json?
+  new_state      Json?
+  reason         String?     @db.VarChar(1000)
+  category       String?     @db.VarChar(64)
+  ip_address     String?     @db.VarChar(45)
+  user_agent     String?     @db.VarChar(512)
+  correlation_id String?     @db.VarChar(128)
+  metadata       Json?
+  admin_user     admin_user? @relation(fields: [admin_user_id], references: [id], onDelete: SetNull, map: "admin_audit_log_admin_user_id_fkey")
+  loja           loja?       @relation(fields: [loja_id], references: [id], onDelete: Restrict, map: "admin_audit_log_loja_id_fkey")
+
+  @@index([occurred_at], map: "admin_audit_log_occurred_at_idx")
+  @@index([admin_user_id, occurred_at], map: "admin_audit_log_user_occurred_idx")
+  @@index([loja_id, occurred_at], map: "admin_audit_log_loja_occurred_idx")
+  @@index([action, occurred_at], map: "admin_audit_log_action_occurred_idx")
+  @@index([resource_type, resource_id], map: "admin_audit_log_resource_idx")
+  @@map("admin_audit_log")
+}
+
+model product_update {
+  id                String                    @id @default(cuid())
+  title             String                    @db.VarChar(180)
+  slug              String                    @unique(map: "product_update_slug_key") @db.VarChar(191)
+  summary           String                    @db.VarChar(500)
+  content           String                    @db.Text
+  version           String?                   @db.VarChar(80)
+  commit_sha        String?                   @db.VarChar(64)
+  environment       String?                   @db.VarChar(32)
+  category          product_update_category
+  modules           Json?
+  audience          Json?
+  status            product_update_status     @default(DRAFT)
+  origin            product_update_origin     @default(MANUAL)
+  changelog_enabled Boolean                   @default(true)
+  in_app_enabled    Boolean                   @default(false)
+  email_enabled     Boolean                   @default(false)
+  idempotency_key   String?                   @unique(map: "product_update_idempotency_key_key") @db.VarChar(191)
+  scheduled_at      DateTime?
+  published_at      DateTime?
+  created_at        DateTime                  @default(now())
+  updated_at        DateTime                  @updatedAt
+  author_id         String?
+  reviewer_id       String?
+  publisher_id      String?
+  author            admin_user?               @relation("ProductUpdateAuthor", fields: [author_id], references: [id], onDelete: SetNull, map: "product_update_author_id_fkey")
+  reviewer          admin_user?               @relation("ProductUpdateReviewer", fields: [reviewer_id], references: [id], onDelete: SetNull, map: "product_update_reviewer_id_fkey")
+  publisher         admin_user?               @relation("ProductUpdatePublisher", fields: [publisher_id], references: [id], onDelete: SetNull, map: "product_update_publisher_id_fkey")
+  revisions         product_update_revision[]
+
+  @@index([status, created_at], map: "product_update_status_created_idx")
+  @@index([published_at], map: "product_update_published_at_idx")
+  @@index([environment, commit_sha], map: "product_update_environment_commit_idx")
+  @@map("product_update")
+}
+
+model product_update_revision {
+  id                String         @id @default(cuid())
+  product_update_id String
+  revision_number   Int
+  snapshot          Json
+  change_reason     String?        @db.VarChar(500)
+  created_at        DateTime       @default(now())
+  created_by_id     String?
+  product_update    product_update @relation(fields: [product_update_id], references: [id], onDelete: Restrict, map: "product_update_revision_update_id_fkey")
+  created_by        admin_user?    @relation(fields: [created_by_id], references: [id], onDelete: SetNull, map: "product_update_revision_created_by_id_fkey")
+
+  @@unique([product_update_id, revision_number], map: "product_update_revision_number_key")
+  @@index([created_by_id], map: "product_update_revision_created_by_id_idx")
+  @@map("product_update_revision")
 }
 
 model estoque_localizacoes {
@@ -2300,6 +2450,49 @@ enum usuario_status {
   BLOQUEADO
 }
 
+enum admin_role {
+  SUPER_ADMIN
+  OPERACAO
+  SUPORTE
+  FINANCEIRO_SAAS
+  ANALISTA
+}
+
+enum admin_user_status {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum admin_invitation_status {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+enum product_update_category {
+  NEW_MODULE
+  FEATURE
+  IMPROVEMENT
+  FIX
+  SECURITY
+  NOTICE
+}
+
+enum product_update_status {
+  DRAFT
+  IN_REVIEW
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum product_update_origin {
+  DEPLOY_AUTOMATION
+  MANUAL
+}
+
 enum cliente_tipo_pessoa {
   PESSOA_FISICA
   PESSOA_JURIDICA
@@ -2493,7 +2686,7 @@ model OrdemServico {
   artes_mensagens ArteMensagem[]
 
   // Relacionamentos Compras (MVP Fase 1)
-  apropriacoes_compra PedidoCompraItemApropriacao[]
+  apropriacoes_compra                PedidoCompraItemApropriacao[]
   pagamentos_fornecedor_apropriacoes PagamentoFornecedorApropriacao[]
   fechamento_financeiro              FechamentoFinanceiroOS?
 
@@ -2586,15 +2779,15 @@ model ItemOS {
   arte_producao_url      String?              @db.Text // PDF print-ready (catálogo VDP)
   fornecedor_id          String?
 
-  os                  OrdemServico             @relation(fields: [os_id], references: [id], onDelete: Cascade)
-  estampa             Estampa?                 @relation(fields: [estampa_id], references: [id], onDelete: SetNull)
-  instancias_setor    WorkflowInstanciaSetor[]
-  designer_atribuido  usuario?                 @relation("ItemOSDesigner", fields: [designer_atribuido_id], references: [id], onDelete: SetNull)
-  lotes_instalacao    ItemOSInstalacao[]
-  fornecedor          fornecedor?              @relation(fields: [fornecedor_id], references: [id], onDelete: SetNull, map: "ItemOS_fornecedor_id_fkey")
-  ordem_terceirizacao OrdemTerceirizacao?
-  solicitacao_compra_itens SolicitacaoCompraItem[]
-  apropriacoes_compra      PedidoCompraItemApropriacao[] @relation("PedidoCompraApropriacaoItemOS")
+  os                                 OrdemServico                     @relation(fields: [os_id], references: [id], onDelete: Cascade)
+  estampa                            Estampa?                         @relation(fields: [estampa_id], references: [id], onDelete: SetNull)
+  instancias_setor                   WorkflowInstanciaSetor[]
+  designer_atribuido                 usuario?                         @relation("ItemOSDesigner", fields: [designer_atribuido_id], references: [id], onDelete: SetNull)
+  lotes_instalacao                   ItemOSInstalacao[]
+  fornecedor                         fornecedor?                      @relation(fields: [fornecedor_id], references: [id], onDelete: SetNull, map: "ItemOS_fornecedor_id_fkey")
+  ordem_terceirizacao                OrdemTerceirizacao?
+  solicitacao_compra_itens           SolicitacaoCompraItem[]
+  apropriacoes_compra                PedidoCompraItemApropriacao[]    @relation("PedidoCompraApropriacaoItemOS")
   pagamentos_fornecedor_apropriacoes PagamentoFornecedorApropriacao[] @relation("PagamentoApropriacaoItemOS")
 
   @@index([os_id])
@@ -2631,9 +2824,9 @@ model OrdemTerceirizacao {
   criado_em         DateTime                 @default(now())
   atualizado_em     DateTime                 @updatedAt
 
-  loja       loja       @relation(fields: [loja_id], references: [id], onDelete: Cascade)
-  item_os    ItemOS     @relation(fields: [item_os_id], references: [id], onDelete: Cascade)
-  fornecedor fornecedor @relation(fields: [fornecedor_id], references: [id], onDelete: Restrict)
+  loja                     loja                    @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  item_os                  ItemOS                  @relation(fields: [item_os_id], references: [id], onDelete: Cascade)
+  fornecedor               fornecedor              @relation(fields: [fornecedor_id], references: [id], onDelete: Restrict)
   solicitacao_compra_itens SolicitacaoCompraItem[]
   pedido_compra_itens      PedidoCompraItem[]      @relation("PedidoCompraItemOrdemTerceirizacao")
 
@@ -2945,6 +3138,7 @@ model WorkflowInstanciaSetor {
   setor              SetorProdutivo    @relation(fields: [setor_id], references: [id])
   item_os            ItemOS?           @relation(fields: [item_os_id], references: [id])
   operador           usuario?          @relation(fields: [operador_id], references: [id])
+
   @@index([loja_id, status])
   @@index([workflow_id])
   @@index([workflow_instancia_id])
@@ -3056,10 +3250,10 @@ model ItemOSInstalacao {
   criado_em                   DateTime                 @default(now())
   atualizado_em               DateTime                 @updatedAt
 
-  loja        loja                   @relation(fields: [loja_id], references: [id], onDelete: Cascade)
-  item_os     ItemOS                 @relation(fields: [item_os_id], references: [id], onDelete: Cascade)
-  fornecedor_instalador fornecedor?  @relation("ItemOSInstalacaoFornecedor", fields: [fornecedor_instalador_id], references: [id], onDelete: SetNull)
-  ocorrencias OcorrenciaInstalacao[]
+  loja                  loja                   @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  item_os               ItemOS                 @relation(fields: [item_os_id], references: [id], onDelete: Cascade)
+  fornecedor_instalador fornecedor?            @relation("ItemOSInstalacaoFornecedor", fields: [fornecedor_instalador_id], references: [id], onDelete: SetNull)
+  ocorrencias           OcorrenciaInstalacao[]
 
   @@index([loja_id])
   @@index([loja_id, status_instalacao])

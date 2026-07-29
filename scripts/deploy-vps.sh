@@ -131,3 +131,7 @@ sudo systemctl --no-pager --full status "${BACKEND_SERVICE}" | sed -n '1,12p'
 sudo systemctl --no-pager --full status "${FRONTEND_SERVICE}" | sed -n '1,12p'
 
 log "Deploy concluido. Commit em producao: ${COMMIT_AFTER}"
+
+log "Registrando rascunho das notas da versao (nao bloqueante)..."
+run_as_app "set -a && . $(quote "${BACKEND_ENV}") && set +a && DEPLOY_COMMIT_BEFORE=$(quote "${COMMIT_BEFORE}") DEPLOY_COMMIT_AFTER=$(quote "${COMMIT_AFTER}") DEPLOY_ENVIRONMENT=production node backend/scripts/create-deploy-product-update.js" ||
+  log "AVISO: nao foi possivel registrar o rascunho; o deploy permanece concluido."

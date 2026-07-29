@@ -246,6 +246,64 @@ export class MailService implements OnModuleInit {
     return info;
   }
 
+  async sendAdminInvitationEmail(payload: {
+    to: string;
+    nome: string;
+    inviterName: string;
+    role: string;
+    invitationUrl: string;
+    expiresAt: Date;
+    message?: string;
+  }) {
+    const escape = (value: string) =>
+      value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    const message = payload.message?.trim()
+      ? `<p style="padding: 12px; background: #f8fafc; border-radius: 6px;">${escape(payload.message).replace(/\n/g, '<br>')}</p>`
+      : '';
+
+    const info = await this.transporter.sendMail({
+      from: this.getFromAddress(),
+      to: payload.to,
+      subject: 'Convite para a Gestão do ComunikApp',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1>Você foi convidado para a Gestão do ComunikApp</h1>
+          <p>Olá, ${escape(payload.nome)}!</p>
+          <p>
+            ${escape(payload.inviterName)} convidou você com o perfil
+            <strong>${escape(payload.role)}</strong>.
+          </p>
+          ${message}
+          <div style="margin: 24px 0;">
+            <a href="${escape(payload.invitationUrl)}"
+              style="background-color: #0f172a; color: #ffffff; padding: 12px 20px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              Aceitar convite
+            </a>
+          </div>
+          <p>
+            O convite expira em
+            ${escape(payload.expiresAt.toLocaleString('pt-BR', {
+              timeZone: 'America/Sao_Paulo',
+            }))}.
+          </p>
+          <p style="color: #666; font-size: 12px;">
+            Se você não esperava este convite, ignore este e-mail.
+          </p>
+        </div>
+      `,
+    });
+
+    this.logger.log(
+      `Convite administrativo enviado messageId=${info.messageId} destino=${MailService.maskEmail(payload.to)}`,
+    );
+    return info;
+  }
+
   async sendBetaLeadNotificationEmail(data: {
     nome: string;
     email: string;

@@ -63,6 +63,21 @@ export async function middleware(request: NextRequest) {
   const host = stripPort(hostHeader ?? '');
   const slug = extractTenantSlugFromHost(hostHeader);
 
+  if (host === 'gestao.comunikapp.com.br') {
+    const isGestaoPath =
+      request.nextUrl.pathname === '/gestao' ||
+      request.nextUrl.pathname.startsWith('/gestao/') ||
+      request.nextUrl.pathname === '/api/gestao' ||
+      request.nextUrl.pathname.startsWith('/api/gestao/');
+    if (!isGestaoPath) {
+      const destination = request.nextUrl.clone();
+      destination.pathname = '/gestao';
+      destination.search = '';
+      return NextResponse.redirect(destination);
+    }
+    return NextResponse.next();
+  }
+
   try {
     if (slug) {
       const { status, data } = await resolveBySlug(slug);
