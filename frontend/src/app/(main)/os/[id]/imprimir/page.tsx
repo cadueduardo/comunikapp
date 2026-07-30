@@ -134,11 +134,19 @@ export default function ImprimirOSPage() {
         );
       }
       const payload = await response.json();
-      const body = payload?.dados ?? payload?.data ?? null;
+      const body = (payload?.dados ?? payload?.data ?? null) as
+        | DadosImpressaoOs
+        | null;
       if (!body?.os?.id) {
         throw new Error('Dados de impressão inválidos');
       }
-      setDados(body as DadosImpressaoOs);
+      setDados({
+        ...body,
+        cliente: body.cliente ?? {},
+        loja: body.loja ?? {},
+        produtos: Array.isArray(body.produtos) ? body.produtos : [],
+        materiais: Array.isArray(body.materiais) ? body.materiais : [],
+      });
     } catch (error) {
       console.error('Erro ao carregar impressão da OS:', error);
       toast.error(
@@ -188,8 +196,10 @@ export default function ImprimirOSPage() {
     return null;
   }
 
-  const loja = dados.loja;
-  const cliente = dados.cliente;
+  const loja = dados.loja ?? {};
+  const cliente = dados.cliente ?? {};
+  const produtos = dados.produtos ?? [];
+  const materiais = dados.materiais ?? [];
 
   return (
     <>
@@ -385,7 +395,7 @@ export default function ImprimirOSPage() {
               <h2 className="mb-2 border-b border-gray-300 pb-1 text-sm font-semibold uppercase tracking-wide text-gray-900">
                 Itens
               </h2>
-              {dados.produtos.length === 0 ? (
+              {produtos.length === 0 ? (
                 <p className="text-sm text-gray-500">Nenhum item na OS.</p>
               ) : (
                 <table className="w-full border-collapse text-sm">
@@ -400,7 +410,7 @@ export default function ImprimirOSPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {dados.produtos.map((p, idx) => (
+                    {produtos.map((p, idx) => (
                       <tr
                         key={p.id || `${p.nome}-${idx}`}
                         className="border-b border-gray-100 align-top"
@@ -432,7 +442,7 @@ export default function ImprimirOSPage() {
                 <h2 className="mb-2 border-b border-gray-300 pb-1 text-sm font-semibold uppercase tracking-wide text-gray-900">
                   Materiais previstos
                 </h2>
-                {dados.materiais.length === 0 ? (
+                {materiais.length === 0 ? (
                   <p className="text-sm text-gray-500">
                     Nenhum material previsto registrado nesta OS.
                   </p>
@@ -446,7 +456,7 @@ export default function ImprimirOSPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dados.materiais.map((m, idx) => (
+                      {materiais.map((m, idx) => (
                         <tr
                           key={`${m.nome}-${idx}`}
                           className="border-b border-gray-100"
