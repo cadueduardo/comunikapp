@@ -24,6 +24,7 @@ import { FinanceiroModule } from '../financeiro/financeiro.module';
 import { HomeOperacionalModule } from '../home-operacional/home-operacional.module';
 import { CatalogoModule } from '../catalogo/catalogo.module';
 import { ValidacaoEstoqueService } from '../orcamentos-v2/services/validacao-estoque.service';
+import { MovimentacoesService } from '../estoque/services/movimentacoes.service';
 import { getRequiredJwtSecret } from '../auth/jwt-secret';
 
 // Controllers (<= 200 linhas cada)
@@ -138,6 +139,7 @@ const debugControllers =
     AlcadasOrcamentoService,
     CentroCustoService,
     ValidacaoEstoqueService,
+    MovimentacoesService,
     EventosAutomaticosService,
     OSApprovalPermissionsService,
     OSValidacoesService,

@@ -1,13 +1,13 @@
 /**
- * Service para integração de apontamentos com estoque
- * Limite: <= 400 linhas conforme premissas
- * Funcionalidades: reservas, baixas, validações de estoque
+ * Integração de apontamentos com estoque: reservas, baixas e liberações reais.
  */
 
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ValidacaoEstoqueService } from '../../orcamentos-v2/services/validacao-estoque.service';
+import { MovimentacoesService } from '../../estoque/services/movimentacoes.service';
 import { TipoApontamento } from '../interfaces/workflow-pcp.interfaces';
+
+export const TIPO_LOG_ESTOQUE_RESERVA = 'ESTOQUE_RESERVA';
 
 export interface OperacaoEstoque {
   insumo_id: string;
@@ -15,7 +15,7 @@ export interface OperacaoEstoque {
   unidade: string;
   tipo: 'RESERVA' | 'BAIXA' | 'LIBERACAO';
   motivo: string;
-  referencia_id: string; // ID da OS ou apontamento
+  referencia_id: string;
 }
 
 export interface ResultadoOperacaoEstoque {
@@ -25,144 +25,169 @@ export interface ResultadoOperacaoEstoque {
   alertas: string[];
 }
 
+type InsumoNecessario = {
+  insumo_id: string;
+  quantidade: number;
+  unidade: string;
+  nome: string;
+  controla_estoque: boolean;
+};
+
+type EstoqueItemRow = {
+  id: string;
+  quantidadeAtual: number;
+  quantidadeReservada: number;
+};
+
 @Injectable()
 export class EstoqueApontamentoService {
   private readonly logger = new Logger(EstoqueApontamentoService.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly validacaoEstoqueService: ValidacaoEstoqueService,
+    private readonly movimentacoesService: MovimentacoesService,
   ) {}
 
-  /**
-   * Processa operações de estoque baseadas no tipo de apontamento
-   */
   async processarOperacaoEstoque(
     osId: string,
     tipoApontamento: TipoApontamento,
     quantidadeProduzida?: number,
     quantidadeRefugo?: number,
-    observacoes?: string,
+    _observacoes?: string,
+    usuarioId?: string,
   ): Promise<ResultadoOperacaoEstoque> {
-    try {
-      this.logger.log(
-        `Processando operação de estoque para OS ${osId} - Tipo: ${tipoApontamento}`,
-      );
+    this.logger.log(
+      `Processando estoque OS ${osId} - Tipo: ${tipoApontamento}`,
+    );
 
-      // 1. Buscar OS e insumos necessários
-      const os = await this.prisma.ordemServico.findUnique({
-        where: { id: osId },
-        include: {
-          itens: true,
-        },
-      });
+    const os = await this.prisma.ordemServico.findUnique({
+      where: { id: osId },
+      include: { itens: true },
+    });
 
-      if (!os) {
-        throw new BadRequestException(`OS ${osId} não encontrada`);
-      }
-
-      // 2. Extrair insumos dos itens da OS
-      const insumosNecessarios = await this.extrairInsumosOS(os);
-
-      if (insumosNecessarios.length === 0) {
-        this.logger.warn(
-          `OS ${osId} não possui insumos para processar estoque`,
-        );
-        return {
-          sucesso: true,
-          operacoes_realizadas: [],
-          erros: [],
-          alertas: ['OS não possui insumos para processar estoque'],
-        };
-      }
-
-      // 3. Determinar operações baseadas no tipo de apontamento
-      const operacoes = this.determinarOperacoesEstoque(
-        tipoApontamento,
-        insumosNecessarios,
-        quantidadeProduzida,
-        quantidadeRefugo,
-      );
-
-      // 4. Executar operações de estoque
-      const resultado = await this.executarOperacoesEstoque(operacoes, osId);
-
-      this.logger.log(`[OK] Operações de estoque processadas para OS ${osId}`);
-      return resultado;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao processar operação de estoque: ${error.message}`,
-      );
-      throw error;
+    if (!os) {
+      throw new BadRequestException(`OS ${osId} não encontrada`);
     }
+
+    const insumosNecessarios = await this.extrairInsumosOS(os);
+    if (insumosNecessarios.length === 0) {
+      return {
+        sucesso: true,
+        operacoes_realizadas: [],
+        erros: [],
+        alertas: ['OS não possui insumos para processar estoque'],
+      };
+    }
+
+    const operacoes = this.determinarOperacoesEstoque(
+      tipoApontamento,
+      insumosNecessarios.filter((i) => i.controla_estoque),
+      quantidadeProduzida,
+      quantidadeRefugo,
+    );
+
+    if (operacoes.length === 0) {
+      return {
+        sucesso: true,
+        operacoes_realizadas: [],
+        erros: [],
+        alertas: ['Nenhum insumo com controle de estoque para movimentar'],
+      };
+    }
+
+    return this.executarOperacoesEstoque(
+      operacoes,
+      osId,
+      os.loja_id,
+      usuarioId,
+    );
   }
 
-  /**
-   * Extrai insumos necessários dos itens da OS
-   */
-  private async extrairInsumosOS(os: any): Promise<
-    Array<{
-      insumo_id: string;
-      quantidade: number;
-      unidade: string;
-      nome: string;
-    }>
-  > {
-    const insumos: Array<{
-      insumo_id: string;
-      quantidade: number;
-      unidade: string;
-      nome: string;
-    }> = [];
+  async liberarReservasEstoque(
+    osId: string,
+    usuarioId?: string,
+  ): Promise<ResultadoOperacaoEstoque> {
+    const os = await this.prisma.ordemServico.findUnique({
+      where: { id: osId },
+      select: { loja_id: true },
+    });
+    if (!os) {
+      throw new BadRequestException(`OS ${osId} não encontrada`);
+    }
+
+    const reservas = await this.buscarReservasAtivas(osId);
+    const operacoes: OperacaoEstoque[] = reservas.map((reserva) => ({
+      insumo_id: reserva.insumo_id,
+      quantidade: reserva.quantidade,
+      unidade: reserva.unidade,
+      tipo: 'LIBERACAO',
+      motivo: 'Cancelamento de OS - liberação de reservas',
+      referencia_id: osId,
+    }));
+
+    return this.executarOperacoesEstoque(
+      operacoes,
+      osId,
+      os.loja_id,
+      usuarioId,
+    );
+  }
+
+  private async extrairInsumosOS(os: {
+    itens: Array<{ id: string; insumos_necessarios?: string | null }>;
+  }): Promise<InsumoNecessario[]> {
+    const insumos: InsumoNecessario[] = [];
 
     for (const item of os.itens) {
-      if (item.insumos_necessarios) {
-        try {
-          const insumosItem = JSON.parse(item.insumos_necessarios);
-          for (const insumo of insumosItem) {
-            // Buscar nome do insumo
-            const insumoCompleto = await this.prisma.insumo.findUnique({
-              where: { id: insumo.insumo_id },
-              select: { nome: true },
-            });
-
-            insumos.push({
-              insumo_id: insumo.insumo_id,
-              quantidade: Number(insumo.quantidade),
-              unidade: insumo.unidade || 'un',
-              nome: insumoCompleto?.nome || 'Insumo não encontrado',
-            });
-          }
-        } catch (error) {
-          this.logger.warn(
-            `Erro ao processar insumos do item ${item.id}: ${error.message}`,
+      if (!item.insumos_necessarios) continue;
+      try {
+        const parsed = JSON.parse(item.insumos_necessarios) as Array<{
+          insumo_id?: string;
+          quantidade?: number;
+          quantidade_necessaria?: number;
+          unidade?: string;
+        }>;
+        for (const raw of parsed) {
+          if (!raw?.insumo_id) continue;
+          const insumoCompleto = await this.prisma.insumo.findUnique({
+            where: { id: raw.insumo_id },
+            select: {
+              nome: true,
+              controla_estoque: true,
+            },
+          });
+          const qtd = Number(
+            raw.quantidade_necessaria ?? raw.quantidade ?? 0,
           );
+          if (!Number.isFinite(qtd) || qtd <= 0) continue;
+          insumos.push({
+            insumo_id: raw.insumo_id,
+            quantidade: qtd,
+            unidade: raw.unidade || 'un',
+            nome: insumoCompleto?.nome || 'Insumo não encontrado',
+            controla_estoque: Boolean(insumoCompleto?.controla_estoque),
+          });
         }
+      } catch (error) {
+        this.logger.warn(
+          `Erro ao processar insumos do item ${item.id}: ${(error as Error).message}`,
+        );
       }
     }
 
     return insumos;
   }
 
-  /**
-   * Determina as operações de estoque baseadas no tipo de apontamento
-   */
   private determinarOperacoesEstoque(
     tipoApontamento: TipoApontamento,
-    insumosNecessarios: Array<{
-      insumo_id: string;
-      quantidade: number;
-      unidade: string;
-      nome: string;
-    }>,
-    quantidadeProduzida?: number,
+    insumosNecessarios: InsumoNecessario[],
+    _quantidadeProduzida?: number,
     quantidadeRefugo?: number,
   ): OperacaoEstoque[] {
     const operacoes: OperacaoEstoque[] = [];
 
     switch (tipoApontamento) {
       case TipoApontamento.INICIO:
-        // Reservar insumos quando inicia a produção
         for (const insumo of insumosNecessarios) {
           operacoes.push({
             insumo_id: insumo.insumo_id,
@@ -170,13 +195,11 @@ export class EstoqueApontamentoService {
             unidade: insumo.unidade,
             tipo: 'RESERVA',
             motivo: 'Início de produção - reserva de insumos',
-            referencia_id: '', // Será preenchido depois
+            referencia_id: '',
           });
         }
         break;
-
       case TipoApontamento.CONCLUSAO:
-        // Baixar insumos quando conclui a produção
         for (const insumo of insumosNecessarios) {
           operacoes.push({
             insumo_id: insumo.insumo_id,
@@ -184,52 +207,36 @@ export class EstoqueApontamentoService {
             unidade: insumo.unidade,
             tipo: 'BAIXA',
             motivo: 'Conclusão de produção - baixa de insumos',
-            referencia_id: '', // Será preenchido depois
+            referencia_id: '',
           });
         }
         break;
-
       case TipoApontamento.REFUGO:
-        // Baixar insumos adicionais para refugo
         if (quantidadeRefugo && quantidadeRefugo > 0) {
           for (const insumo of insumosNecessarios) {
-            const quantidadeRefugoInsumo =
-              (insumo.quantidade * quantidadeRefugo) / 100; // Percentual
             operacoes.push({
               insumo_id: insumo.insumo_id,
-              quantidade: quantidadeRefugoInsumo,
+              quantidade: (insumo.quantidade * quantidadeRefugo) / 100,
               unidade: insumo.unidade,
               tipo: 'BAIXA',
               motivo: `Refugo de produção - ${quantidadeRefugo}%`,
-              referencia_id: '', // Será preenchido depois
+              referencia_id: '',
             });
           }
         }
         break;
-
-      case TipoApontamento.PAUSA:
-        // Não faz operações de estoque na pausa
-        break;
-
-      case TipoApontamento.RETOMADA:
-        // Não faz operações de estoque na retomada
-        break;
-
       default:
-        this.logger.warn(
-          `Tipo de apontamento não reconhecido: ${tipoApontamento}`,
-        );
+        break;
     }
 
     return operacoes;
   }
 
-  /**
-   * Executa as operações de estoque
-   */
   private async executarOperacoesEstoque(
     operacoes: OperacaoEstoque[],
     osId: string,
+    lojaId: string,
+    usuarioId?: string,
   ): Promise<ResultadoOperacaoEstoque> {
     const operacoesRealizadas: OperacaoEstoque[] = [];
     const erros: string[] = [];
@@ -237,40 +244,33 @@ export class EstoqueApontamentoService {
 
     for (const operacao of operacoes) {
       try {
-        // Preencher referência
         operacao.referencia_id = osId;
 
-        // Validar disponibilidade antes de reservar
-        if (operacao.tipo === 'RESERVA') {
+        if (operacao.tipo === 'RESERVA' || operacao.tipo === 'BAIXA') {
           const validacao = await this.validarDisponibilidadeEstoque(
             operacao.insumo_id,
             operacao.quantidade,
-            operacao.unidade,
+            lojaId,
           );
-
           if (!validacao.disponivel) {
             erros.push(
-              `Insumo ${operacao.insumo_id} não disponível: ${validacao.motivo}`,
+              `${operacao.insumo_id}: ${validacao.motivo || 'indisponível'}`,
             );
             continue;
           }
-
-          if (validacao.alerta) {
-            alertas.push(validacao.alerta);
-          }
+          if (validacao.alerta) alertas.push(validacao.alerta);
         }
 
-        // Executar operação
-        await this.executarOperacaoIndividual(operacao);
-        operacoesRealizadas.push(operacao);
-
-        this.logger.log(
-          `[OK] Operação de estoque executada: ${operacao.tipo} - ${operacao.quantidade} ${operacao.unidade} do insumo ${operacao.insumo_id}`,
+        await this.executarOperacaoIndividual(
+          operacao,
+          lojaId,
+          usuarioId,
         );
+        operacoesRealizadas.push(operacao);
       } catch (error) {
-        const erro = `Erro ao executar operação de estoque para insumo ${operacao.insumo_id}: ${error.message}`;
-        erros.push(erro);
-        this.logger.error(erro);
+        const msg = `Erro estoque ${operacao.insumo_id}: ${(error as Error).message}`;
+        erros.push(msg);
+        this.logger.error(msg);
       }
     }
 
@@ -282,141 +282,332 @@ export class EstoqueApontamentoService {
     };
   }
 
-  /**
-   * Valida disponibilidade de estoque
-   */
   private async validarDisponibilidadeEstoque(
     insumoId: string,
     quantidade: number,
-    unidade: string,
-  ): Promise<{
-    disponivel: boolean;
-    motivo?: string;
-    alerta?: string;
-  }> {
-    try {
-      // Buscar estoque atual do insumo
-      const estoque = await this.prisma.insumo.findUnique({
-        where: { id: insumoId },
-        select: {
-          estoque_atual: true,
-          estoque_minimo: true,
-          unidade_compra: true,
-          fator_conversao: true,
-        },
-      });
+    lojaId: string,
+  ): Promise<{ disponivel: boolean; motivo?: string; alerta?: string }> {
+    const estoque = await this.prisma.insumo.findFirst({
+      where: { id: insumoId, loja_id: lojaId },
+      select: {
+        estoque_atual: true,
+        estoque_minimo: true,
+        controla_estoque: true,
+        nome: true,
+      },
+    });
 
-      if (!estoque) {
-        return {
-          disponivel: false,
-          motivo: 'Insumo não encontrado',
-        };
-      }
+    if (!estoque) {
+      return { disponivel: false, motivo: 'Insumo não encontrado' };
+    }
+    if (!estoque.controla_estoque) {
+      return { disponivel: true, alerta: `${estoque.nome}: sem controle de estoque` };
+    }
 
-      // Converter quantidade se necessário
-      const quantidadeNecessaria = quantidade;
-      if (unidade !== estoque.unidade_compra) {
-        // TODO: Implementar conversão de unidades
-        this.logger.warn(
-          `Conversão de unidades não implementada: ${unidade} -> ${estoque.unidade_compra}`,
-        );
-      }
-
-      const estoqueAtual = Number(estoque.estoque_atual || 0);
-      const estoqueMinimo = Number(estoque.estoque_minimo || 0);
-
-      if (estoqueAtual < quantidadeNecessaria) {
-        return {
-          disponivel: false,
-          motivo: `Estoque insuficiente. Disponível: ${estoqueAtual}, Necessário: ${quantidadeNecessaria}`,
-        };
-      }
-
-      // Verificar se ficará abaixo do estoque mínimo
-      const estoqueRestante = estoqueAtual - quantidadeNecessaria;
-      if (estoqueRestante < estoqueMinimo) {
-        return {
-          disponivel: true,
-          alerta: `Atenção: estoque ficará abaixo do mínimo após esta operação (${estoqueRestante} < ${estoqueMinimo})`,
-        };
-      }
-
-      return { disponivel: true };
-    } catch (error) {
-      this.logger.error(
-        `Erro ao validar disponibilidade de estoque: ${error.message}`,
-      );
+    const estoqueAtual = Number(estoque.estoque_atual || 0);
+    const estoqueMinimo = Number(estoque.estoque_minimo || 0);
+    if (estoqueAtual < quantidade) {
       return {
         disponivel: false,
-        motivo: `Erro na validação: ${error.message}`,
+        motivo: `Estoque insuficiente (${estoque.nome}). Disponível: ${estoqueAtual}, Necessário: ${quantidade}`,
       };
     }
+    if (estoqueAtual - quantidade < estoqueMinimo) {
+      return {
+        disponivel: true,
+        alerta: `${estoque.nome}: ficará abaixo do mínimo após a operação`,
+      };
+    }
+    return { disponivel: true };
   }
 
-  /**
-   * Executa uma operação individual de estoque
-   */
   private async executarOperacaoIndividual(
     operacao: OperacaoEstoque,
+    lojaId: string,
+    usuarioId?: string,
   ): Promise<void> {
-    // TODO: Implementar operações reais de estoque
-    // Por enquanto, apenas registra no log
-    this.logger.log(
-      `Executando operação de estoque: ${JSON.stringify(operacao)}`,
-    );
+    const qtd = Number(operacao.quantidade);
+    if (!Number.isFinite(qtd) || qtd <= 0) {
+      throw new BadRequestException('Quantidade de estoque inválida');
+    }
 
-    // Em uma implementação real, aqui seria:
-    // 1. Atualizar estoque_atual do insumo
-    // 2. Registrar movimentação de estoque
-    // 3. Atualizar reservas se necessário
-    // 4. Gerar alertas se estoque ficar baixo
+    if (operacao.tipo === 'RESERVA') {
+      await this.executarReserva(operacao, lojaId, qtd);
+      return;
+    }
+    if (operacao.tipo === 'LIBERACAO') {
+      await this.executarLiberacao(operacao, lojaId, qtd);
+      return;
+    }
+    await this.executarBaixa(operacao, lojaId, qtd, usuarioId);
   }
 
-  /**
-   * Libera reservas de estoque (usado quando OS é cancelada)
-   */
-  async liberarReservasEstoque(
-    osId: string,
-  ): Promise<ResultadoOperacaoEstoque> {
-    try {
-      this.logger.log(`Liberando reservas de estoque para OS ${osId}`);
-
-      // Buscar reservas ativas da OS
-      const reservas = await this.buscarReservasAtivas(osId);
-
-      const operacoes: OperacaoEstoque[] = reservas.map((reserva) => ({
-        insumo_id: reserva.insumo_id,
-        quantidade: reserva.quantidade,
-        unidade: reserva.unidade,
-        tipo: 'LIBERACAO',
-        motivo: 'Cancelamento de OS - liberação de reservas',
-        referencia_id: osId,
-      }));
-
-      const resultado = await this.executarOperacoesEstoque(operacoes, osId);
-
-      this.logger.log(`[OK] Reservas de estoque liberadas para OS ${osId}`);
-      return resultado;
-    } catch (error) {
-      this.logger.error(
-        `Erro ao liberar reservas de estoque: ${error.message}`,
+  private async executarReserva(
+    operacao: OperacaoEstoque,
+    lojaId: string,
+    qtd: number,
+  ): Promise<void> {
+    const item = await this.buscarItemEstoquePorInsumo(
+      lojaId,
+      operacao.insumo_id,
+    );
+    if (item) {
+      await this.atualizarReservadaItem(
+        lojaId,
+        item.id,
+        item.quantidadeReservada + qtd,
       );
-      throw error;
+    } else {
+      this.logger.warn(
+        `RESERVA sem estoque_itens para insumo ${operacao.insumo_id}; só registra log`,
+      );
+    }
+
+    await this.prisma.ordemServicoLog.create({
+      data: {
+        os_id: operacao.referencia_id,
+        tipo_acao: TIPO_LOG_ESTOQUE_RESERVA,
+        descricao: operacao.motivo,
+        dados_extras: JSON.stringify({
+          ativa: true,
+          insumo_id: operacao.insumo_id,
+          quantidade: qtd,
+          unidade: operacao.unidade,
+          estoque_item_id: item?.id ?? null,
+        }),
+      },
+    });
+  }
+
+  private async executarLiberacao(
+    operacao: OperacaoEstoque,
+    lojaId: string,
+    qtd: number,
+  ): Promise<void> {
+    const logs = await this.prisma.ordemServicoLog.findMany({
+      where: {
+        os_id: operacao.referencia_id,
+        tipo_acao: TIPO_LOG_ESTOQUE_RESERVA,
+      },
+      orderBy: { criado_em: 'asc' },
+    });
+
+    let restante = qtd;
+    for (const log of logs) {
+      if (restante <= 0) break;
+      let extras: {
+        ativa?: boolean;
+        insumo_id?: string;
+        quantidade?: number;
+        estoque_item_id?: string | null;
+      } = {};
+      try {
+        extras = JSON.parse(log.dados_extras || '{}');
+      } catch {
+        continue;
+      }
+      if (!extras.ativa || extras.insumo_id !== operacao.insumo_id) continue;
+
+      const liberar = Math.min(Number(extras.quantidade || 0), restante);
+      if (liberar <= 0) continue;
+
+      if (extras.estoque_item_id) {
+        const item = await this.buscarItemEstoquePorId(
+          lojaId,
+          extras.estoque_item_id,
+        );
+        if (item) {
+          await this.atualizarReservadaItem(
+            lojaId,
+            item.id,
+            Math.max(0, item.quantidadeReservada - liberar),
+          );
+        }
+      }
+
+      const novaQtd = Number(extras.quantidade || 0) - liberar;
+      await this.prisma.ordemServicoLog.update({
+        where: { id: log.id },
+        data: {
+          dados_extras: JSON.stringify({
+            ...extras,
+            quantidade: novaQtd,
+            ativa: novaQtd > 0,
+          }),
+        },
+      });
+      restante -= liberar;
     }
   }
 
-  /**
-   * Busca reservas ativas de uma OS
-   */
+  private async executarBaixa(
+    operacao: OperacaoEstoque,
+    lojaId: string,
+    qtd: number,
+    usuarioId?: string,
+  ): Promise<void> {
+    const insumo = await this.prisma.insumo.findFirst({
+      where: { id: operacao.insumo_id, loja_id: lojaId },
+      select: { estoque_atual: true, controla_estoque: true },
+    });
+    if (!insumo?.controla_estoque) {
+      this.logger.warn(
+        `BAIXA ignorada: insumo ${operacao.insumo_id} sem controle`,
+      );
+      return;
+    }
+
+    const atual = Number(insumo.estoque_atual || 0);
+    if (atual < qtd) {
+      throw new BadRequestException(
+        `Estoque insuficiente para baixa. Disponível: ${atual}, Necessário: ${qtd}`,
+      );
+    }
+
+    // Consome reservas ativas antes da baixa física
+    await this.executarLiberacao(
+      { ...operacao, tipo: 'LIBERACAO', quantidade: qtd },
+      lojaId,
+      qtd,
+    );
+
+    await this.prisma.insumo.update({
+      where: { id: operacao.insumo_id },
+      data: { estoque_atual: atual - qtd },
+    });
+
+    const item = await this.buscarItemEstoquePorInsumo(
+      lojaId,
+      operacao.insumo_id,
+    );
+    if (item) {
+      try {
+        await this.movimentacoesService.criarMovimentacao(
+          { lojaId, usuarioId },
+          {
+            estoqueId: item.id,
+            tipo: 'SAIDA',
+            quantidade: qtd,
+            documentoRef: operacao.referencia_id,
+            observacoes: operacao.motivo,
+          },
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Falha ao registrar movimentação estoque_itens: ${(error as Error).message}`,
+        );
+      }
+    } else {
+      this.logger.warn(
+        `BAIXA só em Insumo.estoque_atual (sem estoque_itens) para ${operacao.insumo_id}`,
+      );
+    }
+  }
+
   private async buscarReservasAtivas(osId: string): Promise<
-    Array<{
+    Array<{ insumo_id: string; quantidade: number; unidade: string }>
+  > {
+    const logs = await this.prisma.ordemServicoLog.findMany({
+      where: { os_id: osId, tipo_acao: TIPO_LOG_ESTOQUE_RESERVA },
+    });
+    const out: Array<{
       insumo_id: string;
       quantidade: number;
       unidade: string;
-    }>
-  > {
-    // TODO: Implementar busca de reservas ativas
-    // Por enquanto, retorna array vazio
-    return [];
+    }> = [];
+    for (const log of logs) {
+      try {
+        const extras = JSON.parse(log.dados_extras || '{}') as {
+          ativa?: boolean;
+          insumo_id?: string;
+          quantidade?: number;
+          unidade?: string;
+        };
+        if (!extras.ativa || !extras.insumo_id) continue;
+        out.push({
+          insumo_id: extras.insumo_id,
+          quantidade: Number(extras.quantidade || 0),
+          unidade: extras.unidade || 'un',
+        });
+      } catch {
+        // ignore
+      }
+    }
+    return out.filter((r) => r.quantidade > 0);
+  }
+
+  private async buscarItemEstoquePorInsumo(
+    lojaId: string,
+    insumoId: string,
+  ): Promise<EstoqueItemRow | null> {
+    try {
+      const rows: Array<{
+        id: string;
+        quantidadeAtual: any;
+        quantidadeReservada: any;
+      }> = await this.prisma.$queryRawUnsafe(
+        `SELECT id, quantidadeAtual, COALESCE(quantidadeReservada, 0) AS quantidadeReservada
+         FROM estoque_itens
+         WHERE lojaId = ? AND insumoId = ? AND ativo = 1
+         ORDER BY quantidadeAtual DESC
+         LIMIT 1`,
+        lojaId,
+        insumoId,
+      );
+      if (!rows?.length) return null;
+      return {
+        id: rows[0].id,
+        quantidadeAtual: Number(rows[0].quantidadeAtual || 0),
+        quantidadeReservada: Number(rows[0].quantidadeReservada || 0),
+      };
+    } catch (error) {
+      this.logger.warn(
+        `buscarItemEstoquePorInsumo falhou: ${(error as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  private async buscarItemEstoquePorId(
+    lojaId: string,
+    itemId: string,
+  ): Promise<EstoqueItemRow | null> {
+    try {
+      const rows: Array<{
+        id: string;
+        quantidadeAtual: any;
+        quantidadeReservada: any;
+      }> = await this.prisma.$queryRawUnsafe(
+        `SELECT id, quantidadeAtual, quantidadeReservada
+         FROM estoque_itens
+         WHERE lojaId = ? AND id = ?
+         LIMIT 1`,
+        lojaId,
+        itemId,
+      );
+      if (!rows?.length) return null;
+      return {
+        id: rows[0].id,
+        quantidadeAtual: Number(rows[0].quantidadeAtual || 0),
+        quantidadeReservada: Number(rows[0].quantidadeReservada || 0),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private async atualizarReservadaItem(
+    lojaId: string,
+    itemId: string,
+    novaReservada: number,
+  ): Promise<void> {
+    await this.prisma.$executeRawUnsafe(
+      `UPDATE estoque_itens
+       SET quantidadeReservada = ?
+       WHERE id = ? AND lojaId = ?`,
+      Math.max(0, novaReservada),
+      itemId,
+      lojaId,
+    );
   }
 }

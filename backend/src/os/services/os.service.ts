@@ -44,8 +44,10 @@ import {
   computeStatusOSLiberacaoFromItens,
   comTipoItemOrcamento,
   getMotivosBloqueioPcp,
+  isArteOkParaPcp,
   isElegivelPcp,
   itemRequerFabricaPcp,
+  produtoRequerArte,
   resolveIdsAlvoLiberacao,
 } from '../utils/os-liberacao-pcp.util';
 import {
@@ -3697,21 +3699,98 @@ export class OSService {
   // ===== MÉTODOS DE VALIDAÇÃO PARA WORKFLOW COMERCIAL =====
 
   /**
-   * Valida se estoque está disponível para todos os insumos da OS
+   * Valida se estoque está disponível para insumos com controle de estoque.
+   * Reusa ValidacaoEstoqueService (mesma fonte da criação da OS).
    */
   private async validarEstoqueDisponivel(osId: string): Promise<boolean> {
     try {
       const os = await this.prisma.ordemServico.findUnique({
         where: { id: osId },
+        select: {
+          id: true,
+          loja_id: true,
+          nome_servico: true,
+          quantidade: true,
+          insumos_calculados: true,
+          orcamento_id: true,
+          parametros_tecnicos: true,
+        },
       });
 
       if (!os) {
         return false;
       }
 
-      // TODO: Implementar validação real de estoque usando ValidacaoEstoqueService
-      // Por enquanto, retorna true para não bloquear o desenvolvimento
-      return true;
+      const insumosCalculados = this.parseJsonArray<any>(
+        os.insumos_calculados,
+        `insumos_calculados para OS ${osId}`,
+      );
+      const insumoIds = [
+        ...new Set(
+          insumosCalculados
+            .map((i) => i?.insumo_id)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ];
+
+      if (insumoIds.length === 0) {
+        await this.prisma.ordemServico.update({
+          where: { id: osId },
+          data: { materiais_disponivel: true },
+        });
+        return true;
+      }
+
+      const controlados = await this.prisma.insumo.findMany({
+        where: {
+          id: { in: insumoIds },
+          loja_id: os.loja_id,
+          controla_estoque: true,
+        },
+        select: { id: true },
+      });
+
+      if (controlados.length === 0) {
+        await this.prisma.ordemServico.update({
+          where: { id: osId },
+          data: { materiais_disponivel: true },
+        });
+        return true;
+      }
+
+      const controladosSet = new Set(controlados.map((c) => c.id));
+      const insumosFiltrados = insumosCalculados.filter((i) =>
+        controladosSet.has(i?.insumo_id),
+      );
+
+      let parametros: Record<string, unknown> | undefined;
+      try {
+        parametros = os.parametros_tecnicos
+          ? (JSON.parse(os.parametros_tecnicos) as Record<string, unknown>)
+          : undefined;
+      } catch {
+        parametros = undefined;
+      }
+
+      const dtoLike = {
+        nome_servico: os.nome_servico,
+        quantidade: Number(os.quantidade) || 1,
+        orcamento_id: os.orcamento_id ?? undefined,
+        insumos_calculados: insumosFiltrados,
+        parametros_tecnicos: parametros as CreateOSDto['parametros_tecnicos'],
+      } as CreateOSDto;
+
+      const resultado = await this.executarValidacaoEstoque(
+        os.loja_id,
+        dtoLike,
+      );
+
+      await this.prisma.ordemServico.update({
+        where: { id: osId },
+        data: { materiais_disponivel: resultado.materiaisDisponiveis },
+      });
+
+      return resultado.materiaisDisponiveis;
     } catch (error) {
       this.logger.error('Erro ao validar estoque:', error);
       return false;
@@ -3719,20 +3798,35 @@ export class OSService {
   }
 
   /**
-   * Valida se arte está anexada (quando aplicável)
+   * Valida arte dos itens que exigem arte (mesmo critério da liberação PCP).
    */
   private async validarArteAnexada(osId: string): Promise<boolean> {
     try {
-      const os = await this.prisma.ordemServico.findUnique({
-        where: { id: osId },
+      const itens = await this.prisma.itemOS.findMany({
+        where: { os_id: osId },
+        select: {
+          responsabilidade_arte: true,
+          status_arte: true,
+          produto_servico: true,
+        },
       });
 
-      if (!os) {
-        return false;
+      if (itens.length === 0) {
+        return true;
       }
 
-      // TODO: Implementar validação real de arquivos anexados
-      // Por enquanto, retorna true para não bloquear o desenvolvimento
+      for (const item of itens) {
+        if (
+          produtoRequerArte(item.responsabilidade_arte, item.status_arte) &&
+          !isArteOkParaPcp(item.responsabilidade_arte, item.status_arte)
+        ) {
+          this.logger.warn(
+            `Arte pendente na OS ${osId}: item "${item.produto_servico}" status=${item.status_arte}`,
+          );
+          return false;
+        }
+      }
+
       return true;
     } catch (error) {
       this.logger.error('Erro ao validar arte anexada:', error);

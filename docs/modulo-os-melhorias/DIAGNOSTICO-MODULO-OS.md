@@ -156,7 +156,7 @@ mudança).
       de centro de custo. Removidos saldos inventados (R$ 10.000); `validar-alcada`
       responde 503; aprovação interna segue só por alçada de cargo. Persistência
       de saldo orçamentário fica para entrega futura dedicada.
-- [ ] **P1-3** — Implementar baixa real de estoque no apontamento de produção e
+- [x] **P1-3** — Implementar baixa real de estoque no apontamento de produção e
       as validações de transição (estoque/arte) que hoje retornam sempre
       `true`.
 - [x] **P1-4** — Impressão da OS alinhada ao timbrado da loja (mesmo padrão do

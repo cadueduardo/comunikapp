@@ -364,6 +364,7 @@ export class WorkflowInstanciaService {
               createDto.quantidade_produzida,
               createDto.quantidade_refugo,
               createDto.observacoes,
+              usuarioId,
             );
 
           // Adicionar alertas de estoque às observações
@@ -381,10 +382,12 @@ export class WorkflowInstanciaService {
             );
           }
         } catch (error) {
+          if (error instanceof BadRequestException) {
+            throw error;
+          }
           this.logger.warn(
             `Erro ao processar estoque para apontamento: ${error.message}`,
           );
-          // Continua criando o apontamento mesmo com erro de estoque
         }
       }
 
