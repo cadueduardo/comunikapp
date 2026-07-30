@@ -146,21 +146,12 @@ export class CentroCustoService {
     lojaId: string,
   ): Promise<CentroCustoInfo | null> {
     try {
-      // TODO: Implementar consulta real ao banco de dados
-      // Por enquanto, retornar dados simulados
-      return {
-        id: `cc-${centroCusto}`,
-        codigo: centroCusto,
-        nome: `Centro de Custo ${centroCusto}`,
-        departamento: 'TI',
-        loja_id: lojaId,
-        orcamento_total: 10000,
-        orcamento_utilizado: 3000,
-        orcamento_reservado: 2000,
-        orcamento_livre: 5000,
-        percentual_utilizado: 30,
-        status: 'ATIVO',
-      };
+      // P1-2: não devolver orçamento simulado (R$ 10.000). Persistência real
+      // ainda não existe — retornar null = centro sem saldo configurado.
+      this.logger.warn(
+        `obterInfoCentroCusto(${centroCusto}, loja=${lojaId}): feature de saldo não configurada; retornando null.`,
+      );
+      return null;
     } catch (error) {
       this.logger.error('Erro ao obter info do centro de custo:', error);
       return null;
@@ -473,23 +464,11 @@ export class CentroCustoService {
    */
   async listarCentrosCusto(lojaId: string): Promise<CentroCustoInfo[]> {
     try {
-      // TODO: Implementar listagem real com banco de dados
-      // Por enquanto, retornar dados simulados
-      return [
-        {
-          id: 'cc-001',
-          codigo: 'CC001',
-          nome: 'Centro de Custo TI',
-          departamento: 'TI',
-          loja_id: lojaId,
-          orcamento_total: 10000,
-          orcamento_utilizado: 3000,
-          orcamento_reservado: 2000,
-          orcamento_livre: 5000,
-          percentual_utilizado: 30,
-          status: 'ATIVO',
-        },
-      ];
+      // P1-2: sem tabela/persistência — não inventar centros fictícios.
+      this.logger.warn(
+        `listarCentrosCusto(loja=${lojaId}): feature não configurada; lista vazia.`,
+      );
+      return [];
     } catch (error) {
       this.logger.error('Erro ao listar centros de custo:', error);
       throw error;
@@ -502,8 +481,8 @@ export class CentroCustoService {
   async obterHistoricoMovimentacoes(
     centroCusto: string,
     lojaId: string,
-    periodoInicio?: Date,
-    periodoFim?: Date,
+    _periodoInicio?: Date,
+    _periodoFim?: Date,
   ): Promise<
     Array<{
       data: Date;
@@ -515,18 +494,10 @@ export class CentroCustoService {
     }>
   > {
     try {
-      // TODO: Implementar histórico real com banco de dados
-      // Por enquanto, retornar dados simulados
-      return [
-        {
-          data: new Date(),
-          tipo: 'RESERVA',
-          valor: 1000,
-          os_id: 'os-001',
-          usuario_id: 'user-001',
-          observacoes: 'Reserva para OS de teste',
-        },
-      ];
+      this.logger.warn(
+        `obterHistoricoMovimentacoes(${centroCusto}, loja=${lojaId}): feature não configurada; histórico vazio.`,
+      );
+      return [];
     } catch (error) {
       this.logger.error('Erro ao obter histórico:', error);
       throw error;

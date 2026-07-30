@@ -1109,7 +1109,7 @@ export class OSService {
     // Validar dados específicos de OS Comercial
     await this.validarOSComercial(lojaId, dadosComercial);
 
-    // Criar OS com dados comerciais
+    // Criar OS com dados comerciais — status alinhado ao create() principal
     const os = await this.prisma.ordemServico.create({
       data: {
         ...dadosComercial,
@@ -1118,7 +1118,7 @@ export class OSService {
         criado_por: usuarioId,
         versao: 1,
         materiais_disponivel: false,
-        status: 'FILA',
+        status: StatusOS.AGUARDANDO_APROVACAO_FINANCEIRA,
         data_abertura: new Date(),
       } as any,
     });
@@ -1144,7 +1144,7 @@ export class OSService {
     // Validar dados específicos de OS Interna
     await this.validarOSInterna(lojaId, dadosInterna);
 
-    // Criar OS com dados internos
+    // Criar OS com dados internos — status alinhado ao create() principal
     const os = await this.prisma.ordemServico.create({
       data: {
         ...dadosInterna,
@@ -1153,7 +1153,7 @@ export class OSService {
         criado_por: usuarioId,
         versao: 1,
         materiais_disponivel: false,
-        status: 'FILA',
+        status: StatusOS.AGUARDANDO_APROVACAO_ORCAMENTARIA,
         data_abertura: new Date(),
         aprovacao_gerencial: 'PENDENTE',
       } as any,

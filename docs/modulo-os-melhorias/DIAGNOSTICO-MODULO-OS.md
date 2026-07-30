@@ -150,11 +150,12 @@ mudança).
 
 ### P1 — Completar fluxos que existem pela metade
 
-- [ ] **P1-1** — Plugar `OSInteligenteTab` (validações + cálculo de materiais)
+- [x] **P1-1** — Plugar `OSInteligenteTab` (validações + cálculo de materiais)
       na aba Análise Inteligente.
-- [ ] **P1-2** — Decidir centro de custo/alçadas: implementar persistência real
-      ou esconder a feature até existir (hoje aprova com orçamento fictício de
-      R$ 10.000).
+- [x] **P1-2** — Decisão: **esconder / fail-closed** até haver persistência real
+      de centro de custo. Removidos saldos inventados (R$ 10.000); `validar-alcada`
+      responde 503; aprovação interna segue só por alçada de cargo. Persistência
+      de saldo orçamentário fica para entrega futura dedicada.
 - [ ] **P1-3** — Implementar baixa real de estoque no apontamento de produção e
       as validações de transição (estoque/arte) que hoje retornam sempre
       `true`.
@@ -162,7 +163,7 @@ mudança).
       versões simples/completa.
 - [ ] **P1-5** — Unificar status da OS: tipar a coluna com enum único (ou
       remover o enum Prisma órfão) e atualizar `01-status-oficiais.md`.
-- [ ] **P1-6** — Eliminar rotas duplicadas dos controllers de workflow e
+- [x] **P1-6** — Eliminar rotas duplicadas dos controllers de workflow e
       alinhar `criarOSComercial`/`criarOSInterna` ao fluxo do `create()`.
 
 ### P2 — Evolução para paridade de mercado

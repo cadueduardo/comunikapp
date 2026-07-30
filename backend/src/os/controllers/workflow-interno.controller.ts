@@ -7,6 +7,7 @@ import {
   Body,
   UseGuards,
   Request,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,42 +19,18 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { OSService } from '../services/os.service';
 import { StatusOS } from '../interfaces/os.interfaces';
 
+/**
+ * Rotas exclusivas do workflow de OS interna.
+ * Transições compartilhadas (transicionar-estado, iniciar-producao,
+ * finalizar-os) ficam apenas em WorkflowComercialController para evitar
+ * rotas duplicadas no mesmo @Controller('os').
+ */
 @ApiTags('Workflow OS Interna')
 @ApiBearerAuth()
 @Controller('os')
 @UseGuards(JwtAuthGuard)
 export class WorkflowInternoController {
   constructor(private readonly osService: OSService) {}
-
-  @Patch(':id/transicionar-estado')
-  @ApiOperation({
-    summary: 'Transicionar OS para próximo estado do workflow interno',
-  })
-  @ApiResponse({ status: 200, description: 'OS transicionada com sucesso' })
-  @ApiResponse({
-    status: 400,
-    description: 'Transição inválida ou dados incorretos',
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Usuário sem permissão para transição',
-  })
-  async transicionarEstado(
-    @Param('id') osId: string,
-    @Body() body: { novo_status: StatusOS; observacoes?: string },
-    @Request() req: any,
-  ) {
-    const user = req['user'] || req.user;
-    const usuarioId = user.id;
-
-    return await this.osService.transicionarEstadoOS(
-      osId,
-      body.novo_status,
-      usuarioId,
-      body.observacoes,
-      user.loja_id,
-    );
-  }
 
   @Patch(':id/aprovar-orcamentaria')
   @ApiOperation({ summary: 'Aprovar OS orçamentária (workflow interno)' })
@@ -79,67 +56,29 @@ export class WorkflowInternoController {
     );
   }
 
-  @Post(':id/iniciar-producao')
-  @ApiOperation({
-    summary: 'Iniciar produção da OS (após aprovação orçamentária)',
-  })
-  @ApiResponse({ status: 200, description: 'Produção iniciada com sucesso' })
-  @ApiResponse({
-    status: 400,
-    description: 'OS não está aprovada orçamentariamente',
-  })
-  async iniciarProducao(
-    @Param('id') osId: string,
-    @Body() body: { observacoes?: string },
-    @Request() req: any,
-  ) {
-    const user = req['user'] || req.user;
-    const usuarioId = user.id;
-
-    return await this.osService.transicionarEstadoOS(
-      osId,
-      StatusOS.PRODUCAO,
-      usuarioId,
-      body.observacoes || 'Produção iniciada',
-      user.loja_id,
-    );
-  }
-
-  @Post(':id/finalizar-os')
-  @ApiOperation({ summary: 'Finalizar OS interna (sem acabamento)' })
-  @ApiResponse({ status: 200, description: 'OS finalizada com sucesso' })
-  @ApiResponse({ status: 400, description: 'OS não está em produção' })
-  async finalizarOS(
-    @Param('id') osId: string,
-    @Body() body: { observacoes?: string },
-    @Request() req: any,
-  ) {
-    const user = req['user'] || req.user;
-    const usuarioId = user.id;
-
-    return await this.osService.transicionarEstadoOS(
-      osId,
-      StatusOS.FINALIZADA,
-      usuarioId,
-      body.observacoes || 'OS finalizada',
-      user.loja_id,
-    );
-  }
-
   @Get(':id/validar-alcada')
-  @ApiOperation({ summary: 'Validar alçada do usuário para aprovação' })
+  @ApiOperation({
+    summary:
+      'Validar alçada do usuário para aprovação (orçamento de centro de custo ainda não persistido)',
+  })
   @ApiResponse({ status: 200, description: 'Validação de alçada realizada' })
+  @ApiResponse({
+    status: 503,
+    description: 'Validação orçamentária de centro de custo indisponível',
+  })
   async validarAlcada(@Param('id') osId: string, @Request() req: any) {
     const user = req['user'] || req.user;
-    const usuarioId = user.id;
 
-    // TODO: Implementar validação de alçada
-    return {
-      usuario_id: usuarioId,
-      funcao: user.funcao,
-      pode_aprovar: true,
-      limite_maximo: 2000,
-      valor_os: 0,
-    };
+    // P1-2: não devolver "pode_aprovar: true" com limites inventados.
+    // Orçamento por centro de custo ainda não tem persistência real.
+    throw new ServiceUnavailableException({
+      message:
+        'Validação orçamentária por centro de custo ainda não está disponível. A aprovação de OS interna deve usar o fluxo de aprovação gerencial/orçamentária, sem saldo fictício.',
+      usuario_id: user.id,
+      os_id: osId,
+      pode_aprovar: false,
+      motivo:
+        'Centro de custo orçamentário não configurado (feature desativada até P1-2 completo).',
+    });
   }
 }

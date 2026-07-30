@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StatusAprovacao } from '../interfaces/os-direta-interna.interface';
 
@@ -28,6 +28,7 @@ export interface ResultadoValidacaoAlcada {
 
 @Injectable()
 export class AprovacaoAlcadaService {
+  private readonly logger = new Logger(AprovacaoAlcadaService.name);
   private readonly configuracoesAlcada: ConfiguracaoAlcada[] = [
     {
       nivel: NivelAlcada.AUTOMATICA,
@@ -71,7 +72,10 @@ export class AprovacaoAlcadaService {
   }
 
   /**
-   * Valida se uma OS interna pode ser aprovada baseado na alçada e orçamento disponível
+   * Valida se uma OS interna pode ser aprovada baseado na alçada.
+   * Orçamento por centro de custo ainda NÃO está persistido (P1-2): a checagem
+   * de saldo foi desativada para não aprovar com R$ 10.000 inventados.
+   * A aprovação continua limitada pelo nível de alçada / cargo do aprovador.
    */
   async validarAprovacaoAlcada(
     valorEstimado: number,
@@ -80,19 +84,16 @@ export class AprovacaoAlcadaService {
     lojaId: string,
   ): Promise<ResultadoValidacaoAlcada> {
     try {
-      // 1. Determinar nível de alçada necessário
       const nivelRequerido = this.determinarNivelAlcada(valorEstimado);
-
-      // 2. Verificar orçamento disponível no centro de custo
       const orcamentoDisponivel = await this.verificarOrcamentoDisponivel(
         centroCusto,
         lojaId,
       );
 
-      // 3. Verificar se há orçamento suficiente
-      const podeAprovar = orcamentoDisponivel >= valorEstimado;
+      // null = feature de saldo desativada; não bloquear por orçamento fictício
+      const podeAprovar =
+        orcamentoDisponivel === null || orcamentoDisponivel >= valorEstimado;
 
-      // 4. Determinar aprovador necessário
       const aprovadorRequerido = this.determinarAprovadorRequerido(
         nivelRequerido,
         departamentoSolicitante,
@@ -103,11 +104,13 @@ export class AprovacaoAlcadaService {
         aprovadorRequerido,
         valorEstimado,
         centroCusto,
-        orcamentoDisponivel,
+        orcamentoDisponivel: orcamentoDisponivel ?? 0,
         podeAprovar,
         motivoBloqueio: podeAprovar
-          ? undefined
-          : `Orçamento insuficiente. Disponível: R$ ${orcamentoDisponivel.toFixed(2)}, Necessário: R$ ${valorEstimado.toFixed(2)}`,
+          ? orcamentoDisponivel === null
+            ? 'Saldo de centro de custo ainda não configurado; aprovação limitada apenas à alçada do cargo.'
+            : undefined
+          : `Orçamento insuficiente. Disponível: R$ ${Number(orcamentoDisponivel).toFixed(2)}, Necessário: R$ ${valorEstimado.toFixed(2)}`,
       };
     } catch (error) {
       throw new Error(`Erro ao validar aprovação por alçada: ${error.message}`);
@@ -356,12 +359,15 @@ export class AprovacaoAlcadaService {
   // Métodos privados auxiliares
 
   private async verificarOrcamentoDisponivel(
-    centroCusto: string,
-    lojaId: string,
-  ): Promise<number> {
-    // TODO: Implementar verificação real de orçamento disponível
-    // Por enquanto, retorna um valor simulado
-    return 10000; // R$ 10.000,00 simulado
+    _centroCusto: string,
+    _lojaId: string,
+  ): Promise<number | null> {
+    // P1-2: saldo orçamentário por centro de custo ainda não tem persistência.
+    // Retornar null = checagem desativada (não inventar R$ 10.000).
+    this.logger.warn(
+      'verificarOrcamentoDisponivel: saldo de centro de custo não configurado; checagem ignorada.',
+    );
+    return null;
   }
 
   private determinarAprovadorRequerido(

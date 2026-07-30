@@ -23,6 +23,7 @@ import { OSMateriaisPanel } from "@/components/os/OSMateriaisPanel";
 import { OsPosCalculoPanel } from "@/components/os/OsPosCalculoPanel";
 import { InstalacaoOsPainel } from "@/components/instalacao/InstalacaoOsPainel";
 import { ChecklistEstoque } from "@/components/ui/os/ChecklistEstoque";
+import { OSInteligenteTab } from "@/components/os/OSInteligenteTab";
 import { useOsStatus } from "@/hooks/use-os-status";
 
 interface MaterialOSDetalhe {
@@ -279,15 +280,7 @@ function OSTabsComponent({
             />
             <div className="hidden lg:block w-px bg-border" />
             <div className="w-full lg:flex-1 lg:px-6">
-              <div className="text-center py-12">
-                <ClipboardList className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h2 className="text-lg font-medium text-foreground mb-2">
-                  Análise Inteligente
-                </h2>
-                <p className="text-muted-foreground">
-                  Conteúdo desta aba será ligado nas próximas etapas (P1-1).
-                </p>
-              </div>
+              <OSInteligenteTab osId={os.id} />
             </div>
           </div>
         )}
