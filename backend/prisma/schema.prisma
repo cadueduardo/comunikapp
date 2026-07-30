@@ -2627,7 +2627,7 @@ model OrdemServico {
   orcamento_id   String? // Opcional - vínculo com orçamento aprovado
   data_abertura  DateTime  @default(now())
   data_prazo     DateTime?
-  status         String    @default("FILA")
+  status         StatusOS  @default(FILA)
   responsavel_id String?
   observacoes    String?   @db.Text
   criado_em      DateTime  @default(now())
@@ -3040,9 +3040,19 @@ model Apontamento {
   @@map("apontamento")
 }
 
-// Enums para status das OS
+// Enums para status das OS — espelha backend/src/os/interfaces/os.interfaces.ts (StatusOS).
+// Manter os dois em sincronia; teste em status-os.enum.spec.ts.
 enum StatusOS {
   FILA
+  AGUARDANDO_APROVACAO_FINANCEIRA
+  AGUARDANDO_APROVACAO_TECNICA
+  APROVADA_TECNICA
+  AGUARDANDO_APROVACAO_ORCAMENTARIA
+  APROVADA_ORCAMENTARIA
+  REJEITADA
+  LIBERADA_PARA_PCP
+  PARCIALMENTE_LIBERADA
+  EM_WORKFLOW
   PRODUCAO
   ACABAMENTO
   FINALIZADA

@@ -54,23 +54,15 @@ O núcleo do módulo é maduro — o problema está nas bordas, não na fundaç�
 
 ## 3. Problemas estruturais
 
-### 3.1 Três fontes de verdade para o status da OS (crítico)
+### 3.1 Status da OS unificado (resolvido em P1-5)
 
-- A coluna `OrdemServico.status` é `String` solta (default `"FILA"`), sem enum.
-- O enum Prisma `StatusOS` (`schema.prisma` ~3044) tem **7 valores** e está
-  **órfão** — nenhuma coluna o usa.
-- O enum TypeScript real (`backend/src/os/interfaces/os.interfaces.ts`
-  ~414–431) tem **16 valores** e é o que o backend usa:
-  `FILA`, `AGUARDANDO_APROVACAO_FINANCEIRA`, `AGUARDANDO_APROVACAO_TECNICA`,
-  `APROVADA_TECNICA`, `AGUARDANDO_APROVACAO_ORCAMENTARIA`,
-  `APROVADA_ORCAMENTARIA`, `REJEITADA`, `LIBERADA_PARA_PCP`,
-  `PARCIALMENTE_LIBERADA`, `EM_WORKFLOW`, `PRODUCAO`, `ACABAMENTO`,
-  `FINALIZADA`, `CANCELADA`, `AGUARDANDO_MATERIAL`, `PAUSADA`.
+- A coluna `OrdemServico.status` é `StatusOS` tipado (`@default(FILA)`).
+- O enum Prisma `StatusOS` e o enum TypeScript
+  (`backend/src/os/interfaces/os.interfaces.ts`) têm os **mesmos 16 valores**.
+- Helpers `STATUS_OS_VALUES` / `isStatusOS` / `assertStatusOS` validam writes.
+- Migration `20260730123600_os_status_enum_unificado` tipa a coluna no MySQL.
 - A doc oficial (`docs/fase-0-home-operacional/01-status-oficiais.md`) espelha
-  o Prisma desatualizado.
-
-Consequência: qualquer typo em status passa direto pelo banco. Unificar antes
-de evoluir o módulo.
+  os 16 status.
 
 ### 3.2 Rotas duplicadas no mesmo prefixo (crítico)
 
@@ -168,7 +160,7 @@ mudança).
       arte), pick list de materiais com disponibilidade de estoque e, na versão
       completa, roteiro de apontamento manual + checklist de qualidade com
       assinaturas.
-- [ ] **P1-5** — Unificar status da OS: tipar a coluna com enum único (ou
+- [x] **P1-5** — Unificar status da OS: tipar a coluna com enum único (ou
       remover o enum Prisma órfão) e atualizar `01-status-oficiais.md`.
 - [x] **P1-6** — Eliminar rotas duplicadas dos controllers de workflow e
       alinhar `criarOSComercial`/`criarOSInterna` ao fluxo do `create()`.

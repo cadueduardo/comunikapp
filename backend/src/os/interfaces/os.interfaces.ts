@@ -430,6 +430,25 @@ export enum StatusOS {
   PAUSADA = 'PAUSADA',
 }
 
+/** Lista canônica — deve coincidir com `enum StatusOS` em schema.prisma. */
+export const STATUS_OS_VALUES: readonly StatusOS[] = Object.freeze(
+  Object.values(StatusOS),
+);
+
+export function isStatusOS(value: unknown): value is StatusOS {
+  return (
+    typeof value === 'string' &&
+    (STATUS_OS_VALUES as readonly string[]).includes(value)
+  );
+}
+
+export function assertStatusOS(value: string): StatusOS {
+  if (!isStatusOS(value)) {
+    throw new Error(`Status OS inválido: ${value}`);
+  }
+  return value;
+}
+
 export enum TipoMovimentacaoOS {
   CRIACAO = 'CRIACAO',
   AVANCAR_ETAPA = 'AVANCAR_ETAPA',

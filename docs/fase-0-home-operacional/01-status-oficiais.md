@@ -63,16 +63,29 @@ cancelado     → rascunho
 
 ### Status principal (`status` em `ordens_servico`)
 
-Fonte de verdade: enum `StatusOS` em `backend/prisma/schema.prisma`.
+Fontes de verdade alinhadas (P1-5):
+
+- enum Prisma `StatusOS` em `backend/prisma/schema.prisma`
+- enum TypeScript `StatusOS` em `backend/src/os/interfaces/os.interfaces.ts`
+  (`STATUS_OS_VALUES` / `assertStatusOS`)
 
 ```text
 FILA
-AGUARDANDO_MATERIAL
+AGUARDANDO_APROVACAO_FINANCEIRA
+AGUARDANDO_APROVACAO_TECNICA
+APROVADA_TECNICA
+AGUARDANDO_APROVACAO_ORCAMENTARIA
+APROVADA_ORCAMENTARIA
+REJEITADA
+LIBERADA_PARA_PCP
+PARCIALMENTE_LIBERADA
+EM_WORKFLOW
 PRODUCAO
 ACABAMENTO
-PAUSADA
 FINALIZADA
 CANCELADA
+AGUARDANDO_MATERIAL
+PAUSADA
 ```
 
 ### Labels visíveis (pt-BR)
@@ -80,24 +93,41 @@ CANCELADA
 | status | label curto |
 | --- | --- |
 | `FILA` | Em fila |
-| `AGUARDANDO_MATERIAL` | Aguardando material |
+| `AGUARDANDO_APROVACAO_FINANCEIRA` | Aguardando aprovação financeira |
+| `AGUARDANDO_APROVACAO_TECNICA` | Aguardando aprovação técnica |
+| `APROVADA_TECNICA` | Aprovada (técnica) |
+| `AGUARDANDO_APROVACAO_ORCAMENTARIA` | Aguardando aprovação orçamentária |
+| `APROVADA_ORCAMENTARIA` | Aprovada (orçamentária) |
+| `REJEITADA` | Rejeitada |
+| `LIBERADA_PARA_PCP` | Liberada para PCP |
+| `PARCIALMENTE_LIBERADA` | Parcialmente liberada |
+| `EM_WORKFLOW` | Em workflow |
 | `PRODUCAO` | Em produção |
 | `ACABAMENTO` | Em acabamento |
-| `PAUSADA` | Pausada |
 | `FINALIZADA` | Finalizada |
 | `CANCELADA` | Cancelada |
+| `AGUARDANDO_MATERIAL` | Aguardando material |
+| `PAUSADA` | Pausada |
 
 ### Transições válidas (proposta de formalização)
 
+O motor operacional (aprovações, liberação PCP, workflow) usa o conjunto completo
+acima. Abaixo, o fluxo de chão de fábrica (subset) permanece como referência da Home:
+
 ```text
 FILA                  → AGUARDANDO_MATERIAL | PRODUCAO | CANCELADA
+                       | AGUARDANDO_APROVACAO_* | LIBERADA_PARA_PCP | …
 AGUARDANDO_MATERIAL   → FILA | PRODUCAO | CANCELADA
 PRODUCAO              → ACABAMENTO | PAUSADA | FINALIZADA | CANCELADA
 ACABAMENTO            → FINALIZADA | PAUSADA | CANCELADA
 PAUSADA               → PRODUCAO | ACABAMENTO | CANCELADA
 FINALIZADA            → (terminal)
 CANCELADA             → (terminal)
+REJEITADA             → (terminal operacional; pode reabrir via fluxo específico)
 ```
+
+> Nota: validação rigorosa de cada transição vive no serviço de OS / workflow;
+> a Home apenas lê o status atual.
 
 ### Status paralelos (já existem no schema)
 

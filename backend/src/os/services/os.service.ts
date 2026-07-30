@@ -37,6 +37,7 @@ import {
   PaginatedResponse,
   EstoqueValidacaoDetalhe,
   InsumoCalculado,
+  assertStatusOS,
 } from '../interfaces/os.interfaces';
 import {
   computeArteResumoGrid,
@@ -813,6 +814,13 @@ export class OSService {
     usuarioId?: string,
   ): Promise<OrdemServicoData> {
     try {
+      let statusAlvo: StatusOS;
+      try {
+        statusAlvo = assertStatusOS(dados.status);
+      } catch {
+        throw new BadRequestException(`Status OS inválido: ${dados.status}`);
+      }
+
       // Buscar OS atual para obter status anterior
       const osAtual = await this.prisma.ordemServico.findUnique({
         where: { id },
@@ -826,7 +834,7 @@ export class OSService {
       const os = await this.prisma.ordemServico.update({
         where: { id },
         data: {
-          status: dados.status,
+          status: statusAlvo,
           atualizado_em: new Date(),
         },
         include: {
@@ -850,13 +858,13 @@ export class OSService {
       await this.eventosAutomaticosService.notificarMudancaStatusOS(
         id,
         osAtual.status,
-        dados.status,
+        statusAlvo,
         osAtual.loja_id,
         usuarioId,
       );
 
       // Notificar liberação para PCP
-      if (dados.status === StatusOS.LIBERADA_PARA_PCP && !osAtual.pular_pcp) {
+      if (statusAlvo === StatusOS.LIBERADA_PARA_PCP && !osAtual.pular_pcp) {
         await this.eventosAutomaticosService.notificarOSLiberadaParaPCP(
           id,
           osAtual.loja_id,
@@ -996,10 +1004,17 @@ export class OSService {
     try {
       const os = await this.findOne(id, lojaId);
 
+      let statusAlvo: StatusOS;
+      try {
+        statusAlvo = assertStatusOS(nova_etapa);
+      } catch {
+        throw new BadRequestException(`Status OS inválido: ${nova_etapa}`);
+      }
+
       // Validar transição de etapa
       const transicaoValida = await this.validarTransicaoEtapa(
         os.status,
-        nova_etapa,
+        statusAlvo,
       );
 
       if (!transicaoValida.valida) {
@@ -1009,7 +1024,7 @@ export class OSService {
       // Atualizar status da OS
       const osAtualizada = await this.prisma.ordemServico.update({
         where: { id },
-        data: { status: nova_etapa },
+        data: { status: statusAlvo },
       });
 
       // Registrar movimentação
@@ -1017,13 +1032,13 @@ export class OSService {
         id,
         TipoMovimentacaoOS.AVANCAR_ETAPA,
         os.status,
-        nova_etapa,
+        statusAlvo,
         usuarioId,
-        `Etapa avançada para ${nova_etapa}`,
+        `Etapa avançada para ${statusAlvo}`,
       );
 
       this.logger.log(
-        `[OK] OS #${os.numero} avançou de ${os.status} para ${nova_etapa}`,
+        `[OK] OS #${os.numero} avançou de ${os.status} para ${statusAlvo}`,
       );
       return this.formatarOrdemServico(osAtualizada);
     } catch (error) {
