@@ -34,7 +34,7 @@ export interface RegraValidacao {
   id: string;
   nome: string;
   descricao?: string;
-  tipo: 'VALIDACAO' | 'ALERTA' | 'CORRECAO' | 'APROVACAO';
+  tipo: 'VALIDACAO' | 'ALERTA' | 'CORRECAO' | 'APROVACAO' | 'BLOQUEIO' | 'INFO';
   categoria:
     | 'ESTOQUE'
     | 'ARTE'
@@ -42,10 +42,12 @@ export interface RegraValidacao {
     | 'PRAZO'
     | 'FINANCEIRO'
     | 'TECNICO'
-    | 'COMERCIAL';
+    | 'COMERCIAL'
+    | string;
   ativo: boolean;
   prioridade: number;
   loja_id?: string;
+  mensagem?: string;
   condicoes: CondicaoRegra;
   acoes: AcaoRegra;
   criado_em: Date;

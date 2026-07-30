@@ -11,6 +11,7 @@ import {
   ResultadoValidacao,
   DashboardValidacoes,
   RegraValidacao,
+  AcaoRegra,
 } from '../interfaces/validacao.interface';
 
 @Injectable()
@@ -112,10 +113,14 @@ export class ValidacoesAutomaticasService {
             resultados.valida = false;
             resultados.pode_aprovar_automaticamente = false;
             resultados.correcoes_necessarias.push(resultado.mensagem);
-            resultados.acoes.push(resultado.acao);
+            if (resultado.acao) {
+              resultados.acoes.push(resultado.acao);
+            }
           } else if (resultado.tipo === 'ALERTA') {
             resultados.alertas.push(resultado.mensagem);
-            resultados.acoes.push(resultado.acao);
+            if (resultado.acao) {
+              resultados.acoes.push(resultado.acao);
+            }
           }
         } catch (error) {
           this.logger.error(`Erro ao executar regra ${regra.nome}:`, error);
@@ -153,7 +158,15 @@ export class ValidacoesAutomaticasService {
    * Se a condição for verdadeira → aplica o tipo da regra (BLOQUEIO/ALERTA).
    * Se for falsa → SUCESSO.
    */
-  private async executarRegra(regra: RegraValidacao, os: any) {
+  private async executarRegra(
+    regra: RegraValidacao,
+    os: any,
+  ): Promise<{
+    tipo: string;
+    mensagem: string;
+    acao?: AcaoRegra;
+    dados?: Record<string, unknown>;
+  }> {
     const condicoes = this.normalizarCondicoes(regra.condicoes);
     const acoes = this.normalizarAcoes(regra.acoes);
 
@@ -181,7 +194,7 @@ export class ValidacoesAutomaticasService {
           condicoes.mensagem_erro ||
           condicoes.mensagem_alerta ||
           'Regra de validação não atendida',
-        acao: acoes,
+        acao: acoes ?? undefined,
         dados: { campo, valor, operador: condicoes.operador },
       };
     }
@@ -223,16 +236,20 @@ export class ValidacoesAutomaticasService {
     return {};
   }
 
-  private normalizarAcoes(raw: unknown): unknown {
+  private normalizarAcoes(raw: unknown): AcaoRegra | null {
     if (raw == null) return null;
+    let parsed: unknown = raw;
     if (typeof raw === 'string') {
       try {
-        return JSON.parse(raw);
+        parsed = JSON.parse(raw);
       } catch {
         return null;
       }
     }
-    return raw;
+    if (!parsed || typeof parsed !== 'object') return null;
+    const obj = parsed as Record<string, unknown>;
+    if (typeof obj.tipo !== 'string') return null;
+    return parsed as AcaoRegra;
   }
 
   /**
