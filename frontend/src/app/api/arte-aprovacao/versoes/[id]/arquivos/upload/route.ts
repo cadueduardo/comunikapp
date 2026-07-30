@@ -33,8 +33,21 @@ export async function POST(
       'image/png',
       'image/jpg',
       'application/postscript',
+      'application/illustrator',
+      'image/vnd.adobe.photoshop',
     ];
-    if (!tiposPermitidos.includes(arquivo.type)) {
+    const extensoesPermitidas = [
+      '.pdf',
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.ai',
+      '.psd',
+      '.eps',
+    ];
+    const nomeLower = arquivo.name.toLowerCase();
+    const extOk = extensoesPermitidas.some((ext) => nomeLower.endsWith(ext));
+    if (!tiposPermitidos.includes(arquivo.type) && !extOk) {
       return NextResponse.json(
         {
           message: 'Tipo de arquivo não permitido. Aceitos: PDF, JPG, PNG, AI',

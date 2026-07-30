@@ -293,6 +293,15 @@ export class ArteArquivoController {
       return new StreamableFile(stream);
     }
 
+    if (storageProvider === 'local') {
+      const { stream } = await this.arteStorageService.getDownloadStream(
+        lojaId,
+        storageProvider,
+        storagePath,
+      );
+      return new StreamableFile(stream);
+    }
+
     if (!existsSync(storagePath)) {
       const legacyPath = join(
         process.cwd(),
