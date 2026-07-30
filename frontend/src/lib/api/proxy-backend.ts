@@ -64,6 +64,14 @@ export async function proxyBackend(
       headers.Cookie = cookieHeader;
     }
 
+    // Tenant headers usados pelo módulo de estoque (e outros multi-tenant)
+    for (const nome of ['x-loja-id', 'x-user-roles', 'x-tenant-slug'] as const) {
+      const valor = request.headers.get(nome);
+      if (valor) {
+        headers[nome] = valor;
+      }
+    }
+
     const response = await fetch(buildApiUrl(path), {
       ...init,
       headers,
