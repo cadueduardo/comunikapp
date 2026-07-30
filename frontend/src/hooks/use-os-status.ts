@@ -1,5 +1,4 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import {
@@ -31,18 +30,11 @@ export function useOsStatus(osId: string) {
       }
 
       try {
-        const token = getClientSessionToken();
-        if (!token) {
-          setStatusTexto('Em análise de materiais e aguardando aprovação final.');
-          setLoading(false);
-          return;
-        }
-
         const response = await fetch(
           `/api/arte-aprovacao/os/${osId}/itens-contexto`,
           {
+            credentials: 'include',
             headers: {
-              Authorization: `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
           },

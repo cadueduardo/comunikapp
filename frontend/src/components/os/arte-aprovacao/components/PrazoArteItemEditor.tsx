@@ -1,5 +1,4 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useState } from 'react';
 import { Calendar, Edit3, Loader2, Save, X } from 'lucide-react';
@@ -53,7 +52,6 @@ export function PrazoArteItemEditor({
   const salvar = async () => {
     setSalvando(true);
     try {
-      const token = getClientSessionToken();
       const body = valor
         ? { data_prazo_arte: new Date(`${valor}T12:00:00`).toISOString() }
         : { data_prazo_arte: null };
@@ -62,8 +60,8 @@ export function PrazoArteItemEditor({
         `/api/arte-aprovacao/os/${osId}/itens/${itemId}/prazo-arte`,
         {
           method: 'PATCH',
+          credentials: 'include',
           headers: {
-            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(body),

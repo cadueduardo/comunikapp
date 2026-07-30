@@ -1,18 +1,14 @@
-import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
 export async function registrarLinkArteCliente(
   osId: string,
   itemId: string,
   payload: { url: string; descricao?: string },
 ) {
-  const token = getClientSessionToken();
-  if (!token) throw new Error('Sessão expirada. Faça login novamente.');
-
   const response = await fetch(
     `/api/arte-aprovacao/os/${osId}/itens/${itemId}/registrar-link`,
     {
       method: 'POST',
+      credentials: 'include',
       headers: {
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
@@ -33,15 +29,12 @@ export async function solicitarArteAoCliente(
   itemId: string,
   payload?: { mensagem?: string },
 ) {
-  const token = getClientSessionToken();
-  if (!token) throw new Error('Sessão expirada. Faça login novamente.');
-
   const response = await fetch(
     `/api/arte-aprovacao/os/${osId}/itens/${itemId}/solicitar-arte`,
     {
       method: 'POST',
+      credentials: 'include',
       headers: {
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload ?? {}),

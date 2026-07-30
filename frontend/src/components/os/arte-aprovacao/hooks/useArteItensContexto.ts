@@ -1,5 +1,4 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState, useCallback } from 'react';
 
@@ -20,15 +19,14 @@ export function useArteItensContexto(osId: string) {
 
   useEffect(() => {
     const carregar = async () => {
-      const token = getClientSessionToken();
-      if (!token || !osId) {
+      if (!osId) {
         setLoading(false);
         return;
       }
 
       try {
         const res = await fetch(`/api/arte-aprovacao/os/${osId}/itens-contexto`, {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
         });
         const json = await res.json();
         if (res.ok) {
