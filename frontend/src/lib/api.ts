@@ -1,3 +1,5 @@
+import { joinApiBaseAndEndpoint } from '@/lib/config';
+
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/$/, '');
 const SESSION_EXPIRED_IGNORED_ENDPOINTS = new Set([
   '/lojas/login',
@@ -69,7 +71,7 @@ export const apiRequest = async (
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(joinApiBaseAndEndpoint(API_BASE_URL, endpoint), {
       ...options,
       headers,
       credentials: 'include',
@@ -265,7 +267,7 @@ export const apiRequestServer = async (
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(joinApiBaseAndEndpoint(API_BASE_URL, endpoint), {
       ...options,
       headers,
       credentials: 'include',

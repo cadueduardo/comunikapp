@@ -37,6 +37,25 @@ export const API_CONFIG = {
 // - Em domínio próprio (Fatia D): força "/api" (same-origin via Nginx no host custom).
 // - Em route handlers do Next.js (server-side, sem `window`): o fetch exige URL
 //   absoluta via BACKEND_URL.
+/**
+ * Junta base + endpoint sem duplicar o prefixo `/api`
+ * (ex.: base `/api` + `/api/estoque/...` → `/api/estoque/...`).
+ */
+export const joinApiBaseAndEndpoint = (
+  baseUrl: string,
+  endpoint: string,
+): string => {
+  const base = baseUrl.replace(/\/$/, '');
+  const ep = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+  if ((base === '/api' || base.endsWith('/api')) && ep.startsWith('/api/')) {
+    if (base === '/api') return ep;
+    return `${base.slice(0, -4)}${ep}`;
+  }
+
+  return `${base}${ep}`;
+};
+
 export const buildApiUrl = (endpoint: string): string => {
   const isServer = typeof window === 'undefined';
   const onCustomHost =
@@ -47,10 +66,10 @@ export const buildApiUrl = (endpoint: string): string => {
 
   if (isServer && isRelative) {
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
-    return `${backendUrl}${endpoint}`;
+    return joinApiBaseAndEndpoint(backendUrl, endpoint);
   }
 
-  return `${baseUrl}${endpoint}`;
+  return joinApiBaseAndEndpoint(baseUrl, endpoint);
 };
 
 /** Base URL do Socket.IO no browser (same-origin em domínio custom). */
