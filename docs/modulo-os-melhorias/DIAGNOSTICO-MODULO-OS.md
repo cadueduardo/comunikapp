@@ -161,7 +161,13 @@ mudança).
       `true`.
 - [x] **P1-4** — Impressão da OS alinhada ao timbrado da loja (mesmo padrão do
       orçamento): página React + `window.print()`/PDF, versões simples/completa
-      funcionais e QR Code apontando para `/os/{id}` no sistema.
+      funcionais e QR Code apontando para `/os/{id}` no sistema. Evoluída para
+      modelo "job traveller" de mercado (via de produção sem valores): faixa de
+      prazo/prioridade/status/orçamento origem, bloco cliente + instalação com
+      lotes/endereços, um bloco por item (dimensões, prazo, ordem, status da
+      arte), pick list de materiais com disponibilidade de estoque e, na versão
+      completa, roteiro de apontamento manual + checklist de qualidade com
+      assinaturas.
 - [ ] **P1-5** — Unificar status da OS: tipar a coluna com enum único (ou
       remover o enum Prisma órfão) e atualizar `01-status-oficiais.md`.
 - [x] **P1-6** — Eliminar rotas duplicadas dos controllers de workflow e

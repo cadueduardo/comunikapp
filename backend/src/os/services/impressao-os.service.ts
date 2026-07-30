@@ -69,6 +69,11 @@ export class ImpressaoOSService {
         cliente: true,
         itens: {
           orderBy: [{ ordem_producao: 'asc' }, { criado_em: 'asc' }],
+          include: {
+            lotes_instalacao: {
+              orderBy: { criado_em: 'asc' },
+            },
+          },
         },
         orcamento: {
           include: {
@@ -174,6 +179,15 @@ export class ImpressaoOSService {
           perimetro: item.perimetro ?? null,
           unidade_medida: item.unidade_medida ?? null,
           observacoes: item.observacoes ?? null,
+          // Campos de produção/arte para o job ticket impresso
+          data_prazo_produto: item.data_prazo_produto ?? null,
+          ordem_producao: item.ordem_producao ?? null,
+          prioridade_produto: item.prioridade_produto ?? null,
+          status_arte: item.status_arte ?? null,
+          materiais_disponivel: item.materiais_disponivel ?? false,
+          lotes_instalacao: Array.isArray(item.lotes_instalacao)
+            ? item.lotes_instalacao
+            : [],
         };
       });
     }

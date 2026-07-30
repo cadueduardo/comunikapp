@@ -46,6 +46,58 @@ export class ImpressaoOSController {
     return lojaId;
   }
 
+  /**
+   * Consolida os lotes de instalação de todos os itens da OS para o bloco
+   * "Entrega / Instalação" do job ticket. `tem_instalacao` considera lote
+   * cadastrado ou data agendada na própria OS.
+   */
+  private montarInstalacaoImpressao(dados: {
+    os: any;
+    produtos: any[];
+  }): {
+    tem_instalacao: boolean;
+    data_agendada: Date | null;
+    status: string | null;
+    observacoes: string | null;
+    lotes: Array<{
+      item_nome: string;
+      endereco: string;
+      data_previsao: Date | null;
+      turno: string | null;
+      status: string | null;
+      responsavel_local: string | null;
+    }>;
+  } {
+    const lotes = (dados.produtos ?? []).flatMap((p: any) =>
+      (p.lotes_instalacao ?? []).map((l: any) => ({
+        item_nome: p.nome ?? p.produto_servico ?? 'Item',
+        endereco: [
+          l.logradouro,
+          l.numero,
+          l.complemento,
+          l.bairro,
+          l.cidade && l.uf ? `${l.cidade}/${l.uf}` : l.cidade || l.uf,
+          l.cep,
+        ]
+          .filter(Boolean)
+          .join(', '),
+        data_previsao: l.data_previsao ?? null,
+        turno: l.turno_previsao ?? null,
+        status: l.status_instalacao ?? null,
+        responsavel_local: l.responsavel_local ?? null,
+      })),
+    );
+
+    return {
+      tem_instalacao:
+        lotes.length > 0 || Boolean(dados.os.data_instalacao_agendada),
+      data_agendada: dados.os.data_instalacao_agendada ?? null,
+      status: dados.os.status_instalacao_os ?? null,
+      observacoes: dados.os.observacoes_instalacao ?? null,
+      lotes,
+    };
+  }
+
   private montarConfig(
     formato: 'html' | 'pdf' = 'html',
     versao: 'simples' | 'completa' = 'simples',
@@ -239,6 +291,12 @@ export class ImpressaoOSController {
             facebook_url: loja.facebook_url ?? null,
             linkedin_url: loja.linkedin_url ?? null,
           },
+          orcamento: dados.orcamento
+            ? {
+                id: dados.orcamento.id,
+                numero: dados.orcamento.numero ?? null,
+              }
+            : null,
           produtos: (dados.produtos ?? []).map((p: any) => ({
             id: p.id,
             nome: p.nome ?? p.produto_servico ?? 'Item',
@@ -249,13 +307,26 @@ export class ImpressaoOSController {
             profundidade: p.profundidade ?? null,
             area: p.area ?? null,
             observacoes: p.observacoes ?? null,
+            data_prazo_produto: p.data_prazo_produto ?? null,
+            ordem_producao: p.ordem_producao ?? null,
+            prioridade_produto: p.prioridade_produto ?? null,
+            status_arte: p.status_arte ?? null,
+            materiais_disponivel: p.materiais_disponivel ?? null,
           })),
           materiais: (dados.insumos ?? []).map((i: any) => ({
             nome: i.insumo?.nome || i.nome || 'Material',
             quantidade: i.quantidade ?? i.quantidade_necessaria ?? null,
             unidade: i.unidade || i.insumo?.unidade_uso || 'un',
             observacoes: i.observacoes ?? null,
+            produto_nome: i.produto_nome ?? null,
+            disponivel_estoque:
+              typeof i.disponivel_estoque === 'boolean'
+                ? i.disponivel_estoque
+                : null,
+            quantidade_disponivel: i.quantidade_disponivel ?? null,
+            localizacao_estoque: i.localizacao_estoque ?? null,
           })),
+          instalacao: this.montarInstalacaoImpressao(dados),
           dados_transformados: dados.dadosTransformados,
           qr_code_data_url: dados.qrCodeDataUrl || null,
           qr_code_url: dados.os.id

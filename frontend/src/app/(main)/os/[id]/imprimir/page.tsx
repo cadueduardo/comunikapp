@@ -10,9 +10,23 @@ import {
   TimbradoCabecalhoDocumento,
   TimbradoRodapeDocumento,
 } from '@/components/configuracoes/TimbradoPreview';
+import { StatusFormatterHelper } from '@/components/ui/os/helpers/status-formatter.helper';
+import {
+  STATUS_ARTE_LABEL,
+  arteProdutoPendente,
+} from '@/lib/arte-produto-utils';
 import { cn } from '@/lib/utils';
 
 type VersaoImpressao = 'simples' | 'completa';
+
+type LoteInstalacaoImpressao = {
+  item_nome: string;
+  endereco: string;
+  data_previsao?: string | null;
+  turno?: string | null;
+  status?: string | null;
+  responsavel_local?: string | null;
+};
 
 type DadosImpressaoOs = {
   os: {
@@ -61,6 +75,10 @@ type DadosImpressaoOs = {
     facebook_url?: string | null;
     linkedin_url?: string | null;
   };
+  orcamento?: {
+    id?: string;
+    numero?: string | null;
+  } | null;
   produtos: Array<{
     id?: string;
     nome: string;
@@ -71,15 +89,62 @@ type DadosImpressaoOs = {
     profundidade?: number | null;
     area?: number | null;
     observacoes?: string | null;
+    data_prazo_produto?: string | null;
+    ordem_producao?: number | null;
+    prioridade_produto?: string | null;
+    status_arte?: string | null;
+    materiais_disponivel?: boolean | null;
   }>;
   materiais: Array<{
     nome: string;
     quantidade?: number | null;
     unidade?: string | null;
     observacoes?: string | null;
+    produto_nome?: string | null;
+    disponivel_estoque?: boolean | null;
+    quantidade_disponivel?: number | null;
+    localizacao_estoque?: string | null;
   }>;
+  instalacao?: {
+    tem_instalacao: boolean;
+    data_agendada?: string | null;
+    status?: string | null;
+    observacoes?: string | null;
+    lotes: LoteInstalacaoImpressao[];
+  } | null;
   qr_code_data_url?: string | null;
   qr_code_url?: string | null;
+};
+
+const ETAPAS_ROTEIRO = [
+  'Impressão',
+  'Corte / usinagem',
+  'Acabamento',
+  'Montagem',
+  'Instalação',
+  'Expedição',
+] as const;
+
+const CHECKLIST_QUALIDADE = [
+  'Medidas conferidas com a OS',
+  'Cores conferidas com a arte aprovada',
+  'Acabamento sem rebarbas ou falhas',
+  'Limpeza da peça',
+  'Embalagem adequada para transporte',
+] as const;
+
+const PRIORIDADE_LABEL: Record<string, string> = {
+  URGENTE: 'Urgente',
+  ALTA: 'Alta',
+  NORMAL: 'Normal',
+  BAIXA: 'Baixa',
+};
+
+const TURNO_LABEL: Record<string, string> = {
+  MANHA: 'manhã',
+  TARDE: 'tarde',
+  NOITE: 'noite',
+  HORARIO_COMERCIAL: 'horário comercial',
 };
 
 function formatDate(value?: string | Date | null): string {
@@ -89,15 +154,50 @@ function formatDate(value?: string | Date | null): string {
   return d.toLocaleDateString('pt-BR');
 }
 
+function formatNumero(value?: number | null): string {
+  if (value == null) return '—';
+  const n = Number(value);
+  if (Number.isNaN(n)) return '—';
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+}
+
 function formatDimensoes(p: DadosImpressaoOs['produtos'][number]): string {
   const parts: string[] = [];
-  if (p.largura != null) parts.push(`${p.largura}`);
-  if (p.altura != null) parts.push(`${p.altura}`);
-  if (p.profundidade != null) parts.push(`${p.profundidade}`);
+  if (p.largura != null) parts.push(formatNumero(p.largura));
+  if (p.altura != null) parts.push(formatNumero(p.altura));
+  if (p.profundidade != null) parts.push(formatNumero(p.profundidade));
   if (parts.length === 0) return '—';
-  const dims = parts.join(' × ');
-  if (p.area != null) return `${dims} (área ${p.area})`;
-  return dims;
+  return parts.join(' × ');
+}
+
+/** Tag impressa (borda preta) para status curtos — arte, disponibilidade. */
+function TagImpressa({
+  destaque,
+  children,
+}: {
+  destaque?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <span
+      className={cn(
+        'inline-block whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide',
+        destaque
+          ? 'border-gray-900 bg-gray-900 text-white'
+          : 'border-gray-400 text-gray-700',
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function TituloSecao({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="mb-2 border-b border-gray-300 pb-1 text-sm font-semibold uppercase tracking-wide text-gray-900">
+      {children}
+    </h2>
+  );
 }
 
 export default function ImprimirOSPage() {
@@ -108,7 +208,7 @@ export default function ImprimirOSPage() {
 
   const versaoParam = searchParams.get('versao');
   const versao: VersaoImpressao =
-    versaoParam === 'completa' ? 'completa' : 'simples';
+    versaoParam === 'simples' ? 'simples' : 'completa';
 
   const [loading, setLoading] = useState(true);
   const [dados, setDados] = useState<DadosImpressaoOs | null>(null);
@@ -121,7 +221,7 @@ export default function ImprimirOSPage() {
         versao,
         incluirQRCode: 'true',
         incluirLogo: 'true',
-        incluirDetalhesTecnicos: versao === 'completa' ? 'true' : 'false',
+        incluirDetalhesTecnicos: 'true',
       });
       const response = await fetch(
         `/api/os/${encodeURIComponent(osId)}/imprimir/dados?${qs}`,
@@ -146,6 +246,7 @@ export default function ImprimirOSPage() {
         loja: body.loja ?? {},
         produtos: Array.isArray(body.produtos) ? body.produtos : [],
         materiais: Array.isArray(body.materiais) ? body.materiais : [],
+        instalacao: body.instalacao ?? null,
       });
     } catch (error) {
       console.error('Erro ao carregar impressão da OS:', error);
@@ -200,6 +301,12 @@ export default function ImprimirOSPage() {
   const cliente = dados.cliente ?? {};
   const produtos = dados.produtos ?? [];
   const materiais = dados.materiais ?? [];
+  const instalacao = dados.instalacao ?? null;
+  const completa = versao === 'completa';
+
+  const prioridadeLabel = dados.os.prioridade
+    ? PRIORIDADE_LABEL[dados.os.prioridade] ?? dados.os.prioridade
+    : '—';
 
   return (
     <>
@@ -233,6 +340,9 @@ export default function ImprimirOSPage() {
             padding-top: 42mm;
             padding-bottom: 28mm;
           }
+          .os-print-section {
+            break-inside: avoid;
+          }
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -259,7 +369,7 @@ export default function ImprimirOSPage() {
                 Impressão — OS {dados.os.numero}
               </h1>
               <p className="text-xs text-muted-foreground">
-                Timbrado da loja · QR para abrir a OS no sistema
+                Via de produção (sem valores) · timbrado da loja · QR code
               </p>
             </div>
           </div>
@@ -314,122 +424,285 @@ export default function ImprimirOSPage() {
                 cpf: loja.cpf,
               }}
               metaLinha={metaLinha}
-              tituloDocumento="ORDEM DE SERVIÇO"
+              tituloDocumento="ORDEM DE SERVIÇO — PRODUÇÃO"
             />
           </div>
 
-          <div className="os-print-body space-y-6 p-6 print:px-6 print:py-0">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0 flex-1 space-y-1 text-sm text-gray-800">
-                <p>
-                  <strong>Serviço:</strong>{' '}
-                  {dados.os.nome_servico || 'Não informado'}
-                </p>
-                <p>
-                  <strong>Status:</strong> {dados.os.status || '—'}
-                  {dados.os.prioridade
-                    ? ` · Prioridade: ${dados.os.prioridade}`
-                    : ''}
-                </p>
-                <p>
-                  <strong>Abertura:</strong> {formatDate(dados.os.data_abertura)}
-                  {' · '}
-                  <strong>Prazo:</strong> {formatDate(dados.os.data_prazo)}
-                </p>
-                {dados.os.data_instalacao_agendada && (
-                  <p>
-                    <strong>Instalação agendada:</strong>{' '}
-                    {formatDate(dados.os.data_instalacao_agendada)}
+          <div className="os-print-body space-y-5 p-6 print:px-6 print:py-0">
+            {/* Faixa de destaque: prazo, prioridade, status, origem + QR */}
+            <section className="os-print-section flex items-stretch gap-4">
+              <div className="flex flex-1 flex-wrap items-center gap-x-8 gap-y-2 rounded border border-gray-300 bg-gray-50 px-4 py-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                    Prazo de entrega
                   </p>
+                  <p className="text-xl font-bold text-gray-900">
+                    {formatDate(dados.os.data_prazo)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                    Prioridade
+                  </p>
+                  <p className="text-sm font-bold uppercase text-gray-900">
+                    {prioridadeLabel}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                    Status
+                  </p>
+                  <p className="text-sm font-bold text-gray-900">
+                    {dados.os.status
+                      ? StatusFormatterHelper.formatarStatus(dados.os.status)
+                      : '—'}
+                  </p>
+                </div>
+                {dados.orcamento?.numero && (
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                      Orçamento de origem
+                    </p>
+                    <p className="text-sm font-bold text-gray-900">
+                      #{dados.orcamento.numero}
+                    </p>
+                  </div>
                 )}
               </div>
               {dados.qr_code_data_url && (
-                <div className="flex shrink-0 flex-col items-center gap-1 rounded border border-gray-300 p-2">
+                <div className="flex shrink-0 flex-col items-center justify-center gap-1">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={dados.qr_code_data_url}
                     alt={`QR Code OS ${dados.os.numero}`}
-                    className="h-24 w-24"
+                    className="h-20 w-20"
                   />
-                  <span className="max-w-[7rem] text-center text-[10px] leading-tight text-gray-600">
-                    Escaneie para abrir a OS no ComunikApp
+                  <span className="max-w-[6rem] text-center text-[9px] leading-tight text-gray-600">
+                    Escaneie para abrir a OS no sistema
                   </span>
                 </div>
               )}
-            </div>
+            </section>
 
-            <section>
-              <h2 className="mb-2 border-b border-gray-300 pb-1 text-sm font-semibold uppercase tracking-wide text-gray-900">
-                Cliente
-              </h2>
-              <div className="grid grid-cols-1 gap-2 text-sm text-gray-800 sm:grid-cols-2">
-                <p>
-                  <strong>Nome:</strong> {cliente.nome || '—'}
-                </p>
-                <p>
-                  <strong>Documento:</strong> {cliente.documento || '—'}
-                </p>
-                <p>
-                  <strong>Telefone:</strong> {cliente.telefone || '—'}
-                </p>
-                <p>
-                  <strong>E-mail:</strong> {cliente.email || '—'}
-                </p>
-                {(cliente.endereco || cliente.cidade) && (
-                  <p className="sm:col-span-2">
-                    <strong>Endereço:</strong>{' '}
-                    {[
-                      cliente.endereco,
-                      cliente.cidade,
-                      cliente.estado,
-                      cliente.cep,
-                    ]
+            {/* Cliente e entrega / instalação */}
+            <section className="os-print-section">
+              <TituloSecao>Cliente e entrega / instalação</TituloSecao>
+              <div className="grid grid-cols-1 gap-4 text-sm text-gray-800 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <p className="font-semibold text-gray-900">Cliente</p>
+                  <p>{cliente.nome || '—'}</p>
+                  <p className="text-xs text-gray-600">
+                    {[cliente.telefone, cliente.email]
                       .filter(Boolean)
                       .join(' · ') || '—'}
                   </p>
-                )}
+                  {(cliente.endereco || cliente.cidade) && (
+                    <p className="text-xs text-gray-600">
+                      {[
+                        cliente.endereco,
+                        cliente.cidade,
+                        cliente.estado,
+                        cliente.cep,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-gray-900">Instalação</p>
+                    <TagImpressa destaque={Boolean(instalacao?.tem_instalacao)}>
+                      {instalacao?.tem_instalacao ? 'SIM' : 'NÃO'}
+                    </TagImpressa>
+                    {instalacao?.tem_instalacao &&
+                      instalacao?.data_agendada && (
+                        <span className="text-xs text-gray-700">
+                          agendada {formatDate(instalacao.data_agendada)}
+                        </span>
+                      )}
+                  </div>
+                  {instalacao?.tem_instalacao &&
+                    (instalacao.lotes?.length ?? 0) > 0 && (
+                      <ul className="space-y-1">
+                        {instalacao.lotes.map((lote, idx) => (
+                          <li key={idx} className="text-xs text-gray-700">
+                            <span className="font-medium text-gray-900">
+                              {lote.item_nome}:
+                            </span>{' '}
+                            {lote.endereco || 'Endereço não informado'}
+                            {lote.data_previsao && (
+                              <>
+                                {' · '}
+                                {formatDate(lote.data_previsao)}
+                                {lote.turno
+                                  ? ` (${TURNO_LABEL[lote.turno] ?? lote.turno})`
+                                  : ''}
+                              </>
+                            )}
+                            {lote.responsavel_local && (
+                              <> · resp.: {lote.responsavel_local}</>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  {instalacao?.observacoes && (
+                    <p className="whitespace-pre-wrap text-xs text-gray-600">
+                      Obs.: {instalacao.observacoes}
+                    </p>
+                  )}
+                </div>
               </div>
             </section>
 
-            <section>
-              <h2 className="mb-2 border-b border-gray-300 pb-1 text-sm font-semibold uppercase tracking-wide text-gray-900">
-                Itens
-              </h2>
+            {/* Itens da OS — um bloco por item */}
+            <section className="os-print-section">
+              <TituloSecao>Itens da OS</TituloSecao>
               {produtos.length === 0 ? (
                 <p className="text-sm text-gray-500">Nenhum item na OS.</p>
               ) : (
+                <div className="space-y-3">
+                  {produtos.map((p, idx) => {
+                    const arteLabel = p.status_arte
+                      ? STATUS_ARTE_LABEL[p.status_arte] ?? p.status_arte
+                      : null;
+                    const artePendente = arteProdutoPendente(p.status_arte);
+                    return (
+                      <div
+                        key={p.id || `${p.nome}-${idx}`}
+                        className="os-print-section rounded border border-gray-300 px-3 py-2"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500">
+                            Item {idx + 1}/{produtos.length}
+                          </span>
+                          <span className="text-sm font-semibold text-gray-900">
+                            {p.nome}
+                          </span>
+                          <span className="flex-1" />
+                          {arteLabel && p.status_arte !== 'NAO_APLICA' && (
+                            <TagImpressa destaque={artePendente}>
+                              Arte: {arteLabel}
+                            </TagImpressa>
+                          )}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-x-8 gap-y-2 text-sm">
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                              Quantidade
+                            </p>
+                            <p className="font-semibold text-gray-900">
+                              {formatNumero(p.quantidade)}
+                              {p.unidade_medida ? ` ${p.unidade_medida}` : ''}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                              Dimensões
+                            </p>
+                            <p className="font-semibold text-gray-900">
+                              {formatDimensoes(p)}
+                            </p>
+                          </div>
+                          {p.area != null && (
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                                Área
+                              </p>
+                              <p className="font-semibold text-gray-900">
+                                {formatNumero(p.area)} m²
+                              </p>
+                            </div>
+                          )}
+                          {p.data_prazo_produto && (
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                                Prazo do item
+                              </p>
+                              <p className="font-semibold text-gray-900">
+                                {formatDate(p.data_prazo_produto)}
+                              </p>
+                            </div>
+                          )}
+                          {p.ordem_producao != null && (
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                                Ordem prod.
+                              </p>
+                              <p className="font-semibold text-gray-900">
+                                {p.ordem_producao}º
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        {p.observacoes && (
+                          <p className="mt-2 whitespace-pre-wrap text-xs text-gray-600">
+                            Obs.: {p.observacoes}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* Materiais a provisionar (pick list) */}
+            <section className="os-print-section">
+              <TituloSecao>Materiais a provisionar</TituloSecao>
+              {materiais.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  Nenhum material previsto registrado nesta OS.
+                </p>
+              ) : (
                 <table className="w-full border-collapse text-sm">
                   <thead>
-                    <tr className="border-b border-gray-300 text-left text-xs uppercase text-gray-600">
-                      <th className="py-1 pr-2">Produto / serviço</th>
-                      <th className="py-1 pr-2">Qtd</th>
-                      <th className="py-1 pr-2">Dimensões</th>
-                      {versao === 'completa' && (
-                        <th className="py-1">Obs.</th>
-                      )}
+                    <tr className="border-b border-gray-300 text-left text-[10px] uppercase tracking-wide text-gray-600">
+                      <th className="py-1 pr-2">Material</th>
+                      <th className="py-1 pr-2">Qtd necessária</th>
+                      <th className="py-1 pr-2">Disponível</th>
+                      <th className="py-1 pr-2">Em estoque</th>
+                      <th className="py-1">Localização</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {produtos.map((p, idx) => (
+                    {materiais.map((m, idx) => (
                       <tr
-                        key={p.id || `${p.nome}-${idx}`}
+                        key={`${m.nome}-${idx}`}
                         className="border-b border-gray-100 align-top"
                       >
-                        <td className="py-2 pr-2 font-medium text-gray-900">
-                          {p.nome}
+                        <td className="py-1.5 pr-2">
+                          <span className="font-medium text-gray-900">
+                            {m.nome}
+                          </span>
+                          {m.produto_nome && (
+                            <span className="block text-[10px] text-gray-500">
+                              {m.produto_nome}
+                            </span>
+                          )}
                         </td>
-                        <td className="py-2 pr-2 whitespace-nowrap text-gray-800">
-                          {p.quantidade ?? '—'}
-                          {p.unidade_medida ? ` ${p.unidade_medida}` : ''}
+                        <td className="whitespace-nowrap py-1.5 pr-2 text-gray-800">
+                          {formatNumero(m.quantidade)}
+                          {m.unidade ? ` ${m.unidade}` : ''}
                         </td>
-                        <td className="py-2 pr-2 text-gray-800">
-                          {formatDimensoes(p)}
+                        <td className="whitespace-nowrap py-1.5 pr-2">
+                          {m.disponivel_estoque == null ? (
+                            <span className="text-gray-500">—</span>
+                          ) : (
+                            <TagImpressa destaque={!m.disponivel_estoque}>
+                              {m.disponivel_estoque ? 'Sim' : 'Comprar'}
+                            </TagImpressa>
+                          )}
                         </td>
-                        {versao === 'completa' && (
-                          <td className="py-2 text-gray-600">
-                            {p.observacoes || '—'}
-                          </td>
-                        )}
+                        <td className="whitespace-nowrap py-1.5 pr-2 text-gray-800">
+                          {m.quantidade_disponivel != null
+                            ? formatNumero(m.quantidade_disponivel)
+                            : '—'}
+                        </td>
+                        <td className="py-1.5 text-gray-600">
+                          {m.localizacao_estoque || '—'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -437,88 +710,94 @@ export default function ImprimirOSPage() {
               )}
             </section>
 
-            {versao === 'completa' && (
-              <section>
-                <h2 className="mb-2 border-b border-gray-300 pb-1 text-sm font-semibold uppercase tracking-wide text-gray-900">
-                  Materiais previstos
-                </h2>
-                {materiais.length === 0 ? (
-                  <p className="text-sm text-gray-500">
-                    Nenhum material previsto registrado nesta OS.
-                  </p>
-                ) : (
-                  <table className="w-full border-collapse text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-300 text-left text-xs uppercase text-gray-600">
-                        <th className="py-1 pr-2">Material</th>
-                        <th className="py-1 pr-2">Qtd</th>
-                        <th className="py-1">Obs.</th>
+            {/* Observações gerais da OS */}
+            {dados.os.observacoes && (
+              <section className="os-print-section">
+                <TituloSecao>Observações</TituloSecao>
+                <p className="whitespace-pre-wrap text-sm text-gray-800">
+                  {dados.os.observacoes}
+                </p>
+              </section>
+            )}
+
+            {/* Roteiro de produção — apontamento manual (versão completa) */}
+            {completa && (
+              <section className="os-print-section">
+                <TituloSecao>
+                  Roteiro de produção — apontamento manual
+                </TituloSecao>
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-300 text-left text-[10px] uppercase tracking-wide text-gray-600">
+                      <th className="w-[28%] py-1 pr-2">Etapa</th>
+                      <th className="w-[26%] py-1 pr-2">Operador</th>
+                      <th className="w-[14%] py-1 pr-2">Início</th>
+                      <th className="w-[14%] py-1 pr-2">Fim</th>
+                      <th className="w-[18%] py-1">OK / Refugo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ETAPAS_ROTEIRO.map((etapa) => (
+                      <tr key={etapa} className="border-b border-gray-200">
+                        <td className="py-3 pr-2 font-medium text-gray-900">
+                          {etapa}
+                        </td>
+                        <td className="py-3 pr-2">
+                          <div className="border-b border-gray-400" />
+                        </td>
+                        <td className="py-3 pr-2">
+                          <div className="border-b border-gray-400" />
+                        </td>
+                        <td className="py-3 pr-2">
+                          <div className="border-b border-gray-400" />
+                        </td>
+                        <td className="py-3">
+                          <div className="border-b border-gray-400" />
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {materiais.map((m, idx) => (
-                        <tr
-                          key={`${m.nome}-${idx}`}
-                          className="border-b border-gray-100"
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            )}
+
+            {/* Qualidade e assinaturas (versão completa) */}
+            {completa && (
+              <section className="os-print-section rounded border border-gray-400 p-4">
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-900">
+                      Conferência de qualidade
+                    </p>
+                    <ul className="space-y-1.5">
+                      {CHECKLIST_QUALIDADE.map((item) => (
+                        <li
+                          key={item}
+                          className="flex items-center gap-2 text-xs text-gray-800"
                         >
-                          <td className="py-2 pr-2 text-gray-900">{m.nome}</td>
-                          <td className="py-2 pr-2 whitespace-nowrap text-gray-800">
-                            {m.quantidade ?? '—'}
-                            {m.unidade ? ` ${m.unidade}` : ''}
-                          </td>
-                          <td className="py-2 text-gray-600">
-                            {m.observacoes || '—'}
-                          </td>
-                        </tr>
+                          <span className="inline-block h-3 w-3 shrink-0 rounded-[2px] border border-gray-700" />
+                          {item}
+                        </li>
                       ))}
-                    </tbody>
-                  </table>
-                )}
+                    </ul>
+                  </div>
+                  <div className="flex flex-col justify-end gap-8">
+                    <div className="text-center">
+                      <div className="mb-1 border-b border-gray-400 pt-8" />
+                      <p className="text-[10px] text-gray-600">
+                        Produção — assinatura e data
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <div className="mb-1 border-b border-gray-400 pt-8" />
+                      <p className="text-[10px] text-gray-600">
+                        Conferência / expedição — assinatura e data
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </section>
             )}
-
-            {(dados.os.observacoes ||
-              (versao === 'completa' && dados.os.observacoes_instalacao)) && (
-              <section>
-                <h2 className="mb-2 border-b border-gray-300 pb-1 text-sm font-semibold uppercase tracking-wide text-gray-900">
-                  Observações
-                </h2>
-                {dados.os.observacoes && (
-                  <p className="whitespace-pre-wrap text-sm text-gray-800">
-                    {dados.os.observacoes}
-                  </p>
-                )}
-                {versao === 'completa' && dados.os.observacoes_instalacao && (
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">
-                    <strong>Instalação:</strong>{' '}
-                    {dados.os.observacoes_instalacao}
-                  </p>
-                )}
-              </section>
-            )}
-
-            <section className="rounded border border-gray-400 p-4">
-              <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-                <div className="text-center">
-                  <p className="mb-2 text-xs font-semibold text-gray-900">
-                    Conferência / produção
-                  </p>
-                  <div className="mb-2 mt-10 border-b border-gray-400" />
-                  <p className="text-[10px] text-gray-600">
-                    Assinatura e data
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p className="mb-2 text-xs font-semibold text-gray-900">
-                    Cliente / responsável
-                  </p>
-                  <div className="mb-2 mt-10 border-b border-gray-400" />
-                  <p className="text-[10px] text-gray-600">
-                    Assinatura e data
-                  </p>
-                </div>
-              </div>
-            </section>
           </div>
 
           <div className="os-print-footer mt-6 print:mt-0">
@@ -553,7 +832,8 @@ export default function ImprimirOSPage() {
         <p className="mx-auto max-w-[210mm] text-xs text-muted-foreground">
           Use <strong>Imprimir / PDF</strong> e, se necessário, ative
           &quot;Gráficos de segundo plano&quot; no diálogo do navegador. Papel
-          A4. Versão completa inclui materiais previstos.
+          A4. A versão completa inclui roteiro de apontamento manual e
+          checklist de qualidade. Esta via não exibe valores financeiros.
         </p>
       </div>
     </>
