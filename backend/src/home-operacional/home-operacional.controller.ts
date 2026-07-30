@@ -217,15 +217,16 @@ export class HomeOperacionalController {
   @Get('contadores-menu')
   async contadoresMenu(
     @CurrentLojaId() lojaId: string,
-    @Query('refresh') refresh?: string,
-    @Query('os_desde') osDesde?: string,
-    @Query('pcp_desde') pcpDesde?: string,
-    @Query('expedicao_desde') expedicaoDesde?: string,
-    @Query('financeiro_desde') financeiroDesde?: string,
-    @Query('arte_desde') arteDesde?: string,
-    @Query('instalacao_desde') instalacaoDesde?: string,
+    @Query('refresh') refresh?: string | string[],
+    @Query('os_desde') osDesde?: string | string[],
+    @Query('pcp_desde') pcpDesde?: string | string[],
+    @Query('expedicao_desde') expedicaoDesde?: string | string[],
+    @Query('financeiro_desde') financeiroDesde?: string | string[],
+    @Query('arte_desde') arteDesde?: string | string[],
+    @Query('instalacao_desde') instalacaoDesde?: string | string[],
   ) {
-    const bypass = refresh === '1' || refresh === 'true';
+    const bypassRaw = Array.isArray(refresh) ? refresh[0] : refresh;
+    const bypass = bypassRaw === '1' || bypassRaw === 'true';
     const data = await this.contadoresMenuService.obter(lojaId, {
       forcar: bypass,
       osDesde: this.parseDesdeQuery(osDesde),
@@ -238,9 +239,10 @@ export class HomeOperacionalController {
     return this.envelope(data);
   }
 
-  private parseDesdeQuery(valor?: string): Date | undefined {
-    if (!valor?.trim()) return undefined;
-    const data = new Date(valor);
+  private parseDesdeQuery(valor?: string | string[]): Date | undefined {
+    const bruto = Array.isArray(valor) ? valor[0] : valor;
+    if (!bruto?.trim()) return undefined;
+    const data = new Date(bruto);
     return Number.isNaN(data.getTime()) ? undefined : data;
   }
 

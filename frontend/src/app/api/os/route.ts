@@ -2,10 +2,9 @@ import { NextRequest } from 'next/server';
 import { proxyBackend } from '@/lib/api/proxy-backend';
 
 // GET /api/os - Listar OS (sessão via cookie HttpOnly ou Bearer legado)
+// Query string é encaminhada por proxyBackend — não embutir no path.
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const qs = searchParams.toString();
-  return proxyBackend(request, qs ? `/os?${qs}` : '/os');
+  return proxyBackend(request, '/os');
 }
 
 // POST /api/os - Criar OS

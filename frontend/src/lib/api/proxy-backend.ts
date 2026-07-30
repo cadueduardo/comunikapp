@@ -82,7 +82,10 @@ export function resolveBackendAuth(
 function withQuery(request: NextRequest, path: string): string {
   const qs = request.nextUrl.searchParams.toString();
   if (!qs) return path;
-  return path.includes('?') ? `${path}&${qs}` : `${path}?${qs}`;
+  // Path já trouxe query (legado): não duplicar — Nest/Express transforma
+  // chaves repetidas em array e quebra @Query('x') tipado como string.
+  if (path.includes('?')) return path;
+  return `${path}?${qs}`;
 }
 
 export type ProxyBackendOptions = RequestInit & {
