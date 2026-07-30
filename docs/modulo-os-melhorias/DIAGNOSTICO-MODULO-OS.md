@@ -8,19 +8,20 @@
 
 | Indicador | Valor |
 |---|---|
-| Pontos com dados mockados/hardcoded | ~20 |
-| Fluxos incompletos no backend | 6 |
-| Status da OS: enum TypeScript vs. enum Prisma | 16 vs. 7 (divergentes) |
-| Tamanho do `os.service.ts` | ~4.800 linhas (convenção do projeto: ≤400) |
+| Pontos com dados mockados/hardcoded | P0 removidos (29–30/07/2026) |
+| Fluxos incompletos no backend (P1) | Concluídos |
+| Status da OS | Enum único Prisma + TS (16 valores) — P1-5 |
+| Tamanho do `os.service.ts` | ~4.500 linhas (higienização = P2-5, aberto) |
 
-**Achado mais grave:** a aba Resumo do detalhe da OS exibe um checklist de
-estoque 100% fictício ("Estoque OK", Bobina Lona, Cabo de Madeira, Cordão 3mm —
-sempre "Disponível") e usa o fallback de cliente "Carla Conceição" quando o nome
-não vem da API. Um usuário pode tomar decisão de produção acreditando que há
-material em estoque. Verificado em `frontend/src/app/(main)/os/[id]/page.tsx`
-(linhas 42, 45, 82–102).
+**Achado mais grave (histórico):** checklist de estoque fictício e fallbacks
+mockados no detalhe da OS — **corrigidos em P0**.
 
-O núcleo do módulo é maduro — o problema está nas bordas, não na fundação.
+**Fronteira financeira (decisão 30/07/2026):** custos, margens, pós-cálculo,
+precificação ao cliente e UX de “valores na OS” **não** evoluem neste ciclo do
+módulo OS. A casa canônica de dinheiro continua em Financeiro
+(`docs/modulo financeiro/`); a casa comercial (vendedor / aditivos / preço ao
+cliente) será especificada em `docs/modulo-vendas/` (RP). OS Aditivas já
+funcionam e **não** devem ser recriadas. P2-3 fica **adiado** até essa fronteira.
 
 ---
 
@@ -170,12 +171,18 @@ mudança).
 - [ ] **P2-1** — Anexos genéricos na OS (model próprio + upload na UI).
 - [ ] **P2-2** — Notificações de status ao cliente (e-mail/WhatsApp) via
       `NotificacoesOSService`.
-- [ ] **P2-3** — Fluxo de custo real vs. orçado alimentado pelos apontamentos,
-      fechando com o pós-cálculo.
+- [ ] **P2-3** — ~~Fluxo de custo real vs. orçado alimentado pelos apontamentos~~
+      **ADIADO (30/07/2026):** não evoluir valorização/R$ na OS neste ciclo.
+      Custo real × orçado e UX comercial ficam sob Financeiro (pós-cálculo) e
+      futuro módulo Vendas (`docs/modulo-vendas/`). Não alimentar
+      `valor_realizado` a partir do chão de fábrica neste backlog.
 - [ ] **P2-4** — Alinhar listagem ao template CRUD canônico (`DataTable`, cards
       com mesmas ações, paginação de servidor, dark mode).
 - [ ] **P2-5** — Higienização: quebrar `os.service.ts`, remover protótipos de
       arte e componentes órfãos de `ui/os`.
+
+**Escopo fechado para deploy (30/07/2026):** P0 + P1 concluídos e prontos para
+produção. P2 (exceto decisão de adiamento do P2-3) permanece backlog.
 
 ---
 
