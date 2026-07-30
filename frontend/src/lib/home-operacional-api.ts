@@ -1,4 +1,3 @@
-import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
 import { apiRequest } from './api';
 
 // ====================================================================
@@ -401,13 +400,10 @@ export async function fetchContadoresMenu(
   if (opcoes?.instalacao_desde) params.set('instalacao_desde', opcoes.instalacao_desde);
 
   const qs = params.toString() ? `?${params.toString()}` : '';
-  const token =
-    typeof window !== 'undefined'
-      ? getClientSessionToken()
-      : null;
 
   const response = await fetch(`/api/home-operacional/contadores-menu${qs}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
   });
 
   if (!response.ok) {

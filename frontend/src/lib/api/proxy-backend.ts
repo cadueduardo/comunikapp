@@ -1,9 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildApiUrl } from '@/lib/config';
+import { SESSION_COOKIE_NAME } from '@/lib/auth-cookie';
+
+function extrairJwtDoCookie(cookieHeader: string | null): string | null {
+  if (!cookieHeader) return null;
+  const partes = cookieHeader.split(';');
+  for (const parte of partes) {
+    const [nome, ...rest] = parte.trim().split('=');
+    if (nome === SESSION_COOKIE_NAME) {
+      const valor = rest.join('=').trim();
+      if (!valor || valor === 'null' || valor === 'undefined') return null;
+      try {
+        return decodeURIComponent(valor);
+      } catch {
+        return valor;
+      }
+    }
+  }
+  return null;
+}
 
 /**
  * Proxy BFF → Nest.
  * Auth: Bearer (legado) e/ou cookie HttpOnly `comunikapp_session`.
+ * Quando só há cookie, o JWT é reenviado também como Bearer para o Nest
+ * (além do Cookie), evitando 401 em rotas BFF que antes exigiam Authorization.
  */
 export async function proxyBackend(
   request: NextRequest,
@@ -13,6 +34,7 @@ export async function proxyBackend(
   try {
     const authHeader = request.headers.get('authorization');
     const cookieHeader = request.headers.get('cookie');
+    const jwtDoCookie = extrairJwtDoCookie(cookieHeader);
 
     const hasBearer =
       !!authHeader &&
@@ -20,7 +42,7 @@ export async function proxyBackend(
       authHeader.slice(7).trim() !== '' &&
       authHeader.slice(7).trim() !== 'cookie-session';
 
-    if (!hasBearer && !cookieHeader) {
+    if (!hasBearer && !jwtDoCookie && !cookieHeader) {
       return NextResponse.json(
         { error: 'Token de autorização não fornecido' },
         { status: 401 },
@@ -31,9 +53,13 @@ export async function proxyBackend(
       'Content-Type': 'application/json',
       ...(init?.headers as Record<string, string> | undefined),
     };
+
     if (hasBearer && authHeader) {
       headers.Authorization = authHeader;
+    } else if (jwtDoCookie) {
+      headers.Authorization = `Bearer ${jwtDoCookie}`;
     }
+
     if (cookieHeader) {
       headers.Cookie = cookieHeader;
     }

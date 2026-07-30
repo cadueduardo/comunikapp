@@ -1,53 +1,88 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { buildApiUrl } from '@/lib/config';
+import { SESSION_COOKIE_NAME } from '@/lib/auth-cookie';
 
-// GET /api/os/[id]/imprimir - Gerar template de impressão da OS
+function extrairJwtDoCookie(cookieHeader: string | null): string | null {
+  if (!cookieHeader) return null;
+  for (const parte of cookieHeader.split(';')) {
+    const [nome, ...rest] = parte.trim().split('=');
+    if (nome === SESSION_COOKIE_NAME) {
+      const valor = rest.join('=').trim();
+      if (!valor || valor === 'null' || valor === 'undefined') return null;
+      try {
+        return decodeURIComponent(valor);
+      } catch {
+        return valor;
+      }
+    }
+  }
+  return null;
+}
+
+// GET /api/os/[id]/imprimir — HTML da OS (auth cookie ou Bearer)
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    const { searchParams } = new URL(request.url);
-    
-    // Parâmetros da query string
-    const versao = searchParams.get('versao') || 'simples';
-    const formato = searchParams.get('formato') || 'html';
-    const incluirQRCode = searchParams.get('incluirQRCode') || 'true';
-    const incluirLogo = searchParams.get('incluirLogo') || 'true';
-    const incluirDetalhesTecnicos = searchParams.get('incluirDetalhesTecnicos') || 'true';
+    const authHeader = request.headers.get('authorization');
+    const cookieHeader = request.headers.get('cookie');
+    const jwtDoCookie = extrairJwtDoCookie(cookieHeader);
 
-    if (!token) {
-      return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
-    }
+    const hasBearer =
+      !!authHeader &&
+      authHeader.toLowerCase().startsWith('bearer ') &&
+      authHeader.slice(7).trim() !== '' &&
+      authHeader.slice(7).trim() !== 'cookie-session';
 
-    // Construir URL da API do backend
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-    const backendUrl = `${baseUrl}/os/${id}/imprimir?` + new URLSearchParams({
-      versao,
-      formato,
-      incluirQRCode,
-      incluirLogo,
-      incluirDetalhesTecnicos
-    });
-
-    const response = await fetch(backendUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
+    if (!hasBearer && !jwtDoCookie) {
       return NextResponse.json(
-        { error: errorData.message || 'Erro ao gerar template de impressão' },
-        { status: response.status }
+        { error: 'Token de autorização não fornecido' },
+        { status: 401 },
       );
     }
 
-    // Retornar HTML diretamente
+    const { searchParams } = new URL(request.url);
+    const qs = new URLSearchParams({
+      versao: searchParams.get('versao') || 'simples',
+      formato: searchParams.get('formato') || 'html',
+      incluirQRCode: searchParams.get('incluirQRCode') || 'true',
+      incluirLogo: searchParams.get('incluirLogo') || 'true',
+      incluirDetalhesTecnicos:
+        searchParams.get('incluirDetalhesTecnicos') || 'true',
+    });
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (hasBearer && authHeader) {
+      headers.Authorization = authHeader;
+    } else if (jwtDoCookie) {
+      headers.Authorization = `Bearer ${jwtDoCookie}`;
+    }
+    if (cookieHeader) {
+      headers.Cookie = cookieHeader;
+    }
+
+    const response = await fetch(
+      buildApiUrl(`/os/${encodeURIComponent(id)}/imprimir?${qs.toString()}`),
+      { method: 'GET', headers },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return NextResponse.json(
+        {
+          error:
+            errorData.message ||
+            errorData.error ||
+            'Erro ao gerar template de impressão',
+        },
+        { status: response.status },
+      );
+    }
+
     const html = await response.text();
     return new NextResponse(html, {
       headers: {
@@ -58,7 +93,7 @@ export async function GET(
     console.error('Erro na API de impressão da OS:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
