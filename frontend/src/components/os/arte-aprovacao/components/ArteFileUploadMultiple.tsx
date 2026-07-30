@@ -1,5 +1,8 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import {
+  getClientSessionToken,
+  isUsableBearerToken,
+} from '@/lib/session-auth';
 
 import React, { useState, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -139,17 +142,26 @@ export function ArteFileUploadMultiple({
     formData.append('arquivo', uploadFile.file);
     formData.append('nome_original', uploadFile.file.name);
 
-      const response = await fetch(`/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${getClientSessionToken()}`,
+    const token = getClientSessionToken();
+    const headers: HeadersInit = {};
+    if (isUsableBearerToken(token)) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    const response = await fetch(
+      `/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`,
+      {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: formData,
       },
-      body: formData,
-    });
+    );
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Erro no upload');
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || errorData.error || 'Erro no upload',
+      );
     }
 
     return response.json();

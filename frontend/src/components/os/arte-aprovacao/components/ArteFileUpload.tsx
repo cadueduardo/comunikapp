@@ -1,5 +1,8 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import {
+  getClientSessionToken,
+  isUsableBearerToken,
+} from '@/lib/session-auth';
 
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -99,17 +102,24 @@ export function ArteFileUpload({
         formData.append('nome_original', file.name);
         
         const token = getClientSessionToken();
+        const headers: HeadersInit = {};
+        if (isUsableBearerToken(token)) {
+          headers.Authorization = `Bearer ${token}`;
+        }
         const response = await fetch(`/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          credentials: 'include',
+          headers,
           body: formData,
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Erro ao fazer upload do arquivo');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.message ||
+              errorData.error ||
+              'Erro ao fazer upload do arquivo',
+          );
         }
 
         const arquivo = await response.json();

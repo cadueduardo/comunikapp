@@ -1,5 +1,8 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import {
+  getClientSessionToken,
+  isUsableBearerToken,
+} from '@/lib/session-auth';
 
 import React, { useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -115,22 +118,33 @@ export function ArteCreateVersionModal({
 
     try {
       const token = getClientSessionToken();
-      console.log(`📤 Upload de arquivo para versão: ${versaoId}`);
-      const response = await fetch(`/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
+      const headers: HeadersInit = {};
+      if (isUsableBearerToken(token)) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      const response = await fetch(
+        `/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers,
+          body: formData,
         },
-        body: formData,
-      });
+      );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
-        throw new Error(errorData.message || `Erro ${response.status}`);
+        const errorData = await response
+          .json()
+          .catch(() => ({ message: 'Erro desconhecido' }));
+        throw new Error(
+          errorData.message ||
+            errorData.error ||
+            `Erro ${response.status}`,
+        );
       }
 
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no upload:', error);
       throw error;
     }
@@ -147,25 +161,33 @@ export function ArteCreateVersionModal({
     try {
       // 1. Criar a versão
       const token = getClientSessionToken();
+      const createHeaders: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (isUsableBearerToken(token)) {
+        createHeaders.Authorization = `Bearer ${token}`;
+      }
       const createResponse = await fetch('/api/arte-aprovacao/versoes', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        credentials: 'include',
+        headers: createHeaders,
         body: JSON.stringify({
           os_id: osId,
           versao: proximaVersao,
           status: 'RASCUNHO',
           descricao,
           observacoes: observacoes || undefined,
-          servico_id: servicoId
+          servico_id: servicoId,
         }),
       });
 
       if (!createResponse.ok) {
-        const errorData = await createResponse.json().catch(() => ({ message: 'Erro desconhecido' }));
-        throw new Error(errorData.message || 'Erro ao criar versão');
+        const errorData = await createResponse
+          .json()
+          .catch(() => ({ message: 'Erro desconhecido' }));
+        throw new Error(
+          errorData.message || errorData.error || 'Erro ao criar versão',
+        );
       }
 
       const versaoCriada = await createResponse.json();
