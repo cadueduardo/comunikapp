@@ -292,11 +292,12 @@ export const instalacaoApi = {
 
   async abrirRelatorioPdf(pdfToken: string): Promise<void> {
     const token = getClientSessionToken();
+    const headers: HeadersInit = isUsableBearerToken(token)
+      ? { Authorization: `Bearer ${token}` }
+      : {};
     const response = await apiFetch(
       `/api/instalacao/relatorios/${pdfToken}`,
-      {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      },
+      { headers },
     );
     if (!response.ok) {
       throw new Error('Não foi possível baixar o PDF do relatório.');
