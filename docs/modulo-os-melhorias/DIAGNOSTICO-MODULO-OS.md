@@ -48,7 +48,7 @@ O núcleo do módulo é maduro — o problema está nas bordas, não na fundaç�
 | Crítico | `controllers/workflow-interno.controller.ts:136–143` | `GET /os/:id/validar-alcada` é stub: sempre `pode_aprovar=true`, `valor_os=0` | Controle de alçada inexistente na prática |
 | Crítico | `services/os.service.ts:3617–3736` | `validarEstoqueDisponivel` e `validarArteAnexada` sempre retornam `true`; localização fixa "A1-B2" | Transições de etapa não validam nada |
 | Alto | `services/estoque-apontamento.service.ts` | Apontamento de produção só registra log — não baixa estoque de verdade | Estoque nunca reflete o consumo da produção |
-| Alto | `controllers/impressao-os.controller.ts:68` + `services/impressao-os.service.ts:945` | Endpoint de PDF devolve HTML; seções de apontamento/qualidade da OS impressa são linhas em branco | Impressão incompleta |
+| Alto | Impressão da OS | Timbrado da loja + print/PDF no browser (como orçamento); QR aponta para `/os/{id}` |
 | Alto | `controllers/os.controller.ts:124–130` | `workflow_instanciado` hardcoded `false` na listagem de liberadas para PCP | Informação incorreta para o PCP |
 | Médio | `os.module.ts:50–72, 127, 150` | `HistoricoController`, `NotificacoesOSService` e `IntegracaoService` comentados como "TODO: Implementar" | Notificações e histórico dedicados nunca existiram |
 
@@ -159,8 +159,9 @@ mudança).
 - [ ] **P1-3** — Implementar baixa real de estoque no apontamento de produção e
       as validações de transição (estoque/arte) que hoje retornam sempre
       `true`.
-- [ ] **P1-4** — Gerar PDF de impressão (Puppeteer) e corrigir alternância de
-      versões simples/completa.
+- [x] **P1-4** — Impressão da OS alinhada ao timbrado da loja (mesmo padrão do
+      orçamento): página React + `window.print()`/PDF, versões simples/completa
+      funcionais e QR Code apontando para `/os/{id}` no sistema.
 - [ ] **P1-5** — Unificar status da OS: tipar a coluna com enum único (ou
       remover o enum Prisma órfão) e atualizar `01-status-oficiais.md`.
 - [x] **P1-6** — Eliminar rotas duplicadas dos controllers de workflow e

@@ -9,6 +9,7 @@ import TransformacaoDadosHelper from '../../helpers/transformacao-dados.helper';
 // Mock do PrismaService
 const mockPrismaService = {
   ordemServico: {
+    findFirst: jest.fn(),
     findUnique: jest.fn(),
   },
 };
@@ -136,7 +137,7 @@ describe('ImpressaoOSService', () => {
         },
       };
 
-      mockPrismaService.ordemServico.findUnique.mockResolvedValue(mockOS);
+      mockPrismaService.ordemServico.findFirst.mockResolvedValue(mockOS);
 
       // Mock do QRCode
       const QRCode = require('qrcode');
@@ -184,7 +185,7 @@ describe('ImpressaoOSService', () => {
         'data:image/png;base64,mock-qr-code',
       );
       expect(resultado.dadosTransformados).toBeDefined();
-      expect(mockPrismaService.ordemServico.findUnique).toHaveBeenCalledWith({
+      expect(mockPrismaService.ordemServico.findFirst).toHaveBeenCalledWith({
         where: { id: osId },
         include: expect.any(Object),
       });
@@ -200,7 +201,7 @@ describe('ImpressaoOSService', () => {
         versao: 'simples',
       };
 
-      mockPrismaService.ordemServico.findUnique.mockResolvedValue(null);
+      mockPrismaService.ordemServico.findFirst.mockResolvedValue(null);
 
       await expect(service.gerarDadosImpressao(osId, config)).rejects.toThrow(
         'OS os-inexistente não encontrada',
@@ -226,7 +227,7 @@ describe('ImpressaoOSService', () => {
         orcamento: null,
       };
 
-      mockPrismaService.ordemServico.findUnique.mockResolvedValue(mockOS);
+      mockPrismaService.ordemServico.findFirst.mockResolvedValue(mockOS);
 
       const resultado = await service.gerarDadosImpressao(osId, config);
 
@@ -412,14 +413,13 @@ describe('ImpressaoOSService', () => {
       const QRCode = require('qrcode');
       QRCode.toDataURL.mockResolvedValue('data:image/png;base64,mock-qr-code');
 
-      // Usar reflexão para acessar método privado
-      const resultado = await (service as any).gerarQRCode('OS-2024-001');
+      const resultado = await (service as any).gerarQRCode('os-123');
 
       expect(resultado).toBe('data:image/png;base64,mock-qr-code');
       expect(QRCode.toDataURL).toHaveBeenCalledWith(
-        expect.stringContaining('/os/OS-2024-001'),
+        expect.stringContaining('/os/os-123'),
         expect.objectContaining({
-          width: 100,
+          width: 128,
           margin: 1,
           color: {
             dark: '#000000',
@@ -433,7 +433,7 @@ describe('ImpressaoOSService', () => {
       const QRCode = require('qrcode');
       QRCode.toDataURL.mockRejectedValue(new Error('QR Code error'));
 
-      const resultado = await (service as any).gerarQRCode('OS-2024-001');
+      const resultado = await (service as any).gerarQRCode('os-123');
 
       expect(resultado).toBe('');
     });

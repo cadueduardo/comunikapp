@@ -50,6 +50,7 @@ export class ImpressaoOSService {
       formato: 'html',
       versao: 'simples',
     },
+    lojaId?: string,
   ): Promise<DadosImpressaoOS> {
     // Carrega a OS com seus `itens_os` (verdade pos-OS) e tambem o orcamento.
     //
@@ -61,8 +62,8 @@ export class ImpressaoOSService {
     // esta registrada no HANDOFF (secao 4.6) como prerequisito da Fase 4
     // (PCP) para evitar que edicoes posteriores do orcamento afetem o que
     // a OS imprime.
-    const os = await this.prisma.ordemServico.findUnique({
-      where: { id: osId },
+    const os = await this.prisma.ordemServico.findFirst({
+      where: lojaId ? { id: osId, loja_id: lojaId } : { id: osId },
       include: {
         loja: true,
         cliente: true,
@@ -100,7 +101,7 @@ export class ImpressaoOSService {
     }
 
     const qrCodeDataUrl = config.incluirQRCode
-      ? await this.gerarQRCode(os.numero)
+      ? await this.gerarQRCode(os.id)
       : '';
 
     // Fontes de dados para a impressao:
@@ -468,22 +469,24 @@ export class ImpressaoOSService {
   }
 
   /**
-   * Gerar QR Code para acesso digital
-   * @param numeroOS Número da OS
-   * @returns Data URL do QR Code
+   * QR Code aponta para o detalhe da OS no sistema (id cuid),
+   * para acompanhamento operacional após login.
    */
-  private async gerarQRCode(numeroOS: string): Promise<string> {
+  private async gerarQRCode(osId: string): Promise<string> {
     try {
-      const url = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/os/${numeroOS}`;
-      const qrCodeDataUrl = await QRCode.toDataURL(url, {
-        width: 100,
+      const base =
+        process.env.FRONTEND_URL ||
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        'http://localhost:3000';
+      const url = `${base.replace(/\/$/, '')}/os/${encodeURIComponent(osId)}`;
+      return await QRCode.toDataURL(url, {
+        width: 128,
         margin: 1,
         color: {
           dark: '#000000',
           light: '#FFFFFF',
         },
       });
-      return qrCodeDataUrl;
     } catch (error) {
       console.error('Erro ao gerar QR Code:', error);
       return '';
