@@ -112,6 +112,9 @@ export function ChecklistEstoque({
   };
 
   const aprovacaoStatus = getAprovacaoStatus();
+  const temMateriais = produtos.some(
+    (produto) => (produto.materiais?.length ?? 0) > 0,
+  );
 
   return (
     <Card>
@@ -143,82 +146,107 @@ export function ChecklistEstoque({
         </div>
 
         {/* Lista de Materiais */}
-        {produtos.length > 0 && (
+        {temMateriais ? (
           <div className="space-y-2">
-            <div className="text-xs font-medium text-gray-700">Materiais Necessários:</div>
+            <div className="text-xs font-medium text-muted-foreground">
+              Materiais necessários:
+            </div>
             <div className="space-y-1 max-h-48 overflow-y-auto">
-              {produtos.map((produto) => 
+              {produtos.map((produto) =>
                 produto.materiais?.map((material) => (
-                  <div key={`${produto.id}-${material.id}`} className="border rounded-lg">
-                    <div 
-                      className="flex justify-between items-center text-xs p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100"
-                      onClick={() => toggleMaterialExpansion(`${produto.id}-${material.id}`)}
-                      title={`${material.nome} - ${material.display}`} // Tooltip com descrição completa
+                  <div key={`${produto.id}-${material.id}`} className="border border-border rounded-lg">
+                    <div
+                      className="flex justify-between items-center text-xs p-2 bg-muted/40 rounded cursor-pointer hover:bg-muted/70"
+                      onClick={() =>
+                        toggleMaterialExpansion(`${produto.id}-${material.id}`)
+                      }
+                      title={`${material.nome} - ${material.display}`}
                     >
-                      <div className="flex-1 min-w-0 pr-4"> {/* Adicionado pr-4 para espaçamento */}
+                      <div className="flex-1 min-w-0 pr-4">
                         <div className="font-medium truncate" title={material.nome}>
                           {material.nome}
                         </div>
-                        <div className="text-gray-600">{material.display}</div>
+                        <div className="text-muted-foreground">{material.display}</div>
                       </div>
-                      <div className="flex items-center space-x-3"> {/* Aumentado space-x-2 para space-x-3 */}
+                      <div className="flex items-center space-x-3">
                         <div className="text-right">
                           <div className={`text-xs ${getStatusText(material).color}`}>
                             {getStatusText(material).text}
                           </div>
                         </div>
-                        <div title={`${getStatusText(material).text} em estoque`}> {/* Tooltip no ícone */}
+                        <div title={`${getStatusText(material).text} em estoque`}>
                           {getStatusIcon(material)}
                         </div>
                       </div>
                     </div>
-                    
-                    {/* Detalhes Expandidos */}
-                    {expandedMaterials.has(`${produto.id}-${material.id}`) && showDetails && (
-                      <div className="px-2 pb-2 space-y-1 text-xs border-t bg-white">
-                        <div className="grid grid-cols-2 gap-2 pt-2">
-                          <div>
-                            <span className="text-gray-500">Produto:</span>
-                            <div className="font-medium">{produto.nome}</div>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Categoria:</span>
-                            <div className="font-medium">{material.categoria || 'N/A'}</div>
-                          </div>
-                          {material.quantidade_disponivel !== undefined && (
+
+                    {expandedMaterials.has(`${produto.id}-${material.id}`) &&
+                      showDetails && (
+                        <div className="px-2 pb-2 space-y-1 text-xs border-t border-border bg-card">
+                          <div className="grid grid-cols-2 gap-2 pt-2">
                             <div>
-                              <span className="text-gray-500">Disponível:</span>
-                              <div className="font-medium">{material.quantidade_disponivel} {material.unidade}</div>
+                              <span className="text-muted-foreground">Produto:</span>
+                              <div className="font-medium">{produto.nome}</div>
                             </div>
-                          )}
-                          {material.localizacao_estoque && (
                             <div>
-                              <span className="text-gray-500">Localização:</span>
-                              <div className="font-medium">{material.localizacao_estoque}</div>
+                              <span className="text-muted-foreground">Categoria:</span>
+                              <div className="font-medium">
+                                {material.categoria || 'N/A'}
+                              </div>
                             </div>
-                          )}
-                        </div>
-                        
-                        {material.custo_unitario && (
-                          <div className="pt-1 border-t">
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Custo unitário:</span>
-                              <span className="font-medium">R$ {material.custo_unitario.toFixed(2)}</span>
-                            </div>
-                            {material.custo_total && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">Custo total:</span>
-                                <span className="font-medium">R$ {material.custo_total.toFixed(2)}</span>
+                            {material.quantidade_disponivel !== undefined && (
+                              <div>
+                                <span className="text-muted-foreground">Disponível:</span>
+                                <div className="font-medium">
+                                  {material.quantidade_disponivel} {material.unidade}
+                                </div>
+                              </div>
+                            )}
+                            {material.localizacao_estoque && (
+                              <div>
+                                <span className="text-muted-foreground">
+                                  Localização:
+                                </span>
+                                <div className="font-medium">
+                                  {material.localizacao_estoque}
+                                </div>
                               </div>
                             )}
                           </div>
-                        )}
-                      </div>
-                    )}
+
+                          {material.custo_unitario ? (
+                            <div className="pt-1 border-t border-border">
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                  Custo unitário:
+                                </span>
+                                <span className="font-medium">
+                                  R$ {material.custo_unitario.toFixed(2)}
+                                </span>
+                              </div>
+                              {material.custo_total ? (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">
+                                    Custo total:
+                                  </span>
+                                  <span className="font-medium">
+                                    R$ {material.custo_total.toFixed(2)}
+                                  </span>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
                   </div>
-                ))
+                )),
               )}
             </div>
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground p-2 rounded border border-dashed border-border">
+            Nenhum material calculado para esta OS. Verifique os itens ou a aba
+            Materiais.
           </div>
         )}
 

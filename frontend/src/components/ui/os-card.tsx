@@ -12,7 +12,6 @@ import {
   AlertTriangle,
   CheckCircle,
   Eye,
-  Edit,
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -190,21 +189,9 @@ export function OSCard({ os, onDelete }: OSCardProps) {
             </Link>
           </Button>
           
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-            className="flex-1"
-          >
-            <Link href={`/os/${os.id}/editar`}>
-              <Edit className="h-4 w-4 mr-2" />
-              Editar
-            </Link>
-          </Button>
-          
           <ConfirmDialog
-            title="Excluir Ordem de Serviço"
-            description={`Tem certeza que deseja excluir a OS #${os.numero}? Esta ação não pode ser desfeita.`}
+            title="Inativar Ordem de Serviço"
+            description={`Tem certeza que deseja inativar a OS #${os.numero}? A OS poderá ser reativada depois.`}
             onConfirm={handleDelete}
           >
             <Button

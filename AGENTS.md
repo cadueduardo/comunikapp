@@ -5,6 +5,22 @@ repositório. Antes de alterar código, leia também a documentação funcional 
 feature e, para mudanças de banco, leia obrigatoriamente
 `docs/database/boas-praticas-schema-prisma.md`.
 
+## Módulo Ordem de Serviço (OS)
+
+- Antes de qualquer trabalho em `backend/src/os` ou
+  `frontend/src/app/(main)/os`, leia obrigatoriamente
+  `docs/modulo-os-melhorias/DIAGNOSTICO-MODULO-OS.md` (diagnóstico de dados
+  mockados, fluxos incompletos e plano de ação P0/P1/P2).
+- Ao concluir um item do plano de ação, marque o checkbox correspondente no
+  diagnóstico no mesmo commit da mudança.
+- Não introduza dados mockados/hardcoded em telas ou services do módulo OS.
+  Se a API ainda não existe, exiba estado vazio/erro honesto, nunca dado
+  inventado.
+- A fonte de verdade dos status da OS é o enum TypeScript `StatusOS` em
+  `backend/src/os/interfaces/os.interfaces.ts`; o enum Prisma homônimo está
+  órfão. Não crie novos valores de status sem tratar a unificação (item P1-5
+  do diagnóstico).
+
 ## Segurança e multi-tenancy
 
 - Trate OWASP Top 10 como requisito mínimo: negar por padrão, validar toda

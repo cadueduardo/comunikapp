@@ -17,157 +17,210 @@ import { toast } from "sonner";
 import { apiRequest } from "@/lib/api";
 import { resolverRedirectArteLegado } from "@/lib/arte-navegacao";
 import { OrdemServico } from "../columns";
-import { PrazoOSComponent } from "@/components/os/PrazoOSComponent";
 import { ListaProdutosComPrazo } from "@/components/os/ListaProdutosComPrazo";
 import { ResumoOSSidebar } from "@/components/os/ResumoOSSidebar";
 import { OSMateriaisPanel } from "@/components/os/OSMateriaisPanel";
 import { OsPosCalculoPanel } from "@/components/os/OsPosCalculoPanel";
 import { InstalacaoOsPainel } from "@/components/instalacao/InstalacaoOsPainel";
+import { ChecklistEstoque } from "@/components/ui/os/ChecklistEstoque";
 import { useOsStatus } from "@/hooks/use-os-status";
 
-interface OSDetalhada extends OrdemServico {
-  // Mantendo apenas as interfaces essenciais
+interface MaterialOSDetalhe {
+  id: string;
+  nome: string;
+  quantidade: number;
+  unidade: string;
+  display: string;
+  categoria?: string;
+  tipo_material?: string;
+  disponivel_estoque?: boolean;
+  quantidade_disponivel?: number;
+  localizacao_estoque?: string;
+  custo_unitario?: number;
+  custo_total?: number;
 }
 
-type TabType = 'resumo' | 'materiais' | 'instalacao' | 'financeiro' | 'analise-inteligente';
+interface ProdutoOSDetalhe {
+  id: string;
+  nome: string;
+  quantidade: number;
+  materiais?: MaterialOSDetalhe[];
+}
 
-// Função para renderizar a aba Resumo
-function renderResumoTab(os: OSDetalhada, isResumoCollapsed: boolean, setIsResumoCollapsed: React.Dispatch<React.SetStateAction<boolean>>, statusDinamico: string) {
+interface OSDetalhada extends OrdemServico {
+  prioridade?: string | null;
+  alertas_estoque?: string[];
+  recomendacoes_estoque?: string[];
+  produtos?: ProdutoOSDetalhe[];
+}
 
+type TabType =
+  | "resumo"
+  | "materiais"
+  | "instalacao"
+  | "financeiro"
+  | "analise-inteligente";
+
+function formatarPrioridade(prioridade?: string | null): string {
+  if (!prioridade) {
+    return "Não informada";
+  }
+
+  const labels: Record<string, string> = {
+    URGENTE: "Urgente",
+    ALTA: "Alta",
+    NORMAL: "Normal",
+    BAIXA: "Baixa",
+  };
+
+  return labels[prioridade] || prioridade;
+}
+
+function SidebarResumoOS({
+  os,
+  isResumoCollapsed,
+  setIsResumoCollapsed,
+  statusDinamico,
+}: {
+  os: OSDetalhada;
+  isResumoCollapsed: boolean;
+  setIsResumoCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  statusDinamico: string;
+}) {
+  return (
+    <ResumoOSSidebar
+      osId={os.id}
+      clienteNome={os.cliente_nome || "Cliente não informado"}
+      projeto={os.nome_servico}
+      dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
+      prioridade={formatarPrioridade(os.prioridade)}
+      status={statusDinamico}
+      isCollapsed={isResumoCollapsed}
+      onCollapsedChange={setIsResumoCollapsed}
+    />
+  );
+}
+
+function renderResumoTab(
+  os: OSDetalhada,
+  isResumoCollapsed: boolean,
+  setIsResumoCollapsed: React.Dispatch<React.SetStateAction<boolean>>,
+  statusDinamico: string,
+) {
   return (
     <div className="flex flex-col lg:flex-row h-full">
-      {/* Sidebar Esquerdo - Persistente (25% desktop, full mobile) */}
-      <ResumoOSSidebar 
-        osId={os.id}
-        clienteNome={os.cliente_nome || "Carla Conceição"}
-        projeto={os.nome_servico}
-        dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
-        prioridade="Normal"
-        status={statusDinamico}
-        isCollapsed={isResumoCollapsed}
-        onCollapsedChange={setIsResumoCollapsed}
-        onPrazoChange={(novaData) => {
-          // Atualizar o estado local da OS
-          // Pode ser expandido para atualizar o cache ou recarregar dados
-        }}
+      <SidebarResumoOS
+        os={os}
+        isResumoCollapsed={isResumoCollapsed}
+        setIsResumoCollapsed={setIsResumoCollapsed}
+        statusDinamico={statusDinamico}
       />
 
-      {/* Linha Separadora - Desktop only */}
-      <div className="hidden lg:block w-px bg-gray-200"></div>
+      <div className="hidden lg:block w-px bg-border" />
 
-      {/* Conteúdo Central (50% desktop, full mobile) */}
       <div className="w-full lg:flex-1 lg:px-6">
         <div className="space-y-6">
-          {/* Produtos e Prazos */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Produtos e Prazos de Produção</h3>
-            
-            <ListaProdutosComPrazo 
+            <h3 className="text-lg font-semibold text-foreground mb-4">
+              Produtos e Prazos de Produção
+            </h3>
+            <ListaProdutosComPrazo
               osId={os.id}
-              prazoFinalOS={os.data_prazo ? new Date(os.data_prazo) : undefined}
+              prazoFinalOS={
+                os.data_prazo ? new Date(os.data_prazo) : undefined
+              }
             />
           </div>
-
         </div>
       </div>
 
-      {/* Linha Separadora - Desktop only */}
-      <div className="hidden lg:block w-px bg-gray-200"></div>
+      <div className="hidden lg:block w-px bg-border" />
 
-      {/* Sidebar Direito - Dinâmico (25% desktop, full mobile) */}
       <div className="w-full lg:w-[25%] lg:pl-6 mt-6 lg:mt-0">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Checklist de Estoque</h3>
-          
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-gray-900">Estoque OK</span>
-            </div>
-            
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Bobina Lona Impressão 1,40x50m</span>
-                <span className="text-sm font-medium text-green-600">Disponível</span>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Cabo de Madeira 19mm</span>
-                <span className="text-sm font-medium text-green-600">Disponível</span>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Cordão 3mm Branco</span>
-                <span className="text-sm font-medium text-green-600">Disponível</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ChecklistEstoque
+          produtos={os.produtos ?? []}
+          materiais_disponivel={os.materiais_disponivel}
+          alertas_estoque={os.alertas_estoque}
+          recomendacoes_estoque={os.recomendacoes_estoque}
+          aprovacao_tecnica_status={
+            os.aprovacao_tecnica_status || "PENDENTE"
+          }
+        />
       </div>
     </div>
   );
 }
 
-// Componente de Abas simplificado
-function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed, statusDinamico }: { 
-  os: OSDetalhada; 
-  isResumoCollapsed: boolean; 
+function OSTabsComponent({
+  os,
+  isResumoCollapsed,
+  setIsResumoCollapsed,
+  statusDinamico,
+}: {
+  os: OSDetalhada;
+  isResumoCollapsed: boolean;
   setIsResumoCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   statusDinamico: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
-  // Obter aba ativa da URL ou usar 'resumo' como padrão
+
   const getActiveTabFromURL = (): TabType => {
-    const tab = searchParams.get('tab') as TabType;
-    return tab && ['resumo', 'materiais', 'instalacao', 'financeiro', 'analise-inteligente'].includes(tab) 
-      ? tab 
-      : 'resumo';
+    const tab = searchParams.get("tab") as TabType;
+    return tab &&
+      [
+        "resumo",
+        "materiais",
+        "instalacao",
+        "financeiro",
+        "analise-inteligente",
+      ].includes(tab)
+      ? tab
+      : "resumo";
   };
-  
+
   const [activeTab, setActiveTab] = useState<TabType>(getActiveTabFromURL);
-  
-  // Atualizar aba ativa quando URL mudar
+
   useEffect(() => {
-    const tabFromURL = getActiveTabFromURL();
-    setActiveTab(tabFromURL);
+    setActiveTab(getActiveTabFromURL());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
-  
-  // Função para mudar aba e atualizar URL
+
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
-    
-    // Atualizar URL sem recarregar a página
     const params = new URLSearchParams(searchParams.toString());
-    params.set('tab', tab);
+    params.set("tab", tab);
     router.replace(`/os/${os.id}?${params.toString()}`, { scroll: false });
   };
 
   const tabs = [
-    { id: 'resumo' as TabType, label: 'Resumo', icon: Package },
-    { id: 'materiais' as TabType, label: 'Materiais', icon: Package },
-    { id: 'instalacao' as TabType, label: 'Instalação', icon: MapPin },
-    { id: 'financeiro' as TabType, label: 'Financeiro', icon: Wallet },
-    { id: 'analise-inteligente' as TabType, label: 'Análise Inteligente', icon: Settings },
+    { id: "resumo" as TabType, label: "Resumo", icon: Package },
+    { id: "materiais" as TabType, label: "Materiais", icon: Package },
+    { id: "instalacao" as TabType, label: "Instalação", icon: MapPin },
+    { id: "financeiro" as TabType, label: "Financeiro", icon: Wallet },
+    {
+      id: "analise-inteligente" as TabType,
+      label: "Análise Inteligente",
+      icon: Settings,
+    },
   ];
 
   return (
-    <div className="bg-gray-50">
-      {/* Navegação por Abas - Design responsivo */}
+    <div className="bg-muted/40">
       <div>
         <nav className="flex w-full">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
-            
+
             return (
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
                 className={`flex-1 py-2 sm:py-3 md:py-4 px-1 sm:px-2 border-b-2 font-medium flex flex-col items-center space-y-0.5 sm:space-y-1 transition-colors duration-200 min-h-[60px] sm:min-h-[70px] ${
                   isActive
-                    ? 'border-blue-600 text-blue-600 bg-white'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 bg-gray-100 hover:bg-gray-200'
+                    ? "border-primary text-primary bg-card"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border bg-muted hover:bg-muted/80"
                 }`}
               >
                 <Icon className="h-4 w-4 sm:h-4 sm:w-4 md:h-5 md:w-5" />
@@ -180,66 +233,59 @@ function OSTabsComponent({ os, isResumoCollapsed, setIsResumoCollapsed, statusDi
         </nav>
       </div>
 
-      {/* Conteúdo da Aba Ativa */}
-      <div className="p-4 lg:p-6 h-full bg-white">
-        {activeTab === 'resumo' && renderResumoTab(os, isResumoCollapsed, setIsResumoCollapsed, statusDinamico)}
-        
-        {activeTab === 'materiais' && (
+      <div className="p-4 lg:p-6 h-full bg-card">
+        {activeTab === "resumo" &&
+          renderResumoTab(
+            os,
+            isResumoCollapsed,
+            setIsResumoCollapsed,
+            statusDinamico,
+          )}
+
+        {activeTab === "materiais" && (
           <div className="flex flex-col lg:flex-row h-full">
-            <ResumoOSSidebar 
-              osId={os.id}
-              clienteNome={os.cliente_nome || "Carla Conceição"}
-              projeto={os.nome_servico}
-              dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
-              prioridade="Normal"
-              status={statusDinamico}
-              isCollapsed={isResumoCollapsed}
-              onCollapsedChange={setIsResumoCollapsed}
+            <SidebarResumoOS
+              os={os}
+              isResumoCollapsed={isResumoCollapsed}
+              setIsResumoCollapsed={setIsResumoCollapsed}
+              statusDinamico={statusDinamico}
             />
-            
-            <div className="hidden lg:block w-px bg-gray-200"></div>
-            
+            <div className="hidden lg:block w-px bg-border" />
             <div className="w-full lg:flex-1 lg:px-6">
               <OSMateriaisPanel osId={os.id} />
             </div>
           </div>
         )}
 
-        {activeTab === 'instalacao' && (
+        {activeTab === "instalacao" && (
           <div className="w-full min-w-0 overflow-x-hidden">
             <InstalacaoOsPainel osId={os.id} modo="consulta" />
           </div>
         )}
 
-        {activeTab === 'financeiro' && (
+        {activeTab === "financeiro" && (
           <div className="w-full min-w-0">
             <OsPosCalculoPanel osId={os.id} />
           </div>
         )}
-        
-        {activeTab === 'analise-inteligente' && (
+
+        {activeTab === "analise-inteligente" && (
           <div className="flex flex-col lg:flex-row h-full">
-            <ResumoOSSidebar 
-              osId={os.id}
-              clienteNome={os.cliente_nome || "Carla Conceição"}
-              projeto={os.nome_servico}
-              dataPrazo={os.data_prazo ? new Date(os.data_prazo) : undefined}
-              prioridade="Normal"
-              status={statusDinamico}
-              isCollapsed={isResumoCollapsed}
-              onCollapsedChange={setIsResumoCollapsed}
+            <SidebarResumoOS
+              os={os}
+              isResumoCollapsed={isResumoCollapsed}
+              setIsResumoCollapsed={setIsResumoCollapsed}
+              statusDinamico={statusDinamico}
             />
-            
-            <div className="hidden lg:block w-px bg-gray-200"></div>
-            
+            <div className="hidden lg:block w-px bg-border" />
             <div className="w-full lg:flex-1 lg:px-6">
               <div className="text-center py-12">
-                <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h2 className="text-lg font-medium text-gray-900 mb-2">
-                  Aba &quot;Análise Inteligente&quot; Selecionada
+                <ClipboardList className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h2 className="text-lg font-medium text-foreground mb-2">
+                  Análise Inteligente
                 </h2>
-                <p className="text-gray-600">
-                  Conteúdo da aba será implementado nas próximas etapas.
+                <p className="text-muted-foreground">
+                  Conteúdo desta aba será ligado nas próximas etapas (P1-1).
                 </p>
               </div>
             </div>
@@ -257,11 +303,11 @@ export default function OSDetalhePage() {
   const [os, setOS] = useState<OSDetalhada | null>(null);
   const [loading, setLoading] = useState(true);
   const [isResumoCollapsed, setIsResumoCollapsed] = useState(false);
-  
-  const { statusTexto: statusDinamico } = useOsStatus(os?.id || '');
+
+  const { statusTexto: statusDinamico } = useOsStatus(os?.id || "");
 
   useEffect(() => {
-    if (!os?.id || searchParams.get('tab') !== 'arte-aprovacao') return;
+    if (!os?.id || searchParams.get("tab") !== "arte-aprovacao") return;
     void resolverRedirectArteLegado(os.id).then((destino) => {
       router.replace(destino);
     });
@@ -280,20 +326,22 @@ export default function OSDetalhePage() {
       const response = await apiRequest(`/os/${params.id}`);
 
       if (!response.ok) {
-        throw new Error("OS nao encontrada");
+        throw new Error("OS não encontrada");
       }
 
       const payload = await response.json();
-      const osData = (payload && payload.data ? payload.data : payload) as OSDetalhada | undefined;
+      const osData = (
+        payload && payload.data ? payload.data : payload
+      ) as OSDetalhada | undefined;
 
       if (!osData || !osData.id) {
-        throw new Error("OS nao encontrada");
+        throw new Error("OS não encontrada");
       }
 
       setOS(osData);
     } catch (error) {
       console.error("Erro ao carregar OS:", error);
-      toast.error("Erro ao carregar ordem de servico");
+      toast.error("Erro ao carregar ordem de serviço");
       router.push("/os");
     } finally {
       setLoading(false);
@@ -302,17 +350,17 @@ export default function OSDetalhePage() {
 
   const handleImprimirOS = () => {
     if (!os) return;
-    
-    // Abrir template de impressão em nova aba
-    window.open(`/os/${os.id}/imprimir`, '_blank');
+    window.open(`/os/${os.id}/imprimir`, "_blank");
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Carregando ordem de servico...</p>
+      <div className="min-h-screen bg-muted/40 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground mx-auto" />
+          <p className="mt-2 text-muted-foreground">
+            Carregando ordem de serviço...
+          </p>
         </div>
       </div>
     );
@@ -320,9 +368,11 @@ export default function OSDetalhePage() {
 
   if (!os) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-muted/40 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600">Ordem de servico nao encontrada</p>
+          <p className="text-muted-foreground">
+            Ordem de serviço não encontrada
+          </p>
           <Link href="/os">
             <Button className="mt-4" variant="outline">
               Voltar para lista
@@ -333,30 +383,21 @@ export default function OSDetalhePage() {
     );
   }
 
-  const podeEditar = os.status !== "FINALIZADA" && os.status !== "CANCELADA";
-
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header conforme a imagem */}
-      <div className="bg-white px-4 sm:px-6 py-4">
-        {/* Layout responsivo: Desktop em linha, Mobile em coluna */}
+    <div className="min-h-screen bg-card">
+      <div className="bg-card px-4 sm:px-6 py-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-          {/* Lado esquerdo: Título */}
           <div className="flex items-center space-x-3">
-            <ClipboardList className="h-8 w-8 text-gray-600" />
+            <ClipboardList className="h-8 w-8 text-muted-foreground" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-foreground">
                 {os.nome_servico}
               </h1>
-              <p className="text-sm text-gray-600">
-                #{os.numero}
-              </p>
+              <p className="text-sm text-muted-foreground">#{os.numero}</p>
             </div>
           </div>
 
-          {/* Lado direito: Botões */}
           <div className="flex items-center justify-between lg:justify-end space-x-3">
-            {/* Botão Voltar - Mobile only */}
             <Link href="/os" className="lg:hidden">
               <Button variant="outline" className="flex items-center space-x-2">
                 <ArrowLeft className="h-4 w-4" />
@@ -364,37 +405,25 @@ export default function OSDetalhePage() {
               </Button>
             </Link>
 
-            {/* Botões de ação */}
             <div className="flex items-center space-x-3">
               <Button
-                onClick={handleImprimirOS} 
+                onClick={handleImprimirOS}
                 variant="outline"
                 className="flex items-center space-x-2"
               >
                 <Printer className="h-4 w-4" />
                 <span className="hidden sm:inline">Imprimir OS</span>
               </Button>
-
-              {podeEditar && (
-                <Link href={`/os/${os.id}/editar`}>
-                  <Button className="flex items-center space-x-2 bg-gray-900 hover:bg-gray-800">
-                    <Edit className="h-4 w-4" />
-                    <span className="hidden sm:inline">Editar OS</span>
-                  </Button>
-                </Link>
-              )}
             </div>
-              </div>
-              </div>
+          </div>
+        </div>
       </div>
 
-      {/* Linha separadora sutil */}
-      <div className="h-px bg-gray-100"></div>
+      <div className="h-px bg-border" />
 
-          {/* Sistema de Abas */}
-      <OSTabsComponent 
-        os={os} 
-        isResumoCollapsed={isResumoCollapsed} 
+      <OSTabsComponent
+        os={os}
+        isResumoCollapsed={isResumoCollapsed}
         setIsResumoCollapsed={setIsResumoCollapsed}
         statusDinamico={statusDinamico}
       />

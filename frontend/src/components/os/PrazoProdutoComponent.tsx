@@ -140,22 +140,16 @@ export function PrazoProdutoComponent({
         const result = await response.json();
         if (result.success) {
           setDadosProduto(result.data);
+          return;
         }
       }
+
+      setDadosProduto(null);
+      toast.error('Não foi possível carregar o detalhamento do produto.');
     } catch (error) {
       console.error('Erro ao carregar dados do produto:', error);
-      // Em caso de erro, usar dados mockados
-      setDadosProduto({
-        dimensoes: { largura: 90, altura: 120, unidade_medida: 'cm' },
-        quantidade: 25,
-        descricao: produtoNome,
-        materiais: [
-          { nome: 'Bobina Lona Impressão Digital Rolo 1,40x50m Front 1000x1000', quantidade: 27, unidade: 'M2' },
-          { nome: 'Cabo De Madeira Para Banner 50 Unidades - 19mm X 1,05 Cm', quantidade: 2500, unidade: 'CM' },
-          { nome: 'Cordao Para Banner 3 Mm 205 M Branco', quantidade: 3000, unidade: 'CM' },
-          { nome: 'Ponteira Para Banner 5/8 Branca - 1000pçs', quantidade: 50, unidade: 'UNID' }
-        ]
-      });
+      setDadosProduto(null);
+      toast.error('Não foi possível carregar o detalhamento do produto.');
     }
   };
 
@@ -313,7 +307,7 @@ export function PrazoProdutoComponent({
   // Função para obter detalhamento técnico baseado nos dados reais do produto
   const getDetalhamentoTecnico = () => {
     if (!dadosProduto) {
-      return 'Carregando detalhamento técnico...';
+      return 'Detalhamento técnico não disponível.';
     }
 
     const { dimensoes, quantidade, descricao } = dadosProduto;
@@ -340,14 +334,21 @@ export function PrazoProdutoComponent({
 
   // Função para obter materiais baseados nos dados reais do produto
   const getMateriaisProduto = () => {
-    if (!dadosProduto || !dadosProduto.materiais) {
+    if (!dadosProduto) {
       return (
-        <div className="text-sm text-gray-500">
-          Carregando materiais...
+        <div className="text-sm text-muted-foreground">
+          Não foi possível carregar os materiais deste produto.
         </div>
       );
     }
 
+    if (!dadosProduto.materiais || dadosProduto.materiais.length === 0) {
+      return (
+        <div className="text-sm text-muted-foreground">
+          Nenhum material informado para este produto.
+        </div>
+      );
+    }
 
     return (
       <div className="space-y-2">

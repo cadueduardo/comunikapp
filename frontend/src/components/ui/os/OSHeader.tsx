@@ -178,10 +178,10 @@ export function OSHeader({ os, onImprimirOS }: OSHeaderProps) {
             </Button>
             
             {os.pode_editar && (
-              <Link href={`/os/${os.id}/editar`}>
+              <Link href={`/os/${os.id}`}>
                 <Button size="sm">
                   <Edit className="h-4 w-4 mr-2" />
-                  Editar
+                  Abrir OS
                 </Button>
               </Link>
             )}
