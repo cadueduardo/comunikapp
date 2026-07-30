@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,10 +49,8 @@ export default function SetoresProdutivosPage() {
       }
       
       const response = await fetch('/api/centros-de-trabalho/setores-produtivos', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include'
       });
 
       if (response.ok) {
@@ -78,10 +76,8 @@ export default function SetoresProdutivosPage() {
       
       const response = await fetch(`/api/centros-de-trabalho/setores-produtivos/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include'
       });
 
       if (response.ok) {

@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useCallback, useEffect, useState } from 'react';
 import { ArteAprovacaoTab } from '@/components/os/arte-aprovacao/ArteAprovacaoTab';
@@ -35,7 +35,8 @@ export function ArteWorkspacePanel({
       if (!token || !osId || !itemId) return;
       try {
         const res = await fetch(`/api/arte-aprovacao/os/${osId}/itens-contexto`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: buildClientAuthHeaders(),
+        credentials: 'include',
         });
         const json = await res.json();
         if (res.ok) {

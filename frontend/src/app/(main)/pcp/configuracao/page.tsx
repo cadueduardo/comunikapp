@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import type React from 'react';
 import { useEffect, useState } from 'react';
@@ -67,10 +67,8 @@ export default function ConfiguracaoPCPPage() {
     try {
       const token = getClientSessionToken();
       const response = await fetch('/api/pcp/configuracao', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
       });
 
       if (!response.ok) throw new Error('Falha ao carregar configuração');
@@ -87,10 +85,8 @@ export default function ConfiguracaoPCPPage() {
       const token = getClientSessionToken();
       const response = await fetch('/api/pcp/configuracao/aplicar-padrao', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
       });
 
       if (!response.ok) throw new Error('Falha ao aplicar padrão');
@@ -112,10 +108,8 @@ export default function ConfiguracaoPCPPage() {
       const token = getClientSessionToken();
       const response = await fetch('/api/pcp/configuracao', {
         method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         body: JSON.stringify({ nivel }),
       });
 

@@ -1,4 +1,8 @@
-import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
+import {
+  buildClientAuthHeaders,
+  hasClientSession,
+} from '@/lib/session-auth';
+
 export interface ArteLinkAprovacao {
   id: string;
   token_publico: string;
@@ -9,12 +13,10 @@ export interface ArteLinkAprovacao {
 }
 
 function authHeaders(): HeadersInit {
-  const token = getClientSessionToken();
-  if (!token) throw new Error('Token de autenticação não encontrado');
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
+  if (!hasClientSession()) {
+    throw new Error('Sessão não encontrada. Faça login novamente.');
+  }
+  return buildClientAuthHeaders({ 'Content-Type': 'application/json' });
 }
 
 export function urlLinkPublicoLocal(token: string): string {
@@ -27,6 +29,7 @@ export async function listarLinksVersao(
 ): Promise<ArteLinkAprovacao[]> {
   const res = await fetch(`/api/arte-aprovacao/links/versao/${versaoId}`, {
     headers: authHeaders(),
+    credentials: 'include',
   });
   const json = await res.json();
   if (!res.ok) {
@@ -47,6 +50,7 @@ export async function criarLinkVersao(
   const res = await fetch('/api/arte-aprovacao/links', {
     method: 'POST',
     headers: authHeaders(),
+    credentials: 'include',
     body: JSON.stringify({
       versao_id: versaoId,
       preview: options?.preview ?? false,
@@ -97,6 +101,7 @@ export async function reenviarEmailAprovacao(
     {
       method: 'POST',
       headers: authHeaders(),
+      credentials: 'include',
       body: JSON.stringify({
         tipo: 'APROVACAO_SOLICITADA',
         os_id: osId,

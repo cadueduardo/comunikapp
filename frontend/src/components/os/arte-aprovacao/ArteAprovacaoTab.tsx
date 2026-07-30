@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, hasClientSession } from '@/lib/session-auth';
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -390,10 +390,10 @@ export function ArteAprovacaoTab({
         return;
       }
 
-      const token = getClientSessionToken();
       const fetchUrl = resolveArteAuthenticatedFileUrl(arquivoRef, false);
       const response = await fetch(fetchUrl, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: buildClientAuthHeaders(),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -584,8 +584,7 @@ export function ArteAprovacaoTab({
     let toastId: string | number | undefined;
     
     try {
-      const token = getClientSessionToken();
-      if (!token) {
+      if (!hasClientSession()) {
         toast.error('Erro de autenticação');
         return;
       }
@@ -595,10 +594,8 @@ export function ArteAprovacaoTab({
 
       const response = await fetch(`/api/arte-aprovacao/versoes/${versaoId}/liberar-para-pcp`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -662,10 +659,10 @@ export function ArteAprovacaoTab({
       
       const response = await fetch('/api/arte-aprovacao/links', {
         method: 'POST',
-        headers: {
+        headers: buildClientAuthHeaders({
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getClientSessionToken()}`,
-        },
+        }),
+        credentials: 'include',
         body: JSON.stringify({
           versao_id: versaoId,
         }),

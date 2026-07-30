@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -57,9 +57,8 @@ export default function ViewWorkflowPage() {
     try {
       const token = getClientSessionToken();
       const response = await fetch(`/api/pcp/workflow-templates/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: buildClientAuthHeaders(),
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -91,9 +90,8 @@ export default function ViewWorkflowPage() {
       const token = getClientSessionToken();
       const response = await fetch(`/api/pcp/workflow-templates/${params.id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: buildClientAuthHeaders(),
+        credentials: 'include',
       });
 
       if (response.ok) {

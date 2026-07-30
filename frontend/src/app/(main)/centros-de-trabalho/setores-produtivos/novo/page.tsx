@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -67,10 +67,8 @@ export default function NovoSetorPage() {
       
       const response = await fetch('/api/centros-de-trabalho/setores-produtivos', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         body: JSON.stringify(formData)
       });
 

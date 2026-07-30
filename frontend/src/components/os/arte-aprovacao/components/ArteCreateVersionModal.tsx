@@ -1,8 +1,5 @@
 'use client';
-import {
-  getClientSessionToken,
-  isUsableBearerToken,
-} from '@/lib/session-auth';
+import { buildClientAuthHeaders } from '@/lib/session-auth';
 
 import React, { useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -117,11 +114,7 @@ export function ArteCreateVersionModal({
     formData.append('nome_original', uploadFile.file.name);
 
     try {
-      const token = getClientSessionToken();
-      const headers: HeadersInit = {};
-      if (isUsableBearerToken(token)) {
-        headers.Authorization = `Bearer ${token}`;
-      }
+      const headers: HeadersInit = buildClientAuthHeaders();
       const response = await fetch(
         `/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`,
         {
@@ -160,17 +153,12 @@ export function ArteCreateVersionModal({
 
     try {
       // 1. Criar a versão
-      const token = getClientSessionToken();
-      const createHeaders: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (isUsableBearerToken(token)) {
-        createHeaders.Authorization = `Bearer ${token}`;
-      }
       const createResponse = await fetch('/api/arte-aprovacao/versoes', {
         method: 'POST',
         credentials: 'include',
-        headers: createHeaders,
+        headers: buildClientAuthHeaders({
+          'Content-Type': 'application/json',
+        }),
         body: JSON.stringify({
           os_id: osId,
           versao: proximaVersao,

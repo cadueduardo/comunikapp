@@ -1,14 +1,14 @@
-import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
-function getAuthHeaders(): HeadersInit {
-  const token =
-    typeof window !== 'undefined'
-      ? getClientSessionToken()
-      : null;
+import { buildClientAuthHeaders } from '@/lib/session-auth';
 
-  return {
-    'Content-Type': 'application/json',
-    ...(isUsableBearerToken(token) ? { Authorization: `Bearer ${token}` } : {}),
-  };
+function getAuthHeaders(): HeadersInit {
+  return buildClientAuthHeaders({ 'Content-Type': 'application/json' });
+}
+
+function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return fetch(input, {
+    ...init,
+    credentials: 'include',
+  });
 }
 
 // ============================================================================
@@ -150,7 +150,7 @@ export async function fetchCobrancas(
     pagina: filtros.pagina,
     por_pagina: filtros.por_pagina,
   });
-  const response = await fetch(`/api/financeiro/cobrancas${qs}`, {
+  const response = await apiFetch(`/api/financeiro/cobrancas${qs}`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) {
@@ -161,7 +161,7 @@ export async function fetchCobrancas(
 }
 
 export async function fetchCobrancaDetalhe(id: string): Promise<CobrancaDetalhe> {
-  const response = await fetch(`/api/financeiro/cobrancas/${id}`, {
+  const response = await apiFetch(`/api/financeiro/cobrancas/${id}`, {
     headers: getAuthHeaders(),
   });
   if (!response.ok) {
@@ -175,7 +175,7 @@ export async function registrarRecebimento(
   cobrancaId: string,
   payload: RegistrarRecebimentoPayload,
 ): Promise<CobrancaDetalhe> {
-  const response = await fetch(
+  const response = await apiFetch(
     `/api/financeiro/cobrancas/${cobrancaId}/recebimentos`,
     {
       method: 'POST',
@@ -194,7 +194,7 @@ export async function cancelarCobranca(
   cobrancaId: string,
   motivo?: string,
 ): Promise<CobrancaDetalhe> {
-  const response = await fetch(
+  const response = await apiFetch(
     `/api/financeiro/cobrancas/${cobrancaId}/cancelar`,
     {
       method: 'POST',
@@ -220,12 +220,8 @@ export async function exportarCobrancasCsv(filtros: FiltrosCobranca = {}): Promi
     data_inicio: filtros.data_inicio,
     data_fim: filtros.data_fim,
   });
-  const token =
-    typeof window !== 'undefined'
-      ? getClientSessionToken()
-      : null;
-  const response = await fetch(`/api/financeiro/cobrancas/export.csv${qs}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  const response = await apiFetch(`/api/financeiro/cobrancas/export.csv${qs}`, {
+    headers: buildClientAuthHeaders(),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));

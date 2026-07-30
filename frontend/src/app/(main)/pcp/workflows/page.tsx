@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,10 +59,8 @@ export default function WorkflowsPage() {
       }
       
       const response = await fetch('/api/pcp/workflow-templates', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include'
       });
 
       if (response.ok) {
@@ -88,10 +86,8 @@ export default function WorkflowsPage() {
       
       const response = await fetch(`/api/pcp/workflow-templates/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include'
       });
 
       if (response.ok) {

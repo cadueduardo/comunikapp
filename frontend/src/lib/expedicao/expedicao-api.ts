@@ -1,4 +1,4 @@
-import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders } from '@/lib/session-auth';
 import type {
   ArquivarExpedicaoResult,
   ConcluirEntregaPayload,
@@ -13,26 +13,18 @@ import type {
 import { ExpedicaoApiError } from './expedicao-api-error';
 
 function getAuthHeaders(): HeadersInit {
-  const token =
-    typeof window !== 'undefined'
-      ? getClientSessionToken()
-      : null;
-
-  return {
-    'Content-Type': 'application/json',
-    ...(isUsableBearerToken(token) ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  return buildClientAuthHeaders({ 'Content-Type': 'application/json' });
 }
 
 function getAuthHeadersSemContentType(): HeadersInit {
-  const token =
-    typeof window !== 'undefined'
-      ? getClientSessionToken()
-      : null;
+  return buildClientAuthHeaders();
+}
 
-  return isUsableBearerToken(token)
-    ? { Authorization: `Bearer ${token}` }
-    : {};
+function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return fetch(input, {
+    ...init,
+    credentials: 'include',
+  });
 }
 
 function montarQuery(filtros?: ExpedicaoKanbanFilters): string {
@@ -73,7 +65,7 @@ export const expedicaoApi = {
   async listarKanban(
     filtros?: ExpedicaoKanbanFilters,
   ): Promise<ExpedicaoKanbanResponse> {
-    const response = await fetch(`/api/expedicao${montarQuery(filtros)}`, {
+    const response = await apiFetch(`/api/expedicao${montarQuery(filtros)}`, {
       headers: getAuthHeaders(),
     });
     return tratarResposta(response);
@@ -82,7 +74,7 @@ export const expedicaoApi = {
   async listarArquivo(
     filtros?: ExpedicaoKanbanFilters,
   ): Promise<ExpedicaoKanbanResponse> {
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/expedicao/arquivo${montarQuery(filtros)}`,
       {
         headers: getAuthHeaders(),
@@ -92,14 +84,14 @@ export const expedicaoApi = {
   },
 
   async obterDetalhe(expedicaoId: string): Promise<ExpedicaoDetalhe> {
-    const response = await fetch(`/api/expedicao/${expedicaoId}`, {
+    const response = await apiFetch(`/api/expedicao/${expedicaoId}`, {
       headers: getAuthHeaders(),
     });
     return tratarResposta(response);
   },
 
   async obterDetalhePorOs(osId: string): Promise<ExpedicaoDetalhe> {
-    const response = await fetch(`/api/expedicao/os/${osId}`, {
+    const response = await apiFetch(`/api/expedicao/os/${osId}`, {
       headers: getAuthHeaders(),
     });
     return tratarResposta(response);
@@ -109,7 +101,7 @@ export const expedicaoApi = {
     expedicaoId: string,
     status: StatusExpedicao,
   ): Promise<void> {
-    const response = await fetch(`/api/expedicao/${expedicaoId}/status`, {
+    const response = await apiFetch(`/api/expedicao/${expedicaoId}/status`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify({ status }),
@@ -121,7 +113,7 @@ export const expedicaoApi = {
     expedicaoId: string,
     motivo: string,
   ): Promise<{ expedicao_id: string; os_id: string; workflow_reativado: boolean }> {
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/expedicao/${expedicaoId}/devolver-producao`,
       {
         method: 'POST',
@@ -136,7 +128,7 @@ export const expedicaoApi = {
     expedicaoId: string,
     payload: ConcluirEntregaPayload,
   ): Promise<ConcluirEntregaResult> {
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/expedicao/${expedicaoId}/concluir-entrega`,
       {
         method: 'POST',
@@ -151,7 +143,7 @@ export const expedicaoApi = {
     expedicaoId: string,
     observacoes?: string,
   ): Promise<ArquivarExpedicaoResult> {
-    const response = await fetch(`/api/expedicao/${expedicaoId}/arquivar`, {
+    const response = await apiFetch(`/api/expedicao/${expedicaoId}/arquivar`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(
@@ -165,7 +157,7 @@ export const expedicaoApi = {
     osId: string,
     nome: string,
   ): Promise<TransformarTemplateResult> {
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/expedicao/os/${osId}/transformar-template`,
       {
         method: 'POST',
@@ -184,7 +176,7 @@ export const expedicaoApi = {
       `assinatura-${Date.now()}.png`,
     );
 
-    const response = await fetch('/api/expedicao/assinaturas/upload', {
+    const response = await apiFetch('/api/expedicao/assinaturas/upload', {
       method: 'POST',
       headers: getAuthHeadersSemContentType(),
       body: formData,

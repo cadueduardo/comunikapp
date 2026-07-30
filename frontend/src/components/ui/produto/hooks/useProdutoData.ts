@@ -1,4 +1,4 @@
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect, useCallback } from 'react';
 import { buildApiUrl } from '@/lib/config';
 import { Insumo, Maquina, Funcao } from '../../shared/types/common.types';
@@ -16,7 +16,8 @@ export function useProdutoData() {
       if (!token) return;
 
       const response = await fetch(buildApiUrl('/insumos'), {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildClientAuthHeaders(),
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -37,7 +38,8 @@ export function useProdutoData() {
       if (!token) return;
 
       const response = await fetch(buildApiUrl('/maquinas'), {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildClientAuthHeaders(),
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -58,7 +60,8 @@ export function useProdutoData() {
       if (!token) return;
 
       const response = await fetch(buildApiUrl('/funcoes'), {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildClientAuthHeaders(),
+        credentials: 'include',
       });
 
       if (response.ok) {

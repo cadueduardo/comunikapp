@@ -5,7 +5,7 @@
 
 'use client';
 
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -130,10 +130,8 @@ export function PrazoProdutoComponent({
     try {
       const token = getClientSessionToken();
       const response = await fetch(`/api/orcamentos-v2/produto/${produtoId}/detalhes`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
       });
       
       if (response.ok) {
@@ -197,10 +195,8 @@ export function PrazoProdutoComponent({
       // Usa a rota correta com parâmetros dinâmicos
       const response = await fetch(`/api/os/produtos/${osId}/item/${itemId}/definir-prazo`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         body: JSON.stringify(requestData),
       });
 
@@ -239,10 +235,8 @@ export function PrazoProdutoComponent({
       
       const response = await fetch(`/api/os/produtos/${osId}/item/${itemId}/definir-prazo`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         body: JSON.stringify({
           ...pendingData,
           confirmar_retroativa: true

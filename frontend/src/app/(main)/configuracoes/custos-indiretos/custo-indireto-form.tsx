@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -83,7 +83,7 @@ export default function CustoIndiretoForm({ custoIndireto }: CustoIndiretoFormPr
   useEffect(() => {
     const token = getClientSessionToken();
     if (!token) return;
-    const headers = { Authorization: `Bearer ${token}` };
+    const headers = buildClientAuthHeaders();
 
     fetch('/api/centros-de-trabalho/setores-produtivos?ativo=true', { headers })
       .then((r) => r.json())

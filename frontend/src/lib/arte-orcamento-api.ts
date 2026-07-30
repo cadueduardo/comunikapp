@@ -1,4 +1,4 @@
-import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders } from '@/lib/session-auth';
 import {
   FinalidadeAnexoValor,
   PoliticaCobrancaArteValor,
@@ -34,18 +34,19 @@ export interface SyncArteProdutoResult {
   arte_referencia_servico_id: string | null;
 }
 
-function authHeaders(): HeadersInit {
-  const token =
-    typeof window !== 'undefined'
-      ? getClientSessionToken()
-      : null;
-  return isUsableBearerToken(token)
-    ? { Authorization: `Bearer ${token}` }
-    : {};
+function authHeaders(extra?: HeadersInit): HeadersInit {
+  return buildClientAuthHeaders(extra);
+}
+
+function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return fetch(input, {
+    ...init,
+    credentials: 'include',
+  });
 }
 
 export async function fetchArteConfiguracaoStatus(): Promise<ArteConfiguracaoStatus> {
-  const res = await fetch('/api/arte-aprovacao/configuracao/status', {
+  const res = await apiFetch('/api/arte-aprovacao/configuracao/status', {
     headers: authHeaders(),
   });
   const json = await res.json();
@@ -56,7 +57,7 @@ export async function fetchArteConfiguracaoStatus(): Promise<ArteConfiguracaoSta
 }
 
 export async function fetchArteConfiguracaoLoja(): Promise<ArteConfiguracaoLoja> {
-  const res = await fetch('/api/arte-aprovacao/configuracao', {
+  const res = await apiFetch('/api/arte-aprovacao/configuracao', {
     headers: authHeaders(),
   });
   const json = await res.json();
@@ -69,12 +70,9 @@ export async function fetchArteConfiguracaoLoja(): Promise<ArteConfiguracaoLoja>
 export async function syncArteProdutoOrcamento(
   payload: SyncArteProdutoPayload,
 ): Promise<SyncArteProdutoResult> {
-  const res = await fetch('/api/arte-aprovacao/orcamento/sync-produto', {
+  const res = await apiFetch('/api/arte-aprovacao/orcamento/sync-produto', {
     method: 'POST',
-    headers: {
-      ...authHeaders(),
-      'Content-Type': 'application/json',
-    },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
   });
   const json = await res.json();

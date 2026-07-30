@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -255,10 +255,8 @@ export default function PCPPage() {
     try {
       const token = getClientSessionToken();
       const response = await fetch('/api/pcp/dashboard', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -287,10 +285,8 @@ export default function PCPPage() {
         : '/api/pcp/kanban/por-setores';
 
       const response = await fetch(endpoint, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -882,10 +878,8 @@ export default function PCPPage() {
                     `/api/pcp/kanban/mover-setor/${instanciaSetorId}`,
                     {
                       method: 'POST',
-                      headers: {
-                        Authorization: `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                      },
+                      headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
                       body: JSON.stringify({ setorDestinoId }),
                     },
                   );

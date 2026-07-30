@@ -5,7 +5,7 @@
 
 'use client';
 
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 import React, { useState, useEffect } from 'react';
 import { PrazoProdutoComponent } from './PrazoProdutoComponent';
 import { AlertTriangle, Package, CheckCircle, ExternalLink } from 'lucide-react';
@@ -63,10 +63,8 @@ export function ListaProdutosComPrazo({
       const token = getClientSessionToken();
       
       const response = await fetch(`/api/os/produtos/${osId}/status-produtos`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
       });
       const result = await response.json();
       

@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -69,9 +69,8 @@ export default function NovoWorkflowPage() {
         const response = await fetch(
           '/api/centros-de-trabalho/setores-produtivos',
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: buildClientAuthHeaders(),
+        credentials: 'include',
           },
         );
 
@@ -201,10 +200,8 @@ export default function NovoWorkflowPage() {
 
       const response = await fetch('/api/pcp/workflow-templates', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 

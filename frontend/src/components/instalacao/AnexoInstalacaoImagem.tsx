@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import { resolverUrlAnexoInstalacao } from '@/lib/instalacao/instalacao-anexo-url';
@@ -44,7 +44,8 @@ export function AnexoInstalacaoImagem({
 
       try {
         const response = await fetch(urlFetch, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: buildClientAuthHeaders(),
+        credentials: 'include',
         });
         if (!response.ok) return;
 

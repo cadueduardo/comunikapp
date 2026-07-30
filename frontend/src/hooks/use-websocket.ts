@@ -1,3 +1,4 @@
+import { buildClientAuthHeaders } from '@/lib/session-auth';
 import { useCallback, useEffect, useRef } from 'react';
 import { buildApiUrl } from '@/lib/config';
 
@@ -172,13 +173,11 @@ export function useWebSocket(options: UseWebSocketOptions) {
     }
 
     try {
-      const token = options.isPublic ? null : getClientSessionToken();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+      if (!options.isPublic) {
+        Object.assign(headers, buildClientAuthHeaders());
       }
 
       // Usar endpoint correto baseado no modo
@@ -191,6 +190,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
       const response = await fetch(fullUrl, {
         method: 'POST',
         headers,
+        credentials: 'include',
       });
 
       if (!response.ok) {

@@ -1,27 +1,30 @@
-import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
+import {
+  buildClientAuthHeaders,
+  hasClientSession,
+} from '@/lib/session-auth';
+
 export async function conferirPreflightArteCliente(
   versaoId: string,
   observacao?: string,
 ): Promise<void> {
-  const token = getClientSessionToken();
-  if (!token) {
-    throw new Error('Token de autenticação não encontrado');
+  if (!hasClientSession()) {
+    throw new Error('Sessão não encontrada. Faça login novamente.');
   }
 
   const response = await fetch(
     `/api/arte-aprovacao/versoes/${versaoId}/conferir-preflight`,
     {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+      credentials: 'include',
       body: JSON.stringify({ observacao: observacao?.trim() || undefined }),
     },
   );
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Erro ao conferir arte e liberar para produção');
+    throw new Error(
+      errorData.message || 'Erro ao conferir arte e liberar para produção',
+    );
   }
 }

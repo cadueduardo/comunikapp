@@ -1,4 +1,4 @@
-import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
 import { buildApiUrl } from '@/lib/config';
 import { toast } from 'sonner';
 
@@ -29,7 +29,8 @@ export async function fetchAnexoGeometria(path: string): Promise<Response> {
   }
 
   const resp = await fetch(urlAnexoGeometriaParaFetch(path), {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: buildClientAuthHeaders(),
+        credentials: 'include',
   });
 
   if (!resp.ok) {

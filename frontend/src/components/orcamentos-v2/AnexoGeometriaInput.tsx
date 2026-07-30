@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders } from '@/lib/session-auth';
 
 import {
   type ClipboardEvent as ReactClipboardEvent,
@@ -135,11 +135,6 @@ function detectarCategoria(file: File): CategoriaDetectada {
   return null;
 }
 
-function obterToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return getClientSessionToken();
-}
-
 interface UploadResponse {
   url: string;
   token: string;
@@ -192,10 +187,11 @@ export function AnexoGeometriaInput({
 
     const carregar = async () => {
       try {
-        const token = obterToken();
-        const headers: Record<string, string> = {};
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-        const resp = await fetch(`${API_BASE_URL}${value}`, { headers });
+        const headers: Record<string, string> = buildClientAuthHeaders();
+        const resp = await fetch(`${API_BASE_URL}${value}`, {
+          headers,
+          credentials: 'include',
+        });
         if (!resp.ok) {
           throw new Error(`Falha ao carregar anexo (${resp.status})`);
         }
@@ -297,15 +293,14 @@ export function AnexoGeometriaInput({
         const formData = new FormData();
         formData.append('arquivo', file, file.name);
 
-        const token = obterToken();
-        const headers: Record<string, string> = {};
-        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const headers: Record<string, string> = buildClientAuthHeaders();
 
         const resp = await fetch(
           `${API_BASE_URL}/orcamentos-v2/anexos-geometria`,
           {
             method: 'POST',
             headers,
+            credentials: 'include',
             body: formData,
           },
         );
@@ -441,17 +436,15 @@ export function AnexoGeometriaInput({
       if (disabled || enviando || !value) return;
       // Deleta no backend (best-effort; falha não impede limpar localmente).
       try {
-        const token = obterToken();
         const match = value.match(
           /\/orcamentos-v2\/anexos-geometria\/([0-9a-f-]{36})$/i,
         );
         const tokenAnexo = match ? match[1] : null;
         if (tokenAnexo) {
-          const headers: Record<string, string> = {};
-          if (token) headers['Authorization'] = `Bearer ${token}`;
+          const headers: Record<string, string> = buildClientAuthHeaders();
           await fetch(
             `${API_BASE_URL}/orcamentos-v2/anexos-geometria/${tokenAnexo}`,
-            { method: 'DELETE', headers },
+            { method: 'DELETE', headers, credentials: 'include' },
           ).catch(() => undefined);
         }
       } finally {

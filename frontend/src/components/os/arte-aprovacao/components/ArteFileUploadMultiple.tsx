@@ -1,8 +1,5 @@
 'use client';
-import {
-  getClientSessionToken,
-  isUsableBearerToken,
-} from '@/lib/session-auth';
+import { buildClientAuthHeaders } from '@/lib/session-auth';
 
 import React, { useState, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -142,11 +139,7 @@ export function ArteFileUploadMultiple({
     formData.append('arquivo', uploadFile.file);
     formData.append('nome_original', uploadFile.file.name);
 
-    const token = getClientSessionToken();
-    const headers: HeadersInit = {};
-    if (isUsableBearerToken(token)) {
-      headers.Authorization = `Bearer ${token}`;
-    }
+    const headers: HeadersInit = buildClientAuthHeaders();
     const response = await fetch(
       `/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`,
       {

@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,10 +38,8 @@ export function HistoricoVersoes({ orcamentoId, onVersaoSelecionada }: Historico
       setLoading(true);
       const token = getClientSessionToken();
       const response = await fetch(buildApiUrl(`/orcamentos/${orcamentoId}/versoes`), {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include'
       });
 
       if (response.ok) {

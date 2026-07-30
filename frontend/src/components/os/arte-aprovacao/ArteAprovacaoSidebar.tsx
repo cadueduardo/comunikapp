@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -114,10 +114,8 @@ export function ArteAprovacaoSidebar({
 
       const response = await fetch(`/api/arte-aprovacao/versoes/${versaoParaAprovar.id}/aprovar`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -162,10 +160,8 @@ export function ArteAprovacaoSidebar({
 
       const response = await fetch('/api/arte-aprovacao/versoes/aprovar-multiplas', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         body: JSON.stringify({
           versaoIds: versoesParaAprovar
         }),

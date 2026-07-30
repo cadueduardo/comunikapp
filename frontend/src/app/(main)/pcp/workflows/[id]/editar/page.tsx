@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -73,9 +73,8 @@ export default function EditarWorkflowPage() {
         const response = await fetch(
           '/api/centros-de-trabalho/setores-produtivos',
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: buildClientAuthHeaders(),
+        credentials: 'include',
           },
         );
 
@@ -103,9 +102,8 @@ export default function EditarWorkflowPage() {
         const response = await fetch(
           `/api/pcp/workflow-templates/${workflowId}`,
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: buildClientAuthHeaders(),
+        credentials: 'include',
           },
         );
 
@@ -270,10 +268,8 @@ export default function EditarWorkflowPage() {
         `/api/pcp/workflow-templates/${workflowId}`,
         {
           method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
+          headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
           body: JSON.stringify(payload),
         },
       );

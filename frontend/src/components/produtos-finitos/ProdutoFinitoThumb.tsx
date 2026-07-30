@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import { ImageIcon } from 'lucide-react';
@@ -36,12 +36,9 @@ export function ProdutoFinitoThumb({
       try {
         const path = url.startsWith('/') ? url : `/${url}`;
         const fullUrl = buildApiUrl(path);
-        const token =
-          typeof window !== 'undefined'
-            ? getClientSessionToken()
-            : null;
         const response = await fetch(fullUrl, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: buildClientAuthHeaders(),
+          credentials: 'include',
         });
         if (!response.ok) throw new Error('Falha ao carregar imagem');
         objectUrl = URL.createObjectURL(await response.blob());

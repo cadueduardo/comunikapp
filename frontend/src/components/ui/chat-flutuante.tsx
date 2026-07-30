@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders } from '@/lib/session-auth';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -289,13 +289,13 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
 
       // Adicionar token apenas se não for público
       if (!isPublic) {
-        const token = getClientSessionToken();
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
+        Object.assign(headers, buildClientAuthHeaders());
       }
 
-      const response = await fetch(endpoint, { headers });
+      const response = await fetch(endpoint, {
+        headers,
+        credentials: 'include',
+      });
 
       if (response.ok) {
         const responseData = await response.json();
@@ -342,7 +342,6 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
 
   const marcarComoLidas = async () => {
     try {
-      const token = getClientSessionToken();
       // Filtrar apenas mensagens que não são temporárias e não estão visualizadas
       const mensagensNaoLidas = mensagens.filter(msg => 
         !msg.visualizada && 
@@ -356,10 +355,10 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
         try {
           const response = await fetch(buildApiUrl(`/orcamentos-v2/chat/${orcamentoId}/mensagens/${mensagem.id}/visualizar`), {
             method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
+            headers: buildClientAuthHeaders({
+              'Content-Type': 'application/json',
+            }),
+            credentials: 'include',
           });
           
           if (response.ok) {
@@ -445,10 +444,7 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
 
       // Adicionar token apenas se não for público
       if (!isPublic) {
-        const token = getClientSessionToken();
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
+        Object.assign(headers, buildClientAuthHeaders());
       }
 
       console.log('🔍 Enviando para endpoint:', endpoint);
@@ -457,6 +453,7 @@ export function ChatFlutuante({ orcamentoId, isPublic = false, shouldOpen = fals
       const response = await fetch(endpoint, {
         method: 'POST',
         headers,
+        credentials: 'include',
         body
       });
 

@@ -1,4 +1,4 @@
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect, useCallback } from 'react';
 import { useOSProdutos } from './useOSProdutos';
 import { ArteStatus } from '../types/arte-types';
@@ -43,10 +43,8 @@ export function useArteProdutos(osId: string) {
       }
 
       const response = await fetch(`/api/arte-aprovacao/versoes/os/${osId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
       });
       
       if (!response.ok) {

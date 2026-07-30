@@ -59,4 +59,38 @@ export function isUsableBearerToken(token?: string | null): boolean {
   return true;
 }
 
+/**
+ * Headers de auth para fetch no browser após cookie HttpOnly.
+ * Nunca envia `Bearer cookie-session`. Sessão vai via credentials: 'include'.
+ */
+export function buildClientAuthHeaders(
+  extra?: HeadersInit,
+): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (extra) {
+    const h = new Headers(extra);
+    h.forEach((value, key) => {
+      headers[key] = value;
+    });
+  }
+  const token = getClientSessionToken();
+  if (isUsableBearerToken(token)) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+/** fetch com credentials + headers de sessão corretos. */
+export function sessionFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const headers = buildClientAuthHeaders(init?.headers);
+  return fetch(input, {
+    ...init,
+    headers,
+    credentials: 'include',
+  });
+}
+
 export { SESSION_COOKIE_NAME };

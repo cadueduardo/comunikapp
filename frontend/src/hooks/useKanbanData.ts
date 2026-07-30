@@ -1,4 +1,4 @@
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
@@ -98,10 +98,8 @@ export function useKanbanData(lojaId?: string): UseKanbanDataReturn {
       });
 
       const response = await fetch(`/api/pcp/kanban/geral?${queryParams.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -162,10 +160,8 @@ export function useKanbanData(lojaId?: string): UseKanbanDataReturn {
       
       const response = await fetch(`/api/pcp/kanban/status/${osId}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         body: JSON.stringify({ status: newStatus })
       });
 

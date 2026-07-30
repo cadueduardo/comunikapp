@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -159,7 +159,8 @@ export default function SobrasPage() {
       const token = getClientSessionToken();
       const res = await fetch(`/api/estoque/sobras/${deleteDialog.sobraId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildClientAuthHeaders(),
+        credentials: 'include',
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));

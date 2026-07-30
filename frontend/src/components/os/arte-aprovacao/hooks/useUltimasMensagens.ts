@@ -1,4 +1,4 @@
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect } from 'react';
 
 interface UltimaMensagem {
@@ -38,10 +38,8 @@ export function useUltimasMensagens(osId: string): UseUltimasMensagensReturn {
 
       // Buscar últimas mensagens por produto
       const response = await fetch(`/api/arte-aprovacao/mensagens/os/${osId}/ultimas-por-produto`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
       });
 
       if (!response.ok) {

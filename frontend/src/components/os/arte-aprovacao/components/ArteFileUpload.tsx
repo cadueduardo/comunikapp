@@ -1,8 +1,5 @@
 'use client';
-import {
-  getClientSessionToken,
-  isUsableBearerToken,
-} from '@/lib/session-auth';
+import { buildClientAuthHeaders } from '@/lib/session-auth';
 
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -101,11 +98,7 @@ export function ArteFileUpload({
         formData.append('arquivo', file);
         formData.append('nome_original', file.name);
         
-        const token = getClientSessionToken();
-        const headers: HeadersInit = {};
-        if (isUsableBearerToken(token)) {
-          headers.Authorization = `Bearer ${token}`;
-        }
+        const headers: HeadersInit = buildClientAuthHeaders();
         const response = await fetch(`/api/arte-aprovacao/versoes/${versaoId}/arquivos/upload`, {
           method: 'POST',
           credentials: 'include',

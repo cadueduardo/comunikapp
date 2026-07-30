@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -47,7 +47,8 @@ export default function AjusteMovimentacaoPage() {
     try {
       const token = getClientSessionToken();
       const response = await fetch('/api/estoque/itens', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildClientAuthHeaders(),
+        credentials: 'include',
         cache: 'no-store',
       });
       if (response.ok) {
@@ -83,10 +84,8 @@ export default function AjusteMovimentacaoPage() {
       const token = getClientSessionToken();
       const response = await fetch('/api/estoque/movimentacoes', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         body: JSON.stringify(requestData),
       });
 

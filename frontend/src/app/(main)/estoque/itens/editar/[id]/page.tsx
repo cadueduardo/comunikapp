@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
@@ -99,7 +99,8 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
 
       // Resolve sempre o ID canônico na listagem para suportar URL com itemId ou insumoId.
       const listResponse = await fetch('/api/estoque/itens', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildClientAuthHeaders(),
+        credentials: 'include',
         cache: 'no-store',
       });
 
@@ -164,7 +165,8 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
       console.log('👤 Usuário atual:', user);
       
       const response = await fetch('/api/insumos', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildClientAuthHeaders(),
+        credentials: 'include',
         cache: 'no-store',
       });
       
@@ -191,7 +193,8 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
       console.log('🔑 Token para localizações:', token ? token.substring(0, 50) + '...' : 'Nenhum token');
       
       const response = await fetch('/api/estoque/localizacoes', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildClientAuthHeaders(),
+        credentials: 'include',
         cache: 'no-store',
       });
       
@@ -218,7 +221,8 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
       console.log('🔑 Token para fornecedores:', token ? token.substring(0, 50) + '...' : 'Nenhum token');
       
       const response = await fetch('/api/fornecedores', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildClientAuthHeaders(),
+        credentials: 'include',
         cache: 'no-store',
       });
       
@@ -261,10 +265,8 @@ export default function EditarItemEstoquePage({ params }: { params: Promise<{ id
       const itemIdToUpdate = normalizeId(resolvedItemId || id);
       const response = await fetch(`/api/estoque/itens/${itemIdToUpdate}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         body: JSON.stringify(formData),
       });
 

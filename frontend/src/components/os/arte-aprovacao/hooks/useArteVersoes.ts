@@ -1,4 +1,4 @@
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect, useCallback } from 'react';
 import { ArteVersao, CreateArteVersaoRequest, UpdateArteVersaoRequest } from '../types/arte-types';
 
@@ -28,10 +28,8 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
       
       const token = getClientSessionToken();
       const response = await fetch(`/api/arte-aprovacao/versoes/os/${osId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -59,10 +57,8 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
       const token = getClientSessionToken();
       const response = await fetch('/api/arte-aprovacao/versoes', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         body: JSON.stringify(data),
       });
 
@@ -92,10 +88,8 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
       
       const response = await fetch(`/api/arte-aprovacao/versoes/${id}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         body: JSON.stringify(data),
       });
 
@@ -150,9 +144,8 @@ export function useArteVersoes(osId: string): UseArteVersoesReturn {
       
       const response = await fetch(`/api/arte-aprovacao/versoes/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: buildClientAuthHeaders(),
+        credentials: 'include',
       });
 
       console.log('📡 [useArteVersoes] Resposta de remoção recebida:', {

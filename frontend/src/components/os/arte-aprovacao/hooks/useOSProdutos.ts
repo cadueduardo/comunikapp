@@ -3,7 +3,7 @@
  * Usa a mesma API que a aba Resumo usa para garantir consistência
  */
 
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect } from 'react';
 
 interface OSProduto {
@@ -41,10 +41,8 @@ export function useOSProdutos(osId: string): UseOSProdutosReturn {
 
       // ✅ USAR A MESMA API QUE A ABA RESUMO USA
       const response = await fetch(`/api/os/produtos/${osId}/status-produtos`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
       });
 
       if (!response.ok) {

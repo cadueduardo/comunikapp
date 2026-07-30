@@ -1,4 +1,4 @@
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import {
@@ -220,10 +220,8 @@ export function useMeuSetor(): UseMeuSetorReturn {
             const listaResponse = await fetch(
               '/api/centros-de-trabalho/setores-produtivos',
               {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  'Content-Type': 'application/json',
-                },
+                headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
               },
             );
 
@@ -302,10 +300,8 @@ export function useMeuSetor(): UseMeuSetorReturn {
             : `/api/pcp/kanban/fila-setor/${setorAlvo.id}`;
 
           const filaResponse = await fetch(filaUrl, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
+            headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
           });
 
           if (!filaResponse.ok) {
@@ -324,10 +320,8 @@ export function useMeuSetor(): UseMeuSetorReturn {
         const response = await fetch(
           `/api/centros-de-trabalho/setores-produtivos/operador/${operadorId}`,
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
+            headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
           },
         );
 
@@ -374,10 +368,8 @@ export function useMeuSetor(): UseMeuSetorReturn {
           const listaResponse = await fetch(
             '/api/centros-de-trabalho/setores-produtivos',
             {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
+              headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
             },
           );
           if (listaResponse.ok) {
@@ -401,10 +393,8 @@ export function useMeuSetor(): UseMeuSetorReturn {
           : `/api/pcp/kanban/fila-setor/${setorAtual.id}`;
 
         const filaResponse = await fetch(filaUrl, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
+          headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         });
 
         if (!filaResponse.ok) {
@@ -484,10 +474,8 @@ export function useMeuSetor(): UseMeuSetorReturn {
 
         const response = await fetch(`/api/pcp/kanban/iniciar/${itemId}`, {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
+          headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
           body: JSON.stringify({
             operadorId,
             observacoes,
@@ -532,10 +520,8 @@ export function useMeuSetor(): UseMeuSetorReturn {
 
         const response = await fetch(`/api/pcp/kanban/concluir/${itemId}`, {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
+          headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
           body: JSON.stringify({
             operadorId,
             observacoes,
@@ -581,10 +567,8 @@ export function useMeuSetor(): UseMeuSetorReturn {
 
         const response = await fetch(`/api/pcp/kanban/pausar/${itemId}`, {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
+          headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
           body: JSON.stringify({
             operadorId,
             motivo,
@@ -625,10 +609,8 @@ export function useMeuSetor(): UseMeuSetorReturn {
           `/api/pcp/kanban/mover-setor/${itemId}`,
           {
             method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
+            headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
             body: JSON.stringify({
               setorDestinoId,
               operadorId,

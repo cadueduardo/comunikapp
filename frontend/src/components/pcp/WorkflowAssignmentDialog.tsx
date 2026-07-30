@@ -1,4 +1,4 @@
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, hasClientSession } from '@/lib/session-auth';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
@@ -128,24 +128,31 @@ export function WorkflowAssignmentDialog({
         setProdutos([]);
         setSelectedProductIds([]);
 
-        const token = getClientSessionToken();
-        if (!token) {
-          throw new Error('Token de autenticacao nao encontrado.');
+        if (!hasClientSession()) {
+          throw new Error('Sessão expirada. Faça login novamente.');
         }
 
-        const headers = {
-          Authorization: `Bearer ${token}`,
+        const headers = buildClientAuthHeaders({
           'Content-Type': 'application/json',
-        };
+        });
 
         const [
           sugestoesItensResponse,
           templatesResponse,
           produtosResponse,
         ] = await Promise.all([
-          fetch(`/api/pcp/workflows/sugestoes-itens/${osId}`, { headers }),
-          fetch('/api/pcp/workflow-templates', { headers }),
-          fetch(`/api/os/produtos/${osId}/status-produtos`, { headers }),
+          fetch(`/api/pcp/workflows/sugestoes-itens/${osId}`, {
+            headers,
+            credentials: 'include',
+          }),
+          fetch('/api/pcp/workflow-templates', {
+            headers,
+            credentials: 'include',
+          }),
+          fetch(`/api/os/produtos/${osId}/status-produtos`, {
+            headers,
+            credentials: 'include',
+          }),
         ]);
 
         let workflowInicial: string | null = null;
@@ -404,9 +411,8 @@ export function WorkflowAssignmentDialog({
 
     try {
       setSubmitting(true);
-      const token = getClientSessionToken();
-      if (!token) {
-        throw new Error('Token de autenticacao nao encontrado.');
+      if (!hasClientSession()) {
+        throw new Error('Sessão expirada. Faça login novamente.');
       }
 
       const usuarioId = localStorage.getItem('user_id') ?? undefined;
@@ -425,10 +431,8 @@ export function WorkflowAssignmentDialog({
       for (const [workflowId, itemOsIds] of grupos) {
         const response = await fetch('/api/pcp/workflows/atribuir', {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
+          headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+          credentials: 'include',
           body: JSON.stringify({
             osId,
             workflowId,

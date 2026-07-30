@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
@@ -101,7 +101,8 @@ export function ArteReferenciaOrcamentoPanel({
 
       try {
         const res = await fetch(`/api/arte-aprovacao/os/${osId}/itens-contexto`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: buildClientAuthHeaders(),
+        credentials: 'include',
         });
         const json = await res.json();
         if (res.ok) {

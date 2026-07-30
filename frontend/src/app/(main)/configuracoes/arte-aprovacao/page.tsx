@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, hasClientSession } from '@/lib/session-auth';
 
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Save } from 'lucide-react';
@@ -41,17 +41,18 @@ export default function ConfiguracaoArteAprovacaoPage() {
   const [alertaStatus, setAlertaStatus] = useState<string | undefined>();
 
   const carregar = useCallback(async () => {
-    const token = getClientSessionToken();
-    if (!token) return;
+    if (!hasClientSession()) return;
 
     setLoading(true);
     try {
       const [resConfig, resStatus] = await Promise.all([
         fetch('/api/arte-aprovacao/configuracao', {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: buildClientAuthHeaders(),
+          credentials: 'include',
         }),
         fetch('/api/arte-aprovacao/configuracao/status', {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: buildClientAuthHeaders(),
+          credentials: 'include',
         }),
       ]);
 
@@ -81,8 +82,7 @@ export default function ConfiguracaoArteAprovacaoPage() {
 
   const salvar = async () => {
     if (!config) return;
-    const token = getClientSessionToken();
-    if (!token) return;
+    if (!hasClientSession()) return;
 
     setSaving(true);
     try {
@@ -99,10 +99,8 @@ export default function ConfiguracaoArteAprovacaoPage() {
 
       const res = await fetch('/api/arte-aprovacao/configuracao', {
         method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         body: JSON.stringify(body),
       });
 

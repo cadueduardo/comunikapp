@@ -1,4 +1,4 @@
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 import { useState, useEffect } from 'react';
 
 interface Mensagem {
@@ -48,10 +48,8 @@ export function useArteMessages(osId: string): UseArteMessagesReturn {
 
       // Buscar contagem de mensagens não lidas por produto (apenas do cliente)
       const response = await fetch(`/api/arte-aprovacao/mensagens/os/${osId}/nao-lidas`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -122,10 +120,8 @@ export function useArteMessages(osId: string): UseArteMessagesReturn {
 
       const response = await fetch('/api/arte-aprovacao/mensagens', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         body: JSON.stringify({
           os_id: osId,
           produto_id: produtoId,

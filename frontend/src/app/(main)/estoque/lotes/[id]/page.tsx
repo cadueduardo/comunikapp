@@ -1,5 +1,5 @@
 'use client'
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -40,7 +40,8 @@ export default function VerLotePage() {
     try {
       const token = getClientSessionToken()
       const res = await fetch(`/api/estoque/lotes/${loteId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildClientAuthHeaders(),
+        credentials: 'include',
       })
       if (!res.ok) throw new Error('Falha ao carregar lote')
       const data = await res.json()

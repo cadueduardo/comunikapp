@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -117,10 +117,8 @@ export default function MeuSetorPage() {
         if (!token) return;
 
         const response = await fetch('/api/pcp/configuracao', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
+          headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         });
 
         if (!response.ok) return;

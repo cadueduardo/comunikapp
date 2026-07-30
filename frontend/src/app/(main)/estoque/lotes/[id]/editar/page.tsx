@@ -1,5 +1,5 @@
 'use client'
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -29,7 +29,8 @@ export default function EditarLotePage() {
     try {
       const token = getClientSessionToken()
       const res = await fetch(`/api/estoque/lotes/${loteId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildClientAuthHeaders(),
+        credentials: 'include',
         cache: 'no-store',
       });
       if (!res.ok) throw new Error('Falha ao carregar lote')
@@ -74,10 +75,8 @@ export default function EditarLotePage() {
       };
       const res = await fetch(`/api/estoque/lotes/${loteId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         body: JSON.stringify(formData),
       });
       if (!res.ok) throw new Error('Falha ao salvar')

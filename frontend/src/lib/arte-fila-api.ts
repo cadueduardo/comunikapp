@@ -1,4 +1,4 @@
-import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, hasClientSession } from '@/lib/session-auth';
 import { toast } from 'sonner';
 
 export interface FilaArteItem {
@@ -21,18 +21,15 @@ export interface FilaArteItem {
   mensagens_nao_lidas?: number;
 }
 
-function obterToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return getClientSessionToken();
+function headersAuth(): Record<string, string> {
+  return buildClientAuthHeaders({ 'Content-Type': 'application/json' });
 }
 
-function headersAuth(): Record<string, string> {
-  const token = obterToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (isUsableBearerToken(token)) headers.Authorization = `Bearer ${token}`;
-  return headers;
+function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return fetch(input, {
+    ...init,
+    credentials: 'include',
+  });
 }
 
 export async function fetchFilaArte(params?: {
@@ -40,13 +37,16 @@ export async function fetchFilaArte(params?: {
   limit?: number;
   status?: string;
 }): Promise<{ data: FilaArteItem[]; meta?: { total?: number } }> {
+  if (!hasClientSession()) {
+    throw new Error('Sessão não encontrada. Faça login novamente.');
+  }
   const qs = new URLSearchParams();
   if (params?.modo) qs.set('modo', params.modo);
   if (params?.limit) qs.set('limit', String(params.limit));
   if (params?.status) qs.set('status', params.status);
 
   const url = `/api/arte-aprovacao/fila${qs.toString() ? `?${qs}` : ''}`;
-  const resp = await fetch(url, { headers: headersAuth() });
+  const resp = await apiFetch(url, { headers: headersAuth() });
   const json = await resp.json();
   if (!resp.ok) {
     throw new Error(json.message || json.error || 'Erro ao carregar fila de arte');
@@ -55,7 +55,7 @@ export async function fetchFilaArte(params?: {
 }
 
 export async function assumirItemFilaArte(itemId: string): Promise<void> {
-  const resp = await fetch(`/api/arte-aprovacao/fila/${itemId}/assumir`, {
+  const resp = await apiFetch(`/api/arte-aprovacao/fila/${itemId}/assumir`, {
     method: 'POST',
     headers: headersAuth(),
   });
@@ -69,7 +69,7 @@ export async function atualizarStatusArteItem(
   itemId: string,
   statusArte: string,
 ): Promise<void> {
-  const resp = await fetch(`/api/arte-aprovacao/fila/${itemId}/status`, {
+  const resp = await apiFetch(`/api/arte-aprovacao/fila/${itemId}/status`, {
     method: 'PATCH',
     headers: headersAuth(),
     body: JSON.stringify({ status_arte: statusArte }),
@@ -81,7 +81,7 @@ export async function atualizarStatusArteItem(
 }
 
 export async function liberarArteItemParaPcp(itemId: string): Promise<void> {
-  const resp = await fetch(`/api/arte-aprovacao/fila/${itemId}/liberar-pcp`, {
+  const resp = await apiFetch(`/api/arte-aprovacao/fila/${itemId}/liberar-pcp`, {
     method: 'POST',
     headers: headersAuth(),
   });

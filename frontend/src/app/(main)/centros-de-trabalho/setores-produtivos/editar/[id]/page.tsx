@@ -1,5 +1,5 @@
 'use client';
-import { getClientSessionToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders, getClientSessionToken } from '@/lib/session-auth';
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
@@ -82,10 +82,8 @@ export default function EditarSetorPage() {
       }
       
       const response = await fetch(buildApiUrl(`/centros-de-trabalho/setores-produtivos/${setorId}`), {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         cache: 'no-store'
       });
 
@@ -134,10 +132,8 @@ export default function EditarSetorPage() {
       
       const response = await fetch(buildApiUrl(`/centros-de-trabalho/setores-produtivos/${setorId}`), {
         method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: buildClientAuthHeaders({ 'Content-Type': 'application/json' }),
+        credentials: 'include',
         body: JSON.stringify(formData)
       });
 

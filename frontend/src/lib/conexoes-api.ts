@@ -1,4 +1,8 @@
-import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
+import {
+  buildClientAuthHeaders,
+  hasClientSession,
+} from '@/lib/session-auth';
+
 export type LojaConexaoStatus =
   | 'DESCONECTADO'
   | 'CONECTADO'
@@ -16,19 +20,17 @@ export interface LojaConexaoPublica {
   mensagem_erro?: string;
 }
 
-function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return getClientSessionToken();
+function assertSession(): void {
+  if (!hasClientSession()) {
+    throw new Error('Sessão expirada');
+  }
 }
 
 export async function fetchConexoes(): Promise<LojaConexaoPublica[]> {
-  const token = getToken();
-  if (!token) {
-    throw new Error('Sessão expirada');
-  }
-
+  assertSession();
   const res = await fetch('/api/conexoes', {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: buildClientAuthHeaders(),
+    credentials: 'include',
   });
   const json = await res.json();
   if (!res.ok) {
@@ -38,13 +40,10 @@ export async function fetchConexoes(): Promise<LojaConexaoPublica[]> {
 }
 
 export async function iniciarGoogleOAuth(): Promise<string> {
-  const token = getToken();
-  if (!token) {
-    throw new Error('Sessão expirada');
-  }
-
+  assertSession();
   const res = await fetch('/api/conexoes/google/auth', {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: buildClientAuthHeaders(),
+    credentials: 'include',
   });
   const json = await res.json();
   if (!res.ok) {
@@ -54,14 +53,11 @@ export async function iniciarGoogleOAuth(): Promise<string> {
 }
 
 export async function desconectarGoogle(): Promise<void> {
-  const token = getToken();
-  if (!token) {
-    throw new Error('Sessão expirada');
-  }
-
+  assertSession();
   const res = await fetch('/api/conexoes/google', {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: buildClientAuthHeaders(),
+    credentials: 'include',
   });
   if (!res.ok) {
     const json = await res.json();

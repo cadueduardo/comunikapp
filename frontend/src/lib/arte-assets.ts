@@ -1,4 +1,4 @@
-import { getClientSessionToken, isUsableBearerToken } from '@/lib/session-auth';
+import { buildClientAuthHeaders } from '@/lib/session-auth';
 /**
  * Resolução de URLs de arquivos de arte (preview/download).
  *
@@ -177,13 +177,9 @@ export function resolveArteAuthenticatedFileUrl(
 }
 
 export async function fetchArteFileBlob(url: string): Promise<string> {
-  const token =
-    typeof window !== 'undefined'
-      ? getClientSessionToken()
-      : null;
-
   const response = await fetch(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: buildClientAuthHeaders(),
+    credentials: 'include',
   });
 
   if (!response.ok) {
