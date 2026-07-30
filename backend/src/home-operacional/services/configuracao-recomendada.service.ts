@@ -234,12 +234,14 @@ export class ConfiguracaoRecomendadaService {
     prioridade: number;
   }> = [
     {
-      nome: 'Material sem estoque mínimo',
-      descricao: 'Alerta quando um insumo nao tem estoque minimo definido.',
+      nome: 'Material sem estoque mínimo cadastrado',
+      descricao:
+        'Alerta quando um insumo do orçamento não tem estoque mínimo definido no cadastro (não verifica saldo disponível).',
       categoria: 'estoque',
       tipo: 'ALERTA',
       condicoes: { campo: 'insumo.estoque_minimo', operador: 'is_null' },
-      mensagem: 'Cadastre estoque mínimo para receber alertas.',
+      mensagem:
+        'Cadastre o estoque mínimo do insumo. Isso não indica falta de material no estoque atual.',
       prioridade: 10,
     },
     {
@@ -253,11 +255,13 @@ export class ConfiguracaoRecomendadaService {
     },
     {
       nome: 'OS sem responsável',
-      descricao: 'Alerta quando uma OS e criada sem responsavel atribuido.',
+      descricao:
+        'Alerta quando a OS não tem responsável nem usuário criador vinculado.',
       categoria: 'os',
       tipo: 'ALERTA',
-      condicoes: { campo: 'os.responsavel_id', operador: 'is_null' },
-      mensagem: 'Atribua um responsável para acompanhar a OS.',
+      condicoes: { campo: 'tem_responsavel', operador: 'is_null' },
+      mensagem:
+        'Nenhum responsável vinculado à OS (use o criador ou atribua um responsável).',
       prioridade: 20,
     },
   ];

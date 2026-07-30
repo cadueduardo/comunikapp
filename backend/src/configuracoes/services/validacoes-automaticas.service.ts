@@ -41,6 +41,7 @@ export class ValidacoesAutomaticasService {
       const os = await this.prisma.ordemServico.findUnique({
         where: { id: osId },
         include: {
+          cliente: { select: { id: true, nome: true } },
           orcamento: {
             include: {
               produtos: {
@@ -119,11 +120,17 @@ export class ValidacoesAutomaticasService {
         } catch (error) {
           this.logger.error(`Erro ao executar regra ${regra.nome}:`, error);
 
+          resultados.valida = false;
+          resultados.pode_aprovar_automaticamente = false;
+          const mensagemErro = `Falha ao executar a regra: ${
+            error instanceof Error ? error.message : 'erro desconhecido'
+          }`;
+          resultados.correcoes_necessarias.push(mensagemErro);
           resultados.execucoes.push({
             regra_id: regra.id,
             regra_nome: regra.nome,
             resultado: 'ERRO',
-            mensagem: `Erro interno: ${error.message}`,
+            mensagem: mensagemErro,
             tempo_execucao: Date.now() - inicio,
           });
         }
@@ -140,29 +147,40 @@ export class ValidacoesAutomaticasService {
   }
 
   /**
-   * Executa uma regra específica
+   * Executa uma regra específica.
+   *
+   * Semântica das condições: descrevem o **problema** (ex.: `cliente_id is_null`).
+   * Se a condição for verdadeira → aplica o tipo da regra (BLOQUEIO/ALERTA).
+   * Se for falsa → SUCESSO.
    */
   private async executarRegra(regra: RegraValidacao, os: any) {
-    const condicoes = regra.condicoes;
-    const acoes = regra.acoes;
+    const condicoes = this.normalizarCondicoes(regra.condicoes);
+    const acoes = this.normalizarAcoes(regra.acoes);
 
-    // Avaliar condição
+    if (!condicoes.campo || !condicoes.operador) {
+      throw new Error(
+        `Regra "${regra.nome}" sem campo/operador nas condições`,
+      );
+    }
+
     const campo = this.obterValorCampo(os, condicoes.campo);
     const valor = this.calcularValor(condicoes.valor, os);
 
-    const condicaoAtendida = this.avaliarCondicao(
+    const problemaDetectado = this.avaliarCondicao(
       campo,
       condicoes.operador,
       valor,
     );
 
-    if (!condicaoAtendida) {
+    if (problemaDetectado) {
+      const tipoFalha = this.mapearTipoFalha(regra.tipo);
       return {
-        tipo: regra.tipo === 'VALIDACAO' ? 'ERRO' : 'ALERTA',
+        tipo: tipoFalha,
         mensagem:
+          regra.mensagem ||
           condicoes.mensagem_erro ||
           condicoes.mensagem_alerta ||
-          'Regra não atendida',
+          'Regra de validação não atendida',
         acao: acoes,
         dados: { campo, valor, operador: condicoes.operador },
       };
@@ -175,22 +193,82 @@ export class ValidacoesAutomaticasService {
     };
   }
 
+  private mapearTipoFalha(tipoRegra: string): string {
+    const tipo = (tipoRegra || '').toUpperCase();
+    if (tipo === 'BLOQUEIO') return 'BLOQUEIO';
+    if (tipo === 'ALERTA' || tipo === 'INFO') return 'ALERTA';
+    if (tipo === 'VALIDACAO') return 'ERRO';
+    return 'ALERTA';
+  }
+
+  private normalizarCondicoes(raw: unknown): {
+    campo?: string;
+    operador?: string;
+    valor?: unknown;
+    mensagem_erro?: string;
+    mensagem_alerta?: string;
+  } {
+    if (raw == null) return {};
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        return {};
+      }
+    }
+    if (typeof raw === 'object') {
+      return raw as Record<string, unknown>;
+    }
+    return {};
+  }
+
+  private normalizarAcoes(raw: unknown): unknown {
+    if (raw == null) return null;
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+    return raw;
+  }
+
   /**
    * Obtém valor de um campo na OS
    */
   private obterValorCampo(os: any, campo: string): any {
-    // Campos calculados dinamicamente
+    if (!campo || typeof campo !== 'string') {
+      return undefined;
+    }
+
+    // Aliases de caminhos legados / defaults do onboarding (antes dos calculados)
+    const aliases: Record<string, string> = {
+      'os.responsavel_id': 'responsavel_id',
+      'os.cliente_id': 'cliente_id',
+    };
+    const caminho = aliases[campo] || campo;
+
+    // Campos calculados dinamicamente (cliente, responsável efetivo, etc.)
     const camposCalculados = this.calcularCamposDinamicos(os);
 
-    if (camposCalculados[campo] !== undefined) {
+    if (Object.prototype.hasOwnProperty.call(camposCalculados, caminho)) {
+      return camposCalculados[caminho];
+    }
+    if (Object.prototype.hasOwnProperty.call(camposCalculados, campo)) {
       return camposCalculados[campo];
     }
 
+    if (caminho === 'orcamento.cliente_id') {
+      return os?.cliente_id ?? os?.orcamento?.cliente_id ?? null;
+    }
+
     // Campos diretos da OS
-    const campos = campo.split('.');
+    const partes = caminho.split('.');
     let valor = os;
 
-    for (const c of campos) {
+    for (const c of partes) {
       valor = valor?.[c];
       if (valor === undefined) break;
     }
@@ -207,6 +285,27 @@ export class ValidacoesAutomaticasService {
     // Status da arte
     campos['status_arte'] = os.arquivo_arte ? 'APROVADA' : 'PENDENTE';
 
+    // Responsável operacional: titular da OS ou quem criou (não exige UI dedicada)
+    const responsavelEfetivo = os.responsavel_id || os.criado_por || null;
+    campos['responsavel_id'] = responsavelEfetivo;
+    campos['tem_responsavel'] = responsavelEfetivo;
+
+    // Cliente na OS ou no orçamento vinculado
+    campos['cliente_id'] = os.cliente_id ?? os.orcamento?.cliente_id ?? null;
+
+    // Estoque mínimo: null se algum insumo do orçamento não tiver mínimo cadastrado
+    const insumosOrcamento =
+      os.orcamento?.produtos?.flatMap((p: any) => p.insumos || []) || [];
+    const algumSemMinimo = insumosOrcamento.some(
+      (item: any) =>
+        item?.insumo &&
+        (item.insumo.estoque_minimo === null ||
+          item.insumo.estoque_minimo === undefined),
+    );
+    campos['insumo.estoque_minimo'] = algumSemMinimo
+      ? null
+      : insumosOrcamento[0]?.insumo?.estoque_minimo ?? 0;
+
     // Dados completos
     campos['dados_completos'] = !!(
       os.nome_servico &&
@@ -218,7 +317,8 @@ export class ValidacoesAutomaticasService {
 
     // Especificações técnicas completas
     campos['especificacoes_tecnicas_completas'] = !!(
-      os.parametros_tecnicos && os.parametros_tecnicos.trim().length > 0
+      os.parametros_tecnicos &&
+      String(os.parametros_tecnicos).trim().length > 0
     );
 
     // Dias até entrega
@@ -239,16 +339,6 @@ export class ValidacoesAutomaticasService {
       valorOriginal > 0
         ? ((valorOriginal - valorTotal) / valorOriginal) * 100
         : 0;
-
-    // Tempo desde envio da arte (simulado - 25 horas)
-    campos['tempo_desde_envio_arte'] = 25;
-
-    // Status financeiro do cliente (simulado)
-    campos['cliente.status_financeiro'] = 'INADIMPLENTE';
-
-    // Quantidade disponível e estoque mínimo (simulados)
-    campos['quantidade_disponivel'] = 0;
-    campos['estoque_minimo'] = 10;
 
     return campos;
   }

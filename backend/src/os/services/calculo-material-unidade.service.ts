@@ -121,13 +121,16 @@ export class CalculoMaterialUnidadeService {
 
       // Processar cada insumo
       for (const insumo of insumosCalculados) {
-        const materialCalculado = await this.calcularMaterial(insumo);
+        const materialCalculado = await this.calcularMaterial(
+          insumo,
+          os.loja_id,
+        );
         materiais.push(materialCalculado);
 
         // Gerar alertas e recomendações
         if (!materialCalculado.estoque_suficiente) {
           alertas.push(
-            `Estoque insuficiente para ${materialCalculado.nome}: necessário ${materialCalculado.unidades_necessarias} unidades, disponível ${materialCalculado.estoque_disponivel}`,
+            `Estoque insuficiente para ${materialCalculado.nome}: necessário ${materialCalculado.quantidade_necessaria}, disponível ${materialCalculado.estoque_disponivel}`,
           );
         }
 
@@ -168,7 +171,10 @@ export class CalculoMaterialUnidadeService {
   /**
    * Calcula um material específico
    */
-  private async calcularMaterial(insumo: any): Promise<MaterialCalculado> {
+  private async calcularMaterial(
+    insumo: any,
+    lojaId: string,
+  ): Promise<MaterialCalculado> {
     const tipoMaterial = insumo.insumo?.tipoMaterial?.nome || 'DEFAULT';
     const nome = insumo.nome || insumo.insumo?.nome || 'Material desconhecido';
     const quantidadeNecessaria = parseFloat(
@@ -189,18 +195,15 @@ export class CalculoMaterialUnidadeService {
       (quantidadeNecessaria * desperdicioPercentual) / 100;
     const areaTotalComDesperdicio = quantidadeNecessaria + desperdicioArea;
 
-    // Calcular unidades necessárias
+    // Calcular unidades necessárias (informativo para compra)
     let unidadesNecessarias = 0;
     if (dimensoes.area > 0) {
       unidadesNecessarias = Math.ceil(areaTotalComDesperdicio / dimensoes.area);
     } else if (unidade.includes('litro') || unidade.includes('L')) {
-      // Para tintas, usar quantidade direta
       unidadesNecessarias = Math.ceil(areaTotalComDesperdicio);
     } else if (unidade.includes('metro') || unidade.includes('m')) {
-      // Para cordões, usar quantidade direta
       unidadesNecessarias = Math.ceil(areaTotalComDesperdicio);
     } else {
-      // Para outros materiais, assumir 1 unidade
       unidadesNecessarias = 1;
     }
 
@@ -210,16 +213,15 @@ export class CalculoMaterialUnidadeService {
       areaTotalComprada - areaTotalComDesperdicio,
     );
 
-    // Buscar estoque disponível
+    // Estoque na mesma unidade do checklist / validação de OS (m², un, etc.)
     const estoqueDisponivel = await this.buscarEstoqueDisponivel(
       insumo.insumo_id,
+      lojaId,
     );
 
-    // Calcular custos
     const custoUnitario = parseFloat(insumo.custo_unitario || '0');
     const custoTotal = unidadesNecessarias * custoUnitario;
 
-    // Gerar sugestões de otimização
     const sugestoes = this.gerarSugestoesOtimizacao({
       nome,
       tipoMaterial: tipoMaterialKey,
@@ -227,6 +229,7 @@ export class CalculoMaterialUnidadeService {
       sobraAproveitavel,
       desperdicioArea,
       estoqueDisponivel,
+      quantidadeNecessaria,
     });
 
     return {
@@ -249,7 +252,8 @@ export class CalculoMaterialUnidadeService {
       custo_unitario: custoUnitario,
       custo_total: custoTotal,
       estoque_disponivel: estoqueDisponivel,
-      estoque_suficiente: estoqueDisponivel >= unidadesNecessarias,
+      // Alinha com checklist: compara necessidade (m²/un) com saldo disponível
+      estoque_suficiente: estoqueDisponivel >= quantidadeNecessaria,
       sugestoes_otimizacao: sugestoes,
     };
   }
@@ -299,14 +303,50 @@ export class CalculoMaterialUnidadeService {
   /**
    * Busca estoque disponível para um insumo
    */
-  private async buscarEstoqueDisponivel(insumoId: string): Promise<number> {
+  /**
+   * Mesma cascata do ValidacaoEstoqueService: estoque_itens → estoque → Insumo.
+   */
+  private async buscarEstoqueDisponivel(
+    insumoId: string,
+    lojaId: string,
+  ): Promise<number> {
     try {
-      const estoque = await this.prisma.estoque.findFirst({
-        where: { insumo_id: insumoId },
-        select: { quantidade_atual: true },
+      const estoqueItens = await this.prisma.$queryRaw<
+        Array<{ total: unknown; registros: unknown }>
+      >`
+        SELECT
+          COALESCE(SUM(quantidadeAtual - quantidadeReservada), 0) AS total,
+          COUNT(*) AS registros
+        FROM estoque_itens
+        WHERE insumoId = ${insumoId}
+          AND lojaId = ${lojaId}
+          AND ativo = true
+      `;
+
+      const row = estoqueItens[0];
+      if (Number(row?.registros ?? 0) > 0) {
+        return Number(row?.total ?? 0);
+      }
+
+      const estoqueLegado = await this.prisma.estoque.findFirst({
+        where: { insumo_id: insumoId, loja_id: lojaId },
+        select: { quantidade_atual: true, quantidade: true },
+        orderBy: { criado_em: 'desc' },
       });
 
-      return parseFloat(estoque?.quantidade_atual?.toString() || '0');
+      if (estoqueLegado) {
+        return (
+          Number(estoqueLegado.quantidade_atual ?? estoqueLegado.quantidade) ||
+          0
+        );
+      }
+
+      const insumo = await this.prisma.insumo.findFirst({
+        where: { id: insumoId, loja_id: lojaId },
+        select: { estoque_atual: true },
+      });
+
+      return Number(insumo?.estoque_atual || 0);
     } catch (error) {
       this.logger.warn(
         `Erro ao buscar estoque para insumo ${insumoId}:`,
@@ -326,6 +366,7 @@ export class CalculoMaterialUnidadeService {
     sobraAproveitavel: number;
     desperdicioArea: number;
     estoqueDisponivel: number;
+    quantidadeNecessaria: number;
   }): string[] {
     const sugestoes: string[] = [];
 
@@ -341,9 +382,10 @@ export class CalculoMaterialUnidadeService {
       );
     }
 
-    if (params.estoqueDisponivel < params.unidadesNecessarias) {
+    if (params.estoqueDisponivel < params.quantidadeNecessaria) {
+      const falta = params.quantidadeNecessaria - params.estoqueDisponivel;
       sugestoes.push(
-        `Necessário comprar ${params.unidadesNecessarias - params.estoqueDisponivel} unidades adicionais`,
+        `Saldo insuficiente: faltam ${falta.toFixed(2)} na unidade do insumo (necessário ${params.quantidadeNecessaria}, disponível ${params.estoqueDisponivel})`,
       );
     }
 

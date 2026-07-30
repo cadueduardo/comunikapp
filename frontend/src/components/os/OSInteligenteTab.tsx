@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -12,23 +11,23 @@ import {
   CheckCircle, 
   XCircle, 
   AlertTriangle,
-  RefreshCw,
   Package,
-  DollarSign,
-  Recycle
 } from 'lucide-react';
 import { ValidacoesOSCard } from './ValidacoesOSCard';
 import { CalculoMaterialCard } from './CalculoMaterialCard';
-
 interface OSInteligenteTabProps {
   osId: string;
 }
 
 export function OSInteligenteTab({ osId }: OSInteligenteTabProps) {
-  const [status, setStatus] = useState({
-    validacoes: false,
-    materiais: false,
-    podeAprovar: false
+  const [status, setStatus] = useState<{
+    validacoes: boolean | null;
+    materiais: boolean | null;
+    podeAprovar: boolean;
+  }>({
+    validacoes: null,
+    materiais: null,
+    podeAprovar: false,
   });
 
   const handleValidacaoChange = (resultado: any) => {
@@ -47,37 +46,45 @@ export function OSInteligenteTab({ osId }: OSInteligenteTabProps) {
   };
 
   const getStatusIcon = () => {
-    if (status.validacoes && status.materiais) {
-      return <CheckCircle className="h-4 w-4 text-green-500" />;
-    } else if (!status.validacoes || !status.materiais) {
-      return <XCircle className="h-4 w-4 text-red-500" />;
-    } else {
+    if (status.validacoes === null || status.materiais === null) {
       return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
     }
+    if (status.validacoes && status.materiais) {
+      return <CheckCircle className="h-4 w-4 text-green-500" />;
+    }
+    return <XCircle className="h-4 w-4 text-red-500" />;
   };
 
   const getStatusText = () => {
+    if (status.validacoes === null || status.materiais === null) {
+      return "Analisando OS...";
+    }
     if (status.validacoes && status.materiais) {
       return "OS Pronta para Produção";
-    } else if (!status.validacoes) {
-      return "Validações Pendentes";
-    } else if (!status.materiais) {
-      return "Materiais Insuficientes";
-    } else {
-      return "Aguardando Análise";
     }
+    if (!status.validacoes) {
+      return "Validações Pendentes";
+    }
+    if (!status.materiais) {
+      return "Materiais Insuficientes";
+    }
+    return "Aguardando Análise";
   };
 
   const getStatusBadge = () => {
+    if (status.validacoes === null || status.materiais === null) {
+      return <Badge variant="secondary">Analisando</Badge>;
+    }
     if (status.validacoes && status.materiais) {
       return <Badge variant="default" className="bg-green-100 text-green-800">Pronta</Badge>;
-    } else if (!status.validacoes) {
-      return <Badge variant="destructive">Validações</Badge>;
-    } else if (!status.materiais) {
-      return <Badge variant="destructive">Materiais</Badge>;
-    } else {
-      return <Badge variant="secondary">Pendente</Badge>;
     }
+    if (!status.validacoes) {
+      return <Badge variant="destructive">Validações</Badge>;
+    }
+    if (!status.materiais) {
+      return <Badge variant="destructive">Materiais</Badge>;
+    }
+    return <Badge variant="secondary">Pendente</Badge>;
   };
 
   return (
@@ -104,15 +111,41 @@ export function OSInteligenteTab({ osId }: OSInteligenteTabProps) {
             <div className="flex flex-col items-center space-y-1">
               <Shield className="h-4 w-4" />
               <span className="text-sm">Validações</span>
-              <Badge variant={status.validacoes ? "default" : "destructive"} className="text-xs">
-                {status.validacoes ? "OK" : "Pendente"}
+              <Badge
+                variant={
+                  status.validacoes === null
+                    ? "secondary"
+                    : status.validacoes
+                      ? "default"
+                      : "destructive"
+                }
+                className="text-xs"
+              >
+                {status.validacoes === null
+                  ? "..."
+                  : status.validacoes
+                    ? "OK"
+                    : "Pendente"}
               </Badge>
             </div>
             <div className="flex flex-col items-center space-y-1">
               <Package className="h-4 w-4" />
               <span className="text-sm">Materiais</span>
-              <Badge variant={status.materiais ? "default" : "destructive"} className="text-xs">
-                {status.materiais ? "OK" : "Insuficiente"}
+              <Badge
+                variant={
+                  status.materiais === null
+                    ? "secondary"
+                    : status.materiais
+                      ? "default"
+                      : "destructive"
+                }
+                className="text-xs"
+              >
+                {status.materiais === null
+                  ? "..."
+                  : status.materiais
+                    ? "OK"
+                    : "Insuficiente"}
               </Badge>
             </div>
             <div className="flex flex-col items-center space-y-1">
@@ -146,9 +179,13 @@ export function OSInteligenteTab({ osId }: OSInteligenteTabProps) {
           />
         </TabsContent>
         
-        <TabsContent value="materiais" className="mt-4">
-          <CalculoMaterialCard 
-            osId={osId} 
+        <TabsContent
+          value="materiais"
+          className="mt-4 data-[state=inactive]:hidden"
+          forceMount
+        >
+          <CalculoMaterialCard
+            osId={osId}
             onCalculoChange={handleCalculoChange}
           />
         </TabsContent>
