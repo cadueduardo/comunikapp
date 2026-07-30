@@ -62,15 +62,41 @@ export class ArteStorageService {
       );
 
     const uniqueName = `${Date.now()}-${input.fileName}`;
-    const result = await this.driveStorage.uploadBuffer({
-      refreshToken,
-      parentFolderId,
-      fileName: uniqueName,
-      mimeType: input.mimeType,
-      buffer: input.buffer,
-    });
+    try {
+      const result = await this.driveStorage.uploadBuffer({
+        refreshToken,
+        parentFolderId,
+        fileName: uniqueName,
+        mimeType: input.mimeType,
+        buffer: input.buffer,
+      });
+      return this.mapUploadResult(input.versaoId, uniqueName, result);
+    } catch (error) {
+      const detalhe = this.extrairMensagemDrive(error);
+      this.logger.error(
+        `Falha no upload Drive (versao=${input.versaoId}): ${detalhe}`,
+      );
+      throw new BadRequestException(
+        `Falha ao enviar arquivo ao Google Drive: ${detalhe}`,
+      );
+    }
+  }
 
-    return this.mapUploadResult(input.versaoId, uniqueName, result);
+  private extrairMensagemDrive(error: unknown): string {
+    if (!error || typeof error !== 'object') {
+      return error instanceof Error ? error.message : String(error);
+    }
+    const anyErr = error as {
+      message?: string;
+      response?: { status?: number; data?: { error?: { message?: string } } };
+      errors?: Array<{ message?: string }>;
+    };
+    const apiMsg =
+      anyErr.response?.data?.error?.message ||
+      anyErr.errors?.[0]?.message ||
+      anyErr.message;
+    if (apiMsg?.trim()) return apiMsg.trim();
+    return 'erro desconhecido no Google Drive';
   }
 
   async getDownloadStream(

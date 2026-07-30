@@ -76,11 +76,19 @@ export class ArteDriveFolderService {
     const osNumero = item.os.numero ?? versao.os_id.slice(-6);
     const produtoNome = item.produto_servico ?? 'Produto';
 
-    const folderId = await this.driveStorage.ensureFolderPath(
-      refreshToken,
-      config.root_folder_id,
-      [clienteNome, `OS-${osNumero}`, produtoNome],
-    );
+    let folderId: string;
+    try {
+      folderId = await this.driveStorage.ensureFolderPath(
+        refreshToken,
+        config.root_folder_id,
+        [clienteNome, `OS-${osNumero}`, produtoNome],
+      );
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new BadRequestException(
+        `Falha ao preparar pasta no Google Drive: ${msg}. Verifique a conexão em Configurações → Conexões.`,
+      );
+    }
 
     await this.prisma.itemOS.update({
       where: { id: item.id },

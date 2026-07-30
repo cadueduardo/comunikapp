@@ -66,10 +66,11 @@ export class GoogleDriveStorageService {
         parents: [params.parentFolderId],
       },
       media: {
-        mimeType: params.mimeType,
+        mimeType: params.mimeType || 'application/octet-stream',
         body: params.stream,
       },
       fields: 'id, name, mimeType, webViewLink, webContentLink',
+      supportsAllDrives: true,
     });
 
     const fileId = response.data.id;
@@ -77,18 +78,44 @@ export class GoogleDriveStorageService {
       throw new Error('Google Drive não retornou ID do arquivo');
     }
 
-    await drive.permissions.create({
-      fileId,
-      requestBody: {
-        role: 'reader',
-        type: 'anyone',
-      },
-    });
+    // Compartilhamento público é opcional: muitas contas Workspace bloqueiam
+    // "anyone" e isso não pode derrubar o upload (o app faz download autenticado).
+    try {
+      await drive.permissions.create({
+        fileId,
+        requestBody: {
+          role: 'reader',
+          type: 'anyone',
+        },
+        supportsAllDrives: true,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Permissão pública não aplicada no Drive (${fileId}): ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
+    }
 
-    const links = await drive.files.get({
-      fileId,
-      fields: 'webViewLink, webContentLink',
-    });
+    let webViewLink =
+      response.data.webViewLink ??
+      `https://drive.google.com/file/d/${fileId}/view`;
+    let webContentLink = response.data.webContentLink ?? undefined;
+    try {
+      const links = await drive.files.get({
+        fileId,
+        fields: 'webViewLink, webContentLink',
+        supportsAllDrives: true,
+      });
+      webViewLink = links.data.webViewLink ?? webViewLink;
+      webContentLink = links.data.webContentLink ?? webContentLink;
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao obter links do Drive (${fileId}): ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
+    }
 
     this.logger.debug(`Arquivo enviado ao Drive: ${fileId} (${nomeSeguro})`);
 
@@ -96,8 +123,8 @@ export class GoogleDriveStorageService {
       fileId,
       name: response.data.name ?? nomeSeguro,
       mimeType: response.data.mimeType ?? params.mimeType,
-      webViewLink: links.data.webViewLink ?? `https://drive.google.com/file/d/${fileId}/view`,
-      webContentLink: links.data.webContentLink ?? undefined,
+      webViewLink,
+      webContentLink,
     };
   }
 
@@ -212,6 +239,7 @@ export class GoogleDriveStorageService {
         parents: parentId === 'root' ? undefined : [parentId],
       },
       fields: 'id',
+      supportsAllDrives: true,
     });
     const id = response.data.id;
     if (!id) {

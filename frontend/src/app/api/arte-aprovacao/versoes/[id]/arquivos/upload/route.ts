@@ -52,7 +52,21 @@ export async function POST(
     }
 
     const backendFormData = new FormData();
-    backendFormData.append('arquivo', arquivo, arquivo.name);
+    // Reempacota bytes: repassar File do Next→Nest às vezes chega sem buffer.
+    const bytes = Buffer.from(await arquivo.arrayBuffer());
+    if (bytes.length === 0) {
+      return NextResponse.json(
+        { message: 'Arquivo vazio ou não lido pelo servidor' },
+        { status: 400 },
+      );
+    }
+    backendFormData.append(
+      'arquivo',
+      new Blob([new Uint8Array(bytes)], {
+        type: arquivo.type || 'application/octet-stream',
+      }),
+      arquivo.name,
+    );
     if (nomeOriginal) {
       backendFormData.append('nome_original', nomeOriginal);
     }
