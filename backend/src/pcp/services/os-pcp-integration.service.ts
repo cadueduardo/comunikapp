@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WebsocketsService } from '../../websockets/websockets.service';
+import { StatusOS } from '../../os/interfaces/os.interfaces';
 
 @Injectable()
 export class OSPCPIntegrationService {
@@ -169,12 +170,14 @@ export class OSPCPIntegrationService {
     }
   }
 
-  private mapearStatusWorkflowParaOS(statusWorkflow: string): string | null {
-    const mapeamento: Record<string, string> = {
-      ATIVO: 'EM_WORKFLOW',
-      PAUSADO: 'PAUSADA',
-      CONCLUIDO: 'FINALIZADA',
-      CANCELADO: 'CANCELADA',
+  private mapearStatusWorkflowParaOS(
+    statusWorkflow: string,
+  ): StatusOS | null {
+    const mapeamento: Record<string, StatusOS> = {
+      ATIVO: StatusOS.EM_WORKFLOW,
+      PAUSADO: StatusOS.PAUSADA,
+      CONCLUIDO: StatusOS.FINALIZADA,
+      CANCELADO: StatusOS.CANCELADA,
     };
 
     return mapeamento[statusWorkflow] || null;

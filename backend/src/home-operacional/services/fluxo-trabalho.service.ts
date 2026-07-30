@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { StatusOS } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrcamentoStatus } from '../../orcamentos-v2/enums/orcamento-status.enum';
 import {
@@ -213,7 +214,7 @@ export class FluxoTrabalhoService {
     const where = {
       loja_id: lojaId,
       aprovacao_tecnica_status: 'PENDENTE',
-      status: { notIn: ['CANCELADA', 'FINALIZADA'] },
+      status: { notIn: [StatusOS.CANCELADA, StatusOS.FINALIZADA] },
     };
 
     const [total, registros] = await Promise.all([
@@ -249,7 +250,14 @@ export class FluxoTrabalhoService {
   private async montarColunaProducao(lojaId: string): Promise<ColunaFluxo> {
     const where = {
       loja_id: lojaId,
-      status: { in: ['PRODUCAO', 'ACABAMENTO', 'AGUARDANDO_MATERIAL', 'FILA'] },
+      status: {
+        in: [
+          StatusOS.PRODUCAO,
+          StatusOS.ACABAMENTO,
+          StatusOS.AGUARDANDO_MATERIAL,
+          StatusOS.FILA,
+        ],
+      },
       aprovacao_tecnica_status: 'APROVADA',
       ...filtroOsElegivelFluxoPcp,
     };
@@ -307,7 +315,7 @@ export class FluxoTrabalhoService {
 
     const where = {
       loja_id: lojaId,
-      status: 'FINALIZADA',
+      status: StatusOS.FINALIZADA,
       orcamento_id: { notIn: orcamentosFora },
     };
 
@@ -361,7 +369,7 @@ export class FluxoTrabalhoService {
             numero: true,
             titulo: true,
             ordens_servico: {
-              where: { status: 'FINALIZADA' },
+              where: { status: StatusOS.FINALIZADA },
               select: {
                 id: true,
                 numero: true,
@@ -439,7 +447,7 @@ export class FluxoTrabalhoService {
             numero: true,
             titulo: true,
             ordens_servico: {
-              where: { status: 'FINALIZADA' },
+              where: { status: StatusOS.FINALIZADA },
               select: {
                 id: true,
                 numero: true,

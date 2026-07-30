@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { StatusOS } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AlertasOperacionaisService } from './alertas-operacionais.service';
 import { HomeCacheService } from './home-cache.service';
@@ -8,12 +9,12 @@ import { filtroOsElegivelFluxoPcp } from '../../pcp/utils/os-elegivel-pcp-kanban
 
 // Status considerados "OS em producao" para o KPI - inclui todas as
 // situacoes posteriores a aprovacao tecnica e anteriores ao FINALIZADA.
-const STATUS_OS_PRODUCAO = [
-  'APROVADA_TECNICA',
-  'LIBERADA_PARA_PCP',
-  'PRODUCAO',
-  'ACABAMENTO',
-  'AGUARDANDO_MATERIAL',
+const STATUS_OS_PRODUCAO: StatusOS[] = [
+  StatusOS.APROVADA_TECNICA,
+  StatusOS.LIBERADA_PARA_PCP,
+  StatusOS.PRODUCAO,
+  StatusOS.ACABAMENTO,
+  StatusOS.AGUARDANDO_MATERIAL,
 ];
 
 // Status de orcamento em aberto - antes da aprovacao final.

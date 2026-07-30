@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StatusAprovacao } from '../interfaces/os-direta-interna.interface';
+import { StatusOS } from '../interfaces/os.interfaces';
 
 export enum NivelAlcada {
   AUTOMATICA = 'AUTOMATICA',
@@ -223,7 +224,7 @@ export class AprovacaoAlcadaService {
           aprovacao_gerencial_por: aprovadorId,
           aprovacao_gerencial_em: new Date(),
           aprovacao_gerencial_obs: motivoRejeicao,
-          status: 'REJEITADA_ORCAMENTARIA',
+          status: StatusOS.REJEITADA,
           modificado_por: aprovadorId,
           motivo_modificacao: 'Rejeição por alçada',
           versao: { increment: 1 },

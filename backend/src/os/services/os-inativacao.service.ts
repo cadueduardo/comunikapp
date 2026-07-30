@@ -8,7 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CobrancasService } from '../../financeiro/services/cobrancas.service';
 import { CobrancaStatus } from '../../financeiro/enums/cobranca-status.enum';
 import { StatusExpedicao } from '../../expedicao/enums/status-expedicao.enum';
-import { StatusOS } from '../interfaces/os.interfaces';
+import { StatusOS, assertStatusOS } from '../interfaces/os.interfaces';
 import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
 
 interface SnapshotInativacao {
@@ -254,10 +254,11 @@ export class OSInativacaoService {
       }
     }
 
-    const statusRestaurado =
+    const statusRestaurado = assertStatusOS(
       os.status_antes_inativacao ||
-      snapshot?.status_os ||
-      StatusOS.LIBERADA_PARA_PCP;
+        snapshot?.status_os ||
+        StatusOS.LIBERADA_PARA_PCP,
+    );
 
     await this.prisma.$transaction(async (tx) => {
       if (snapshot?.workflow_instancia) {

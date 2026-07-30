@@ -25,6 +25,7 @@ import { ExpedicaoCriacaoService } from '../../expedicao/services/expedicao-cria
 import { ItemOSInstalacaoCriacaoService } from '../../instalacao/services/item-os-instalacao-criacao.service';
 import { HomeCacheService } from '../../home-operacional/services/home-cache.service';
 import { EstoqueApontamentoService } from '../../os/services/estoque-apontamento.service';
+import { StatusOS } from '../../os/interfaces/os.interfaces';
 import { TipoApontamento as OSTipoApontamento } from '../../os/interfaces/workflow-pcp.interfaces';
 import type {
   ResumoSincronizacaoInstalacaoOs,
@@ -1080,12 +1081,12 @@ export class PCPKanbanService {
     }
   }
 
-  private mapearStatusKanbanParaOS(status: string): string {
-    const mapeamento: Record<string, string> = {
-      FILA: 'LIBERADA_PARA_PCP',
-      PRODUCAO: 'PRODUCAO',
-      CONCLUIDA: 'FINALIZADA',
-      REJEITADA: 'REJEITADA',
+  private mapearStatusKanbanParaOS(status: string): StatusOS {
+    const mapeamento: Record<string, StatusOS> = {
+      FILA: StatusOS.LIBERADA_PARA_PCP,
+      PRODUCAO: StatusOS.PRODUCAO,
+      CONCLUIDA: StatusOS.FINALIZADA,
+      REJEITADA: StatusOS.REJEITADA,
     };
 
     const statusPersistido = mapeamento[status];

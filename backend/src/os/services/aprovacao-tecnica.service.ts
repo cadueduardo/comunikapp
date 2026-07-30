@@ -34,6 +34,7 @@ import {
   resolveIdsAlvoLiberacao,
   resolverTipoItemOrcamento,
 } from '../utils/os-liberacao-pcp.util';
+import { StatusOS, assertStatusOS } from '../interfaces/os.interfaces';
 
 @Injectable()
 export class AprovacaoTecnicaService {
@@ -362,18 +363,18 @@ export class AprovacaoTecnicaService {
       prazosPorItem,
     );
 
-    let statusNovo: string;
+    let statusNovo: StatusOS;
     let aprovacaoStatus: string;
     if (!dto.aprovado) {
-      statusNovo = 'REJEITADA';
+      statusNovo = StatusOS.REJEITADA;
       aprovacaoStatus = 'REJEITADA';
     } else if (eFluxoPadrao) {
       statusNovo = eLiberacaoParcial
-        ? 'PARCIALMENTE_LIBERADA'
-        : 'LIBERADA_PARA_PCP';
+        ? StatusOS.PARCIALMENTE_LIBERADA
+        : StatusOS.LIBERADA_PARA_PCP;
       aprovacaoStatus = eLiberacaoParcial ? 'PENDENTE' : 'APROVADA';
     } else {
-      statusNovo = os.status;
+      statusNovo = assertStatusOS(os.status);
       aprovacaoStatus = 'APROVADA';
     }
 
@@ -522,7 +523,8 @@ export class AprovacaoTecnicaService {
       data: {
         data_instalacao_agendada: dataInstalacao,
         observacoes_instalacao: dto.observacoes,
-        status: 'INSTALACAO_AGENDADA',
+        // Agenda fica em data_instalacao_agendada / status_instalacao_os —
+        // não inventar StatusOS fora do enum canônico (P1-5).
       },
     });
 

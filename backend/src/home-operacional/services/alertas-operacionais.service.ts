@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { StatusOS } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   Alerta,
@@ -17,22 +18,22 @@ const LIMITE_DIAS_APROVADO_SEM_OS = 1;
 
 // Status terminais ou que ja decidiram aprovacao - ignorados pelo alerta de
 // "OS aguardando aprovacao tecnica".
-const STATUS_OS_IGNORAR_APROVACAO = new Set([
-  'FINALIZADA',
-  'CANCELADA',
-  'REJEITADA',
-  'APROVADA_TECNICA',
-]);
+const STATUS_OS_IGNORAR_APROVACAO: StatusOS[] = [
+  StatusOS.FINALIZADA,
+  StatusOS.CANCELADA,
+  StatusOS.REJEITADA,
+  StatusOS.APROVADA_TECNICA,
+];
 
 // Status que indicam OS ja liberada para producao - usados nos alertas
 // "liberada sem workflow" e "materiais insuficientes".
-const STATUS_OS_LIBERADA = new Set([
-  'APROVADA_TECNICA',
-  'LIBERADA_PARA_PCP',
-  'PRODUCAO',
-  'ACABAMENTO',
-  'AGUARDANDO_MATERIAL',
-]);
+const STATUS_OS_LIBERADA: StatusOS[] = [
+  StatusOS.APROVADA_TECNICA,
+  StatusOS.LIBERADA_PARA_PCP,
+  StatusOS.PRODUCAO,
+  StatusOS.ACABAMENTO,
+  StatusOS.AGUARDANDO_MATERIAL,
+];
 
 @Injectable()
 export class AlertasOperacionaisService {
@@ -209,7 +210,7 @@ export class AlertasOperacionaisService {
           loja_id: lojaId,
           aprovacao_tecnica_status: 'PENDENTE',
           // Ignora OS ja decididas/terminais (vide STATUS_OS_IGNORAR_APROVACAO).
-          status: { notIn: Array.from(STATUS_OS_IGNORAR_APROVACAO) },
+          status: { notIn: STATUS_OS_IGNORAR_APROVACAO },
         },
         select: {
           id: true,
@@ -252,7 +253,7 @@ export class AlertasOperacionaisService {
       const oss = await this.prisma.ordemServico.findMany({
         where: {
           loja_id: lojaId,
-          status: { in: Array.from(STATUS_OS_LIBERADA) },
+          status: { in: STATUS_OS_LIBERADA },
           workflow_instancia: null,
           ...filtroOsElegivelFluxoPcp,
         },
@@ -356,7 +357,7 @@ export class AlertasOperacionaisService {
       const oss = await this.prisma.ordemServico.findMany({
         where: {
           loja_id: lojaId,
-          status: { in: Array.from(STATUS_OS_LIBERADA) },
+          status: { in: STATUS_OS_LIBERADA },
           materiais_disponivel: false,
           ...filtroOsElegivelFluxoPcp,
         },

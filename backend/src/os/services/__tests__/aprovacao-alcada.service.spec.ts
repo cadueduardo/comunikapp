@@ -220,7 +220,7 @@ describe('AprovacaoAlcadaService', () => {
       mockPrismaService.ordemServico.findUnique.mockResolvedValue(mockOS);
       mockPrismaService.ordemServico.update.mockResolvedValue({
         ...mockOS,
-        status: 'REJEITADA_ORCAMENTARIA',
+        status: 'REJEITADA',
       });
     });
 
@@ -238,7 +238,7 @@ describe('AprovacaoAlcadaService', () => {
           aprovacao_gerencial_por: 'user-001',
           aprovacao_gerencial_em: expect.any(Date),
           aprovacao_gerencial_obs: 'Orçamento insuficiente',
-          status: 'REJEITADA_ORCAMENTARIA',
+          status: 'REJEITADA',
           modificado_por: 'user-001',
           motivo_modificacao: 'Rejeição por alçada',
           versao: { increment: 1 },
