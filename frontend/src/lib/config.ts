@@ -58,13 +58,16 @@ export const joinApiBaseAndEndpoint = (
 
 export const buildApiUrl = (endpoint: string): string => {
   const isServer = typeof window === 'undefined';
-  const onCustomHost =
-    !isServer && isCustomTenantHost(window.location.host);
 
-  const baseUrl = onCustomHost ? '/api' : API_CONFIG.baseUrl;
+  // Browser: sempre BFF same-origin. Cookie HttpOnly não vai para api.*.
+  if (!isServer) {
+    return joinApiBaseAndEndpoint('/api', endpoint);
+  }
+
+  const baseUrl = API_CONFIG.baseUrl;
   const isRelative = baseUrl.startsWith('/');
 
-  if (isServer && isRelative) {
+  if (isRelative) {
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
     return joinApiBaseAndEndpoint(backendUrl, endpoint);
   }

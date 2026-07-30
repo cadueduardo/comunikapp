@@ -1,6 +1,17 @@
 import { joinApiBaseAndEndpoint } from '@/lib/config';
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/$/, '');
+/**
+ * Base da API no browser: sempre `/api` (BFF Next same-origin).
+ * Cookie HttpOnly não acompanha `api.comunikapp.com.br`; apontar o client
+ * para o subdomínio da API gera 401 mesmo com sessão válida no apex.
+ */
+function resolveClientApiBase(): string {
+  if (typeof window !== 'undefined') {
+    return '/api';
+  }
+  return (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/$/, '');
+}
+
 const SESSION_EXPIRED_IGNORED_ENDPOINTS = new Set([
   '/lojas/login',
   '/lojas/login/2fa',
@@ -71,7 +82,9 @@ export const apiRequest = async (
   }
 
   try {
-    const response = await fetch(joinApiBaseAndEndpoint(API_BASE_URL, endpoint), {
+    const response = await fetch(
+      joinApiBaseAndEndpoint(resolveClientApiBase(), endpoint),
+      {
       ...options,
       headers,
       credentials: 'include',
@@ -267,7 +280,9 @@ export const apiRequestServer = async (
   }
 
   try {
-    const response = await fetch(joinApiBaseAndEndpoint(API_BASE_URL, endpoint), {
+    const response = await fetch(
+      joinApiBaseAndEndpoint(resolveClientApiBase(), endpoint),
+      {
       ...options,
       headers,
       credentials: 'include',

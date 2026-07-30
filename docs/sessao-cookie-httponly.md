@@ -34,17 +34,18 @@ Rotas BFF: `/api/auth/login`, `/api/auth/login/2fa`, `/api/auth/logout`, `/api/a
 
 ## Nginx (produção)
 
-O site apex (`comunikapp.com.br`) proxyia `/api/` para o Nest. As rotas BFF
-devem ir ao Next **antes** desse bloco:
+O site apex (`comunikapp.com.br`) deve proxyar **todo** `/api/*` same-origin
+para o **BFF Next** (`127.0.0.1:3001`), exceto login direto no Nest:
 
 ```nginx
-location /api/auth/ {
-    proxy_pass http://127.0.0.1:3001;
-    ...
-}
+location = /api/lojas/login { proxy_pass http://127.0.0.1:4001/lojas/login; ... }
+location /api/ { proxy_pass http://127.0.0.1:3001; ... }
 ```
 
-Sem isso, `POST /api/auth/login` cai no Nest e o cookie HttpOnly nunca é setado.
+`api.comunikapp.com.br` continua apontando ao Nest. O **browser** não deve
+chamar `api.*` com sessão cookie: use sempre `/api/...` same-origin
+(`apiRequest` / `buildApiUrl` forçam isso). `NEXT_PUBLIC_API_URL` em produção
+deve ser `/api` (não `https://api.comunikapp.com.br`).
 
 ## Tenant hints
 
