@@ -1,77 +1,89 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+import { buildApiUrl } from '@/lib/config';
+import { resolveBackendAuth } from '@/lib/api/proxy-backend';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id: versaoId } = await params;
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
-    }
+    const auth = resolveBackendAuth(request);
+    if (!auth.ok) return auth.response;
 
-    console.log('📤 [API Route] Upload de arquivo para versão:', versaoId);
-
-    // Extrair o arquivo do FormData
     const formData = await request.formData();
-    const arquivo = formData.get('arquivo') as File;
+    const arquivo = formData.get('arquivo') as File | null;
 
     if (!arquivo) {
-      return NextResponse.json({ error: 'Nenhum arquivo fornecido' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Nenhum arquivo fornecido' },
+        { status: 400 },
+      );
     }
 
-    // Validar tipo de arquivo
-    const tiposPermitidos = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'application/postscript'];
+    const tiposPermitidos = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+      'application/postscript',
+    ];
     if (!tiposPermitidos.includes(arquivo.type)) {
-      return NextResponse.json({ 
-        error: 'Tipo de arquivo não permitido. Aceitos: PDF, JPG, PNG, AI' 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'Tipo de arquivo não permitido. Aceitos: PDF, JPG, PNG, AI',
+        },
+        { status: 400 },
+      );
     }
 
-    // Validar tamanho (50MB)
     const maxSize = 50 * 1024 * 1024;
     if (arquivo.size > maxSize) {
-      return NextResponse.json({ 
-        error: 'Arquivo muito grande. Tamanho máximo: 50MB' 
-      }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Arquivo muito grande. Tamanho máximo: 50MB' },
+        { status: 400 },
+      );
     }
 
-    // Criar FormData para enviar ao backend
     const backendFormData = new FormData();
     backendFormData.append('arquivo', arquivo);
     backendFormData.append('nome_original', arquivo.name);
-    
-    const response = await fetch(`${API_BASE_URL}/arte-aprovacao/versoes/${versaoId}/arquivos/upload`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        // Não definir Content-Type - deixar o browser definir com boundary
+
+    const response = await fetch(
+      buildApiUrl(
+        `/arte-aprovacao/versoes/${encodeURIComponent(versaoId)}/arquivos/upload`,
+      ),
+      {
+        method: 'POST',
+        headers: auth.headers,
+        body: backendFormData,
       },
-      body: backendFormData,
-    });
+    );
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Erro ao fazer upload' }));
-      console.error('❌ [API Route] Erro no upload:', errorData);
+      const errorData = await response
+        .json()
+        .catch(() => ({ message: 'Erro ao fazer upload' }));
       return NextResponse.json(
-        { success: false, message: errorData.message || 'Erro ao fazer upload', error: errorData.error },
-        { status: response.status }
+        {
+          success: false,
+          message: errorData.message || 'Erro ao fazer upload',
+          error: errorData.error,
+        },
+        { status: response.status },
       );
     }
 
     const data = await response.json();
-    console.log('✅ [API Route] Arquivo enviado:', data.id);
     return NextResponse.json(data);
-  } catch (error: any) {
-    console.error('❌ [API Route] Erro no upload:', error);
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Erro interno do servidor';
+    const name = error instanceof Error ? error.name : 'InternalServerError';
+    console.error('Erro no upload de arte:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Erro interno do servidor', error: error.name || 'InternalServerError' },
-      { status: 500 }
+      { success: false, message, error: name },
+      { status: 500 },
     );
   }
 }
-

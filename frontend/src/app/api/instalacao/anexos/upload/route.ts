@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildApiUrl } from '@/lib/config';
+import { resolveBackendAuth } from '@/lib/api/proxy-backend';
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: 'Token de autorização não fornecido' },
-        { status: 401 },
-      );
-    }
+    const auth = resolveBackendAuth(request);
+    if (!auth.ok) return auth.response;
 
     const formData = await request.formData();
     const arquivo = formData.get('arquivo');
@@ -25,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     const response = await fetch(buildApiUrl('/instalacao/anexos/upload'), {
       method: 'POST',
-      headers: { Authorization: authHeader },
+      headers: auth.headers,
       body: backendFormData,
     });
 

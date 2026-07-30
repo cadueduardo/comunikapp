@@ -20,60 +20,107 @@ function extrairJwtDoCookie(cookieHeader: string | null): string | null {
   return null;
 }
 
+export type BackendAuthOk = {
+  ok: true;
+  headers: Record<string, string>;
+};
+
+export type BackendAuthFail = {
+  ok: false;
+  response: NextResponse;
+};
+
 /**
- * Proxy BFF → Nest.
+ * Resolve Authorization a partir de Bearer válido ou cookie HttpOnly.
+ * Use em uploads/binários onde proxyBackend (JSON) não serve.
+ */
+export function resolveBackendAuth(
+  request: NextRequest,
+): BackendAuthOk | BackendAuthFail {
+  const authHeader = request.headers.get('authorization');
+  const cookieHeader = request.headers.get('cookie');
+  const jwtDoCookie = extrairJwtDoCookie(cookieHeader);
+
+  const hasBearer =
+    !!authHeader &&
+    authHeader.toLowerCase().startsWith('bearer ') &&
+    authHeader.slice(7).trim() !== '' &&
+    authHeader.slice(7).trim() !== 'cookie-session';
+
+  if (!hasBearer && !jwtDoCookie && !cookieHeader) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'Token de autorização não fornecido' },
+        { status: 401 },
+      ),
+    };
+  }
+
+  const headers: Record<string, string> = {};
+
+  if (hasBearer && authHeader) {
+    headers.Authorization = authHeader;
+  } else if (jwtDoCookie) {
+    headers.Authorization = `Bearer ${jwtDoCookie}`;
+  }
+
+  if (cookieHeader) {
+    headers.Cookie = cookieHeader;
+  }
+
+  for (const nome of ['x-loja-id', 'x-user-roles', 'x-tenant-slug'] as const) {
+    const valor = request.headers.get(nome);
+    if (valor) {
+      headers[nome] = valor;
+    }
+  }
+
+  return { ok: true, headers };
+}
+
+function withQuery(request: NextRequest, path: string): string {
+  const qs = request.nextUrl.searchParams.toString();
+  if (!qs) return path;
+  return path.includes('?') ? `${path}&${qs}` : `${path}?${qs}`;
+}
+
+export type ProxyBackendOptions = RequestInit & {
+  /** Se true, não força Content-Type: application/json (uploads multipart). */
+  omitJsonContentType?: boolean;
+  /** Se true, não anexa a query string da requisição de entrada. */
+  skipForwardQuery?: boolean;
+};
+
+/**
+ * Proxy BFF → Nest (resposta JSON).
  * Auth: Bearer (legado) e/ou cookie HttpOnly `comunikapp_session`.
- * Quando só há cookie, o JWT é reenviado também como Bearer para o Nest
- * (além do Cookie), evitando 401 em rotas BFF que antes exigiam Authorization.
+ * Encaminha query string da requisição de entrada por padrão.
  */
 export async function proxyBackend(
   request: NextRequest,
   path: string,
-  init?: RequestInit,
+  init?: ProxyBackendOptions,
 ): Promise<NextResponse> {
   try {
-    const authHeader = request.headers.get('authorization');
-    const cookieHeader = request.headers.get('cookie');
-    const jwtDoCookie = extrairJwtDoCookie(cookieHeader);
+    const auth = resolveBackendAuth(request);
+    if (!auth.ok) return auth.response;
 
-    const hasBearer =
-      !!authHeader &&
-      authHeader.toLowerCase().startsWith('bearer ') &&
-      authHeader.slice(7).trim() !== '' &&
-      authHeader.slice(7).trim() !== 'cookie-session';
-
-    if (!hasBearer && !jwtDoCookie && !cookieHeader) {
-      return NextResponse.json(
-        { error: 'Token de autorização não fornecido' },
-        { status: 401 },
-      );
-    }
+    const { omitJsonContentType, skipForwardQuery, ...fetchInit } = init ?? {};
 
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(init?.headers as Record<string, string> | undefined),
+      ...auth.headers,
+      ...(fetchInit.headers as Record<string, string> | undefined),
     };
 
-    if (hasBearer && authHeader) {
-      headers.Authorization = authHeader;
-    } else if (jwtDoCookie) {
-      headers.Authorization = `Bearer ${jwtDoCookie}`;
+    if (!omitJsonContentType && !headers['Content-Type'] && !headers['content-type']) {
+      headers['Content-Type'] = 'application/json';
     }
 
-    if (cookieHeader) {
-      headers.Cookie = cookieHeader;
-    }
+    const targetPath = skipForwardQuery ? path : withQuery(request, path);
 
-    // Tenant headers usados pelo módulo de estoque (e outros multi-tenant)
-    for (const nome of ['x-loja-id', 'x-user-roles', 'x-tenant-slug'] as const) {
-      const valor = request.headers.get(nome);
-      if (valor) {
-        headers[nome] = valor;
-      }
-    }
-
-    const response = await fetch(buildApiUrl(path), {
-      ...init,
+    const response = await fetch(buildApiUrl(targetPath), {
+      ...fetchInit,
       headers,
     });
 

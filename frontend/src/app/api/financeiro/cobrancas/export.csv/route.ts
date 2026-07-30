@@ -1,28 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildApiUrl } from '@/lib/config';
+import { resolveBackendAuth } from '@/lib/api/proxy-backend';
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json(
-        { message: 'Token de autorização não fornecido' },
-        { status: 401 },
-      );
-    }
+    const auth = resolveBackendAuth(request);
+    if (!auth.ok) return auth.response;
 
-    const { searchParams } = new URL(request.url);
-    const queryParams = new URLSearchParams();
-    searchParams.forEach((value, key) => {
-      queryParams.append(key, value);
-    });
+    const qs = request.nextUrl.searchParams.toString();
+    const url = qs
+      ? `${buildApiUrl('/financeiro/cobrancas/export.csv')}?${qs}`
+      : buildApiUrl('/financeiro/cobrancas/export.csv');
 
-    const url = `${buildApiUrl('/financeiro/cobrancas/export.csv')}?${queryParams.toString()}`;
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        Authorization: authHeader,
-      },
+      headers: auth.headers,
     });
 
     if (!response.ok) {
@@ -43,7 +35,10 @@ export async function GET(request: NextRequest) {
 
     return new NextResponse(blob, { status: 200, headers });
   } catch (error) {
-    console.error('Erro na API route /api/financeiro/cobrancas/export.csv:', error);
+    console.error(
+      'Erro na API route /api/financeiro/cobrancas/export.csv:',
+      error,
+    );
     return NextResponse.json(
       { message: 'Erro interno do servidor' },
       { status: 500 },

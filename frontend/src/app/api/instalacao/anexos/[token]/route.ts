@@ -1,22 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildApiUrl } from '@/lib/config';
+import { resolveBackendAuth } from '@/lib/api/proxy-backend';
 
 type RouteContext = { params: Promise<{ token: string }> };
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: 'Token de autorização não fornecido' },
-        { status: 401 },
-      );
-    }
+    const auth = resolveBackendAuth(request);
+    if (!auth.ok) return auth.response;
 
     const { token } = await context.params;
-    const response = await fetch(buildApiUrl(`/instalacao/anexos/${token}`), {
-      headers: { Authorization: authHeader },
-    });
+    const response = await fetch(
+      buildApiUrl(`/instalacao/anexos/${encodeURIComponent(token)}`),
+      { headers: auth.headers },
+    );
 
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));

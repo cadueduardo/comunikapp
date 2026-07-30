@@ -1,38 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL || 'http://localhost:4000';
+import { NextRequest } from 'next/server';
+import { proxyBackend } from '@/lib/api/proxy-backend';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ versaoId: string }> }
+  { params }: { params: Promise<{ versaoId: string }> },
 ) {
-  try {
-    const { versaoId } = await params;
-    
-    const response = await fetch(`${API_BASE_URL}/arte-aprovacao/links/versao/${versaoId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${request.headers.get('authorization')?.replace('Bearer ', '')}`,
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
-    }
-
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('❌ [API Route] Erro ao listar links da versão:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Erro interno do servidor' 
-      },
-      { status: 500 }
-    );
-  }
+  const { versaoId } = await params;
+  return proxyBackend(request, `/arte-aprovacao/links/versao/${encodeURIComponent(versaoId)}`);
 }
-
-

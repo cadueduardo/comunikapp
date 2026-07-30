@@ -1,23 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildApiUrl } from '@/lib/config';
-import { SESSION_COOKIE_NAME } from '@/lib/auth-cookie';
-
-function extrairJwtDoCookie(cookieHeader: string | null): string | null {
-  if (!cookieHeader) return null;
-  for (const parte of cookieHeader.split(';')) {
-    const [nome, ...rest] = parte.trim().split('=');
-    if (nome === SESSION_COOKIE_NAME) {
-      const valor = rest.join('=').trim();
-      if (!valor || valor === 'null' || valor === 'undefined') return null;
-      try {
-        return decodeURIComponent(valor);
-      } catch {
-        return valor;
-      }
-    }
-  }
-  return null;
-}
+import { resolveBackendAuth } from '@/lib/api/proxy-backend';
 
 // GET /api/os/[id]/imprimir — HTML da OS (auth cookie ou Bearer)
 export async function GET(
@@ -26,22 +9,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const authHeader = request.headers.get('authorization');
-    const cookieHeader = request.headers.get('cookie');
-    const jwtDoCookie = extrairJwtDoCookie(cookieHeader);
-
-    const hasBearer =
-      !!authHeader &&
-      authHeader.toLowerCase().startsWith('bearer ') &&
-      authHeader.slice(7).trim() !== '' &&
-      authHeader.slice(7).trim() !== 'cookie-session';
-
-    if (!hasBearer && !jwtDoCookie) {
-      return NextResponse.json(
-        { error: 'Token de autorização não fornecido' },
-        { status: 401 },
-      );
-    }
+    const auth = resolveBackendAuth(request);
+    if (!auth.ok) return auth.response;
 
     const { searchParams } = new URL(request.url);
     const qs = new URLSearchParams({
@@ -53,21 +22,17 @@ export async function GET(
         searchParams.get('incluirDetalhesTecnicos') || 'true',
     });
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (hasBearer && authHeader) {
-      headers.Authorization = authHeader;
-    } else if (jwtDoCookie) {
-      headers.Authorization = `Bearer ${jwtDoCookie}`;
-    }
-    if (cookieHeader) {
-      headers.Cookie = cookieHeader;
-    }
-
     const response = await fetch(
-      buildApiUrl(`/os/${encodeURIComponent(id)}/imprimir?${qs.toString()}`),
-      { method: 'GET', headers },
+      buildApiUrl(
+        `/os/${encodeURIComponent(id)}/imprimir?${qs.toString()}`,
+      ),
+      {
+        method: 'GET',
+        headers: {
+          ...auth.headers,
+          'Content-Type': 'application/json',
+        },
+      },
     );
 
     if (!response.ok) {
