@@ -299,7 +299,12 @@ export class ImpressaoOSController {
             : null,
           produtos: (dados.produtos ?? []).map((p: any) => ({
             id: p.id,
-            nome: p.nome ?? p.produto_servico ?? 'Item',
+            // ItemOS usa produto_servico; ProdutoOrcamento usa nome/nome_servico
+            nome:
+              p.nome ??
+              p.produto_servico ??
+              p.nome_servico ??
+              'Item',
             quantidade: p.quantidade ?? null,
             unidade_medida: p.unidade_medida ?? null,
             largura: p.largura ?? null,
@@ -314,7 +319,8 @@ export class ImpressaoOSController {
             materiais_disponivel: p.materiais_disponivel ?? null,
           })),
           materiais: (dados.insumos ?? []).map((i: any) => ({
-            nome: i.insumo?.nome || i.nome || 'Material',
+            // JSON de ItemOS traz `nome` direto; fallback do orçamento traz `insumo.nome`
+            nome: i.nome || i.insumo?.nome || i.display || 'Material',
             quantidade: i.quantidade ?? i.quantidade_necessaria ?? null,
             unidade: i.unidade || i.insumo?.unidade_uso || 'un',
             observacoes: i.observacoes ?? null,

@@ -192,7 +192,25 @@ export class ImpressaoOSService {
       });
     }
 
-    return os.orcamento?.produtos ?? [];
+    // Fallback legacy: ProdutoOrcamento usa nome/nome_servico (não produto_servico)
+    return (os.orcamento?.produtos ?? []).map((p: any) => ({
+      id: p.id,
+      nome: p.nome || p.nome_servico || p.produto_servico || 'Item',
+      quantidade: p.quantidade,
+      largura: p.largura ?? null,
+      altura: p.altura ?? null,
+      profundidade: p.profundidade ?? null,
+      area: p.area_produto ?? p.area ?? null,
+      perimetro: p.perimetro_produto ?? null,
+      unidade_medida: p.unidade_medida ?? null,
+      observacoes: p.observacoes ?? p.descricao ?? null,
+      data_prazo_produto: null,
+      ordem_producao: p.ordem ?? null,
+      prioridade_produto: null,
+      status_arte: null,
+      materiais_disponivel: null,
+      lotes_instalacao: [],
+    }));
   }
 
   /**

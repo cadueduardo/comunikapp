@@ -658,21 +658,31 @@ export default function ImprimirOSPage() {
               ) : (
                 <table className="w-full border-collapse text-sm">
                   <thead>
-                    <tr className="border-b border-gray-300 text-left text-[10px] uppercase tracking-wide text-gray-600">
-                      <th className="py-1 pr-2">Material</th>
-                      <th className="py-1 pr-2">Qtd necessária</th>
-                      <th className="py-1 pr-2">Disponível</th>
-                      <th className="py-1 pr-2">Em estoque</th>
-                      <th className="py-1">Localização</th>
+                    <tr className="text-left text-[10px] uppercase tracking-wide text-gray-600">
+                      <th className="w-1/2 border border-gray-400 bg-gray-50 px-2 py-1.5">
+                        Material
+                      </th>
+                      <th className="border border-gray-400 bg-gray-50 px-2 py-1.5">
+                        Qtd necessária
+                      </th>
+                      <th className="border border-gray-400 bg-gray-50 px-2 py-1.5">
+                        Disponível
+                      </th>
+                      <th className="border border-gray-400 bg-gray-50 px-2 py-1.5">
+                        Em estoque
+                      </th>
+                      <th className="border border-gray-400 bg-gray-50 px-2 py-1.5">
+                        Localização
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {materiais.map((m, idx) => (
                       <tr
                         key={`${m.nome}-${idx}`}
-                        className="border-b border-gray-100 align-top"
+                        className="align-top"
                       >
-                        <td className="py-1.5 pr-2">
+                        <td className="w-1/2 border border-gray-300 px-2 py-1.5">
                           <span className="font-medium text-gray-900">
                             {m.nome}
                           </span>
@@ -682,26 +692,24 @@ export default function ImprimirOSPage() {
                             </span>
                           )}
                         </td>
-                        <td className="whitespace-nowrap py-1.5 pr-2 text-gray-800">
+                        <td className="whitespace-nowrap border border-gray-300 px-2 py-1.5 text-gray-800">
                           {formatNumero(m.quantidade)}
                           {m.unidade ? ` ${m.unidade}` : ''}
                         </td>
-                        <td className="whitespace-nowrap py-1.5 pr-2">
-                          {m.disponivel_estoque == null ? (
-                            <span className="text-gray-500">—</span>
-                          ) : (
+                        <td className="whitespace-nowrap border border-gray-300 px-2 py-1.5">
+                          {m.disponivel_estoque == null ? null : (
                             <TagImpressa destaque={!m.disponivel_estoque}>
                               {m.disponivel_estoque ? 'Sim' : 'Comprar'}
                             </TagImpressa>
                           )}
                         </td>
-                        <td className="whitespace-nowrap py-1.5 pr-2 text-gray-800">
+                        <td className="whitespace-nowrap border border-gray-300 px-2 py-1.5 text-gray-800">
                           {m.quantidade_disponivel != null
                             ? formatNumero(m.quantidade_disponivel)
-                            : '—'}
+                            : null}
                         </td>
-                        <td className="py-1.5 text-gray-600">
-                          {m.localizacao_estoque || '—'}
+                        <td className="border border-gray-300 px-2 py-1.5 text-gray-600">
+                          {m.localizacao_estoque || null}
                         </td>
                       </tr>
                     ))}
@@ -728,32 +736,34 @@ export default function ImprimirOSPage() {
                 </TituloSecao>
                 <table className="w-full border-collapse text-sm">
                   <thead>
-                    <tr className="border-b border-gray-300 text-left text-[10px] uppercase tracking-wide text-gray-600">
-                      <th className="w-[28%] py-1 pr-2">Etapa</th>
-                      <th className="w-[26%] py-1 pr-2">Operador</th>
-                      <th className="w-[14%] py-1 pr-2">Início</th>
-                      <th className="w-[14%] py-1 pr-2">Fim</th>
-                      <th className="w-[18%] py-1">OK / Refugo</th>
+                    <tr className="text-left text-[10px] uppercase tracking-wide text-gray-600">
+                      <th className="w-[28%] border border-gray-400 bg-gray-50 px-2 py-1.5">
+                        Etapa
+                      </th>
+                      <th className="w-[26%] border border-gray-400 bg-gray-50 px-2 py-1.5">
+                        Operador
+                      </th>
+                      <th className="w-[14%] border border-gray-400 bg-gray-50 px-2 py-1.5">
+                        Início
+                      </th>
+                      <th className="w-[14%] border border-gray-400 bg-gray-50 px-2 py-1.5">
+                        Fim
+                      </th>
+                      <th className="w-[18%] border border-gray-400 bg-gray-50 px-2 py-1.5">
+                        OK / Refugo
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {ETAPAS_ROTEIRO.map((etapa) => (
-                      <tr key={etapa} className="border-b border-gray-200">
-                        <td className="py-3 pr-2 font-medium text-gray-900">
+                      <tr key={etapa}>
+                        <td className="border border-gray-300 px-2 py-3 font-medium text-gray-900">
                           {etapa}
                         </td>
-                        <td className="py-3 pr-2">
-                          <div className="border-b border-gray-400" />
-                        </td>
-                        <td className="py-3 pr-2">
-                          <div className="border-b border-gray-400" />
-                        </td>
-                        <td className="py-3 pr-2">
-                          <div className="border-b border-gray-400" />
-                        </td>
-                        <td className="py-3">
-                          <div className="border-b border-gray-400" />
-                        </td>
+                        <td className="border border-gray-300 px-2 py-3" />
+                        <td className="border border-gray-300 px-2 py-3" />
+                        <td className="border border-gray-300 px-2 py-3" />
+                        <td className="border border-gray-300 px-2 py-3" />
                       </tr>
                     ))}
                   </tbody>
