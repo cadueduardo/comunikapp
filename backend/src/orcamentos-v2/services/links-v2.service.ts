@@ -74,10 +74,16 @@ export class LinksV2Service {
   }
 
   /**
-   * Valida e acessa link público
+   * Valida e acessa link público.
+   *
+   * Gate 0S: apesar do nome, a rota que chama este método exige JWT. Resolver o
+   * link só pelo token deixava um usuário autenticado consumir visualização e
+   * gravar acesso em link de outra loja, bastando conhecer o token. A loja
+   * autenticada entra na consulta como qualquer outro recurso de tenant.
    */
   async acessarLinkPublico(
     token: string,
+    lojaId: string,
     senha?: string,
     ipAcesso?: string,
     userAgent?: string,
@@ -95,12 +101,13 @@ export class LinksV2Service {
         where: {
           token,
           ativo: true,
+          orcamento: { loja_id: lojaId },
         },
         include: {},
       });
 
       if (!linkPublico) {
-        throw new Error('Link público não encontrado ou inativo');
+        throw new NotFoundException('Link público não encontrado ou inativo');
       }
 
       // Validar expiração

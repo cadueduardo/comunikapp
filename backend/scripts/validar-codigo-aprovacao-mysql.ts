@@ -69,9 +69,13 @@ async function principal() {
   const nomeBanco = banco[0]?.db;
   console.log(`Banco: ${nomeBanco}`);
 
-  if (nomeBanco !== 'comunikapp_gate0s') {
+  // O script escreve e apaga dados, então recusa rodar fora de um banco
+  // descartável. O padrão é o clone local; o CI declara o seu por variável.
+  const bancoPermitido =
+    process.env.GATE0S_BANCO_PERMITIDO || 'comunikapp_gate0s';
+  if (nomeBanco !== bancoPermitido) {
     throw new Error(
-      `Recusando executar fora do banco de validação (atual: ${nomeBanco}).`,
+      `Recusando executar fora do banco de validação (atual: ${nomeBanco}, permitido: ${bancoPermitido}).`,
     );
   }
 

@@ -39,8 +39,6 @@ interface ProdutoOrcamento {
   area?: number;
   preco_unitario: number;
   preco_total: number;
-  margem_lucro: number;
-  impostos: number;
   observacoes?: string;
   linha_arte?: LinhaArtePdf | null;
 }
@@ -109,7 +107,6 @@ interface OrcamentoV2 {
   condicao_pagamento_descricao?: string;
   validade_proposta?: string;
   atendente?: string;
-  observacoes?: string;
   entrega_valor_cobrado?: number;
   entrega_modalidade_nome?: string | null;
 }
@@ -305,47 +302,13 @@ export default function OrcamentoV2PublicoPage() {
     );
   }
 
-  console.log('🔍 Debug - Orçamento completo:', orcamento);
-  console.log('🔍 Debug - Status do orçamento:', orcamento.status);
-  console.log('🔍 Debug - Status aprovação:', orcamento.status_aprovacao);
-
-  // Usar valores corretos do banco em vez de recalcular
+  // Gate 0S / HS-02 e HS-06: aqui havia três blocos de `console.log` que
+  // despejavam o orçamento inteiro, o custo de produção, a margem e os impostos
+  // de cada produto no console do navegador — do cliente final, numa página
+  // anônima. Nenhum desses campos era renderizado; eram só depuração. O backend
+  // deixou de enviá-los, e os logs saíram junto.
   const usarValoresCorretosDoBanco = (produtos: any[]) => {
     if (!produtos || produtos.length === 0) return produtos;
-
-    console.log('🔍 Debug - Usando valores corretos do banco:', {
-      produtosCount: produtos.length,
-      produtosDetalhados: produtos.map(p => ({
-        nome: p.nome,
-        quantidade: p.quantidade,
-        custo_total_producao: p.custo_total_producao,
-        preco_unitario_banco: p.preco_unitario,
-        preco_total_banco: p.preco_total,
-        preco_unitario_final: Number(p.preco_unitario) || 0,
-        preco_total_final: Number(p.preco_total) || 0,
-        margem_lucro: p.margem_lucro,
-        impostos: p.impostos
-      }))
-    });
-    
-    // Log individual detalhado de cada produto
-    produtos.forEach((produto, index) => {
-      console.log(`🔍 Debug - Produto ${index + 1} detalhado:`, {
-        nome: produto.nome,
-        quantidade: produto.quantidade,
-        custo_total_producao: produto.custo_total_producao,
-        preco_unitario: produto.preco_unitario,
-        preco_total: produto.preco_total,
-        preco_unitario_number: Number(produto.preco_unitario),
-        preco_total_number: Number(produto.preco_total),
-        margem_lucro: produto.margem_lucro,
-        impostos: produto.impostos,
-        // Valores brutos para debug
-        preco_unitario_raw: produto.preco_unitario,
-        preco_total_raw: produto.preco_total,
-        custo_total_producao_raw: produto.custo_total_producao
-      });
-    });
 
     return produtos.map(produto => ({
       ...produto,

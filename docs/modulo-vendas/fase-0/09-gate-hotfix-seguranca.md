@@ -1,11 +1,14 @@
 # Gate 0S — Hotfix de segurança anterior ao Módulo de Vendas
 
-**Status:** [x] em execução — **o gate NÃO está concluído**
-**Situação por item:** HS-01 e HS-05 concluídos; HS-04 concluído no código e validado
-em banco real (§2.7), restando apenas a revisão dos logs históricos de produção;
-HS-06 concluído exceto métricas e alertas, bloqueados por ausência de backend de
-observabilidade; HS-02 e HS-03 parcialmente entregues. Detalhamento em §2.0 a §2.8 e
-critérios de saída em §5.
+**Status:** [x] em execução — **Gate 0S não concluído — Fase 1 não liberada**
+**Situação por item:** HS-01 concluído; HS-02 concluído (dois tenants em banco real,
+§4.4); HS-04 concluído no código e validado em banco real, restando a revisão dos logs
+históricos de produção; **HS-05 reaberto** — a reauditoria encontrou duplicação de OS
+no caminho de recuperação sob concorrência (§4.5); HS-06 concluído exceto métricas e
+alertas, bloqueados por ausência de backend de observabilidade; HS-03 parcialmente
+entregue. Detalhamento em §2.0 a §2.8 e critérios de saída em §5.
+**Anexos:** [matriz de endpoints](./11-matriz-endpoints-orcamentos-v2.md) ·
+[observabilidade e logs de produção](./10-observabilidade-e-logs-producao.md)
 **Natureza:** correção obrigatória do legado existente; não é fase funcional de Vendas
 **Bloqueia:** Fases 1 a 14 e qualquer nova rota, card ou navegação de Vendas
 **Origem:** DV-13, DV-16 e achados D-01, D-02 e D-08 da auditoria
@@ -370,14 +373,19 @@ TTL para produzir efeito.
       da loja; `marcarMensagemVisualizadaPublica` passou a vincular a mensagem ao
       orçamento; o cálculo em lote recarrega os orçamentos em vez de aceitar o
       objeto enviado pelo cliente.)*
-- [ ] Revisar relações carregadas por `include`/`select` para impedir retorno
+- [x] Revisar relações carregadas por `include`/`select` para impedir retorno
       indireto de cliente, proposta, anexo, acesso ou orçamento de outra loja.
+      *(Revisão registrada na [matriz de endpoints](./11-matriz-endpoints-orcamentos-v2.md).
+      Um achado remanescente: `acessarLinkPublico` resolvia o link só pelo token, sem
+      confrontar a loja autenticada — corrigido e coberto por teste (§4.4). O payload
+      público perdeu `custo_total_producao`, `margem_lucro`, `impostos` e
+      `observacoes_internas`, que saíam por rota anônima.)*
 - [x] Não diferenciar publicamente “não existe” de “existe, mas não pertence à
       loja”; usar resposta estável que não permita enumeração. *(Em `links-v2`,
       orçamento de outra loja e usuário inválido retornam o mesmo `404`.)*
-- [ ] Testar leitura, alteração, aceite, geração de link e recurso relacionado com
-      dois tenants reais de teste. *(Coberto em teste unitário de autorização;
-      falta a integração com dois tenants.)*
+- [x] Testar leitura, alteração, aceite, geração de link e recurso relacionado com
+      dois tenants reais de teste. *(`backend/scripts/validar-cross-tenant-mysql.ts`,
+      30 verificações em banco real, todas passando — ver §4.4.)*
 
 ### HS-03 — Fronteira pública única e mínima
 
@@ -443,8 +451,16 @@ TTL para produzir efeito.
       `orcamentos-v2` fechou os cinco `console.log` remanescentes — dois deles
       despejavam custo de produção, margem e impostos por produto, disparados por
       **rota anônima** — além dos dois `logger.log` que imprimiam o e-mail do cliente.
-      O que mantém o item aberto é só a **revisão dos logs históricos já gravados**,
-      que depende de acesso ao ambiente de produção e não pode ser feita daqui.)*
+      A reauditoria encontrou uma quarta camada que a varredura anterior não pegou:
+      `logger.log` de depuração que despejavam `custo_total`, `margem_lucro`,
+      `impostos` e `preco_final` a **cada** transformação de proposta, mais o despejo
+      da estrutura completa do registro na listagem. Todos removidos — detalhamento em
+      §4.3 da [matriz](./11-matriz-endpoints-orcamentos-v2.md).
+      O que mantém o item aberto é só a **revisão dos logs históricos já gravados**.
+      O runbook para executá-la com segurança está em
+      [`10-observabilidade-e-logs-producao.md`](./10-observabilidade-e-logs-producao.md) §3;
+      a execução depende de acesso ao ambiente de produção e de autorização
+      específica, e permanece bloqueada.)*
 
 O contrato aprovado pelo PO foi o **seguro completo com migration aditiva**, mantendo
 o aceite público funcionando. O meio-termo em texto claro está rejeitado por não
@@ -489,9 +505,11 @@ migration desativa o aceite público em vez de reabri-lo com segredo fraco.
       pelo banco. O clone de desenvolvimento não tem duplicatas hoje, mas a produção
       não foi verificada; adicionar o índice único exige essa checagem antes, sob pena
       de a migration falhar no deploy. Registrado como pendência em §4.2.)*
-- [x] Não silenciar falha parcial. Se um efeito não puder compartilhar transação,
+- [ ] Não silenciar falha parcial. Se um efeito não puder compartilhar transação,
       registrar estado recuperável e processamento idempotente; não afirmar sucesso
       antes da conclusão contratada.
+      **Reaberto na reauditoria:** o caminho de recuperação duplica OS sob
+      concorrência. Ver §4.5. O restante do item, descrito abaixo, continua válido.
       *(Falha na geração da OS reverte status e consumo do código juntos, grava uma
       trilha `ACEITE_REVERTIDO` e responde erro — o cliente continua com um código
       utilizável em vez de ficar sem saída. A trilha do aceite **não** é apagada: fica
@@ -537,7 +555,10 @@ devem ser criados antecipadamente apenas para encerrar este gate.
       lido por mais gente do que a resposta.)*
 - [ ] Definir métricas agregadas e alertas para aumento anormal de `401`, `403`,
       `404` público, `429`, conflitos e falhas parciais.
-      *(**Bloqueado por dependência ausente.** O projeto não tem backend de métricas:
+      *(**Bloqueado por decisão de infraestrutura.** A proposta com três opções, custo,
+      operação e recomendação está em
+      [`10-observabilidade-e-logs-producao.md`](./10-observabilidade-e-logs-producao.md) §2.
+      O projeto não tem backend de métricas:
       nenhum Prometheus, Sentry, OpenTelemetry ou equivalente no backend. Escolher e
       implantar um é decisão de infraestrutura, fora do recorte do hotfix. O que ficou
       pronto é o substrato: os eventos acima já saem em formato agregável, então os
@@ -552,7 +573,15 @@ devem ser criados antecipadamente apenas para encerrar este gate.
       espaço IPv4 inteiro é força-brutável a partir do log, e o pseudônimo não
       protegeria nada. A contrapartida assumida: a correlação vale dentro da vida do
       processo e se perde no restart. O ID do orçamento entra em claro, por ser
-      necessário à correlação e não ser dado pessoal.)*
+      necessário à correlação e não ser dado pessoal.
+      **Precisão acrescentada na reauditoria:** o pseudônimo **não é um identificador
+      agregável**. Ele não correlaciona entre reinícios, entre réplicas nem entre
+      processos, e o número de "origens distintas" infla com o número de réplicas.
+      Métrica por tipo, motivo, rota ou id de orçamento funciona hoje; qualquer alerta
+      do tipo "esta origem está tentando há horas" não funciona e não deve ser
+      prometido. A tabela do que é e do que não é mensurável, a análise de HMAC
+      rotacionável, a cardinalidade por campo e a retenção estão em
+      [`10-observabilidade-e-logs-producao.md`](./10-observabilidade-e-logs-producao.md) §1.)*
 - [x] Documentar procedimento de rollback que preserve a negação por padrão.
       *(Verificado empiricamente em §2.7: o DDL inverso não ressuscita nenhum segredo
       em texto claro, e a aplicação sobre o schema revertido aborta a emissão em vez
@@ -570,7 +599,12 @@ devem ser criados antecipadamente apenas para encerrar este gate.
 
 ## 4. Testes e evidências obrigatórias
 
-- [ ] Matriz endpoint × público/autenticado × permissão × tenant revisada.
+- [x] Matriz endpoint × público/autenticado × permissão × tenant revisada.
+      *([`11-matriz-endpoints-orcamentos-v2.md`](./11-matriz-endpoints-orcamentos-v2.md):
+      os 64 endpoints dos 7 controllers, com permissão, escopo de tenant, origem da
+      identidade, caso de uso e teste correspondente. Três achados, todos tratados:
+      um vazamento cross-tenant em `acessarLinkPublico`, dois endpoints sem contrato
+      fechados com `501` e uma camada de logs de depuração com custo e margem.)*
 - [x] Testes unitários de permissão, token, expiração, tentativas e sanitização.
       *(`vendas-permissions.service.spec.ts` para permissão;
       `codigo-aprovacao.spec.ts`, 11 casos, para entropia, hash, expiração UTC e
@@ -578,7 +612,9 @@ devem ser criados antecipadamente apenas para encerrar este gate.
       inválido, expirado, revogado, teto de tentativas, ausência de código, revogação
       por edição, indistinguibilidade das recusas e resposta sem vazamento do
       segredo.)*
-- [ ] Integração com dois tenants cobrindo leitura e mutação por IDs trocados.
+- [x] Integração com dois tenants cobrindo leitura e mutação por IDs trocados.
+      *(`backend/scripts/validar-cross-tenant-mysql.ts`, 30 verificações em banco
+      real — ver §4.4.)*
 - [x] Testes por persona: sem permissão, vendedor, gestor e administrador.
       *(`vendas-permissions.service.spec.ts`, 15 casos: piso por função, perfil ativo
       e inativo, outra loja, usuário inativo e inexistente.)*
@@ -592,22 +628,20 @@ devem ser criados antecipadamente apenas para encerrar este gate.
       que inicializa o `AppModule` real e falha se houver divergência.)*
 - [ ] Erros e logs não contêm token, código, stack, payload sensível ou status
       interno indevido.
-      *(Código novo verificado — ver HS-04 e HS-06. Aberto apenas quanto aos logs
-      históricos já gravados em produção.)*
+      *(Código novo verificado — ver HS-04 e HS-06, incluindo a camada de `logger.log`
+      com custo e margem encontrada na reauditoria. Aberto apenas quanto aos logs
+      históricos já gravados em produção; runbook pronto, execução bloqueada.)*
 - [x] O IP usado por rate limit e auditoria é o do cliente, e não um valor escolhido
       por quem chama.
       *(`rate-limit-acao-publica.spec.ts`, 9 casos com `supertest` sobre uma app
       configurada com o mesmo `trust proxy = 1` do `main.ts` — ver §4.3.)*
-- [ ] Teste de carga focado no caminho de autorização demonstra ausência de N+1 e
+- [x] Teste de carga focado no caminho de autorização demonstra ausência de N+1 e
       regressão aceitável registrada; consultas críticas possuem plano/índice
-      revisado quando aplicável.
+      revisado quando aplicável. *(`backend/scripts/medir-carga-autorizacao.ts` —
+      ver §4.6.)*
 - [x] Testes do backend afetado, validação Prisma quando houver schema, typecheck,
       build e `git diff --check` aprovados. *(Testes, Prisma e migration em §4.1 e
-      §2.7. `npx nest build` compila sem erro. Ressalva: o `prebuild` do `npm run
-      build` roda `prisma generate` e falhou com `EPERM` ao renomear o query engine
-      — o arquivo estava travado por processo Node em execução na máquina, não é
-      defeito do código. O client já estava gerado com os campos novos, o que o
-      typecheck e os testes contra o banco real confirmam.)*
+      §2.7. O `EPERM` do `prebuild` foi diagnosticado e resolvido — ver §4.7.)*
 
 ### 4.1 Evidências desta entrega
 
@@ -627,7 +661,8 @@ Ressalva de ambiente: MariaDB 10.4 não é MySQL 8. A DDL desta migration
 (`ADD COLUMN` de `CHAR`, `DATETIME(3)` e `INT NOT NULL DEFAULT`) está no subconjunto
 comum aos dois, e as garantias exercitadas — `UPDATE ... WHERE` condicional, contador
 por `increment`, rollback de transação — são de InnoDB, não do dialeto. Ainda assim,
-uma validação em MySQL 8 antes do deploy é o ideal, e não foi possível aqui.
+argumento de dialeto não substitui execução: a validação em MySQL 8 é o job de CI
+descrito em §4.8, e o HS-04 só fecha depois que ele passar.
 
 **Frontend — baseline, não aprovação.** O typecheck do frontend **não passa** e já não
 passava antes deste gate. O que está demonstrado é ausência de regressão:
@@ -657,6 +692,10 @@ anterior ao Gate 0S.
 OS por orçamento é garantida pela condição de transição do aceite, não pelo banco. O
 índice único seria a garantia estrutural que o HS-05 pede, e é viável — `NULL` não
 conflita em `UNIQUE` no MySQL, então OS avulsa continua permitida.
+
+A reauditoria do HS-05 mostrou que isto deixou de ser uma pendência teórica: sem o
+índice, o caminho de recuperação duplica OS de forma determinística sob concorrência
+(§4.5).
 
 O que impede aplicá-lo agora: uma migration com `UNIQUE` **falha no deploy** se houver
 duplicata pré-existente. O clone de desenvolvimento não tem nenhuma, mas a produção não
@@ -709,22 +748,187 @@ passaria a confiar no `X-Forwarded-For` de qualquer um. Não é uma propriedade 
 código, é do deploy, e continua valendo o contador persistente
 `codigo_aprovacao_tentativas` como defesa que não depende de IP nenhum.
 
+### 4.4 Dois tenants em banco real — 30/30
+
+`backend/scripts/validar-cross-tenant-mysql.ts` cria duas lojas completas, com usuário
+ativo, usuário inativo, cliente, orçamento, produto e mensagem de chat em cada uma, e
+tenta operar os dados da loja B com a identidade da loja A. Reprodução:
+
+```bash
+cd backend && npx ts-node scripts/validar-cross-tenant-mysql.ts
+```
+
+O script recusa rodar fora do banco declarado em `GATE0S_BANCO_PERMITIDO` (padrão
+`comunikapp_gate0s`), porque apaga lojas inteiras ao final.
+
+| Grupo | O que foi tentado com id da outra loja | Resultado |
+|---|---|---|
+| Leitura | `buscarOrcamento`, `listarOrcamentos` | `404`; a listagem da loja A traz só o próprio orçamento |
+| Mutação | `atualizarOrcamento`, `alterarStatus`, `removerOrcamento`, `fecharPedidoInterno`, `enviarOrcamento` | Todas negadas; o orçamento da loja B ficou byte a byte igual |
+| Impressão | PDF, relatório de custos, proposta comercial | `404` |
+| Chat | buscar, enviar, marcar lidas, estatísticas | `404`; nenhuma mensagem da loja B foi marcada |
+| Produto-detalhes | Resolução por `orcamento: { loja_id }` | `null` |
+| Links | listar, criar, **acessar por token** | Negados; contador de visualização do link alheio não foi incrementado |
+| Rota pública | Payload da proposta | Sem custo, margem, impostos, código ou observação interna |
+| Rota pública | Orçamento inexistente × código errado | Mensagem idêntica — sem oráculo de existência |
+| Autorização | Vendedor ativo, outra loja, usuário inativo, revogação, `proposta.excluir` | Piso concede o previsto; revogação vale na decisão seguinte, sem TTL; `excluir` negado a vendedor autenticado |
+| Auditoria | Trilha do orçamento da loja B | Zero registros — nenhuma tentativa cross-tenant deixou rastro no tenant alvo |
+
+Dois defeitos foram encontrados **por** este teste e corrigidos: o payload público
+expunha custo e margem por produto, e `acessarLinkPublico` resolvia o link só pelo
+token. Detalhes na [matriz](./11-matriz-endpoints-orcamentos-v2.md) §4.
+
+### 4.5 Reauditoria do HS-05 — 12/13, com uma falha material
+
+`backend/scripts/validar-aceite-hs05-mysql.ts`, contra banco real:
+
+| Verificação | Resultado |
+|---|---|
+| Aceite público transita, queima o código, gera 1 OS e grava trilha | Passa |
+| OS é gerada **depois** do commit — outra conexão já vê `aprovado` durante a geração | Passa |
+| Trilha sem token, e-mail, documento, custo ou margem | Passa |
+| IP e user-agent vêm do contexto confiável, não da query | Passa |
+| 12 aceites públicos simultâneos → 1 OS e 1 trilha | Passa |
+| 12 aprovações internas simultâneas → 1 OS e 1 trilha | Passa |
+| Falha da auditoria reverte mutação e queima do código juntas | Passa |
+| Após a reversão, o mesmo código ainda conclui o aceite | Passa |
+| Retry sequencial em proposta já aprovada não cria segunda OS | Passa |
+| **8 rodadas de 8 retries simultâneos em proposta aprovada sem OS** | **Falha: 8/8 rodadas duplicaram, pior caso 4 OS** |
+| Cobrança tem índice único por orçamento | Passa — duplicata é impossível no banco |
+| OS **não** tem índice único por orçamento | Confirmado |
+
+**A falha.** O caminho de recuperação de `fecharPedidoInterno` — proposta já
+`aprovado` mas sem OS — decide criar a OS com base em um `findFirst` anterior. Isso é
+exatamente a "consulta prévia" que o próprio HS-05 declara insuficiente. O caminho
+principal do aceite está serializado pelo `UPDATE ... WHERE` condicional e resiste a
+12 requisições simultâneas; o caminho de recuperação não tem transição de estado para
+serializar, porque o estado já é o final.
+
+É determinístico: as 8 rodadas duplicaram, com pior caso de 4 OS para o mesmo
+orçamento. Não é uma corrida rara.
+
+**O que isso significa para o gate.** O item "retry recupera efeitos pendentes sem
+duplicação" está reaberto. As três saídas possíveis estão em §4.5.1; nenhuma foi
+aplicada porque todas envolvem decisão que não cabe ao agente.
+
+#### 4.5.1 Saídas possíveis para a duplicação na recuperação
+
+| Opção | O que garante | O que custa |
+|---|---|---|
+| Índice único em `ordens_servico.orcamento_id` | Garantia estrutural, a que o HS-05 pede | A migration **falha no deploy** se a produção tiver duplicata. Exige a consulta de §4.2 antes, e não temos acesso ao banco de produção |
+| Criar a OS dentro da transação do aceite | Serializa pelo mesmo mecanismo do caminho principal | Exige `OsService.criarOSDeOrcamento` aceitar um `TransactionClient`; é refactor de um service fora do escopo do gate |
+| Desabilitar o caminho de recuperação concorrente | Nega por padrão, como o gate manda | Proposta aprovada que ficou sem OS passa a exigir intervenção manual |
+
+### 4.6 Carga e desempenho do caminho de autorização
+
+`backend/scripts/medir-carga-autorizacao.ts`, 10 usuários em 2 lojas, contra o banco
+real. Este é o **baseline**, não um SLA: não havia medição anterior para comparar.
+
+| Cenário | p50 | p95 | p99 | Throughput | Consultas/decisão | Erros |
+|---|---:|---:|---:|---:|---:|---:|
+| Cache frio (1ª decisão de cada usuário) | 1,64 ms | 6,27 ms | 6,27 ms | 458/s | 2,00 | 0 |
+| Cache quente (mesmo usuário, 200 decisões) | 1,63 ms | 2,66 ms | 3,14 ms | 559/s | 2,00 | 0 |
+| Usuários diferentes da mesma loja | 1,48 ms | 2,18 ms | 2,46 ms | 627/s | 2,00 | 0 |
+| Lojas diferentes, alternando | 1,45 ms | 1,97 ms | 2,13 ms | 658/s | 2,00 | 0 |
+| Negado por permissão fora do piso | 1,51 ms | 2,35 ms | 2,57 ms | 606/s | 2,00 | 0 |
+| Negado por loja errada | 1,19 ms | 1,82 ms | 1,98 ms | 779/s | 1,00 | 0 |
+| `assertPodeQualquer`, 1ª concede | 1,47 ms | 2,27 ms | 2,72 ms | 630/s | 2,00 | 0 |
+| `assertPodeQualquer`, só a 2ª concede | 3,05 ms | 4,19 ms | 4,39 ms | 310/s | 4,00 | 0 |
+| **Endpoint real (guard + dupla checagem no service)** | 3,04 ms | 3,59 ms | 4,02 ms | 323/s | 4,00 | 0 |
+| 200 decisões simultâneas | — | — | — | 3.144/s | 1,60 | 0 |
+
+**N+1: ausente.** São 2 consultas fixas por decisão — o usuário e os perfis dele —,
+constantes ao variar usuário, loja e desfecho. A negação por loja errada custa 1
+consulta, porque para na primeira. Nada percorre lista fazendo consulta por item.
+
+**Cache: não existe.** `VendasPermissionsService` não tem cache, e é por isso que frio
+e quente custam o mesmo. A consequência é a que o gate exige e que foi verificada em
+`xt`: **revogação vale na decisão seguinte, sem TTL**. Desativar um usuário nega o
+acesso na requisição imediatamente posterior.
+
+Isso é uma escolha, não um esquecimento: o HS-01 permite cache curto por
+`(loja_id, usuario_id, session_version)`, mas cache só se justifica quando há problema
+de latência, e 2 consultas indexadas a 1,5 ms não são um problema. Introduzir cache
+agora adicionaria o risco de invalidação incorreta sem ganho mensurável.
+
+**Custo real por requisição.** As três mutações com dupla checagem pagam 4 consultas e
+~3 ms: duas no guard e duas no `assertPode` do service. É o preço de a chamada interna
+também ser autorizada.
+
+**Memória:** variação de heap desprezível (−1,0 MB medido, dentro do ruído do GC) em
+200 decisões simultâneas. **Erros:** zero em todos os cenários.
+
+**Regressões materiais:** nenhuma. Não há medição anterior, então este quadro é o
+ponto de partida contra o qual as próximas entregas devem ser comparadas.
+
+### 4.7 O `EPERM` do build
+
+**Diagnóstico não destrutivo.** O `prebuild` do `npm run build` roda `prisma generate`,
+que renomeia o arquivo do query engine. O rename falhava com `EPERM` porque o arquivo
+estava mapeado por processos Node em execução: `nest start --watch` e o `node dist/main`
+filho, mais o Next do frontend. Nenhum foi iniciado por esta tarefa — eram processos de
+desenvolvimento do usuário, identificados por PID e linha de comando, sem inspecionar
+argumentos.
+
+**Resolução.** O usuário interrompeu os processos de desenvolvimento e autorizou fazê-lo
+nas próximas vezes. Com o arquivo livre, `npm run build` completo passou, `prisma
+generate` incluído. O build só foi declarado aprovado depois disso.
+
+### 4.8 Engine do banco: MariaDB local, MySQL 8 no destino
+
+A validação de §2.7 rodou em **MariaDB 10.4.32** (XAMPP local), que é o único banco
+disponível na máquina de desenvolvimento. Isso é evidência válida, mas não equivale a
+MySQL 8.
+
+**Destino real.** As evidências disponíveis apontam MySQL 8 em produção: a
+documentação de pilha diz "MySQL", o CI usa a imagem `mysql:8.0` e
+`deploy-vps-branch-atual.sh` avisa que instalar `mariadb-client` "pode remover
+mysql-server e derrubar o banco de produção". A confirmação direta por SSH não foi
+possível — a sessão do Cloudflare Access expirou e a autenticação exige interação no
+navegador.
+
+**Lacuna encontrada no CI.** Nenhum job existente exercitava a migration: todos usam
+`prisma db push --accept-data-loss`, que sincroniza o schema sem nunca executar um
+arquivo de migration. O SQL do HS-04 portanto **nunca** havia rodado em MySQL 8.
+
+**O que foi feito.** Job `gate0s-mysql8` em `.github/workflows/ci-cd.yml`, contra
+`mysql:8.0`, que:
+
+1. registra `VERSION()` e `@@version_comment` do serviço, para a evidência dizer em
+   qual engine rodou;
+2. materializa o schema com `db push` — o histórico de migrations não roda do zero
+   (§2.8);
+3. executa `scripts/preparar-estado-pre-migration-hs04.ts`, que remove as colunas do
+   HS-04 e semeia um orçamento com código legado em texto claro, reconstruindo o
+   estado exato anterior à migration;
+4. aplica o SQL de `20260731143000_orcamento_codigo_aprovacao_seguro` diretamente;
+5. roda `scripts/verificar-migration-hs04.ts` — tipos, nulabilidade, `DEFAULT`,
+   ausência de índice no hash e invalidação dos códigos legados;
+6. roda os três scripts de validação: código de aprovação, cross-tenant e aceite.
+
+Enquanto o job não tiver executado ao menos uma vez, **HS-04 não pode ser declarado
+compatível com MySQL 8**. Inspeção da DDL não substitui execução.
+
 ## 5. Gate de conclusão
 
-**Situação em 2026-07-31: o Gate 0S NÃO está concluído.**
+**Situação em 2026-07-31: Gate 0S não concluído — Fase 1 não liberada.**
 
-Fechados nesta entrega: a validação da migration em banco real (§2.7), o HS-05 inteiro
-(caso de uso único, atomicidade, idempotência, concorrência e auditoria transacional) e
-a maior parte do HS-06.
+Fechados até aqui: a validação da migration em banco real (§2.7), o isolamento
+multi-tenant com dois tenants (§4.4), a matriz de endpoints, o teste de carga do
+caminho de autorização (§4.6), o build completo (§4.7) e a maior parte do HS-06.
 
 O que mantém o gate aberto:
 
-- **HS-04**: revisão dos logs históricos já gravados em produção — depende de acesso ao
-  ambiente, não pode ser feita daqui.
-- **HS-06**: métricas agregadas e alertas — o projeto não tem backend de observabilidade
-  e escolher um é decisão de infraestrutura.
-- **Evidências §4**: matriz endpoint × tenant × permissão, teste de integração com dois
-  tenants e teste de carga do caminho de autorização.
+- **HS-05, reaberto**: o caminho de recuperação duplica OS sob concorrência (§4.5).
+  Exige decisão entre índice único, transação estendida ou desativação do caminho.
+- **HS-04, engine**: a migration nunca rodou em MySQL 8. O job de CI existe (§4.8),
+  mas ainda não executou.
+- **HS-04, logs históricos**: runbook pronto
+  ([anexo](./10-observabilidade-e-logs-producao.md) §3); execução bloqueada por acesso
+  ao ambiente e autorização específica.
+- **HS-06**: métricas e alertas dependem de escolher um backend de observabilidade
+  ([anexo](./10-observabilidade-e-logs-producao.md) §2, com recomendação).
+- **HS-03**: varredura dos demais pontos que leem `x-forwarded-for` diretamente.
 
 Nenhuma fase funcional de Vendas está liberada.
 

@@ -168,6 +168,89 @@ jobs:
         working-directory: backend
         run: npx prisma generate
 
+  # Gate 0S / HS-04 e HS-05. Os demais jobs usam `prisma db push`, que sincroniza
+  # o schema sem nunca executar um arquivo de migration — ou seja, o SQL do HS-04
+  # não era exercitado em MySQL 8 por nenhum job existente. Este job aplica a
+  # migration de verdade e roda contra ela os testes de isolamento multi-tenant,
+  # de código de aprovação e de aceite concorrente.
+  #
+  # O estado pré-migration é montado por script porque o histórico de migrations
+  # do repositório não roda do zero (ver §2.8 de
+  # docs/modulo-vendas/fase-0/09-gate-hotfix-seguranca.md).
+  gate0s-mysql8:
+    name: Gate 0S — migration e testes em MySQL 8
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: comunikapp_gate0s
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/comunikapp_gate0s
+      ESTOQUE_DATABASE_URL: mysql://root:root@127.0.0.1:3306/comunikapp_gate0s
+      GATE0S_BANCO_PERMITIDO: comunikapp_gate0s
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependências
+        working-directory: backend
+        run: npm ci
+
+      - name: Gerar cliente Prisma
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: Registrar engine e versão do banco
+        run: mysql -h 127.0.0.1 -uroot -proot -e "SELECT VERSION(), @@version_comment;"
+
+      - name: Materializar o schema
+        working-directory: backend
+        run: npx prisma db push --accept-data-loss
+
+      - name: Voltar ao estado anterior à migration do HS-04
+        working-directory: backend
+        run: npx ts-node scripts/preparar-estado-pre-migration-hs04.ts
+
+      - name: Aplicar a migration do HS-04
+        run: |
+          mysql -h 127.0.0.1 -uroot -proot comunikapp_gate0s \
+            < backend/prisma/migrations/20260731143000_orcamento_codigo_aprovacao_seguro/migration.sql
+
+      - name: Verificar o efeito estrutural da migration
+        working-directory: backend
+        run: npx ts-node scripts/verificar-migration-hs04.ts
+
+      - name: HS-04 — código de aprovação em banco real
+        working-directory: backend
+        run: npx ts-node scripts/validar-codigo-aprovacao-mysql.ts
+
+      - name: HS-01 e HS-02 — isolamento entre dois tenants
+        working-directory: backend
+        run: npx ts-node scripts/validar-cross-tenant-mysql.ts
+
+      - name: HS-05 — aceite atômico, idempotente e concorrente
+        working-directory: backend
+        run: npx ts-node scripts/validar-aceite-hs05-mysql.ts
+
   generate-openapi:
     name: Gerar OpenAPI
     runs-on: ubuntu-latest

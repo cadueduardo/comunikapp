@@ -473,6 +473,7 @@ export class LinksV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async acessarLinkPublico(
     @Param('token') token: string,
+    @Identidade() identidade: IdentidadeAutenticada,
     @Query('senha') senha?: string,
     @Query('ip') ip?: string,
     @Query('user_agent') userAgent?: string,
@@ -480,6 +481,7 @@ export class LinksV2Controller {
     try {
       const resultado = await this.linksV2Service.acessarLinkPublico(
         token,
+        identidade.lojaId,
         senha,
         ip,
         userAgent,

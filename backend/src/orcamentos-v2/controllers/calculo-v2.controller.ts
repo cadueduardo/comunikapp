@@ -11,6 +11,7 @@ import {
   HttpStatus,
   HttpCode,
   NotFoundException,
+  NotImplementedException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -443,14 +444,19 @@ export class CalculoV2Controller {
   }
 
   /**
-   * Simula alterações no orçamento
+   * Simula alterações no orçamento.
+   *
+   * Gate 0S: o corpo devolvia números fixos (`valor_original: 1000`) sem sequer
+   * resolver o orçamento na loja autenticada. Um endpoint que responde `200`
+   * com valor inventado é pior que um que não existe, porque o consumidor não
+   * tem como distinguir. Fica fechado até a Fase 2 definir o contrato.
    */
   @Post(':id/simular')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NOT_IMPLEMENTED)
   @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @ApiOperation({
     summary: 'Simula alterações',
-    description: 'Simula alterações no orçamento sem salvar',
+    description: 'Não implementado. Contrato pendente da Fase 2.',
   })
   @ApiParam({ name: 'id', description: 'ID do orçamento' })
   @ApiBody({
@@ -486,37 +492,9 @@ export class CalculoV2Controller {
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
-  async simularAlteracoes(
-    @Param('id') orcamentoId: string,
-    @Body()
-    dados: {
-      alteracoes: any;
-      incluir_comparativo?: boolean;
-    },
-    @Identidade() identidade: IdentidadeAutenticada,
-  ) {
-    try {
-      // TODO: Implementar simulação de alterações
-      const simulacao = {
-        simulacao_id: `sim_${Date.now()}`,
-        valor_original: 1000,
-        valor_simulado: 1100,
-        diferenca: 100,
-        percentual_variacao: 10,
-        detalhes: {
-          alteracoes: dados.alteracoes,
-          timestamp: new Date().toISOString(),
-        },
-      };
-
-      return {
-        success: true,
-        message: 'Simulação executada com sucesso',
-        data: simulacao,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      throw error;
-    }
+  simularAlteracoes(): never {
+    throw new NotImplementedException(
+      'Simulação de alterações ainda não está disponível.',
+    );
   }
 }

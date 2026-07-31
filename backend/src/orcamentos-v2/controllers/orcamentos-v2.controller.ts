@@ -15,6 +15,7 @@ import {
   UseInterceptors,
   UploadedFile,
   ValidationPipe,
+  NotImplementedException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -715,37 +716,23 @@ export class OrcamentosV2Controller {
   }
 
   /**
-   * Exporta orçamento em diferentes formatos
+   * Exporta orçamento em diferentes formatos.
+   *
+   * Gate 0S: nunca exportou nada — devolvia `200` com a frase "será
+   * implementada" e lançava `Error` cru (`500`) para formato desconhecido. A
+   * exportação real existe em `orcamentos-v2/impressao`. Fica fechado para não
+   * manter uma superfície autenticada que só produz resposta enganosa.
    */
   @Get(':id/exportar/:formato')
   @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
-  @ApiOperation({ summary: 'Exportar orçamento em diferentes formatos' })
-  @ApiResponse({ status: 200, description: 'Arquivo exportado com sucesso' })
-  @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
-  @ApiResponse({ status: 400, description: 'Formato não suportado' })
-  @ApiResponse({ status: 401, description: 'Não autorizado' })
-  async exportarOrcamento(
-    @Param('id') id: string,
-    @Param('formato') formato: string,
-    @Request() req: any,
-  ) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
-    const orcamento = await this.orcamentosService.buscarOrcamento(id, lojaId);
-
-    // Validar formato
-    const formatosSuportados = ['pdf', 'excel', 'csv'];
-    if (!formatosSuportados.includes(formato.toLowerCase())) {
-      throw new Error(
-        `Formato não suportado. Use: ${formatosSuportados.join(', ')}`,
-      );
-    }
-
-    // TODO: Implementar exportação real
-    return {
-      mensagem: `Exportação em ${formato.toUpperCase()} será implementada`,
-      orcamento_id: id,
-      formato,
-      timestamp: new Date(),
-    };
+  @HttpCode(HttpStatus.NOT_IMPLEMENTED)
+  @ApiOperation({
+    summary: 'Não implementado. Use os endpoints de impressão.',
+  })
+  @ApiResponse({ status: 501, description: 'Exportação não disponível' })
+  exportarOrcamento(): never {
+    throw new NotImplementedException(
+      'Exportação não disponível. Use os endpoints de impressão da proposta.',
+    );
   }
 }

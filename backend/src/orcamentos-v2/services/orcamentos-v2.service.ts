@@ -629,7 +629,7 @@ export class OrcamentosV2Service {
 
       if (deveExecutarMotor) {
         this.logger.log(
-          `💰 Calculando custos via motor V2 para novo orcamento: custo_total=${dados.custo_total}, preco_final=${dados.preco_final}`,
+          `💰 Calculando custos via motor V2 para novo orcamento`,
         );
 
         const orcamentoParaMotor = {
@@ -1074,44 +1074,11 @@ export class OrcamentosV2Service {
         this.prisma.orcamento.count({ where }),
       ]);
 
-      // Debug: verificar se status_aprovacao está sendo retornado
-      this.logger.log(
-        `🔍 Debug - Total de orçamentos encontrados: ${orcamentos.length}`,
+      this.logger.log(`📋 Orçamentos encontrados: ${orcamentos.length}`);
+
+      const orcamentosTransformados = orcamentos.map((o) =>
+        this.transformacaoService.transformarParaInterface(o),
       );
-
-      if (orcamentos.length > 0) {
-        this.logger.log(`🔍 Debug - Primeiro orçamento - Dados brutos:`, {
-          id: orcamentos[0].id,
-          status: orcamentos[0].status,
-          status_aprovacao: orcamentos[0].status_aprovacao,
-          hasStatusAprovacao: 'status_aprovacao' in orcamentos[0],
-          keys: Object.keys(orcamentos[0]),
-        });
-      }
-
-      const orcamentosTransformados = orcamentos.map((o, index) => {
-        const transformado =
-          this.transformacaoService.transformarParaInterface(o);
-        if (index === 0) {
-          this.logger.log(`🔍 Debug - Primeiro orçamento - Transformado:`, {
-            id: transformado.id,
-            status: transformado.status,
-            status_aprovacao: transformado.status_aprovacao,
-            hasStatusAprovacao: 'status_aprovacao' in transformado,
-          });
-        }
-        return transformado;
-      });
-
-      // Debug: verificar se status_aprovacao está sendo retornado na resposta final
-      this.logger.log(`🔍 Debug - Resposta final - Primeiro orçamento:`, {
-        id: orcamentosTransformados[0]?.id,
-        status: orcamentosTransformados[0]?.status,
-        status_aprovacao: orcamentosTransformados[0]?.status_aprovacao,
-        hasStatusAprovacao: orcamentosTransformados[0]
-          ? 'status_aprovacao' in orcamentosTransformados[0]
-          : false,
-      });
 
       return {
         orcamentos: orcamentosTransformados,
@@ -1409,19 +1376,8 @@ export class OrcamentosV2Service {
         }
       } else if (false && temCustosValidos) {
         this.logger.log(
-          `💰 Usando custos calculados do frontend para orçamento ${id}: custo_total=${dados.custo_total}, preco_final=${dados.preco_final}`,
+          `💰 Usando custos calculados do frontend para orçamento ${id}`,
         );
-
-        // Debug: verificar dados recebidos
-        this.logger.log(`🔍 Debug - Dados recebidos do frontend:`, {
-          custo_material: dados.custo_material,
-          custo_mao_obra: dados.custo_mao_obra,
-          custo_indireto: dados.custo_indireto,
-          custo_total: dados.custo_total,
-          margem_lucro: dados.margem_lucro,
-          impostos: dados.impostos,
-          preco_final: dados.preco_final,
-        });
 
         // Salvar os custos do frontend no banco
         const dadosParaSalvar = {
@@ -1435,22 +1391,9 @@ export class OrcamentosV2Service {
           data_ultimo_calculo: new Date(),
         };
 
-        this.logger.log(
-          `🔍 Debug - Dados que serão salvos no banco:`,
-          dadosParaSalvar,
-        );
-
-        const resultadoUpdate = await this.prisma.orcamento.update({
+        await this.prisma.orcamento.update({
           where: { id },
           data: dadosParaSalvar,
-        });
-
-        this.logger.log(`🔍 Debug - Resultado do UPDATE:`, {
-          id: resultadoUpdate.id,
-          preco_final: resultadoUpdate.preco_final,
-          margem_lucro: resultadoUpdate.margem_lucro,
-          impostos: resultadoUpdate.impostos,
-          custo_total: resultadoUpdate.custo_total,
         });
 
         this.logger.log(
@@ -1853,7 +1796,7 @@ export class OrcamentosV2Service {
     const impostos = custos.impostos || 0;
 
     this.logger.log(
-      `💰 Atualizando custos calculados para orçamento ${orcamentoId}: preço_final=${preco_final}`,
+      `💰 Atualizando custos calculados para orçamento ${orcamentoId}`,
     );
 
     await this.prisma.orcamento.update({
@@ -2190,9 +2133,6 @@ export class OrcamentosV2Service {
           // despejavam custo de produção, margem de lucro e impostos de cada
           // produto. Além de ser dado comercial interno em log, o gatilho era
           // uma rota anônima: qualquer visitante conseguia inflar o volume.
-          const custoTotalProducaoConvertido =
-            Number(produto.custo_total_producao) || 0;
-
           const precoTotalDistribuido =
             precosDistribuidos[indice]?.preco_total || 0;
           const precosPdf = resolverPrecosPdfComArte(
@@ -2221,9 +2161,13 @@ export class OrcamentosV2Service {
             preco_unitario: precosPdf.preco_unitario,
             preco_total: precosPdf.preco_total,
             linha_arte: precosPdf.linha_arte,
-            custo_total_producao: custoTotalProducaoConvertido,
-            margem_lucro: Number(produto.margem_lucro) || 0,
-            impostos: Number(produto.impostos) || 0,
+            // Gate 0S / HS-02: `custo_total_producao`, `margem_lucro` e
+            // `impostos` saíam daqui por produto. O comentário de `preco_final`
+            // logo acima já dizia "APENAS o preço final, sem detalhes de
+            // custos" — a intenção estava certa e o código a contradizia.
+            // A rota é anônima: bastava conhecer o id do orçamento para ler a
+            // estrutura de custo e a margem da loja. O único consumidor no
+            // frontend eram `console.log` de depuração, também removidos.
             observacoes: produto.observacoes,
           };
         }) || [],
@@ -2297,7 +2241,10 @@ export class OrcamentosV2Service {
         undefined,
       validade_proposta: orcamento.validade_proposta,
       atendente: orcamento.atendente,
-      observacoes: orcamento.observacoes_internas,
+      // Gate 0S / HS-02: `observacoes` devolvia `observacoes_internas`, a nota
+      // que a equipe escreve para si mesma, numa rota anônima. Nenhuma tela
+      // pública consumia o campo. O que o cliente vê é `observacoes_cliente`,
+      // devolvido acima com esse nome.
       entrega_valor_cobrado: entregaValorCobrado,
       entrega_modalidade_nome:
         orcamento.entrega_modalidade?.nome?.trim() ||

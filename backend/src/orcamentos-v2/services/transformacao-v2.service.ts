@@ -420,16 +420,6 @@ export class TransformacaoV2Service {
   transformarParaInterface(dados: any): OrcamentoCompleto {
     this.logger.log(`🔄 Transformando dados do banco para interface`);
 
-    // Debug: verificar dados do banco
-    this.logger.log(`🔍 Debug - Dados do banco:`, {
-      id: dados.id,
-      preco_final: dados.preco_final,
-      custo_total: dados.custo_total,
-      margem_lucro: dados.margem_lucro,
-      impostos: dados.impostos,
-      criado_em: dados.criado_em,
-    });
-
     const configuracoesPersistidas =
       this.parseConfiguracaoCalculo(dados.configuracoes) ??
       this.parseConfiguracaoCalculo(dados.configuracao_calculo);
@@ -543,16 +533,6 @@ export class TransformacaoV2Service {
       mensagensChat: this.transformarMensagens(dados.mensagensChat),
       anexos: this.transformarAnexos(dados.anexos),
     };
-
-    // Debug: verificar dados transformados
-    this.logger.log(`🔍 Debug - Dados transformados:`, {
-      id: orcamento.id,
-      preco_final: orcamento.custos?.preco_final,
-      custo_total: orcamento.custos?.custo_total,
-      margem_lucro: orcamento.custos?.margem_lucro,
-      impostos: orcamento.custos?.impostos,
-      data_criacao: orcamento.data_criacao,
-    });
 
     this.logger.log(`✅ Dados transformados para interface`);
     return orcamento;
