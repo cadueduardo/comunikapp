@@ -1231,7 +1231,7 @@ atual do ComunikApp, considerar o módulo **funcionalmente completo** somente qu
 ## 15. Questões de produto que precisam de decisão antes do código
 
 > **O registro oficial de decisão é
-> [`fase-0/02-decisoes-dv-01-dv-12.md`](./fase-0/02-decisoes-dv-01-dv-12.md).** A
+> [`fase-0/02-registro-de-decisoes.md`](./fase-0/02-registro-de-decisoes.md).** A
 > tabela abaixo permanece como resumo da recomendação inicial. O registro contém as
 > opções detalhadas, o impacto de cada uma e quatro decisões adicionais nascidas da
 > auditoria: **DV-13** (estratégia de autorização), **DV-14** (reconciliação de

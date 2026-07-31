@@ -105,7 +105,7 @@ explicitamente dentro dos services. É esse o padrão que Vendas deve seguir, n�
 
 ### Decisão exigida
 
-Ver **DV-13** em `02-decisoes-dv-01-dv-12.md`. Vendas não pode nascer em cima de um
+Ver **DV-13** em `02-registro-de-decisoes.md`. Vendas não pode nascer em cima de um
 mecanismo inerte, e também não pode consertar o RBAC de todo o ERP dentro do seu
 escopo.
 

@@ -1,7 +1,7 @@
 # Módulo de Vendas
 
 **Status:** Fase 0 executada — **aguardando decisão do product owner** sobre as 16
-questões de `fase-0/02-decisoes-dv-01-dv-12.md`. Implementação de código **não
+questões de `fase-0/02-registro-de-decisoes.md`. Implementação de código **não
 iniciada**.
 
 | Documento | Conteúdo |

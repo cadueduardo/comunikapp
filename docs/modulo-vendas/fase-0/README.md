@@ -14,15 +14,20 @@ Esta pasta é o endereço oficial dos entregáveis da Fase 0 definidos em
 | # | Documento | Entregável do plano | Estado |
 |---|-----------|---------------------|--------|
 | 01 | [Auditoria do estado real](./01-auditoria-estado-real.md) | Inventário atualizado de reuso e dívidas | Concluído |
-| 02 | [Decisões DV-01 a DV-16](./02-decisoes-dv-01-dv-12.md) | Registro de decisões | **Bloqueado — aguarda PO** |
+| 02 | [Decisões DV-01 a DV-16](./02-registro-de-decisoes.md) | Registro de decisões | **Bloqueado — aguarda PO** |
 | 03 | [Nomenclatura canônica e matriz RBAC](./03-nomenclatura-e-matriz-rbac.md) | Matriz inicial de permissões | Proposto |
 | 04 | [Máquina de estados comercial](./04-maquina-de-estados-comercial.md) | Máquina de estados proposta | Proposto |
 | 05 | [Matriz de gates](./05-matriz-de-gates.md) | Matriz de gates por cenário | Proposto |
 | 06 | [Plano de migrations](./06-plano-de-migrations.md) | Plano de migrations | Proposto |
 | 07 | [Matriz de rastreabilidade](./07-matriz-de-rastreabilidade.md) | Matriz de testes e rastreabilidade | Proposto |
+| 08 | [Resumo executivo das decisões](./08-resumo-executivo-decisoes.md) | Apoio à reunião de kickoff | Concluído |
 
 "Proposto" significa que o artefato está completo, mas depende de uma ou mais
 decisões do documento 02 para virar contrato.
+
+O documento 08 não é entregável previsto no plano: é um recorte do documento 02
+organizado por urgência, para a reunião de decisão. O estado oficial de cada
+decisão continua sendo o do documento 02.
 
 ---
 

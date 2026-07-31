@@ -219,7 +219,7 @@ flowchart TD
 > oficiais e precisam ser reconciliadas antes do primeiro PR de código. A
 > recomendação da Fase 0 é antecipar a Fase 3 **apenas com navegação e cards para
 > rotas já existentes**, sem KPI, fila ou dado novo — o que a torna independente de
-> F1 e F2. Ver `fase-0/02-decisoes-dv-01-dv-12.md`, DV-16.
+> F1 e F2. Ver `fase-0/02-registro-de-decisoes.md`, DV-16.
 
 ### Marcos de produto
 
@@ -278,7 +278,7 @@ qualquer migration ou alteração de fluxo.
 
 ### Entregáveis
 
-- [x] Registro de decisões — `fase-0/02-decisoes-dv-01-dv-12.md`
+- [x] Registro de decisões — `fase-0/02-registro-de-decisoes.md`
       (16 decisões registradas; **nenhuma fechada**).
 - [x] Inventário atualizado de reuso e dívidas — `fase-0/01-auditoria-estado-real.md`.
 - [x] Matriz inicial de permissões — `fase-0/03-nomenclatura-e-matriz-rbac.md`,
@@ -289,12 +289,14 @@ qualquer migration ou alteração de fluxo.
 - [x] Plano de migrations, sem aplicar estrutura especulativa —
       `fase-0/06-plano-de-migrations.md`.
 - [x] Matriz de testes e rastreabilidade — `fase-0/07-matriz-de-rastreabilidade.md`.
+- [x] Apoio extra, não previsto no plano: resumo executivo das decisões para a
+      reunião de kickoff — `fase-0/08-resumo-executivo-decisoes.md`.
 
 ### Gate de conclusão
 
 - [ ] **FASE 0 CONCLUÍDA:** não há decisão P0 de produto/arquitetura pendente para
       iniciar contratos e segurança.
-      **Bloqueado:** 16 decisões pendentes em `fase-0/02-decisoes-dv-01-dv-12.md`.
+      **Bloqueado:** 16 decisões pendentes em `fase-0/02-registro-de-decisoes.md`.
 
 ---
 
