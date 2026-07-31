@@ -21,14 +21,30 @@ const FORMATO_DE_IP = /^[0-9a-fA-F:.]{3,45}$/;
 /**
  * Extrai o IP do cliente dos cabeçalhos definidos pelo proxy de borda.
  *
- * Usa o **primeiro** elemento de `X-Forwarded-For` porque é ali que o Nginx
- * coloca `$remote_addr`. Retorna `null` quando não há cabeçalho confiável —
- * caso do desenvolvimento local, em que o Nest simplesmente usa o IP do socket.
+ * Ordem de preferência:
+ *
+ * 1. `X-Real-IP`, que o Nginx define como `$remote_addr` e **nunca** acumula
+ *    valores. É o único cabeçalho da cadeia que não tem forma de lista, então
+ *    não existe ambiguidade sobre qual elemento é o cliente.
+ * 2. O **último** elemento de `X-Forwarded-For`, que é o acrescentado pelo
+ *    proxy imediato.
+ *
+ * O último elemento, e não o primeiro: hoje o Nginx sobrescreve o cabeçalho com
+ * um valor só, então tanto faz — mas se essa diretiva algum dia virar
+ * `$proxy_add_x_forwarded_for`, que anexa, o primeiro elemento passa a ser o
+ * que o chamador enviou. Ler da direita mantém a mesma semântica que o Express
+ * usa do outro lado (`trust proxy`), e é o que impede o repasse de um IP
+ * escolhido por quem chama.
+ *
+ * Retorna `null` quando não há cabeçalho confiável — caso do desenvolvimento
+ * local, em que o Nest simplesmente usa o IP do socket.
  */
 export function extrairIpDoCliente(headers: Headers): string | null {
+  const encaminhados = headers.get('x-forwarded-for')?.split(',') ?? [];
+
   const candidatos = [
-    headers.get('x-forwarded-for')?.split(',')[0],
     headers.get('x-real-ip'),
+    encaminhados[encaminhados.length - 1],
   ];
 
   for (const candidato of candidatos) {

@@ -4,7 +4,6 @@ import {
   NotFoundException,
   BadRequestException,
   InternalServerErrorException,
-  HttpException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { IntegracaoMotorService } from './integracao-motor.service';
@@ -60,6 +59,18 @@ import {
   ConflitoAcaoPublicaError,
   STATUS_QUE_ACEITAM_ACAO_PUBLICA,
 } from '../dto/acao-cliente-publico.dto';
+import {
+  pseudonimizar,
+  registrarEventoDeSeguranca,
+} from '../../common/security/eventos-seguranca';
+import {
+  AUDITORIA_DESCRICAO_MAX,
+  AUDITORIA_IP_MAX,
+  AUDITORIA_USER_AGENT_MAX,
+  ContextoDaRequisicao,
+  OrigemDoAceite,
+  ResultadoDoAceite,
+} from '../dto/aceite-proposta';
 
 /**
  * Serviço Principal de Orçamentos V2
@@ -1634,8 +1645,12 @@ export class OrcamentosV2Service {
             codigoAprovacao,
             linkPublico,
           );
+          // Gate 0S / HS-06: o endereço do cliente saiu da mensagem. O que o
+          // log precisa dizer é que a entrega ocorreu e para qual proposta;
+          // o destinatário está no cadastro e não precisa ser replicado em
+          // todo agregador de log que consumir esta linha.
           this.logger.log(
-            `📧 E-mail de orçamento atualizado enviado para ${orcamentoFinal.cliente.email}`,
+            `📧 E-mail de orçamento atualizado enviado para o cliente do orçamento ${id}`,
           );
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
@@ -1998,7 +2013,6 @@ export class OrcamentosV2Service {
    */
   async buscarOrcamentoPublico(id: string) {
     this.logger.log(`🔍 Buscando orçamento público: ${id}`);
-    console.log(`🔍 [PUBLICO] Buscando orçamento com ID: ${id}`);
 
     const orcamento = await this.prisma.orcamento.findUnique({
       where: { id },
@@ -2116,14 +2130,9 @@ export class OrcamentosV2Service {
     });
 
     if (!orcamento) {
-      console.log(`❌ [PUBLICO] Orçamento não encontrado com ID: ${id}`);
-      this.logger.error(`Orçamento não encontrado: ${id}`);
+      this.logger.warn(`Orçamento público não encontrado: ${id}`);
       throw new NotFoundException('Orçamento não encontrado');
     }
-
-    console.log(
-      `✅ [PUBLICO] Orçamento encontrado: ${orcamento.numero} - ${orcamento.titulo}`,
-    );
 
     let configuracaoCalculo: Record<string, unknown> = {};
     try {
@@ -2177,24 +2186,12 @@ export class OrcamentosV2Service {
       // Produtos do orçamento
       produtos:
         orcamento.produtos?.map((produto, indice) => {
-          console.log(`🔍 Debug - Produto público: ${produto.nome_servico}`, {
-            preco_unitario: produto.preco_unitario,
-            preco_total: produto.preco_total,
-            quantidade: produto.quantidade,
-            largura: produto.largura,
-            altura: produto.altura,
-            custo_total_producao: produto.custo_total_producao,
-            margem_lucro: produto.margem_lucro,
-            impostos: produto.impostos,
-          });
-
-          // Converter Decimal para Number
+          // Gate 0S / HS-06: aqui havia dois `console.log` de depuração que
+          // despejavam custo de produção, margem de lucro e impostos de cada
+          // produto. Além de ser dado comercial interno em log, o gatilho era
+          // uma rota anônima: qualquer visitante conseguia inflar o volume.
           const custoTotalProducaoConvertido =
             Number(produto.custo_total_producao) || 0;
-
-          console.log(
-            `🔍 Debug - custo_total_producao: ${produto.custo_total_producao} (tipo: ${typeof produto.custo_total_producao}) → ${custoTotalProducaoConvertido} (tipo: ${typeof custoTotalProducaoConvertido})`,
-          );
 
           const precoTotalDistribuido =
             precosDistribuidos[indice]?.preco_total || 0;
@@ -2366,8 +2363,13 @@ export class OrcamentosV2Service {
     orcamentoId: string,
     lojaId: string,
     motivo: string,
+    /**
+     * Cliente da transação, quando a revogação precisa valer ou falhar junto
+     * com a mutação que a motivou. Sem ele, roda por conta própria.
+     */
+    cliente: Prisma.TransactionClient | PrismaService = this.prisma,
   ): Promise<void> {
-    const { count } = await this.prisma.orcamento.updateMany({
+    const { count } = await cliente.orcamento.updateMany({
       where: {
         id: orcamentoId,
         loja_id: lojaId,
@@ -2527,11 +2529,262 @@ export class OrcamentosV2Service {
   }
 
   /**
+   * Gate 0S / HS-05 + HS-06 — auditoria sanitizada, gravada na transação.
+   *
+   * Recebe o cliente da transação para que a trilha só exista se a mutação
+   * existir, e vice-versa. Gravar depois da transação permitiria uma mutação
+   * sem registro se o processo caísse no meio.
+   *
+   * Sanitização: `descricao` carrega texto livre do cliente e é truncada;
+   * `dados_extras` é montado aqui, campo a campo, e **nunca** recebe código,
+   * hash, token ou payload bruto da requisição. `ip_origem` e `user_agent` vêm
+   * da política de proxy confiável, resolvida no controller.
+   */
+  private async registrarAuditoriaNaTransacao(
+    tx: Prisma.TransactionClient,
+    entrada: {
+      orcamentoId: string;
+      tipoAcao: string;
+      descricao: string;
+      origem: OrigemDoAceite;
+      autor: string;
+      statusAnterior?: string | null;
+      statusNovo?: string | null;
+      contexto?: ContextoDaRequisicao;
+    },
+  ): Promise<void> {
+    await tx.orcamentoLog.create({
+      data: {
+        orcamento_id: entrada.orcamentoId,
+        tipo_acao: entrada.tipoAcao.slice(0, 100),
+        descricao: (entrada.descricao || '').slice(0, AUDITORIA_DESCRICAO_MAX),
+        dados_extras: JSON.stringify({
+          origem: entrada.origem,
+          autor: entrada.autor,
+          status_anterior: entrada.statusAnterior ?? null,
+          status_novo: entrada.statusNovo ?? null,
+        }),
+        ip_origem: entrada.contexto?.ip?.slice(0, AUDITORIA_IP_MAX) ?? null,
+        user_agent:
+          entrada.contexto?.userAgent?.slice(0, AUDITORIA_USER_AGENT_MAX) ??
+          null,
+      },
+    });
+  }
+
+  /**
+   * Gate 0S / HS-05 — caso de uso único do aceite da proposta.
+   *
+   * Os caminhos interno e público divergem **antes** daqui (um exige permissão,
+   * o outro exige posse do código) e **depois** daqui (formato da resposta).
+   * A parte sensível — transição de estado, queima do código, auditoria e
+   * efeitos — acontece só neste método, para os dois. Enquanto existiam duas
+   * cópias, qualquer correção precisava ser feita em dobro e uma delas ficava
+   * para trás.
+   *
+   * Garantias:
+   * - **atomicidade**: queima do código, transição e auditoria na mesma
+   *   transação; ou tudo vale, ou nada vale;
+   * - **concorrência**: a serialização vem dos `UPDATE ... WHERE` condicionais,
+   *   não de leitura prévia. Duas requisições simultâneas não produzem duas
+   *   transições;
+   * - **idempotência**: quem perde a corrida não dispara efeito nenhum;
+   * - **sem rede na transação**: OS, cobrança, e-mail e notificação rodam
+   *   depois do commit.
+   */
+  private async executarAceiteDaProposta(entrada: {
+    orcamentoId: string;
+    lojaId: string;
+    origem: OrigemDoAceite;
+    autor: string;
+    /**
+     * Condição de origem do UPDATE. É o ponto de serialização: precisa excluir
+     * `aprovado`, senão duas requisições concorrentes casam com o `WHERE` e
+     * disparam dois conjuntos de efeitos.
+     */
+    filtroDeStatusDeOrigem: { in: string[] } | { notIn: string[] };
+    estadoAnterior: {
+      status: string | null;
+      statusAprovacao: string | null;
+      observacoesCliente: string | null;
+    };
+    hashDoCodigo?: string | null;
+    observacoes: string;
+    tipoAcaoAuditoria: string;
+    contexto?: ContextoDaRequisicao;
+  }): Promise<ResultadoDoAceite> {
+    const agora = new Date();
+    const {
+      orcamentoId,
+      lojaId,
+      origem,
+      autor,
+      hashDoCodigo,
+      observacoes,
+      estadoAnterior,
+    } = entrada;
+
+    const desfecho = await this.prisma
+      .$transaction(async (tx) => {
+        if (hashDoCodigo) {
+          const consumiu = await this.consumirCodigoAprovacaoNaTransacao(
+            tx,
+            orcamentoId,
+            hashDoCodigo,
+            agora,
+          );
+
+          if (!consumiu) {
+            return 'CORRIDA_PERDIDA' as const;
+          }
+        }
+
+        // É o `WHERE` que serializa: ler o status antes e decidir na aplicação
+        // deixaria a janela entre leitura e escrita aberta para uma segunda
+        // requisição.
+        const transicao = await tx.orcamento.updateMany({
+          where: {
+            id: orcamentoId,
+            status: entrada.filtroDeStatusDeOrigem,
+          },
+          data: {
+            status: 'aprovado',
+            status_aprovacao: 'APROVADO' as any,
+            observacoes_cliente: observacoes,
+            data_atualizacao: agora,
+          },
+        });
+
+        if (transicao.count !== 1) {
+          // Lançar aqui desfaz também a queima do código.
+          throw new ConflitoAcaoPublicaError();
+        }
+
+        await this.registrarAuditoriaNaTransacao(tx, {
+          orcamentoId,
+          tipoAcao: entrada.tipoAcaoAuditoria,
+          descricao: observacoes,
+          origem,
+          autor,
+          statusAnterior: estadoAnterior.status,
+          statusNovo: 'aprovado',
+          contexto: entrada.contexto,
+        });
+
+        return 'APLICADO' as const;
+      })
+      .catch((erro) => {
+        if (erro instanceof ConflitoAcaoPublicaError) {
+          return 'CONFLITO_DE_ESTADO' as const;
+        }
+        throw erro;
+      });
+
+    if (desfecho !== 'APLICADO') {
+      return { desfecho };
+    }
+
+    // A partir daqui nada roda em transação de banco: são chamadas que fazem
+    // rede, geram documento e disparam e-mail.
+    try {
+      await this.criarOSAutomaticaParaOrcamento(
+        lojaId,
+        orcamentoId,
+        autor,
+        origem === 'PUBLICO' ? 'PROCESSAR_ACAO_PUBLICA' : 'APROVACAO_INTERNA',
+      );
+    } catch (error) {
+      this.logger.error(
+        '[ACEITE] Falha ao gerar OS para o orcamento ' +
+          orcamentoId +
+          ' (origem ' +
+          origem +
+          '): ' +
+          (error as Error).message,
+      );
+
+      registrarEventoDeSeguranca({
+        tipo: 'FALHA_HANDOFF',
+        rota: 'orcamentos-v2/aceite',
+        recursoId: orcamentoId,
+        motivo: 'os_nao_gerada',
+      });
+
+      // Reverte estado, código e trilha juntos. Reverter só o status deixaria
+      // o cliente sem proposta aprovada e sem código utilizável.
+      await this.prisma.$transaction(async (tx) => {
+        await tx.orcamento.updateMany({
+          where: { id: orcamentoId },
+          data: {
+            status: estadoAnterior.status,
+            status_aprovacao: estadoAnterior.statusAprovacao ?? 'PENDENTE',
+            observacoes_cliente: estadoAnterior.observacoesCliente,
+            data_atualizacao: new Date(),
+          },
+        });
+
+        await this.registrarAuditoriaNaTransacao(tx, {
+          orcamentoId,
+          tipoAcao: 'ACEITE_REVERTIDO',
+          descricao:
+            'Aceite revertido: a geração da ordem de serviço falhou. Nenhum efeito foi mantido.',
+          origem,
+          autor,
+          statusAnterior: 'aprovado',
+          statusNovo: estadoAnterior.status,
+          contexto: entrada.contexto,
+        });
+      });
+
+      if (hashDoCodigo) {
+        await this.reverterConsumoCodigoAprovacao(orcamentoId, hashDoCodigo);
+      }
+
+      throw new InternalServerErrorException(
+        'Falha ao gerar OS automaticamente. Status do orcamento foi revertido.',
+      );
+    }
+
+    const os = await this.prisma.ordemServico.findFirst({
+      where: { loja_id: lojaId, orcamento_id: orcamentoId },
+      select: { id: true, numero: true },
+      orderBy: { criado_em: 'desc' },
+    });
+
+    // Cobrança não reverte o aceite: a proposta continua aprovada e a pendência
+    // é tratada manualmente. Reverter aqui puniria o cliente por um dado
+    // faltante no cadastro comercial.
+    try {
+      const orcamentoParaCobranca = await this.prisma.orcamento.findFirst({
+        where: { id: orcamentoId, loja_id: lojaId },
+      });
+
+      await this.criarCobrancaAposAprovacao(
+        orcamentoParaCobranca,
+        orcamentoId,
+        lojaId,
+        autor,
+      );
+      this.homeCacheService.invalidar(lojaId);
+    } catch (cobrancaError) {
+      this.logger.warn(
+        '[COBRANCA_AUTO] Aceite registrado, mas a criacao da cobranca falhou para o orcamento ' +
+          orcamentoId +
+          ': ' +
+          (cobrancaError as Error).message,
+      );
+    }
+
+    return { desfecho: 'APLICADO', osId: os?.id, osNumero: os?.numero };
+  }
+
+  /**
    * Processar ação do cliente público (aprovar/rejeitar/negociar)
    */
   async processarAcaoClientePublico(
     id: string,
     dados: AcaoClientePublicoDto,
+    contexto?: ContextoDaRequisicao,
   ) {
     const agora = new Date();
 
@@ -2544,7 +2797,13 @@ export class OrcamentosV2Service {
 
     const orcamento = await this.prisma.orcamento.findUnique({
       where: { id },
-      select: { id: true, status: true, loja_id: true },
+      select: {
+        id: true,
+        status: true,
+        loja_id: true,
+        status_aprovacao: true,
+        observacoes_cliente: true,
+      },
     });
 
     // Endpoint público: não confirmamos a existência de um orçamento para quem
@@ -2575,10 +2834,17 @@ export class OrcamentosV2Service {
       );
 
       if (verificacao.situacao === 'INVALIDO') {
-        this.logger.warn(
-          '[ACEITE_PUBLICO] Codigo de aprovacao recusado para o orcamento ' +
-            id,
-        );
+        // Gate 0S / HS-06: evento contável. O motivo é deliberadamente
+        // indiferenciado — distinguir "expirado" de "errado" aqui recriaria no
+        // log o oráculo que a resposta pública evita, e o log é lido por mais
+        // gente do que a resposta.
+        registrarEventoDeSeguranca({
+          tipo: 'TOKEN_RECUSADO',
+          rota: 'orcamentos-v2/acao-publica',
+          recursoId: id,
+          origem: contexto?.ip ? pseudonimizar(contexto.ip) : undefined,
+          motivo: 'codigo_nao_aceito',
+        });
         throw new BadRequestException(CODIGO_APROVACAO_ERRO_PUBLICO);
       }
 
@@ -2609,126 +2875,59 @@ export class OrcamentosV2Service {
     const { status: novoStatus, statusAprovacao, observacoes } =
       this.resolverTransicaoAcaoPublica(dados);
 
-    // Gate 0S / HS-05: a queima do código e a transição de estado acontecem na
-    // mesma transação. Sem isso, uma falha entre as duas deixaria o cliente
-    // com o código gasto e a proposta ainda pendente.
-    const resultado = await this.prisma.$transaction(async (tx) => {
-      if (hashConsumido) {
-        const consumiu = await this.consumirCodigoAprovacaoNaTransacao(
-          tx,
-          id,
-          hashConsumido,
-          agora,
-        );
+    const estadoAnterior = {
+      status: orcamento.status,
+      statusAprovacao: orcamento.status_aprovacao,
+      observacoesCliente: (orcamento as any).observacoes_cliente ?? null,
+    };
 
-        if (!consumiu) {
-          return 'CORRIDA_PERDIDA' as const;
-        }
-      }
+    // Gate 0S / HS-05: APROVAR entra no caso de uso único, o mesmo que a
+    // aprovação interna usa. Rejeição e negociação não geram OS nem cobrança,
+    // então seguem pela transição simples — que também grava auditoria na
+    // própria transação.
+    const resultado =
+      dados.acao === 'APROVAR'
+        ? await this.executarAceiteDaProposta({
+            orcamentoId: id,
+            lojaId: lojaContexto,
+            origem: 'PUBLICO',
+            autor: 'CLIENTE_PUBLICO',
+            filtroDeStatusDeOrigem: { in: STATUS_QUE_ACEITAM_ACAO_PUBLICA },
+            estadoAnterior,
+            hashDoCodigo: hashConsumido,
+            observacoes,
+            tipoAcaoAuditoria: 'ACEITE_PUBLICO',
+            contexto,
+          })
+        : await this.registrarRecusaPublica({
+            orcamentoId: id,
+            novoStatus,
+            statusAprovacao,
+            observacoes,
+            acao: dados.acao,
+            estadoAnterior,
+            contexto,
+          });
 
-      // Transição condicionada ao estado de origem: é o `WHERE` que serializa
-      // requisições concorrentes. Ler o status antes e decidir na aplicação
-      // não impediria duas transições simultâneas.
-      const transicao = await tx.orcamento.updateMany({
-        where: { id, status: { in: STATUS_QUE_ACEITAM_ACAO_PUBLICA } },
-        data: {
-          status: novoStatus,
-          status_aprovacao: statusAprovacao,
-          observacoes_cliente: observacoes,
-          data_atualizacao: agora,
-        },
-      });
-
-      if (transicao.count !== 1) {
-        // Lançar aqui desfaz também a queima do código: ou o aceite inteiro
-        // vale, ou nada dele vale.
-        throw new ConflitoAcaoPublicaError();
-      }
-
-      return 'APLICADO' as const;
-    }).catch((erro) => {
-      if (erro instanceof ConflitoAcaoPublicaError) {
-        return 'CONFLITO_DE_ESTADO' as const;
-      }
-      throw erro;
-    });
-
-    if (resultado !== 'APLICADO') {
+    if (resultado.desfecho !== 'APLICADO') {
       // `CORRIDA_PERDIDA`: outra requisição consumiu o mesmo código entre a
       // verificação e o UPDATE — cenário típico de clique duplo, e o aceite
       // dela já está registrado.
-      if (resultado === 'CORRIDA_PERDIDA' && dados.acao === 'APROVAR') {
+      if (
+        resultado.desfecho === 'CORRIDA_PERDIDA' &&
+        dados.acao === 'APROVAR'
+      ) {
         return await this.montarRespostaAcaoPublica(id);
       }
 
-      this.logger.warn(
-        '[ACAO_PUBLICA] Acao ' +
-          dados.acao +
-          ' recusada no orcamento ' +
-          id +
-          ': estado incompatível.',
-      );
+      registrarEventoDeSeguranca({
+        tipo: 'CONFLITO_IDEMPOTENCIA',
+        rota: 'orcamentos-v2/acao-publica',
+        recursoId: id,
+        origem: contexto?.ip ? pseudonimizar(contexto.ip) : undefined,
+        motivo: 'estado_incompativel',
+      });
       throw new BadRequestException(erroDeRecusa);
-    }
-
-    if (dados.acao === 'APROVAR') {
-      try {
-        await this.criarOSAutomaticaParaOrcamento(
-          lojaContexto,
-          id,
-          'CLIENTE_PUBLICO',
-          'PROCESSAR_ACAO_PUBLICA',
-        );
-      } catch (error) {
-        this.logger.error(
-          '[OS_AUTO] Falha ao gerar OS automatica para o orcamento ' +
-            id +
-            ' via canal publico: ' +
-            (error as Error).message,
-        );
-
-        // Reverte estado e código juntos. Reverter só o status deixaria o
-        // cliente sem proposta aprovada e sem código utilizável — sem saída.
-        await this.prisma.orcamento.updateMany({
-          where: { id },
-          data: {
-            status: orcamento.status,
-            status_aprovacao: 'PENDENTE',
-            data_atualizacao: new Date(),
-          },
-        });
-
-        if (hashConsumido) {
-          await this.reverterConsumoCodigoAprovacao(id, hashConsumido);
-        }
-
-        throw new InternalServerErrorException(
-          'Falha ao gerar OS automaticamente. Status do orcamento foi revertido.',
-        );
-      }
-
-      // Fase 6 - Cria cobranca financeira automaticamente. Igual a
-      // aprovacao interna, falha aqui nao reverte a aprovacao - apenas avisa.
-      try {
-        const orcamentoParaCobranca = await this.prisma.orcamento.findFirst({
-          where: { id, loja_id: lojaContexto },
-        });
-
-        await this.criarCobrancaAposAprovacao(
-          orcamentoParaCobranca,
-          id,
-          lojaContexto,
-          'CLIENTE_PUBLICO',
-        );
-        this.homeCacheService.invalidar(lojaContexto);
-      } catch (cobrancaError) {
-        this.logger.warn(
-          '[COBRANCA_AUTO] Falha na criacao da cobranca para orcamento ' +
-            id +
-            ' via canal publico: ' +
-            (cobrancaError as Error).message,
-        );
-      }
     }
 
     this.logger.log(
@@ -2737,13 +2936,78 @@ export class OrcamentosV2Service {
 
     const resposta = await this.montarRespostaAcaoPublica(id);
 
+    // Notificação é rede: roda depois de tudo o que precisava ser atômico.
     await this.notificarAcaoCliente(
       { ...resposta, loja_id: lojaContexto },
       dados.acao,
     );
-    await this.registrarLog(id, dados.acao, observacoes);
 
     return resposta;
+  }
+
+  /**
+   * Gate 0S / HS-05 — rejeição e negociação vindas do canal público.
+   *
+   * Não produzem OS nem cobrança, então não passam pelo caso de uso de aceite.
+   * O que compartilham com ele é o essencial: transição condicionada ao estado
+   * de origem e auditoria gravada na mesma transação.
+   *
+   * A rejeição também revoga o código ainda ativo. Sem isso, um segredo válido
+   * sobreviveria a uma proposta recusada — hoje inofensivo, porque o status
+   * deixa de aceitar ação pública, mas é segredo vivo sem finalidade.
+   */
+  private async registrarRecusaPublica(entrada: {
+    orcamentoId: string;
+    novoStatus: string;
+    statusAprovacao: string;
+    observacoes: string;
+    acao: string;
+    estadoAnterior: { status: string | null };
+    contexto?: ContextoDaRequisicao;
+  }): Promise<ResultadoDoAceite> {
+    const agora = new Date();
+
+    return await this.prisma
+      .$transaction(async (tx) => {
+        const transicao = await tx.orcamento.updateMany({
+          where: {
+            id: entrada.orcamentoId,
+            status: { in: STATUS_QUE_ACEITAM_ACAO_PUBLICA },
+          },
+          data: {
+            status: entrada.novoStatus,
+            status_aprovacao: entrada.statusAprovacao,
+            observacoes_cliente: entrada.observacoes,
+            data_atualizacao: agora,
+            ...(entrada.acao === 'REJEITAR'
+              ? { codigo_aprovacao_revogado_em: agora }
+              : {}),
+          },
+        });
+
+        if (transicao.count !== 1) {
+          throw new ConflitoAcaoPublicaError();
+        }
+
+        await this.registrarAuditoriaNaTransacao(tx, {
+          orcamentoId: entrada.orcamentoId,
+          tipoAcao: 'ACAO_PUBLICA_' + entrada.acao,
+          descricao: entrada.observacoes,
+          origem: 'PUBLICO',
+          autor: 'CLIENTE_PUBLICO',
+          statusAnterior: entrada.estadoAnterior.status,
+          statusNovo: entrada.novoStatus,
+          contexto: entrada.contexto,
+        });
+
+        return { desfecho: 'APLICADO' as const };
+      })
+      .catch((erro) => {
+        if (erro instanceof ConflitoAcaoPublicaError) {
+          return { desfecho: 'CONFLITO_DE_ESTADO' as const };
+        }
+        throw erro;
+      });
   }
 
   /**
@@ -3235,6 +3499,7 @@ export class OrcamentosV2Service {
     lojaId: string,
     userId: string,
     observacoes?: string,
+    contexto?: ContextoDaRequisicao,
   ) {
     await this.vendasPermissions.assertPode(
       userId,
@@ -3273,13 +3538,49 @@ export class OrcamentosV2Service {
     // Quem emite é `enviarOrcamento`, `reenviarCodigoAprovacao` e o reenvio
     // automático de `atualizarOrcamento`.
 
-    const orcamentoAtualizado = await this.prisma.orcamento.update({
-      where: { id },
-      data: dadosAtualizacao,
-      include: {
-        cliente: true,
-        loja: true,
-      },
+    // Gate 0S / HS-05: mudança de status é mutação sensível — pode cancelar ou
+    // rejeitar uma proposta —, então transição, revogação do código e trilha de
+    // auditoria valem ou falham juntas. Antes, a revogação e a trilha rodavam
+    // depois do `update`, e uma falha no meio deixava o status novo sem o
+    // código revogado.
+    const orcamentoAtualizado = await this.prisma.$transaction(async (tx) => {
+      const atualizado = await tx.orcamento.update({
+        where: { id },
+        data: dadosAtualizacao,
+        include: {
+          cliente: true,
+          loja: true,
+        },
+      });
+
+      // Gate 0S / HS-04: sair para um estado onde o aceite público não se
+      // aplica mais invalida o código imediatamente, sem depender da expiração.
+      if (
+        ['cancelado', 'rejeitado'].includes(String(novoStatus).toLowerCase())
+      ) {
+        await this.revogarCodigoAprovacaoDoOrcamento(
+          id,
+          lojaId,
+          'status alterado para ' + novoStatus,
+          tx,
+        );
+      }
+
+      await this.registrarAuditoriaNaTransacao(tx, {
+        orcamentoId: id,
+        tipoAcao: 'STATUS_ALTERADO',
+        descricao:
+          'Status alterado para ' +
+          novoStatus +
+          (observacoes ? '. Observacoes: ' + observacoes : ''),
+        origem: 'INTERNO',
+        autor: userId,
+        statusAnterior,
+        statusNovo: novoStatus,
+        contexto,
+      });
+
+      return atualizado;
     });
 
     if (novoStatus?.toLowerCase() === 'aprovado') {
@@ -3313,24 +3614,6 @@ export class OrcamentosV2Service {
         );
       }
     }
-
-    // Gate 0S / HS-04: sair para um estado onde o aceite público não se aplica
-    // mais invalida o código imediatamente, sem depender da expiração.
-    if (['cancelado', 'rejeitado'].includes(String(novoStatus).toLowerCase())) {
-      await this.revogarCodigoAprovacaoDoOrcamento(
-        id,
-        lojaId,
-        'status alterado para ' + novoStatus,
-      );
-    }
-
-    await this.registrarLog(
-      id,
-      'STATUS_ALTERADO',
-      'Status alterado para ' +
-        novoStatus +
-        (observacoes ? '. Observacoes: ' + observacoes : ''),
-    );
 
     await this.notificacaoService.notificarMudancaStatus(
       orcamentoAtualizado,
@@ -3405,7 +3688,7 @@ export class OrcamentosV2Service {
         emailEnviado = true;
         emailDestinatario = orcamentoAtualizado.cliente.email;
         this.logger.log(
-          `📧 E-mail de orçamento enviado para ${orcamentoAtualizado.cliente.email}`,
+          `📧 E-mail de orçamento enviado para o cliente do orçamento ${id}`,
         );
       } catch (error) {
         this.logger.error(
@@ -3452,6 +3735,7 @@ export class OrcamentosV2Service {
     lojaId: string,
     userId: string,
     observacoes?: string,
+    contexto?: ContextoDaRequisicao,
   ) {
     await this.vendasPermissions.assertPode(
       userId,
@@ -3531,24 +3815,16 @@ export class OrcamentosV2Service {
       };
     }
 
-    const statusAnterior = orcamento.status;
-    const statusAprovacaoAnterior = orcamento.status_aprovacao;
-    const observacoesClienteAnterior = (orcamento as any).observacoes_cliente;
-
-    const observacaoRegistro =
-      observacoes?.trim() ||
-      'Orçamento aprovado internamente no sistema pelo usuário ' + userId;
-
-    try {
-      await this.prisma.orcamento.update({
-        where: { id },
-        data: {
-          status: 'aprovado',
-          status_aprovacao: 'APROVADO' as any,
-          observacoes_cliente: observacaoRegistro,
-          data_atualizacao: new Date(),
-        },
-      });
+    // Recuperação: proposta já aprovada que ficou sem OS (falha anterior na
+    // geração). Não há transição a fazer — só o efeito que faltou. Este caso
+    // sai do caso de uso de aceite de propósito: o `WHERE` dele exclui
+    // `aprovado`, que é justamente o que serializa cliques concorrentes.
+    if (String(orcamento.status).toLowerCase() === 'aprovado') {
+      this.logger.warn(
+        '[APROVACAO_INTERNA] Orcamento ' +
+          id +
+          ' ja aprovado e sem OS. Gerando apenas a OS que faltou.',
+      );
 
       await this.criarOSAutomaticaParaOrcamento(
         lojaId,
@@ -3557,100 +3833,119 @@ export class OrcamentosV2Service {
         'APROVACAO_INTERNA',
       );
 
-      const osCriada = await this.prisma.ordemServico.findFirst({
-        where: {
-          loja_id: lojaId,
-          orcamento_id: id,
-        },
-        select: {
-          id: true,
-          numero: true,
-        },
-        orderBy: {
-          criado_em: 'desc',
-        },
+      const osRecuperada = await this.prisma.ordemServico.findFirst({
+        where: { loja_id: lojaId, orcamento_id: id },
+        select: { id: true, numero: true },
+        orderBy: { criado_em: 'desc' },
       });
 
-      await this.registrarLog(
-        id,
-        'APROVADO_INTERNAMENTE_E_OS_GERADA',
-        observacaoRegistro,
+      await this.prisma.$transaction((tx) =>
+        this.registrarAuditoriaNaTransacao(tx, {
+          orcamentoId: id,
+          tipoAcao: 'OS_GERADA_EM_RECUPERACAO',
+          descricao:
+            'OS gerada para proposta que já estava aprovada e estava sem ordem de serviço.',
+          origem: 'INTERNO',
+          autor: userId,
+          statusAnterior: 'aprovado',
+          statusNovo: 'aprovado',
+          contexto,
+        }),
       );
-
-      // Fase 6 - Cria a Cobranca financeira automaticamente. Se a criacao
-      // falhar (ex.: condicao_pagamento_tipo nao preenchido), nao reverter a
-      // aprovacao do orcamento - apenas logar o problema. O usuario podera
-      // criar a cobranca depois manualmente (ou complementar os campos).
-      try {
-        await this.criarCobrancaAposAprovacao(orcamento, id, lojaId, userId);
-        // Invalida o cache da home para o ResumoFinanceiroSimples e
-        // colunas a_receber/concluidos refletirem a nova cobranca.
-        this.homeCacheService.invalidar(lojaId);
-      } catch (cobrancaError) {
-        this.logger.warn(
-          '[APROVACAO_INTERNA] Aprovacao registrada, mas criacao da cobranca falhou para o orcamento ' +
-            id +
-            ': ' +
-            (cobrancaError as Error).message +
-            '. O usuario pode criar a cobranca manualmente.',
-        );
-      }
-
-      // Dispara a mesma notificacao que o fluxo de aprovacao via link publico
-      // (`processarAcaoCliente('APROVAR')`). Mantemos o tipo 'APROVAR' para
-      // reaproveitar o `TipoNotificacao.ORCAMENTO_APROVADO` ja existente; a
-      // diferenciacao de origem (interna vs publica) fica visivel no log
-      // (`APROVADO_INTERNAMENTE_E_OS_GERADA`) e em `observacoes_cliente`.
-      try {
-        await this.notificarAcaoCliente(orcamento, 'APROVAR');
-      } catch (notifError) {
-        // Notificacao falhar nao deve reverter a aprovacao; apenas avisa.
-        this.logger.warn(
-          '[APROVACAO_INTERNA] Aprovacao registrada, mas notificacao de equipe falhou para o orcamento ' +
-            id +
-            ': ' +
-            (notifError as Error).message,
-        );
-      }
 
       return {
         success: true,
-        message: 'Orçamento aprovado e OS gerada com sucesso.',
+        message: 'OS gerada para orçamento que já estava aprovado.',
         orcamento_id: id,
-        os_id: osCriada?.id,
-        os_numero: osCriada?.numero,
+        os_id: osRecuperada?.id,
+        os_numero: osRecuperada?.numero,
         status: 'aprovado',
         status_aprovacao: 'APROVADO',
       };
-    } catch (error) {
-      await this.prisma.orcamento.update({
-        where: { id },
-        data: {
-          status: statusAnterior,
-          status_aprovacao: statusAprovacaoAnterior,
-          observacoes_cliente: observacoesClienteAnterior,
-          // `codigo_aprovacao` saiu daqui: a coluna em texto claro está
-          // depreciada e o caminho de ida não a escreve mais, então restaurá-la
-          // no rollback só reintroduziria escrita em campo morto.
-          data_atualizacao: new Date(),
-        },
+    }
+
+    const observacaoRegistro =
+      observacoes?.trim() ||
+      'Orçamento aprovado internamente no sistema pelo usuário ' + userId;
+
+    // Gate 0S / HS-05: mesmo caso de uso do aceite público. A diferença entre
+    // os dois canais fica só no que vem antes (permissão aqui, posse do código
+    // lá) e no formato da resposta.
+    //
+    // `notIn` inclui `aprovado` de propósito: é isso que serializa dois
+    // cliques simultâneos em "Aprovar e gerar OS". O primeiro move o status e
+    // o segundo deixa de casar com o `WHERE`, então não há segundo conjunto de
+    // efeitos. Enquanto a condição era só "não cancelado e não rejeitado", as
+    // duas requisições casavam e a única proteção contra OS duplicada era uma
+    // consulta prévia não atômica.
+    const resultado = await this.executarAceiteDaProposta({
+      orcamentoId: id,
+      lojaId,
+      origem: 'INTERNO',
+      autor: userId,
+      filtroDeStatusDeOrigem: {
+        notIn: ['cancelado', 'rejeitado', 'aprovado'],
+      },
+      estadoAnterior: {
+        status: orcamento.status,
+        statusAprovacao: orcamento.status_aprovacao,
+        observacoesCliente: (orcamento as any).observacoes_cliente ?? null,
+      },
+      observacoes: observacaoRegistro,
+      tipoAcaoAuditoria: 'APROVADO_INTERNAMENTE_E_OS_GERADA',
+      contexto,
+    });
+
+    if (resultado.desfecho !== 'APLICADO') {
+      // Chegar aqui significa que outra requisição aprovou o mesmo orçamento
+      // entre a leitura e o UPDATE. O aceite dela já está registrado, então a
+      // resposta é idempotente: devolvemos o estado atual sem repetir efeito.
+      this.logger.warn(
+        '[APROVACAO_INTERNA] Aprovacao concorrente detectada no orcamento ' +
+          id +
+          '. Respondendo de forma idempotente.',
+      );
+
+      const osConcorrente = await this.prisma.ordemServico.findFirst({
+        where: { loja_id: lojaId, orcamento_id: id },
+        select: { id: true, numero: true },
+        orderBy: { criado_em: 'desc' },
       });
 
-      this.logger.error(
-        '[APROVACAO_INTERNA] Falha ao aprovar e gerar OS para o orcamento ' +
+      return {
+        success: true,
+        message: 'Orçamento já estava aprovado e possui OS gerada.',
+        orcamento_id: id,
+        os_id: osConcorrente?.id,
+        os_numero: osConcorrente?.numero,
+        status: 'aprovado',
+        status_aprovacao: 'APROVADO',
+      };
+    }
+
+    // Notificação é rede: fora da transação e sem poder reverter o aceite.
+    // Mantemos o tipo 'APROVAR' para reaproveitar o
+    // `TipoNotificacao.ORCAMENTO_APROVADO`; a origem fica visível na auditoria.
+    try {
+      await this.notificarAcaoCliente(orcamento, 'APROVAR');
+    } catch (notifError) {
+      this.logger.warn(
+        '[APROVACAO_INTERNA] Aprovacao registrada, mas notificacao de equipe falhou para o orcamento ' +
           id +
           ': ' +
-          (error instanceof Error ? error.message : error),
-      );
-
-      if (error instanceof HttpException) {
-        throw error;
-      }
-
-      throw new InternalServerErrorException(
-        'Falha ao aprovar e gerar OS. O orçamento foi revertido.',
+          (notifError as Error).message,
       );
     }
+
+    return {
+      success: true,
+      message: 'Orçamento aprovado e OS gerada com sucesso.',
+      orcamento_id: id,
+      os_id: resultado.osId,
+      os_numero: resultado.osNumero,
+      status: 'aprovado',
+      status_aprovacao: 'APROVADO',
+    };
   }
 
   /**
@@ -3869,24 +4164,10 @@ export class OrcamentosV2Service {
     return data.toISOString();
   }
 
-  /**
-   * Registrar log de ação - BASEADO NO LEGADO
-   */
-  private async registrarLog(
-    orcamentoId: string,
-    acao: string,
-    descricao: string,
-  ): Promise<void> {
-    try {
-      // Por enquanto, apenas log no console
-      // Futuramente pode ser implementada uma tabela de logs
-      this.logger.log(
-        `📝 LOG: Orçamento ${orcamentoId} - ${acao}: ${descricao}`,
-      );
-    } catch (error) {
-      this.logger.error(`❌ Erro ao registrar log: ${error.message}`);
-    }
-  }
+  // `registrarLog` foi removido: era um placeholder que só escrevia no logger
+  // ("futuramente pode ser implementada uma tabela de logs") e dava a impressão
+  // de auditoria onde não havia nenhuma. Quem persiste a trilha agora é
+  // `registrarAuditoriaNaTransacao`, na mesma transação da mutação.
 
   /**
    * Reenviar código de aprovação - BASEADO NO LEGADO

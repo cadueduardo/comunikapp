@@ -33,6 +33,7 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { VendasPermissionsGuard } from '../../vendas/permissions/vendas-permissions.guard';
 import { RequerPermissaoVendas } from '../../vendas/permissions/requer-permissao-vendas.decorator';
 import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
+import { extrairContextoDaRequisicao } from '../../common/security/contexto-requisicao';
 import { SimularChapaDto } from '../../common/calculo-chapa/simular-chapa.dto';
 import { OrcamentoOrigemSobraService } from '../services/orcamento-origem-sobra.service';
 import { AcaoClientePublicoDto } from '../dto/acao-cliente-publico.dto';
@@ -310,8 +311,13 @@ export class OrcamentosV2Controller {
   async processarAcaoClientePublico(
     @Param('id') id: string,
     @Body() dados: AcaoClientePublicoDto,
+    @Request() req: any,
   ) {
-    return await this.orcamentosService.processarAcaoClientePublico(id, dados);
+    return await this.orcamentosService.processarAcaoClientePublico(
+      id,
+      dados,
+      extrairContextoDaRequisicao(req),
+    );
   }
 
   /**
@@ -571,6 +577,7 @@ export class OrcamentosV2Controller {
       lojaId,
       usuarioId,
       dados.observacoes,
+      extrairContextoDaRequisicao(req),
     );
   }
 
@@ -683,6 +690,7 @@ export class OrcamentosV2Controller {
       lojaId,
       usuarioId,
       body?.observacoes,
+      extrairContextoDaRequisicao(req),
     );
   }
 

@@ -3,7 +3,7 @@
  * Inclui materiais, máquinas, funções e serviços associados
  */
 
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Logger, Param, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -22,6 +22,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 @Controller('orcamentos-v2/produto')
 @UseGuards(JwtAuthGuard, VendasPermissionsGuard)
 export class ProdutoDetalhesController {
+  private readonly logger = new Logger(ProdutoDetalhesController.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   @Get(':produtoId/detalhes')
@@ -144,7 +146,13 @@ export class ProdutoDetalhesController {
         data: dadosProcessados,
       };
     } catch (error) {
-      console.error('Erro ao buscar detalhes do produto:', error);
+      // Gate 0S / HS-06: registra a classe do erro, não o objeto inteiro. A
+      // mensagem de uma exceção do Prisma carrega trecho da consulta e valores
+      // dos parâmetros.
+      this.logger.error(
+        'Falha ao buscar detalhes do produto: ' +
+          (error instanceof Error ? error.name : 'erro desconhecido'),
+      );
       return {
         success: false,
         error: 'Erro interno do servidor',

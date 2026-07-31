@@ -47,6 +47,8 @@ describe('OrcamentosV2Service - aceite público', () => {
   }
 
   let registro: RegistroOrcamento;
+  let auditoria: any[];
+  let ordensServico: Array<{ id: string; numero: string; ativo: boolean }>;
   let service: OrcamentosV2Service;
   let osService: { criarOSDeOrcamento: jest.Mock };
   let prisma: any;
@@ -57,6 +59,10 @@ describe('OrcamentosV2Service - aceite público', () => {
     if (where.loja_id && where.loja_id !== registro.loja_id) return false;
 
     if (where.status?.in && !where.status.in.includes(registro.status)) {
+      return false;
+    }
+
+    if (where.status?.notIn?.includes(registro.status)) {
       return false;
     }
 
@@ -140,12 +146,29 @@ describe('OrcamentosV2Service - aceite público', () => {
         return { ...registro };
       }),
     },
-    ordemServico: { findFirst: jest.fn(async () => null) },
+    ordemServico: {
+      findFirst: jest.fn(async () =>
+        ordensServico.length > 0
+          ? ordensServico[ordensServico.length - 1]
+          : null,
+      ),
+    },
     usuario: { findMany: jest.fn(async () => []) },
+    // Gate 0S / HS-05: a auditoria vai para a mesma transação da mutação, então
+    // o simulador precisa registrar as linhas gravadas para que os testes
+    // possam inspecioná-las.
+    orcamentoLog: {
+      create: jest.fn(async ({ data }: any) => {
+        auditoria.push(data);
+        return { id: 'log-' + auditoria.length, ...data };
+      }),
+    },
     $transaction: jest.fn(async (callback: any) => callback(prisma)),
   });
 
   const montarService = (): OrcamentosV2Service => {
+    auditoria = [];
+    ordensServico = [];
     prisma = criarPrismaSimulado();
     osService = { criarOSDeOrcamento: jest.fn(async () => undefined) };
 
@@ -219,10 +242,19 @@ describe('OrcamentosV2Service - aceite público', () => {
     // A montagem da OS a partir do orçamento tem dependências próprias que não
     // são o alvo aqui. O que interessa é *quantas vezes* o aceite chega a
     // disparar a criação da OS — por isso o encaminhamento direto ao mock.
+    //
+    // A OS criada passa a existir no simulador: sem isso, uma segunda chamada
+    // enxergaria o orçamento como "aprovado e sem OS" e cairia no caminho de
+    // recuperação, que não é o cenário sob teste.
     jest
       .spyOn(service as any, 'criarOSAutomaticaParaOrcamento')
       .mockImplementation(async () => {
         await osService.criarOSDeOrcamento();
+        ordensServico.push({
+          id: 'os-' + (ordensServico.length + 1),
+          numero: '2026-OS-' + (ordensServico.length + 1),
+          ativo: true,
+        });
       });
   });
 
@@ -451,6 +483,159 @@ describe('OrcamentosV2Service - aceite público', () => {
 
     expect(resposta.status).toBe('rejeitado');
     expect(resposta.observacoes_cliente).toBe('Valor acima do previsto');
+  });
+
+  describe('auditoria (HS-05)', () => {
+    it('grava a trilha do aceite na mesma transação da mutação', async () => {
+      const codigo = emitirCodigoValido();
+
+      await service.processarAcaoClientePublico(
+        ORCAMENTO_ID,
+        { acao: 'APROVAR', codigo_aprovacao: codigo },
+        { ip: '203.0.113.7', userAgent: 'Mozilla/5.0' },
+      );
+
+      // A gravação só pode ter acontecido pelo cliente entregue ao callback do
+      // `$transaction`; o simulador não expõe outro caminho.
+      expect(prisma.$transaction).toHaveBeenCalled();
+      expect(prisma.orcamentoLog.create).toHaveBeenCalled();
+
+      const trilha = auditoria.find((l) => l.tipo_acao === 'ACEITE_PUBLICO');
+      expect(trilha).toBeDefined();
+      expect(trilha.ip_origem).toBe('203.0.113.7');
+      expect(trilha.user_agent).toBe('Mozilla/5.0');
+      expect(JSON.parse(trilha.dados_extras)).toEqual({
+        origem: 'PUBLICO',
+        autor: 'CLIENTE_PUBLICO',
+        status_anterior: 'enviado',
+        status_novo: 'aprovado',
+      });
+    });
+
+    it('não deixa código nem hash entrarem na trilha', async () => {
+      const codigo = emitirCodigoValido();
+      const hash = calcularHashCodigoAprovacao(codigo);
+
+      await service.processarAcaoClientePublico(ORCAMENTO_ID, {
+        acao: 'APROVAR',
+        codigo_aprovacao: codigo,
+      });
+
+      const serializado = JSON.stringify(auditoria);
+      expect(serializado).not.toContain(codigo);
+      expect(serializado).not.toContain(hash);
+    });
+
+    it('trunca texto livre do cliente em vez de gravar payload arbitrário', async () => {
+      const motivoEnorme = 'x'.repeat(5000);
+
+      await service.processarAcaoClientePublico(ORCAMENTO_ID, {
+        acao: 'REJEITAR',
+        observacoes: motivoEnorme,
+      });
+
+      const trilha = auditoria.find(
+        (l) => l.tipo_acao === 'ACAO_PUBLICA_REJEITAR',
+      );
+      expect(trilha.descricao.length).toBeLessThanOrEqual(500);
+    });
+
+    it('registra a reversão quando a geração da OS falha', async () => {
+      const codigo = emitirCodigoValido();
+      osService.criarOSDeOrcamento.mockRejectedValueOnce(
+        new Error('OS indisponível'),
+      );
+
+      await expect(
+        service.processarAcaoClientePublico(ORCAMENTO_ID, {
+          acao: 'APROVAR',
+          codigo_aprovacao: codigo,
+        }),
+      ).rejects.toBeInstanceOf(InternalServerErrorException);
+
+      // A trilha do aceite não é apagada: fica o par aceite + reversão, para
+      // que a tentativa não desapareça do histórico.
+      expect(
+        auditoria.map((l) => l.tipo_acao),
+      ).toEqual(['ACEITE_PUBLICO', 'ACEITE_REVERTIDO']);
+    });
+  });
+
+  describe('aprovação interna (HS-05)', () => {
+    const aprovarInternamente = () =>
+      service.fecharPedidoInterno(ORCAMENTO_ID, LOJA_ID, 'usuario-1', undefined, {
+        ip: '198.51.100.4',
+        userAgent: 'ComunikApp/1.0',
+      });
+
+    beforeEach(() => {
+      (service as any).vendasPermissions = { assertPode: jest.fn() };
+    });
+
+    it('passa pelo mesmo caso de uso e grava a trilha na transação', async () => {
+      const resposta = await aprovarInternamente();
+
+      expect(resposta.status).toBe('aprovado');
+      expect(registro.status).toBe('aprovado');
+      expect(osService.criarOSDeOrcamento).toHaveBeenCalledTimes(1);
+
+      const trilha = auditoria.find(
+        (l) => l.tipo_acao === 'APROVADO_INTERNAMENTE_E_OS_GERADA',
+      );
+      expect(trilha).toBeDefined();
+      expect(trilha.ip_origem).toBe('198.51.100.4');
+      expect(JSON.parse(trilha.dados_extras).origem).toBe('INTERNO');
+    });
+
+    it('não gera segunda OS quando a aprovação interna é repetida', async () => {
+      // A segunda chamada encontra o status já em `aprovado`, que está fora do
+      // `WHERE` da transição. Sem essa condição, as duas requisições casariam e
+      // a única defesa seria uma consulta prévia não atômica.
+      await aprovarInternamente();
+      const repetida = await aprovarInternamente();
+
+      expect(repetida.status).toBe('aprovado');
+      expect(osService.criarOSDeOrcamento).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('alteração de status (HS-05)', () => {
+    beforeEach(() => {
+      (service as any).vendasPermissions = { assertPode: jest.fn() };
+      (service as any).notificacaoService = {
+        notificarMudancaStatus: jest.fn(),
+      };
+    });
+
+    it('grava a trilha e revoga o código na mesma transação do cancelamento', async () => {
+      // Antes deste gate, cancelar ou rejeitar chamava `registrarLog`, que só
+      // escrevia no logger. A mutação mais destrutiva do fluxo não deixava
+      // trilha nenhuma no banco.
+      const codigo = emitirCodigoValido();
+      registro.status = 'enviado';
+
+      await service.alterarStatus(
+        ORCAMENTO_ID,
+        'cancelado',
+        LOJA_ID,
+        'usuario-1',
+        'cliente desistiu',
+        { ip: '198.51.100.9', userAgent: 'ComunikApp/1.0' },
+      );
+
+      expect(registro.codigo_aprovacao_revogado_em).toBeInstanceOf(Date);
+
+      const trilha = auditoria.find((l) => l.tipo_acao === 'STATUS_ALTERADO');
+      expect(trilha).toBeDefined();
+      expect(trilha.ip_origem).toBe('198.51.100.9');
+      expect(JSON.parse(trilha.dados_extras)).toMatchObject({
+        origem: 'INTERNO',
+        autor: 'usuario-1',
+        status_anterior: 'enviado',
+        status_novo: 'cancelado',
+      });
+      expect(JSON.stringify(auditoria)).not.toContain(codigo);
+    });
   });
 
   describe('revogação', () => {
