@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   OrcamentoCompleto,
@@ -31,6 +36,7 @@ export class ImpressaoV2Service {
    */
   async gerarPDF(
     orcamentoId: string,
+    lojaId: string,
     template: 'padrao' | 'executivo' | 'detalhado' = 'padrao',
     opcoes?: {
       incluirDetalhes?: boolean;
@@ -50,7 +56,10 @@ export class ImpressaoV2Service {
 
     try {
       // Buscar orçamento completo
-      const orcamento = await this.buscarOrcamentoCompleto(orcamentoId);
+      const orcamento = await this.buscarOrcamentoCompleto(
+        orcamentoId,
+        lojaId,
+      );
 
       // Preparar dados para impressão
       const dadosImpressao = await this.prepararDadosImpressao(
@@ -91,6 +100,7 @@ export class ImpressaoV2Service {
    */
   async gerarRelatorioExecutivo(
     orcamentoId: string,
+    lojaId: string,
     formato: 'pdf' | 'excel' | 'html' = 'pdf',
   ): Promise<{
     buffer: Buffer;
@@ -104,7 +114,7 @@ export class ImpressaoV2Service {
 
     try {
       // Buscar orçamento com dados resumidos
-      const orcamento = await this.buscarOrcamentoResumido(orcamentoId);
+      const orcamento = await this.buscarOrcamentoResumido(orcamentoId, lojaId);
 
       // Preparar dados do relatório
       const dadosRelatorio = this.prepararDadosRelatorioExecutivo(orcamento);
@@ -149,6 +159,7 @@ export class ImpressaoV2Service {
    */
   async gerarRelatorioCustos(
     orcamentoId: string,
+    lojaId: string,
     formato: 'pdf' | 'excel' | 'csv' = 'pdf',
     nivelDetalhamento: 'resumido' | 'detalhado' | 'completo' = 'detalhado',
   ): Promise<{
@@ -163,7 +174,10 @@ export class ImpressaoV2Service {
 
     try {
       // Buscar orçamento com dados de custos
-      const orcamento = await this.buscarOrcamentoComCustos(orcamentoId);
+      const orcamento = await this.buscarOrcamentoComCustos(
+        orcamentoId,
+        lojaId,
+      );
 
       // Preparar dados de custos
       const dadosCustos = this.prepararDadosRelatorioCustos(
@@ -205,6 +219,7 @@ export class ImpressaoV2Service {
    */
   async gerarPropostaComercial(
     orcamentoId: string,
+    lojaId: string,
     template: 'padrao' | 'premium' | 'personalizado' = 'padrao',
     opcoes?: {
       incluirTermos?: boolean;
@@ -224,7 +239,10 @@ export class ImpressaoV2Service {
 
     try {
       // Buscar orçamento com dados comerciais
-      const orcamento = await this.buscarOrcamentoComercial(orcamentoId);
+      const orcamento = await this.buscarOrcamentoComercial(
+        orcamentoId,
+        lojaId,
+      );
 
       // Preparar dados da proposta
       const dadosProposta = this.prepararDadosPropostaComercial(
@@ -267,6 +285,7 @@ export class ImpressaoV2Service {
    */
   async gerarEtiquetas(
     orcamentoId: string,
+    lojaId: string,
     tipo: 'produtos' | 'insumos' | 'maquinas' = 'produtos',
     formato: 'pdf' | 'zpl' = 'pdf',
     opcoes?: {
@@ -286,7 +305,11 @@ export class ImpressaoV2Service {
 
     try {
       // Buscar dados para etiquetas
-      const dadosEtiquetas = await this.buscarDadosEtiquetas(orcamentoId, tipo);
+      const dadosEtiquetas = await this.buscarDadosEtiquetas(
+        orcamentoId,
+        lojaId,
+        tipo,
+      );
 
       // Preparar dados das etiquetas
       const dadosPreparados = this.prepararDadosEtiquetas(
@@ -319,6 +342,7 @@ export class ImpressaoV2Service {
    */
   async gerarRelatorioAnalisePrecos(
     orcamentoId: string,
+    lojaId: string,
     formato: 'pdf' | 'excel' | 'html' = 'pdf',
     opcoes?: {
       incluirComparativo?: boolean;
@@ -337,7 +361,10 @@ export class ImpressaoV2Service {
 
     try {
       // Buscar dados para análise de preços
-      const dadosAnalise = await this.buscarDadosAnalisePrecos(orcamentoId);
+      const dadosAnalise = await this.buscarDadosAnalisePrecos(
+        orcamentoId,
+        lojaId,
+      );
 
       // Preparar dados da análise
       const dadosPreparados = this.prepararDadosAnalisePrecos(
@@ -383,9 +410,12 @@ export class ImpressaoV2Service {
 
   // Métodos privados auxiliares
 
-  private async buscarOrcamentoCompleto(orcamentoId: string): Promise<any> {
-    const orcamento = await this.prisma.orcamento.findUnique({
-      where: { id: orcamentoId },
+  private async buscarOrcamentoCompleto(
+    orcamentoId: string,
+    lojaId: string,
+  ): Promise<any> {
+    const orcamento = await this.prisma.orcamento.findFirst({
+      where: { id: orcamentoId, loja_id: lojaId },
       include: {
         cliente: true,
         produtos: {
@@ -410,15 +440,18 @@ export class ImpressaoV2Service {
     });
 
     if (!orcamento) {
-      throw new Error('Orçamento não encontrado');
+      throw new NotFoundException('Orçamento não encontrado');
     }
 
     return orcamento;
   }
 
-  private async buscarOrcamentoResumido(orcamentoId: string): Promise<any> {
-    const orcamento = await this.prisma.orcamento.findUnique({
-      where: { id: orcamentoId },
+  private async buscarOrcamentoResumido(
+    orcamentoId: string,
+    lojaId: string,
+  ): Promise<any> {
+    const orcamento = await this.prisma.orcamento.findFirst({
+      where: { id: orcamentoId, loja_id: lojaId },
       select: {
         id: true,
         nome_servico: true,
@@ -444,15 +477,18 @@ export class ImpressaoV2Service {
     });
 
     if (!orcamento) {
-      throw new Error('Orçamento não encontrado');
+      throw new NotFoundException('Orçamento não encontrado');
     }
 
     return orcamento;
   }
 
-  private async buscarOrcamentoComCustos(orcamentoId: string): Promise<any> {
-    const orcamento = await this.prisma.orcamento.findUnique({
-      where: { id: orcamentoId },
+  private async buscarOrcamentoComCustos(
+    orcamentoId: string,
+    lojaId: string,
+  ): Promise<any> {
+    const orcamento = await this.prisma.orcamento.findFirst({
+      where: { id: orcamentoId, loja_id: lojaId },
       include: {
         produtos: {
           include: {
@@ -475,15 +511,18 @@ export class ImpressaoV2Service {
     });
 
     if (!orcamento) {
-      throw new Error('Orçamento não encontrado');
+      throw new NotFoundException('Orçamento não encontrado');
     }
 
     return orcamento;
   }
 
-  private async buscarOrcamentoComercial(orcamentoId: string): Promise<any> {
-    const orcamento = await this.prisma.orcamento.findUnique({
-      where: { id: orcamentoId },
+  private async buscarOrcamentoComercial(
+    orcamentoId: string,
+    lojaId: string,
+  ): Promise<any> {
+    const orcamento = await this.prisma.orcamento.findFirst({
+      where: { id: orcamentoId, loja_id: lojaId },
       include: {
         cliente: true,
         produtos: {
@@ -500,7 +539,7 @@ export class ImpressaoV2Service {
     });
 
     if (!orcamento) {
-      throw new Error('Orçamento não encontrado');
+      throw new NotFoundException('Orçamento não encontrado');
     }
 
     return orcamento;
@@ -508,12 +547,16 @@ export class ImpressaoV2Service {
 
   private async buscarDadosEtiquetas(
     orcamentoId: string,
+    lojaId: string,
     tipo: string,
   ): Promise<any[]> {
     switch (tipo) {
       case 'produtos':
         return await this.prisma.produtoOrcamento.findMany({
-          where: { orcamento_id: orcamentoId },
+          where: {
+            orcamento_id: orcamentoId,
+            orcamento: { loja_id: lojaId },
+          },
           select: {
             id: true,
             nome: true,
@@ -525,7 +568,10 @@ export class ImpressaoV2Service {
       case 'insumos':
         return await this.prisma.itemInsumo.findMany({
           where: {
-            produto: { orcamento_id: orcamentoId },
+            produto: {
+              orcamento_id: orcamentoId,
+              orcamento: { loja_id: lojaId },
+            },
           },
           include: {
             insumo: true,
@@ -538,7 +584,10 @@ export class ImpressaoV2Service {
       case 'maquinas':
         return await this.prisma.itemMaquina.findMany({
           where: {
-            produto: { orcamento_id: orcamentoId },
+            produto: {
+              orcamento_id: orcamentoId,
+              orcamento: { loja_id: lojaId },
+            },
           },
           include: {
             maquina: true,
@@ -549,14 +598,19 @@ export class ImpressaoV2Service {
         });
 
       default:
-        throw new Error(`Tipo de etiqueta não suportado: ${tipo}`);
+        throw new BadRequestException(
+          `Tipo de etiqueta não suportado: ${tipo}`,
+        );
     }
   }
 
-  private async buscarDadosAnalisePrecos(orcamentoId: string): Promise<any> {
+  private async buscarDadosAnalisePrecos(
+    orcamentoId: string,
+    lojaId: string,
+  ): Promise<any> {
     // Buscar dados para análise de preços
-    const orcamento = await this.prisma.orcamento.findUnique({
-      where: { id: orcamentoId },
+    const orcamento = await this.prisma.orcamento.findFirst({
+      where: { id: orcamentoId, loja_id: lojaId },
       include: {
         produtos: {
           include: {
@@ -572,7 +626,7 @@ export class ImpressaoV2Service {
     });
 
     if (!orcamento) {
-      throw new Error('Orçamento não encontrado');
+      throw new NotFoundException('Orçamento não encontrado');
     }
 
     return orcamento;

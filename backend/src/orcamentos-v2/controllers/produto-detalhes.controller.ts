@@ -11,24 +11,35 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { Identidade, IdentidadeAutenticada } from '../../auth/decorators';
+import { VendasPermissionsGuard } from '../../vendas/permissions/vendas-permissions.guard';
+import { RequerPermissaoVendas } from '../../vendas/permissions/requer-permissao-vendas.decorator';
+import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @ApiTags('Orçamentos V2 - Detalhes de Produto')
 @ApiBearerAuth()
 @Controller('orcamentos-v2/produto')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, VendasPermissionsGuard)
 export class ProdutoDetalhesController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get(':produtoId/detalhes')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Buscar detalhes completos de um produto de orçamento',
   })
   @ApiParam({ name: 'produtoId', description: 'ID do produto no orçamento' })
-  async getDetalhesProduto(@Param('produtoId') produtoId: string) {
+  async getDetalhesProduto(
+    @Param('produtoId') produtoId: string,
+    @Identidade() identidade: IdentidadeAutenticada,
+  ) {
     try {
-      const produto = await this.prisma.produtoOrcamento.findUnique({
-        where: { id: produtoId },
+      const produto = await this.prisma.produtoOrcamento.findFirst({
+        where: {
+          id: produtoId,
+          orcamento: { loja_id: identidade.lojaId },
+        },
         include: {
           insumos: {
             include: {

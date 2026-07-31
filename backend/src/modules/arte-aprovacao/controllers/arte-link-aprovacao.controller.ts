@@ -15,6 +15,7 @@ import {
   AprovarArteDto,
 } from '../services/arte-link-aprovacao.service';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { Public } from '../../../auth/decorators';
 
 @Controller('arte-aprovacao/links')
 export class ArteLinkAprovacaoController {
@@ -55,6 +56,7 @@ export class ArteLinkAprovacaoController {
   /**
    * Busca dados da versão pelo token público (endpoint público)
    */
+  @Public()
   @Get('public/:token')
   async getVersaoByToken(@Param('token') token: string) {
     try {
@@ -93,6 +95,7 @@ export class ArteLinkAprovacaoController {
   /**
    * Processa aprovação ou rejeição da arte (endpoint público)
    */
+  @Public()
   @Post('public/:token/approve')
   async processarAprovacao(
     @Param('token') token: string,
@@ -188,6 +191,7 @@ export class ArteLinkAprovacaoController {
   /**
    * Valida se um token é válido
    */
+  @Public()
   @Get('public/:token/validate')
   async validarToken(@Param('token') token: string) {
     try {

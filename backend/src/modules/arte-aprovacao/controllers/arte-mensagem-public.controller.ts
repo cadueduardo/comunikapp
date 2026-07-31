@@ -3,6 +3,7 @@ import { ArteMensagemService } from '../services/arte-mensagem.service';
 import { ArteLinkAprovacaoService } from '../services/arte-link-aprovacao.service';
 import { CreateMensagemPublicoDto } from '../dto/mensagem-publica.dto';
 import { AutorTipo } from '@prisma/client';
+import { Public } from '../../../auth/decorators';
 
 @Controller('arte-aprovacao/mensagens/publico')
 export class ArteMensagemPublicController {
@@ -13,13 +14,14 @@ export class ArteMensagemPublicController {
     private readonly linkAprovacaoService: ArteLinkAprovacaoService,
   ) {}
 
+  @Public()
   @Post(':token')
   async criarMensagemComToken(
     @Param('token') token: string,
     @Body() dto: CreateMensagemPublicoDto,
   ) {
     try {
-      this.logger.log(`Nova mensagem com token recebida: ${token}`);
+      this.logger.log('Nova mensagem recebida por link público');
 
       // Validar token de aprovação
       const linkAprovacao =
@@ -99,6 +101,7 @@ export class ArteMensagemPublicController {
     }
   }
 
+  @Public()
   @Get(':token/versao/:versaoId')
   async listarMensagensPublico(
     @Param('token') token: string,
@@ -106,7 +109,7 @@ export class ArteMensagemPublicController {
   ) {
     try {
       this.logger.log(
-        `Listando mensagens públicas para token: ${token}, versão: ${versaoId}`,
+        `Listando mensagens públicas da versão ${versaoId} por link público`,
       );
 
       // Validar token de aprovação

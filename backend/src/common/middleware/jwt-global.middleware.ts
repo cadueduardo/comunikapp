@@ -13,6 +13,7 @@ import {
   extractTenantSlugFromHost,
   extractTenantSlugFromOrigin,
 } from '../../lojas/tenant-host';
+import { encontrarRotaPublica } from '../security/rotas-publicas';
 
 @Injectable()
 export class JwtGlobalMiddleware implements NestMiddleware {
@@ -28,48 +29,6 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       `Middleware JWT executado para: ${req.method} ${req.path}`,
     );
 
-    // Lista de rotas que nao precisam de autenticacao
-    const publicRoutes = [
-      '/api/lojas/login',
-      '/api/lojas/login/2fa',
-      '/api/lojas/health',
-      '/api/lojas/verificar-email',
-      '/api/lojas/reenviar-verificacao',
-      '/api/lojas/public/by-slug',
-      '/api/lojas/public/by-host',
-      '/api/platform/convites/validar',
-      '/api/platform/interesse-beta',
-      '/api/usuarios/reenviar-codigo',
-      '/api/usuarios/definir-senha',
-      '/api/usuarios/solicitar-redefinicao-senha',
-      '/api/usuarios/redefinir-senha',
-      '/lojas/login',
-      '/lojas/login/2fa',
-      '/lojas/health',
-      '/lojas/verificar-email',
-      '/lojas/reenviar-verificacao',
-      '/lojas/public/by-slug',
-      '/lojas/public/by-host',
-      '/platform/convites/validar',
-      '/platform/interesse-beta',
-      '/usuarios/reenviar-codigo',
-      '/usuarios/definir-senha',
-      '/usuarios/solicitar-redefinicao-senha',
-      '/usuarios/redefinir-senha',
-      '/api/estoque/health',
-      '/favicon.ico',
-      '/arte-aprovacao/links/public',
-      '/api/arte-aprovacao/links/public',
-      '/arte-aprovacao/comentarios/public',
-      '/api/arte-aprovacao/comentarios/public',
-      '/arte-aprovacao/mensagens/publico',
-      '/api/arte-aprovacao/mensagens/publico',
-      '/conexoes/google/callback',
-      '/api/conexoes/google/callback',
-      '/public/v1/product-updates',
-      '/api/public/v1/product-updates',
-    ];
-
     // A Gestão usa identidade, estratégia JWT, cookie e sessão próprios.
     // Cada rota administrativa é protegida pelos guards do AdminModule.
     if (
@@ -81,49 +40,24 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       return next();
     }
 
-    if (process.env.NODE_ENV !== 'production') {
-      publicRoutes.push(
-        '/test-validacoes',
-        '/test-campos-validacao',
-        '/test-os-validacoes',
-        '/debug',
-        '/debug/validacao-detalhada',
-      );
-    }
+    // Fronteira pública: decidida exclusivamente pelo catálogo em
+    // `common/security/rotas-publicas.ts`, por método e caminho exatos.
+    const rotaPublica = encontrarRotaPublica(
+      req.method,
+      req.path,
+      process.env.NODE_ENV === 'production',
+    );
 
-    const isPublicOnboardingCreate =
-      req.method === 'POST' &&
-      (req.path === '/lojas' || req.path === '/api/lojas');
-
-    if (
-      isPublicOnboardingCreate ||
-      publicRoutes.some(
-        (route) => req.path === route || req.path.startsWith(`${route}/`),
-      )
-    ) {
-      this.logger.debug(`Rota publica: ${req.path}`);
-      return next();
-    }
-
-    const isPublicOrcamento =
-      /^\/(?:api\/)?orcamentos-v2\/[^/]+\/publico(?:\/acao)?$/.test(req.path) ||
-      /^\/(?:api\/)?orcamentos-v2\/[^/]+\/reenviar-codigo$/.test(req.path);
-    if (isPublicOrcamento) {
-      this.logger.debug(`Rota publica do orcamento V2: ${req.path}`);
-      return next();
-    }
-
-    if (
-      /^\/(?:api\/)?arte-aprovacao\/versoes\/[^/]+\/arquivos\/public\/download\/[^/]+$/.test(
-        req.path,
-      )
-    ) {
-      const rawToken = req.query?.token;
-      const token = Array.isArray(rawToken) ? rawToken[0] : rawToken;
-      if (!token || typeof token !== 'string') {
-        throw new UnauthorizedException('Token público obrigatório');
+    if (rotaPublica) {
+      if (rotaPublica.exigeTokenNaQuery) {
+        const rawToken = req.query?.token;
+        const token = Array.isArray(rawToken) ? rawToken[0] : rawToken;
+        if (!token || typeof token !== 'string') {
+          throw new UnauthorizedException('Token público obrigatório');
+        }
+        req.query.token = token;
       }
-      req.query.token = token;
+      this.logger.debug(`Rota publica: ${req.method} ${req.path}`);
       return next();
     }
 

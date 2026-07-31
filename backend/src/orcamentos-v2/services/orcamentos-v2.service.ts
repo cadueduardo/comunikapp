@@ -2613,19 +2613,18 @@ export class OrcamentosV2Service {
   /**
    * Buscar mensagens do chat público - NATIVO V2
    */
-  async buscarMensagensPublicasLegado(orcamentoId: string) {
+  async buscarMensagensPublicasLegado(orcamentoId: string, lojaId: string) {
     this.logger.log(
-      `🔍 Buscando mensagens públicas do orçamento legado: ${orcamentoId}`,
+      `🔍 Buscando mensagens do chat do orçamento: ${orcamentoId}`,
     );
 
     try {
-      // Verificar se o orçamento existe
-      const orcamento = await this.prisma.orcamento.findUnique({
-        where: { id: orcamentoId },
+      const orcamento = await this.prisma.orcamento.findFirst({
+        where: { id: orcamentoId, loja_id: lojaId },
       });
 
       if (!orcamento) {
-        throw new Error('Orçamento não encontrado');
+        throw new NotFoundException('Orçamento não encontrado');
       }
 
       // Buscar mensagens ordenadas por data de criação
@@ -2788,6 +2787,7 @@ export class OrcamentosV2Service {
    */
   async enviarMensagemPublicaLegado(
     orcamentoId: string,
+    lojaId: string,
     dados: {
       mensagem: string;
       tipo?: string;
@@ -2797,6 +2797,7 @@ export class OrcamentosV2Service {
   ) {
     return this.enviarMensagemPublicaLegadoComAnexo(
       orcamentoId,
+      lojaId,
       dados,
       undefined,
     );
@@ -2807,6 +2808,7 @@ export class OrcamentosV2Service {
    */
   async enviarMensagemPublicaLegadoComAnexo(
     orcamentoId: string,
+    lojaId: string,
     dados: {
       mensagem: string;
       tipo?: string;
@@ -2816,7 +2818,7 @@ export class OrcamentosV2Service {
     file?: Express.Multer.File,
   ) {
     this.logger.log(
-      `💬 Enviando mensagem pública no chat V2 para orçamento: ${orcamentoId}`,
+      `💬 Enviando mensagem no chat do orçamento: ${orcamentoId}`,
     );
 
     try {
@@ -2824,19 +2826,18 @@ export class OrcamentosV2Service {
       const tiposValidos = ['CLIENTE', 'VENDEDOR', 'SISTEMA'];
       const tipo = dados.tipo || 'CLIENTE';
       if (!tiposValidos.includes(tipo)) {
-        throw new Error(
+        throw new BadRequestException(
           `Tipo de mensagem inválido. Tipos permitidos: ${tiposValidos.join(', ')}`,
         );
       }
 
-      // Verificar se o orçamento existe
-      const orcamento = await this.prisma.orcamento.findUnique({
-        where: { id: orcamentoId },
+      const orcamento = await this.prisma.orcamento.findFirst({
+        where: { id: orcamentoId, loja_id: lojaId },
         include: { cliente: true },
       });
 
       if (!orcamento) {
-        throw new Error('Orçamento não encontrado');
+        throw new NotFoundException('Orçamento não encontrado');
       }
 
       let anexoInfo: any = null;
@@ -3838,21 +3839,29 @@ export class OrcamentosV2Service {
   async marcarMensagemVisualizadaPublica(
     orcamentoId: string,
     mensagemId: string,
+    lojaId: string,
   ) {
     this.logger.log(`👁️ Marcando mensagem como visualizada: ${mensagemId}`);
 
     try {
-      // Verificar se orçamento existe
-      const orcamento = await this.buscarOrcamentoPublico(orcamentoId);
+      const orcamento = await this.prisma.orcamento.findFirst({
+        where: { id: orcamentoId, loja_id: lojaId },
+        select: { id: true },
+      });
       if (!orcamento) {
-        throw new Error('Orçamento não encontrado');
+        throw new NotFoundException('Orçamento não encontrado');
       }
 
-      // Marcar mensagem como visualizada
-      await this.prisma.mensagemChat.update({
-        where: { id: mensagemId },
+      // `updateMany` com o vínculo ao orçamento da loja: o `update` por
+      // `mensagemId` isolado permitia marcar mensagem de qualquer orçamento.
+      const { count } = await this.prisma.mensagemChat.updateMany({
+        where: { id: mensagemId, orcamento_id: orcamento.id },
         data: { lida: true },
       });
+
+      if (count === 0) {
+        throw new NotFoundException('Mensagem não encontrada');
+      }
 
       this.logger.log(`✅ Mensagem marcada como visualizada: ${mensagemId}`);
 
@@ -4042,6 +4051,7 @@ export class OrcamentosV2Service {
   async enviarMensagemChat(
     orcamentoId: string,
     usuarioId: string,
+    lojaId: string,
     conteudo: string,
     tipo?: string,
     anexos?: string[],
@@ -4056,6 +4066,7 @@ export class OrcamentosV2Service {
       return await this.chatService.enviarMensagem(
         orcamentoId,
         usuarioId,
+        lojaId,
         conteudo,
         tipoMensagem,
         anexos,
@@ -4073,6 +4084,7 @@ export class OrcamentosV2Service {
     orcamentoId: string,
     mensagemId: string,
     usuarioId: string,
+    lojaId: string,
   ) {
     this.logger.log(
       `👁️ Marcando mensagens do orçamento ${orcamentoId} como visualizadas`,
@@ -4082,6 +4094,7 @@ export class OrcamentosV2Service {
       return await this.chatService.marcarMensagensComoLidas(
         orcamentoId,
         usuarioId,
+        lojaId,
       );
     } catch (error) {
       this.logger.error(

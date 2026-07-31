@@ -7,7 +7,6 @@ import {
   HttpStatus,
   Param,
   Post,
-  Req,
   Res,
   UploadedFile,
   UseGuards,
@@ -20,9 +19,13 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { multerAnexoGeometriaConfig } from '../../config/multer-anexo-geometria.config';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { Identidade, IdentidadeAutenticada } from '../../auth/decorators';
+import { VendasPermissionsGuard } from '../../vendas/permissions/vendas-permissions.guard';
+import { RequerPermissaoVendas } from '../../vendas/permissions/requer-permissao-vendas.decorator';
+import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 import { AnexoGeometriaService } from '../services/anexo-geometria.service';
 import type { DxfExtraido } from '../services/dxf-parser.service';
 import type { SugestoesPorCamada } from '../services/dxf-sugestao-insumo.service';
@@ -44,7 +47,7 @@ import type { SugestoesPorCamada } from '../services/dxf-sugestao-insumo.service
  */
 @ApiTags('Orçamentos V2 - Anexos de Geometria')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, VendasPermissionsGuard)
 @Controller('orcamentos-v2/anexos-geometria')
 export class AnexoGeometriaController {
   constructor(private readonly anexoService: AnexoGeometriaService) {}
@@ -57,13 +60,14 @@ export class AnexoGeometriaController {
    */
   @Post()
   @UseInterceptors(FileInterceptor('arquivo', multerAnexoGeometriaConfig))
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @ApiOperation({
     summary: 'Faz upload de imagem, PDF ou DXF para um produto do orçamento',
   })
   @ApiConsumes('multipart/form-data')
   async upload(
     @UploadedFile() arquivo: Express.Multer.File,
-    @Req() req: Request,
+    @Identidade() identidade: IdentidadeAutenticada,
   ): Promise<{
     url: string;
     token: string;
@@ -76,13 +80,10 @@ export class AnexoGeometriaController {
       throw new BadRequestException('Nenhum arquivo recebido');
     }
 
-    const lojaId = this.lojaIdFromJwt(req);
-    const usuarioId = this.usuarioIdFromJwt(req);
-
     const resultado = await this.anexoService.salvar({
       arquivo,
-      lojaId,
-      usuarioId,
+      lojaId: identidade.lojaId,
+      usuarioId: identidade.usuarioId,
     });
 
     return {
@@ -101,18 +102,21 @@ export class AnexoGeometriaController {
    * de orçamento) e precisa repor o card "Valores detectados no DXF".
    */
   @Get(':token/dxf-extraido')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Lê os metadados extraídos de um DXF já enviado',
   })
   async lerDxfExtraido(
     @Param('token') token: string,
-    @Req() req: Request,
+    @Identidade() identidade: IdentidadeAutenticada,
   ): Promise<{
     dxf_extraido: DxfExtraido | null;
     sugestoes_insumo: SugestoesPorCamada[];
   }> {
-    const lojaId = this.lojaIdFromJwt(req);
-    return this.anexoService.lerDxfExtraido({ token, lojaId });
+    return this.anexoService.lerDxfExtraido({
+      token,
+      lojaId: identidade.lojaId,
+    });
   }
 
   /**
@@ -120,15 +124,15 @@ export class AnexoGeometriaController {
    * e pelo PCP/OS no futuro para baixar o DXF original.
    */
   @Get(':token')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({ summary: 'Baixa/serve o anexo de geometria pelo token' })
   async baixar(
     @Param('token') token: string,
-    @Req() req: Request,
+    @Identidade() identidade: IdentidadeAutenticada,
     @Res() res: Response,
   ): Promise<void> {
-    const lojaId = this.lojaIdFromJwt(req);
     const { buffer, mimeType, nomeOriginal, categoria } =
-      await this.anexoService.ler({ token, lojaId });
+      await this.anexoService.ler({ token, lojaId: identidade.lojaId });
 
     res.setHeader('Content-Type', mimeType || 'application/octet-stream');
     // Inline para imagem/PDF (visualização), attachment para DXF (download).
@@ -148,27 +152,12 @@ export class AnexoGeometriaController {
 
   @Delete(':token')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @ApiOperation({ summary: 'Remove um anexo de geometria pelo token' })
   async remover(
     @Param('token') token: string,
-    @Req() req: Request,
+    @Identidade() identidade: IdentidadeAutenticada,
   ): Promise<void> {
-    const lojaId = this.lojaIdFromJwt(req);
-    await this.anexoService.remover({ token, lojaId });
-  }
-
-  private lojaIdFromJwt(req: Request): string {
-    const user = (req as Request & { user?: { loja_id?: string } }).user;
-    const lojaId = user?.loja_id;
-    if (!lojaId) {
-      throw new BadRequestException('Token sem loja_id');
-    }
-    return lojaId;
-  }
-
-  private usuarioIdFromJwt(req: Request): string {
-    const user = (req as Request & { user?: { id?: string; sub?: string } })
-      .user;
-    return user?.id || user?.sub || 'desconhecido';
+    await this.anexoService.remover({ token, lojaId: identidade.lojaId });
   }
 }

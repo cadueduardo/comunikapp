@@ -18,19 +18,24 @@ import { MensagensNegociacaoService } from './mensagens-negociacao.service';
 import { CreateMensagemNegociacaoDto } from './dto/create-mensagem-negociacao.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentLojaId } from '../auth/decorators';
-import { Public } from '../auth/decorators';
 
+/**
+ * Chat de negociação do orçamento legado.
+ *
+ * Os três endpoints com sufixo `publico` declaravam `@Public()`, mas nunca
+ * constaram da allowlist do `JwtGlobalMiddleware`: já respondiam `401`. O
+ * Gate 0S (HS-03) alinhou a declaração ao comportamento efetivo em vez de
+ * abrir a rota. Reabri-los depende de token vinculado, DTO tipado e rate
+ * limit, que pertencem às fases funcionais do Módulo de Vendas.
+ */
 @Controller('orcamentos/:orcamentoId/mensagens')
 export class MensagensNegociacaoController {
   constructor(
     private readonly mensagensNegociacaoService: MensagensNegociacaoService,
   ) {}
 
-  /**
-   * Listar todas as mensagens de um orçamento (público)
-   */
   @Get('publico')
-  @Public()
+  @UseGuards(JwtAuthGuard)
   async findAllPublico(@Param('orcamentoId') orcamentoId: string) {
     return this.mensagensNegociacaoService.findAllPublico(orcamentoId);
   }
@@ -77,11 +82,8 @@ export class MensagensNegociacaoController {
     return this.mensagensNegociacaoService.findAll(orcamentoId, lojaId);
   }
 
-  /**
-   * Enviar uma nova mensagem (público)
-   */
   @Post('publico')
-  @Public()
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('arquivo', {
       limits: {
@@ -155,11 +157,8 @@ export class MensagensNegociacaoController {
     return this.mensagensNegociacaoService.create(orcamentoId, dto, lojaId);
   }
 
-  /**
-   * Marcar mensagem como visualizada (público)
-   */
   @Post('publico/:mensagemId/visualizar')
-  @Public()
+  @UseGuards(JwtAuthGuard)
   async marcarComoVisualizadaPublico(
     @Param('orcamentoId') orcamentoId: string,
     @Param('mensagemId') mensagemId: string,

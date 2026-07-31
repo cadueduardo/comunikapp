@@ -10,7 +10,6 @@ import {
   UseGuards,
   HttpStatus,
   HttpCode,
-  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,8 +21,10 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-import { Roles } from '../../auth/decorators/roles.decorator';
-import { CurrentUser as User } from '../../auth/decorators';
+import { Identidade, IdentidadeAutenticada } from '../../auth/decorators';
+import { VendasPermissionsGuard } from '../../vendas/permissions/vendas-permissions.guard';
+import { RequerPermissaoVendas } from '../../vendas/permissions/requer-permissao-vendas.decorator';
+import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 
 import { ChatV2Service } from '../services/chat-v2.service';
 
@@ -31,13 +32,15 @@ import { ChatV2Service } from '../services/chat-v2.service';
  * Controller de Chat V2 para Orçamentos
  * Endpoints para sistema de chat e negociação
  *
- * ✅ ARQUIVO ≤ 200 LINHAS (CONFORME PREMISSAS)
  * ✅ ENDPOINTS DE CHAT COMPLETOS
  * ✅ SISTEMA DE NEGOCIAÇÃO
+ *
+ * Autorização (Gate 0S): todo endpoint declara sua permissão e recebe a loja
+ * da identidade autenticada, que é propagada até as consultas do service.
  */
 @ApiTags('Orçamentos V2 - Chat')
 @Controller('orcamentos-v2/chat')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, VendasPermissionsGuard)
 @ApiBearerAuth()
 export class ChatV2Controller {
   constructor(private readonly chatV2Service: ChatV2Service) {}
@@ -47,7 +50,7 @@ export class ChatV2Controller {
    */
   @Post(':orcamentoId/mensagens')
   @HttpCode(HttpStatus.CREATED)
-  @Roles('orcamentos.chat.enviar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @ApiOperation({
     summary: 'Envia mensagem',
     description: 'Envia mensagem no chat do orçamento',
@@ -97,12 +100,13 @@ export class ChatV2Controller {
       tipo?: string;
       anexos?: string[];
     },
-    @Request() req: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       const mensagem = await this.chatV2Service.enviarMensagem(
         orcamentoId,
-        req.user.id,
+        identidade.usuarioId,
+        identidade.lojaId,
         dados.conteudo,
         dados.tipo as any,
         dados.anexos,
@@ -124,7 +128,7 @@ export class ChatV2Controller {
    */
   @Get(':orcamentoId/mensagens')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.chat.consultar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Busca mensagens',
     description: 'Busca mensagens do chat do orçamento',
@@ -161,12 +165,13 @@ export class ChatV2Controller {
     @Param('orcamentoId') orcamentoId: string,
     @Query('pagina') pagina: number = 1,
     @Query('por_pagina') porPagina: number = 50,
-    @Request() req: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       const resultado = await this.chatV2Service.buscarMensagens(
         orcamentoId,
-        req.user.id,
+        identidade.usuarioId,
+        identidade.lojaId,
         pagina,
         porPagina,
       );
@@ -187,7 +192,7 @@ export class ChatV2Controller {
    */
   @Put(':orcamentoId/mensagens/marcar-lidas')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.chat.consultar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Marca mensagens como lidas',
     description: 'Marca todas as mensagens não lidas como lidas',
@@ -210,12 +215,13 @@ export class ChatV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async marcarMensagensComoLidas(
     @Param('orcamentoId') orcamentoId: string,
-    @Request() req: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       await this.chatV2Service.marcarMensagensComoLidas(
         orcamentoId,
-        req.user.id,
+        identidade.usuarioId,
+        identidade.lojaId,
       );
 
       return {
@@ -223,7 +229,7 @@ export class ChatV2Controller {
         message: 'Mensagens marcadas como lidas',
         data: {
           orcamento_id: orcamentoId,
-          usuario_id: req.user.id,
+          usuario_id: identidade.usuarioId,
         },
         timestamp: new Date().toISOString(),
       };
@@ -237,7 +243,7 @@ export class ChatV2Controller {
    */
   @Post(':orcamentoId/arquivos')
   @HttpCode(HttpStatus.CREATED)
-  @Roles('orcamentos.chat.enviar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @ApiOperation({
     summary: 'Envia arquivo',
     description: 'Envia arquivo no chat do orçamento',
@@ -281,12 +287,13 @@ export class ChatV2Controller {
       tamanho: number;
       tipo_arquivo: string;
     },
-    @Request() req: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       const mensagem = await this.chatV2Service.enviarArquivo(
         orcamentoId,
-        req.user.id,
+        identidade.usuarioId,
+        identidade.lojaId,
         dados.nome_arquivo,
         dados.url_arquivo,
         dados.tamanho,
@@ -309,7 +316,7 @@ export class ChatV2Controller {
    */
   @Get(':orcamentoId/estatisticas')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.chat.consultar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Estatísticas do chat',
     description: 'Retorna estatísticas do chat do orçamento',
@@ -334,11 +341,13 @@ export class ChatV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async buscarEstatisticasChat(
     @Param('orcamentoId') orcamentoId: string,
-    @Request() req: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
-      const estatisticas =
-        await this.chatV2Service.buscarEstatisticasChat(orcamentoId);
+      const estatisticas = await this.chatV2Service.buscarEstatisticasChat(
+        orcamentoId,
+        identidade.lojaId,
+      );
 
       return {
         success: true,
@@ -356,7 +365,7 @@ export class ChatV2Controller {
    */
   @Get(':orcamentoId/negociacao/historico')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.chat.consultar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Histórico de negociação',
     description: 'Retorna histórico de negociação do orçamento',
@@ -397,13 +406,14 @@ export class ChatV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async buscarHistoricoNegociacao(
     @Param('orcamentoId') orcamentoId: string,
+    @Identidade() identidade: IdentidadeAutenticada,
     @Query('data_inicio') dataInicio?: string,
     @Query('data_fim') dataFim?: string,
-    @Request() req?: any,
   ) {
     try {
       const historico = await this.chatV2Service.buscarHistoricoNegociacao(
         orcamentoId,
+        identidade.lojaId,
         dataInicio ? new Date(dataInicio) : undefined,
         dataFim ? new Date(dataFim) : undefined,
       );

@@ -10,7 +10,7 @@ import {
   UseGuards,
   HttpStatus,
   HttpCode,
-  Request,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,8 +22,10 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-import { Roles } from '../../auth/decorators/roles.decorator';
-import { CurrentUser as User } from '../../auth/decorators';
+import { Identidade, IdentidadeAutenticada } from '../../auth/decorators';
+import { VendasPermissionsGuard } from '../../vendas/permissions/vendas-permissions.guard';
+import { RequerPermissaoVendas } from '../../vendas/permissions/requer-permissao-vendas.decorator';
+import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 
 import { IntegracaoMotorService } from '../services/integracao-motor.service';
 import { OrcamentosV2Service } from '../services/orcamentos-v2.service';
@@ -32,13 +34,15 @@ import { OrcamentosV2Service } from '../services/orcamentos-v2.service';
  * Controller de Cálculo V2 para Orçamentos
  * Endpoints para cálculos e integração com Motor de Cálculo V2
  *
- * ✅ ARQUIVO ≤ 200 LINHAS (CONFORME PREMISSAS)
  * ✅ ENDPOINTS DE CÁLCULO COMPLETOS
  * ✅ INTEGRAÇÃO COM MOTOR V2
+ *
+ * Autorização (Gate 0S): todo endpoint declara sua permissão e recebe a loja
+ * da identidade autenticada.
  */
 @ApiTags('Orçamentos V2 - Cálculos')
 @Controller('orcamentos-v2/calculo')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, VendasPermissionsGuard)
 @ApiBearerAuth()
 export class CalculoV2Controller {
   constructor(
@@ -51,7 +55,7 @@ export class CalculoV2Controller {
    */
   @Post(':id/calcular')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.calcular')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @ApiOperation({
     summary: 'Calcula orçamento completo',
     description:
@@ -103,18 +107,17 @@ export class CalculoV2Controller {
       incluir_detalhes?: boolean;
       validar_estoque?: boolean;
     },
-    @Request() req: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
-      const { loja_id } = req.user;
       const orcamento = await this.orcamentosV2Service.buscarOrcamento(
         orcamentoId,
-        loja_id,
+        identidade.lojaId,
       );
       const resultado =
         await this.integracaoMotorService.calcularOrcamentoCompleto(
           orcamento,
-          loja_id,
+          identidade.lojaId,
         );
 
       return {
@@ -133,7 +136,7 @@ export class CalculoV2Controller {
    */
   @Post(':orcamentoId/produtos/:produtoId/calcular')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.calcular')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @ApiOperation({
     summary: 'Calcula produto específico',
     description: 'Executa cálculo de um produto específico do orçamento',
@@ -181,23 +184,22 @@ export class CalculoV2Controller {
       incluir_detalhes?: boolean;
       validar_estoque?: boolean;
     },
-    @Request() req: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
-      const { loja_id } = req.user;
       const orcamento = await this.orcamentosV2Service.buscarOrcamento(
         orcamentoId,
-        loja_id,
+        identidade.lojaId,
       );
       const produto = (orcamento.produtos || []).find(
         (p: any) => p.id === produtoId,
       );
       if (!produto) {
-        throw new Error('Produto não encontrado');
+        throw new NotFoundException('Produto não encontrado');
       }
       const resultado = await this.integracaoMotorService.calcularProduto(
         produto,
-        loja_id,
+        identidade.lojaId,
       );
 
       return {
@@ -216,7 +218,7 @@ export class CalculoV2Controller {
    */
   @Post(':id/validar')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.validar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Valida orçamento',
     description: 'Valida orçamento sem executar cálculos',
@@ -240,17 +242,16 @@ export class CalculoV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async validarOrcamento(
     @Param('id') orcamentoId: string,
-    @Request() req: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
-      const { loja_id } = req.user;
       const orcamento = await this.orcamentosV2Service.buscarOrcamento(
         orcamentoId,
-        loja_id,
+        identidade.lojaId,
       );
       const resultado = await this.integracaoMotorService.validarOrcamento(
         orcamento,
-        loja_id,
+        identidade.lojaId,
       );
 
       return {
@@ -269,7 +270,7 @@ export class CalculoV2Controller {
    */
   @Get('configuracoes-loja')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.consultar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Busca configurações de cálculo',
     description: 'Retorna configurações de cálculo da loja atual',
@@ -289,11 +290,14 @@ export class CalculoV2Controller {
     },
   })
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
-  async buscarConfiguracoesLoja(@Request() req: any) {
+  async buscarConfiguracoesLoja(
+    @Identidade() identidade: IdentidadeAutenticada,
+  ) {
     try {
-      const { loja_id } = req.user;
       const configuracoes =
-        await this.integracaoMotorService.obterConfiguracoesLoja(loja_id);
+        await this.integracaoMotorService.obterConfiguracoesLoja(
+          identidade.lojaId,
+        );
 
       return {
         success: true,
@@ -311,7 +315,7 @@ export class CalculoV2Controller {
    */
   @Post('calcular-lote')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.calcular')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @ApiOperation({
     summary: 'Calcula orçamentos em lote',
     description: 'Executa cálculo de múltiplos orçamentos simultaneamente',
@@ -356,14 +360,22 @@ export class CalculoV2Controller {
       orcamentos: { id: string; opcoes?: any }[];
       opcoes_globais?: any;
     },
-    @Request() req: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
-      const { loja_id } = req.user;
+      // O corpo traz apenas identificadores. Cada orçamento é recarregado
+      // dentro da loja autenticada: antes o objeto enviado pelo cliente ia
+      // direto para o motor, sem nunca ser lido do banco.
+      const orcamentos = await Promise.all(
+        (dados.orcamentos ?? []).map((item) =>
+          this.orcamentosV2Service.buscarOrcamento(item.id, identidade.lojaId),
+        ),
+      );
+
       const resultado =
         await this.integracaoMotorService.calcularOrcamentosEmLote(
-          dados.orcamentos,
-          loja_id,
+          orcamentos,
+          identidade.lojaId,
         );
 
       return {
@@ -382,7 +394,7 @@ export class CalculoV2Controller {
    */
   @Get('motor/estatisticas')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.consultar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Estatísticas do motor',
     description: 'Retorna estatísticas de performance do Motor de Cálculo V2',
@@ -410,13 +422,13 @@ export class CalculoV2Controller {
   })
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async buscarEstatisticasMotor(
-    @User() usuario: any,
+    @Identidade() identidade: IdentidadeAutenticada,
     @Query('periodo') periodo?: number,
   ) {
     try {
       const estatisticas =
         await this.integracaoMotorService.obterEstatisticasMotor(
-          usuario.loja_id,
+          identidade.lojaId,
         );
 
       return {
@@ -435,7 +447,7 @@ export class CalculoV2Controller {
    */
   @Post(':id/simular')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.calcular')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @ApiOperation({
     summary: 'Simula alterações',
     description: 'Simula alterações no orçamento sem salvar',
@@ -481,7 +493,7 @@ export class CalculoV2Controller {
       alteracoes: any;
       incluir_comparativo?: boolean;
     },
-    @User() usuario: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       // TODO: Implementar simulação de alterações

@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   MensagemChat,
@@ -26,6 +31,7 @@ export class ChatV2Service {
   async enviarMensagem(
     orcamentoId: string,
     usuarioId: string,
+    lojaId: string,
     conteudo: string,
     tipo: TipoMensagem = TipoMensagem.TEXTO,
     anexos?: string[],
@@ -33,8 +39,7 @@ export class ChatV2Service {
     this.logger.log(`💬 Enviando mensagem no orçamento ${orcamentoId}`);
 
     try {
-      // Validar orçamento
-      const orcamento = await this.validarOrcamento(orcamentoId);
+      const orcamento = await this.validarOrcamento(orcamentoId, lojaId);
 
       // Criar mensagem
       const mensagem = await this.prisma.mensagemChat.create({
@@ -51,7 +56,7 @@ export class ChatV2Service {
       });
 
       // Marcar outras mensagens como lidas (se aplicável)
-      await this.marcarMensagensComoLidas(orcamentoId, usuarioId);
+      await this.marcarMensagensComoLidas(orcamentoId, usuarioId, lojaId);
 
       // Processar mensagem baseada no tipo
       await this.processarMensagem(mensagem, orcamento);
@@ -70,6 +75,7 @@ export class ChatV2Service {
   async buscarMensagens(
     orcamentoId: string,
     usuarioId: string,
+    lojaId: string,
     pagina: number = 1,
     porPagina: number = 50,
   ): Promise<{
@@ -84,8 +90,7 @@ export class ChatV2Service {
     );
 
     try {
-      // Validar orçamento
-      await this.validarOrcamento(orcamentoId);
+      await this.validarOrcamento(orcamentoId, lojaId);
 
       // Calcular paginação
       const skip = (pagina - 1) * porPagina;
@@ -113,7 +118,7 @@ export class ChatV2Service {
       ]);
 
       // Marcar mensagens como lidas
-      await this.marcarMensagensComoLidas(orcamentoId, usuarioId);
+      await this.marcarMensagensComoLidas(orcamentoId, usuarioId, lojaId);
 
       const mensagensProcessadas = mensagens.map((msg) =>
         this.transformarMensagem(msg),
@@ -142,11 +147,15 @@ export class ChatV2Service {
   async marcarMensagensComoLidas(
     orcamentoId: string,
     usuarioId: string,
+    lojaId: string,
   ): Promise<void> {
     try {
+      // O filtro por loja fica no próprio `updateMany`: sem ele, um usuário
+      // poderia marcar como lidas as mensagens de outro tenant.
       await this.prisma.mensagemChat.updateMany({
         where: {
           orcamento_id: orcamentoId,
+          orcamento: { loja_id: lojaId },
           usuario_id: { not: usuarioId },
           lida: false,
         },
@@ -248,6 +257,7 @@ export class ChatV2Service {
   async enviarArquivo(
     orcamentoId: string,
     usuarioId: string,
+    lojaId: string,
     nomeArquivo: string,
     urlArquivo: string,
     tamanho: number,
@@ -258,8 +268,7 @@ export class ChatV2Service {
     );
 
     try {
-      // Validar orçamento
-      await this.validarOrcamento(orcamentoId);
+      await this.validarOrcamento(orcamentoId, lojaId);
 
       // Criar mensagem com arquivo
       const mensagem = await this.prisma.mensagemChat.create({
@@ -292,7 +301,10 @@ export class ChatV2Service {
   /**
    * Busca estatísticas do chat
    */
-  async buscarEstatisticasChat(orcamentoId: string): Promise<{
+  async buscarEstatisticasChat(
+    orcamentoId: string,
+    lojaId: string,
+  ): Promise<{
     total_mensagens: number;
     mensagens_por_tipo: Record<string, number>;
     usuarios_ativos: string[];
@@ -304,8 +316,7 @@ export class ChatV2Service {
     );
 
     try {
-      // Validar orçamento
-      await this.validarOrcamento(orcamentoId);
+      await this.validarOrcamento(orcamentoId, lojaId);
 
       // Buscar estatísticas
       const [
@@ -342,6 +353,7 @@ export class ChatV2Service {
    */
   async buscarHistoricoNegociacao(
     orcamentoId: string,
+    lojaId: string,
     dataInicio?: Date,
     dataFim?: Date,
   ): Promise<{
@@ -359,8 +371,7 @@ export class ChatV2Service {
     );
 
     try {
-      // Validar orçamento
-      await this.validarOrcamento(orcamentoId);
+      await this.validarOrcamento(orcamentoId, lojaId);
 
       // Construir filtros de data
       const where: any = { orcamento_id: orcamentoId };
@@ -392,17 +403,27 @@ export class ChatV2Service {
 
   // Métodos privados auxiliares
 
-  private async validarOrcamento(orcamentoId: string): Promise<any> {
-    const orcamento = await this.prisma.orcamento.findUnique({
-      where: { id: orcamentoId },
+  /**
+   * Resolve o orçamento sempre dentro da loja autenticada. Buscar apenas por
+   * `id` permitiria ler e escrever no chat de outro tenant (IDOR).
+   *
+   * Orçamento de outra loja e orçamento inexistente produzem o mesmo `404`,
+   * para não permitir enumeração de identificadores.
+   */
+  private async validarOrcamento(
+    orcamentoId: string,
+    lojaId: string,
+  ): Promise<any> {
+    const orcamento = await this.prisma.orcamento.findFirst({
+      where: { id: orcamentoId, loja_id: lojaId },
     });
 
     if (!orcamento) {
-      throw new Error('Orçamento não encontrado');
+      throw new NotFoundException('Orçamento não encontrado');
     }
 
     if (!orcamento.ativo) {
-      throw new Error('Orçamento inativo');
+      throw new BadRequestException('Orçamento inativo');
     }
 
     return orcamento;

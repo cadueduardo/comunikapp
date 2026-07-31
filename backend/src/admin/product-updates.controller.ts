@@ -26,6 +26,7 @@ import {
   UpsertProductUpdateDto,
 } from './dto/product-update.dto';
 import { ProductUpdatesService } from './product-updates.service';
+import { Public } from '../auth/decorators';
 
 @Controller('admin/v1/product-updates')
 @UseGuards(AdminPermissionsGuard)
@@ -108,12 +109,14 @@ export class DeployProductUpdatesController {
 export class PublicProductUpdatesController {
   constructor(private readonly service: ProductUpdatesService) {}
 
+  @Public()
   @Get()
   list(@Query('limit') limit?: string) {
     const parsed = Number.parseInt(limit || '20', 10);
     return this.service.publicList(Number.isFinite(parsed) ? parsed : 20);
   }
 
+  @Public()
   @Get(':slug')
   detail(@Param('slug') slug: string) {
     return this.service.publicDetail(slug);

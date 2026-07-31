@@ -1,6 +1,6 @@
 # Gate 0S — Hotfix de segurança anterior ao Módulo de Vendas
 
-**Status:** [x] em execução — HS-01 e HS-02 parcialmente entregues (ver §2.0)
+**Status:** [x] em execução — HS-01 concluído; HS-02 e HS-03 parcialmente entregues (ver §2.0)
 **Natureza:** correção obrigatória do legado existente; não é fase funcional de Vendas
 **Bloqueia:** Fases 1 a 14 e qualquer nova rota, card ou navegação de Vendas
 **Origem:** DV-13, DV-16 e achados D-01, D-02 e D-08 da auditoria
@@ -50,6 +50,33 @@ leitura. O risco prático é nulo no momento porque a base ativa só possui usu�
 administradores; quem precisar de exceção passa a recebê-la por `perfil_permissao`,
 que agora é efetivamente consultada.
 
+## 2.1 Fronteira pública: o que o HS-03 encontrou
+
+A allowlist do `JwtGlobalMiddleware` e o decorador `@Public()` divergiam nos dois
+sentidos, e cada sentido exigiu tratamento diferente.
+
+**Aberto pelo middleware, sem declaração no handler.** Seis rotas anônimas de fato
+não diziam isso no código: as três de `arte-aprovacao/links/public`, as duas de
+`arte-aprovacao/mensagens/publico`, o callback OAuth do Google e o changelog
+público. Receberam `@Public()`. Nenhuma mudança de acesso: apenas a declaração
+passou a corresponder ao comportamento.
+
+**Declarado `@Public()`, mas bloqueado pelo middleware.** Seis rotas de chat com o
+cliente final — três em `orcamentos-v2` e três em `mensagens-negociacao` — nunca
+constaram da allowlist e já respondiam `401`. Elas **não** foram abertas: abrir
+exigiria token vinculado, DTO tipado e rate limit, que são o restante do HS-03 e o
+HS-04. A declaração foi alinhada ao comportamento efetivo e as rotas seguem
+autenticadas, agora com permissão comercial exigida. O contrato de chat com o
+cliente final pertence às fases funcionais.
+
+**Entradas mortas removidas:** `/lojas/health`, `/api/estoque/health` e
+`/arte-aprovacao/comentarios/public` não correspondiam a nenhuma rota registrada.
+
+**Endurecimento adicional:** o catálogo casa método e caminho exatos. A allowlist
+anterior ignorava o método e liberava qualquer subcaminho por prefixo, de modo que
+`/arte-aprovacao/links/public` abria tudo abaixo dele. `HEAD` é tratado como `GET`,
+porque o Express roteia os dois para o mesmo handler.
+
 ### Ratificações pendentes para a Fase 2
 
 - `vendas.proposta.excluir` foi acrescentada ao catálogo mínimo porque o endpoint
@@ -75,28 +102,32 @@ e recusa sessão incompleta.
 
 ### HS-01 — Autorização efetiva em Orçamentos V2
 
-- [ ] Inventariar todos os endpoints e classificá-los por leitura, escrita, ação
-      sensível e acesso público intencional.
-- [ ] Proteger no backend todas as operações autenticadas com o padrão
+- [x] Inventariar todos os endpoints e classificá-los por leitura, escrita, ação
+      sensível e acesso público intencional. *(Sete controllers de Orçamentos V2;
+      a fronteira pública ficou registrada em `common/security/rotas-publicas.ts`.)*
+- [x] Proteger no backend todas as operações autenticadas com o padrão
       `VendasPermissionsService`/`assertPode()`, usando o catálogo mínimo necessário
       do artefato 03.
-- [ ] Derivar `usuario_id`, `loja_id`, função e versão de sessão exclusivamente da
+- [x] Derivar `usuario_id`, `loja_id`, função e versão de sessão exclusivamente da
       identidade autenticada; ignorar valores equivalentes enviados pelo cliente.
-- [ ] Negar por padrão permissão inexistente, perfil inválido, usuário/loja inativos
+      *(Exceto versão de sessão, que segue validada só no middleware.)*
+- [x] Negar por padrão permissão inexistente, perfil inválido, usuário/loja inativos
       e recurso de outra loja.
 - [x] Manter `usuario_funcao` como fonte canônica; não ativar `RolesGuard` global e
       não tratar `@Roles` legado como autorização. *(`@Roles` removido de
       `orcamentos-v2.controller.ts` e `links-v2.controller.ts`; piso por função em
       `vendas-permissoes.ts`.)*
-- [ ] Garantir paridade entre controller, jobs e chamadas internas: nenhum caminho
-      alternativo pode contornar o service autorizado.
+- [x] Garantir paridade entre controller, jobs e chamadas internas: nenhum caminho
+      alternativo pode contornar o service autorizado. *(Não há job comercial; as
+      mutações sensíveis reforçam `assertPode` no service.)*
 
-**Entregue até aqui:** `orcamentos-v2.controller.ts` (30 endpoints) e
-`links-v2.controller.ts` (7 endpoints) declaram permissão por endpoint e são cobertos
-pelo `VendasPermissionsGuard`, que nega por padrão.
+**Entregue:** os sete controllers de Orçamentos V2 — `orcamentos-v2`, `links-v2`,
+`chat-v2`, `calculo-v2`, `impressao-v2`, `produto-detalhes` e `anexo-geometria` —
+declaram permissão por endpoint e são cobertos pelo `VendasPermissionsGuard`, que
+nega endpoint sem declaração.
 
-**Falta:** `chat-v2`, `calculo-v2`, `impressao-v2`, `produto-detalhes` e
-`anexo-geometria`; a versão de sessão ainda não participa da decisão de autorização.
+**Falta:** a versão de sessão ainda não participa da decisão de autorização; segue
+validada apenas no `JwtGlobalMiddleware`.
 
 **Desempenho:** carregar permissões em consulta indexada e projeção mínima. Cache
 curto só é permitido por `(loja_id, usuario_id, session_version)`, com invalidação em
@@ -107,8 +138,11 @@ TTL para produzir efeito.
 
 - [x] Corrigir `links-v2.service.ts` e toda busca/mutação por ID para incluir
       `loja_id` derivado do contexto autorizado quando o fluxo for autenticado.
-      *(`validarOrcamento`, `validarAcessoAoOrcamento` e `buscarLinkDaLoja` escopam
-      por loja; os seis métodos autenticados recebem `lojaId` da identidade.)*
+      *(Além de `links-v2`: `chat-v2` e `impressao-v2` deixaram de resolver
+      orçamento por `findUnique({ id })`; `produto-detalhes` escopa pelo orçamento
+      da loja; `marcarMensagemVisualizadaPublica` passou a vincular a mensagem ao
+      orçamento; o cálculo em lote recarrega os orçamentos em vez de aceitar o
+      objeto enviado pelo cliente.)*
 - [ ] Revisar relações carregadas por `include`/`select` para impedir retorno
       indireto de cliente, proposta, anexo, acesso ou orçamento de outra loja.
 - [x] Não diferenciar publicamente “não existe” de “existe, mas não pertence à
@@ -120,10 +154,14 @@ TTL para produzir efeito.
 
 ### HS-03 — Fronteira pública única e mínima
 
-- [ ] Eleger uma única fonte de verdade para rotas públicas e eliminar a divergência
+- [x] Eleger uma única fonte de verdade para rotas públicas e eliminar a divergência
       entre `@Public()` e a allowlist do middleware.
-- [ ] Manter públicas somente as rotas indispensáveis ao fluxo vigente, documentadas
+      *(`common/security/rotas-publicas.ts` é o catálogo; o `JwtGlobalMiddleware`
+      decide só por ele e o `RotasPublicasValidator` recusa a inicialização se
+      alguma rota liberada não estiver declarada `@Public()` no handler.)*
+- [x] Manter públicas somente as rotas indispensáveis ao fluxo vigente, documentadas
       por método e caminho; qualquer rota não listada exige autenticação.
+      *(Ver §2.1 para o que saiu da fronteira.)*
 - [ ] Trocar bodies inline/`any` por DTOs tipados, `class-validator`, whitelist e
       rejeição de campos excedentes nas ações públicas.
 - [ ] Aplicar limite de tamanho, rate limit por finalidade e defesa contra
@@ -199,7 +237,9 @@ devem ser criados antecipadamente apenas para encerrar este gate.
       *(`vendas-permissions.service.spec.ts`, 15 casos: piso por função, perfil ativo
       e inativo, outra loja, usuário inativo e inexistente.)*
 - [ ] Concorrência/retry comprova no máximo um conjunto de efeitos por aceite.
-- [ ] Rotas não declaradas públicas retornam autenticação obrigatória.
+- [x] Rotas não declaradas públicas retornam autenticação obrigatória.
+      *(`rotas-publicas.spec.ts`, 39 casos, e `rotas-publicas.validator.spec.ts`,
+      que inicializa o `AppModule` real e falha se houver divergência.)*
 - [ ] Erros e logs não contêm token, código, stack, payload sensível ou status
       interno indevido.
 - [ ] Teste de carga focado no caminho de autorização demonstra ausência de N+1 e

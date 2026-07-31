@@ -23,8 +23,10 @@ import {
 } from '@nestjs/swagger';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-import { Roles } from '../../auth/decorators/roles.decorator';
-import { CurrentUser as User } from '../../auth/decorators';
+import { Identidade, IdentidadeAutenticada } from '../../auth/decorators';
+import { VendasPermissionsGuard } from '../../vendas/permissions/vendas-permissions.guard';
+import { RequerPermissaoVendas } from '../../vendas/permissions/requer-permissao-vendas.decorator';
+import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 
 import { ImpressaoV2Service } from '../services/impressao-v2.service';
 
@@ -32,13 +34,16 @@ import { ImpressaoV2Service } from '../services/impressao-v2.service';
  * Controller de Impressão V2 para Orçamentos
  * Endpoints para geração de PDFs e relatórios
  *
- * ✅ ARQUIVO ≤ 200 LINHAS (CONFORME PREMISSAS)
  * ✅ ENDPOINTS DE IMPRESSÃO COMPLETOS
  * ✅ MÚLTIPLOS FORMATOS
+ *
+ * Autorização (Gate 0S): todo endpoint declara sua permissão e propaga a loja
+ * autenticada. Estes documentos expõem preço, custo e dados do cliente, então
+ * nenhuma consulta pode resolver o orçamento apenas por ID.
  */
 @ApiTags('Orçamentos V2 - Impressão')
 @Controller('orcamentos-v2/impressao')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, VendasPermissionsGuard)
 @ApiBearerAuth()
 export class ImpressaoV2Controller {
   constructor(private readonly impressaoV2Service: ImpressaoV2Service) {}
@@ -48,7 +53,7 @@ export class ImpressaoV2Controller {
    */
   @Post(':orcamentoId/pdf')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.impressao.gerar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Gera PDF',
     description: 'Gera PDF do orçamento com template personalizado',
@@ -103,11 +108,12 @@ export class ImpressaoV2Controller {
       idioma?: 'pt-BR' | 'en' | 'es';
     },
     @Res() res: Response,
-    @User() usuario: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       const resultado = await this.impressaoV2Service.gerarPDF(
         orcamentoId,
+        identidade.lojaId,
         opcoes.template || 'padrao',
         {
           incluirDetalhes: opcoes.incluirDetalhes,
@@ -134,7 +140,7 @@ export class ImpressaoV2Controller {
    */
   @Post(':orcamentoId/relatorio-executivo')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.impressao.gerar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Relatório executivo',
     description: 'Gera relatório executivo do orçamento',
@@ -170,11 +176,12 @@ export class ImpressaoV2Controller {
     @Param('orcamentoId') orcamentoId: string,
     @Body() dados: { formato: 'pdf' | 'excel' | 'html' },
     @Res() res: Response,
-    @User() usuario: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       const resultado = await this.impressaoV2Service.gerarRelatorioExecutivo(
         orcamentoId,
+        identidade.lojaId,
         dados.formato,
       );
 
@@ -195,7 +202,7 @@ export class ImpressaoV2Controller {
    */
   @Post(':orcamentoId/relatorio-custos')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.impressao.gerar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Relatório de custos',
     description: 'Gera relatório detalhado de custos do orçamento',
@@ -240,11 +247,12 @@ export class ImpressaoV2Controller {
       nivelDetalhamento?: 'resumido' | 'detalhado' | 'completo';
     },
     @Res() res: Response,
-    @User() usuario: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       const resultado = await this.impressaoV2Service.gerarRelatorioCustos(
         orcamentoId,
+        identidade.lojaId,
         dados.formato,
         dados.nivelDetalhamento || 'detalhado',
       );
@@ -266,7 +274,7 @@ export class ImpressaoV2Controller {
    */
   @Post(':orcamentoId/proposta-comercial')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.impressao.gerar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Proposta comercial',
     description: 'Gera proposta comercial do orçamento',
@@ -324,11 +332,12 @@ export class ImpressaoV2Controller {
       idioma?: 'pt-BR' | 'en' | 'es';
     },
     @Res() res: Response,
-    @User() usuario: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       const resultado = await this.impressaoV2Service.gerarPropostaComercial(
         orcamentoId,
+        identidade.lojaId,
         opcoes.template || 'padrao',
         {
           incluirTermos: opcoes.incluirTermos,
@@ -355,7 +364,7 @@ export class ImpressaoV2Controller {
    */
   @Post(':orcamentoId/etiquetas')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.impressao.gerar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Gera etiquetas',
     description: 'Gera etiquetas para produtos, insumos ou máquinas',
@@ -411,11 +420,12 @@ export class ImpressaoV2Controller {
       incluirCodigoBarras?: boolean;
     },
     @Res() res: Response,
-    @User() usuario: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       const resultado = await this.impressaoV2Service.gerarEtiquetas(
         orcamentoId,
+        identidade.lojaId,
         dados.tipo,
         dados.formato || 'pdf',
         {
@@ -442,7 +452,7 @@ export class ImpressaoV2Controller {
    */
   @Post(':orcamentoId/analise-precos')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.impressao.gerar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Análise de preços',
     description: 'Gera relatório de análise de preços do orçamento',
@@ -496,12 +506,13 @@ export class ImpressaoV2Controller {
       incluirRecomendacoes?: boolean;
     },
     @Res() res: Response,
-    @User() usuario: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       const resultado =
         await this.impressaoV2Service.gerarRelatorioAnalisePrecos(
           orcamentoId,
+          identidade.lojaId,
           opcoes.formato,
           {
             incluirComparativo: opcoes.incluirComparativo,

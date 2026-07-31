@@ -1,5 +1,6 @@
 import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { DiscoveryModule } from '@nestjs/core';
 import { join, resolve } from 'path';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
@@ -37,6 +38,7 @@ import { ExpedicaoModule } from './expedicao/expedicao.module';
 import { InstalacaoModule } from './instalacao/instalacao.module';
 import { CatalogoModule } from './catalogo/catalogo.module';
 import { JwtGlobalMiddleware } from './common/middleware/jwt-global.middleware';
+import { RotasPublicasValidator } from './common/security/rotas-publicas.validator';
 import { PlatformModule } from './platform/platform.module';
 import { ConexoesModule } from './conexoes/conexoes.module';
 import { AdminModule } from './admin/admin.module';
@@ -93,7 +95,9 @@ import { AdminModule } from './admin/admin.module';
     PlatformModule,
     ConexoesModule,
     AdminModule,
+    DiscoveryModule,
   ],
+  providers: [RotasPublicasValidator],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {

@@ -14,6 +14,7 @@ import { LojaConexaoService } from './services/loja-conexao.service';
 import { GoogleOAuthService } from './services/google-oauth.service';
 import { LojaConexaoTipo } from './constants/conexao-tipos.enum';
 import { googleOAuthCallbackQuerySchema } from './schemas/conexao.schemas';
+import { Public } from '../auth/decorators';
 
 @ApiTags('Conexões')
 @Controller('conexoes')
@@ -48,6 +49,7 @@ export class ConexoesController {
     return { data: { url } };
   }
 
+  @Public()
   @Get('google/callback')
   @ApiOperation({ summary: 'Callback OAuth Google (público)' })
   async googleCallback(

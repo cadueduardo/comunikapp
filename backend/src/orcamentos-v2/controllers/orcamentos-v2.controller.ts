@@ -265,11 +265,12 @@ export class OrcamentosV2Controller {
     @Param('mensagemId') mensagemId: string,
     @Request() req: any,
   ) {
-    const { usuarioId } = extrairIdentidadeAutenticada(req);
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
     return await this.orcamentosService.marcarMensagemVisualizada(
       id,
       mensagemId,
       usuarioId,
+      lojaId,
     );
   }
 
@@ -309,24 +310,37 @@ export class OrcamentosV2Controller {
   }
 
   /**
-   * Buscar mensagens do chat público - SEGUINDO PADRÃO DO LEGADO
+   * Chat da proposta pelo caminho `.../publico`.
+   *
+   * Estes três endpoints declaravam `@Public()`, mas o `JwtGlobalMiddleware`
+   * nunca os liberou: o catálogo de rotas públicas só abre `:id/publico`,
+   * `:id/publico/acao` e `:id/reenviar-codigo`. Na prática eles já respondiam
+   * `401`. O Gate 0S torna a declaração honesta — permanecem autenticados —
+   * em vez de ampliar a fronteira pública sem DTO, rate limit e vínculo de
+   * token. O contrato do chat com o cliente final é das fases funcionais.
    */
   @Get(':id/mensagens/publico')
-  @Public()
-  @ApiOperation({ summary: 'Buscar mensagens do chat público' })
+  @UseGuards(JwtAuthGuard)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
+  @ApiOperation({ summary: 'Buscar mensagens do chat da proposta' })
   @ApiResponse({ status: 200, description: 'Mensagens encontradas' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
-  async buscarMensagensChatPublico(@Param('id') id: string) {
-    return await this.orcamentosService.buscarMensagensPublicasLegado(id);
+  async buscarMensagensChatPublico(
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    return await this.orcamentosService.buscarMensagensPublicasLegado(
+      id,
+      lojaId,
+    );
   }
 
-  /**
-   * Enviar mensagem no chat público - SEGUINDO PADRÃO DO LEGADO
-   */
   @Post(':id/mensagens/publico')
-  @Public()
+  @UseGuards(JwtAuthGuard)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @UseInterceptors(FileInterceptor('arquivo'))
-  @ApiOperation({ summary: 'Enviar mensagem no chat público' })
+  @ApiOperation({ summary: 'Enviar mensagem no chat da proposta' })
   @ApiResponse({ status: 201, description: 'Mensagem enviada com sucesso' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   async enviarMensagemChatPublico(
@@ -339,8 +353,10 @@ export class OrcamentosV2Controller {
       }),
     )
     body: any,
+    @Request() req: any,
     @UploadedFile() file?: Express.Multer.File,
   ) {
+    const { lojaId } = extrairIdentidadeAutenticada(req);
     // Criar DTO manualmente a partir do body
     const dados = {
       mensagem: body.mensagem || '',
@@ -351,26 +367,28 @@ export class OrcamentosV2Controller {
 
     return await this.orcamentosService.enviarMensagemPublicaLegadoComAnexo(
       id,
+      lojaId,
       dados,
       file,
     );
   }
 
-  /**
-   * Marcar mensagem como lida (chat público)
-   */
   @Post(':id/publico/mensagens/:mensagemId/visualizar')
-  @Public()
-  @ApiOperation({ summary: 'Marcar mensagem como lida (chat público)' })
+  @UseGuards(JwtAuthGuard)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
+  @ApiOperation({ summary: 'Marcar mensagem da proposta como lida' })
   @ApiResponse({ status: 200, description: 'Mensagem marcada como lida' })
   @ApiResponse({ status: 404, description: 'Mensagem não encontrada' })
   async marcarMensagemComoLidaPublico(
     @Param('id') id: string,
     @Param('mensagemId') mensagemId: string,
+    @Request() req: any,
   ) {
+    const { lojaId } = extrairIdentidadeAutenticada(req);
     return await this.orcamentosService.marcarMensagemVisualizadaPublica(
       id,
       mensagemId,
+      lojaId,
     );
   }
 
