@@ -150,14 +150,13 @@ export default function OrcamentoV2PublicoPage() {
   }, [params.id]);
 
   const handleAprovar = async () => {
-    const codigoLimpo = codigoAprovacao.trim().toUpperCase();
+    // O código é sensível a maiúsculas/minúsculas: só espaços acidentais de
+    // cópia são removidos. O tamanho não é validado aqui — quem decide se o
+    // código vale é o backend, e antecipar a regra no cliente só criaria mais
+    // um lugar para desatualizar.
+    const codigoLimpo = codigoAprovacao.trim();
     if (!codigoLimpo) {
-      toast.error('Digite o código de aprovação recebido por email');
-      return;
-    }
-
-    if (codigoLimpo.length !== 8) {
-      toast.error('Código de aprovação deve ter 8 caracteres');
+      toast.error('Informe o código de aprovação recebido por e-mail');
       return;
     }
 
@@ -820,17 +819,22 @@ export default function OrcamentoV2PublicoPage() {
                           <DialogTitle>Aprovar Orçamento</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4">
-                          <p>Digite o código de aprovação que foi enviado para seu email:</p>
+                          <p>Cole abaixo o código de aprovação enviado para o seu e-mail:</p>
                           <div>
                             <Label htmlFor="codigo">Código de Aprovação</Label>
                             <Input
                               id="codigo"
                               value={codigoAprovacao}
-                              onChange={(e) => setCodigoAprovacao(e.target.value.toUpperCase())}
-                              placeholder="Digite o código de 8 caracteres"
-                              className="mt-1"
-                              maxLength={8}
+                              onChange={(e) => setCodigoAprovacao(e.target.value)}
+                              placeholder="Cole aqui o código recebido por e-mail"
+                              autoComplete="off"
+                              spellCheck={false}
+                              className="mt-1 font-mono text-sm"
+                              maxLength={128}
                             />
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              O código diferencia maiúsculas de minúsculas e só pode ser usado uma vez.
+                            </p>
                           </div>
                           <div className="flex gap-2">
                             <Button 

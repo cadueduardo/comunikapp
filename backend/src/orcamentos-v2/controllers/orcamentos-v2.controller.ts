@@ -35,6 +35,7 @@ import { RequerPermissaoVendas } from '../../vendas/permissions/requer-permissao
 import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 import { SimularChapaDto } from '../../common/calculo-chapa/simular-chapa.dto';
 import { OrcamentoOrigemSobraService } from '../services/orcamento-origem-sobra.service';
+import { AcaoClientePublicoDto } from '../dto/acao-cliente-publico.dto';
 
 /**
  * Controller Principal de Orçamentos V2
@@ -63,12 +64,17 @@ export class OrcamentosV2Controller {
 
   /**
    * Reenviar código de aprovação - DEVE SER PRIMEIRA ROTA PÚBLICA
+   *
+   * Gate 0S / HS-04: rota anônima. O rate limit por (orçamento, IP) está em
+   * `main.ts` e evita usá-la como gerador de spam contra o e-mail do cliente;
+   * a resposta é sempre a mesma, para não revelar se o orçamento existe ou
+   * tem cliente com e-mail.
    */
   @Post(':id/reenviar-codigo')
   @Public()
   @ApiOperation({ summary: 'Reenviar código de aprovação' })
-  @ApiResponse({ status: 200, description: 'Código reenviado com sucesso' })
-  @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
+  @ApiResponse({ status: 200, description: 'Solicitação registrada' })
+  @ApiResponse({ status: 429, description: 'Tentativas em excesso' })
   async reenviarCodigoAprovacao(@Param('id') id: string) {
     return await this.orcamentosService.reenviarCodigoAprovacao(id);
   }
@@ -289,22 +295,21 @@ export class OrcamentosV2Controller {
 
   /**
    * Processar ação do cliente público
+   *
+   * Gate 0S / HS-03 e HS-04: rota anônima com DTO tipado (antes era
+   * `@Body() dados: {...}` inline, que desliga a `ValidationPipe` global) e
+   * erro público genérico. A aprovação exige o código de uso único enviado ao
+   * cliente. O rate limit por (orçamento, IP) está em `main.ts`.
    */
   @Post(':id/publico/acao')
   @Public()
   @ApiOperation({ summary: 'Processar ação do cliente público' })
   @ApiResponse({ status: 200, description: 'Ação processada com sucesso' })
-  @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
+  @ApiResponse({ status: 400, description: 'Ação recusada' })
+  @ApiResponse({ status: 429, description: 'Tentativas em excesso' })
   async processarAcaoClientePublico(
     @Param('id') id: string,
-    @Body()
-    dados: {
-      acao: 'APROVAR' | 'REJEITAR' | 'NEGOCIAR';
-      observacoes?: string;
-      codigo_aprovacao?: string;
-      cliente_nome?: string;
-      cliente_email?: string;
-    },
+    @Body() dados: AcaoClientePublicoDto,
   ) {
     return await this.orcamentosService.processarAcaoClientePublico(id, dados);
   }

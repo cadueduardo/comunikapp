@@ -1426,6 +1426,11 @@ model orcamento {
   unidade_medida_produto String?
   observacoes_cliente    String?  @db.Text
   status_aprovacao       String?  @default("PENDENTE")
+  // DEPRECATED (Gate 0S / HS-04 - 2026-07-31): codigo de aprovacao em texto
+  // claro, gerado com Math.random(). Nao e mais gravado nem lido pela
+  // aplicacao; a migration que introduziu o hash zerou todos os valores
+  // ativos. Mantido apenas pela etapa "expand" do rollout expand-and-contract
+  // e sera removido em entrega posterior, junto com o indice unico.
   codigo_aprovacao       String?  @unique(map: "Orcamento_codigo_aprovacao_key")
   status                 String?  @default("rascunho")
   atendente              String?  @default("Equipe Comercial")
@@ -1449,6 +1454,19 @@ model orcamento {
   condicao_pagamento_descricao   String?  @db.VarChar(255)
   comissao_percentual            Decimal? @db.Decimal(5, 2)
   tipo_margem_lucro              String?  @db.VarChar(24) // 'markup' | 'margem_por_dentro' por orçamento
+
+  // Gate 0S / HS-04 - codigo de aprovacao publica da proposta.
+  // O segredo em claro nunca e persistido: a coluna guarda apenas o SHA-256
+  // (hex) de um token de 256 bits gerado por CSPRNG. Uso unico, expiravel e
+  // revogavel; o consumo e feito por UPDATE condicional (ver
+  // `consumirCodigoAprovacao` em orcamentos-v2.service.ts).
+  // Sem indice: o codigo so e verificado com o orcamento ja resolvido por id,
+  // nunca por busca pelo hash.
+  codigo_aprovacao_hash        String?   @db.Char(64)
+  codigo_aprovacao_expira_em   DateTime?
+  codigo_aprovacao_tentativas  Int       @default(0)
+  codigo_aprovacao_usado_em    DateTime?
+  codigo_aprovacao_revogado_em DateTime?
 
   // Entrega/frete comercial do orçamento. Snapshot preserva o histórico do orçamento.
   entrega_modalidade_id         String?

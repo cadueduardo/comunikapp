@@ -1,6 +1,6 @@
 # Gate 0S — Hotfix de segurança anterior ao Módulo de Vendas
 
-**Status:** [x] em execução — HS-01 concluído; HS-02 e HS-03 parcialmente entregues (ver §2.0)
+**Status:** [x] em execução — HS-01 concluído; HS-02, HS-03, HS-04 e HS-05 parcialmente entregues; HS-06 pendente (ver §2.0, §2.1 e §2.2)
 **Natureza:** correção obrigatória do legado existente; não é fase funcional de Vendas
 **Bloqueia:** Fases 1 a 14 e qualquer nova rota, card ou navegação de Vendas
 **Origem:** DV-13, DV-16 e achados D-01, D-02 e D-08 da auditoria
@@ -89,6 +89,35 @@ porque o Express roteia os dois para o mesmo handler.
   interna. Estender a checagem ao restante do service exigiria propagar `usuario_id`
   por assinaturas que hoje não o recebem, o que fica para a Fase 2.
 
+## 2.2 Código de aprovação: o que mudou para quem usa o sistema
+
+O contrato seguro tem efeito visível e precisa ser comunicado ao suporte antes do
+deploy.
+
+**Todos os códigos em circulação param de funcionar.** A migration zera os códigos
+antigos. Cliente que tentar usar o código de um e-mail já recebido verá a mensagem
+genérica de código inválido e deverá clicar em "Reenviar Código" na página da
+proposta, ou pedir o reenvio à equipe comercial.
+
+**O código deixou de ser digitável.** Eram 8 caracteres maiúsculos; agora são 43
+caracteres que diferenciam maiúsculas de minúsculas. O e-mail e a página pública
+foram ajustados para copiar e colar, e o campo perdeu a conversão automática para
+maiúsculas — ela corromperia o token.
+
+**Emitir é sempre reemitir.** Existe no máximo um código válido por orçamento. Enviar
+a proposta, reenviar o código ou editar uma proposta já enviada gera um código novo e
+derruba o anterior. Isso mantém o segredo amarrado à versão vigente da proposta, mas
+significa que o cliente deve usar sempre o último e-mail recebido.
+
+**Mudança de responsabilidade na emissão.** Alterar o status para "enviado" não gera
+mais código. Emitir só faz sentido junto com a entrega, porque o valor em claro existe
+apenas naquele instante — o banco guarda somente o hash. Quem emite é o envio da
+proposta, o reenvio e o aviso de proposta atualizada.
+
+**Limites que o suporte vai encontrar.** Cinco requisições públicas por minuto para o
+mesmo par orçamento+IP, somando ações e reenvios; dez tentativas erradas travam o
+código do orçamento até uma nova emissão.
+
 ### Bug corrigido junto: autor da ação chegava indefinido
 
 `JwtGlobalMiddleware` grava `req.user.sub` e `JwtAuthGuard` grava `req.user.id`;
@@ -162,47 +191,98 @@ TTL para produzir efeito.
 - [x] Manter públicas somente as rotas indispensáveis ao fluxo vigente, documentadas
       por método e caminho; qualquer rota não listada exige autenticação.
       *(Ver §2.1 para o que saiu da fronteira.)*
-- [ ] Trocar bodies inline/`any` por DTOs tipados, `class-validator`, whitelist e
+- [x] Trocar bodies inline/`any` por DTOs tipados, `class-validator`, whitelist e
       rejeição de campos excedentes nas ações públicas.
-- [ ] Aplicar limite de tamanho, rate limit por finalidade e defesa contra
+      *(`AcaoClientePublicoDto`. As duas rotas anônimas de proposta são
+      `POST :id/publico/acao` e `POST :id/reenviar-codigo`; a segunda não tem corpo.)*
+- [x] Aplicar limite de tamanho, rate limit por finalidade e defesa contra
       enumeração. IP não pode ser a única chave de contenção.
-- [ ] Retornar erros públicos genéricos, sem status interno, existência de conta,
+      *(Limitador em `main.ts`, no mesmo padrão `express-rate-limit` já usado pelas
+      rotas sensíveis do financeiro e do admin: chave por par (orçamento, IP), 5
+      requisições por minuto em produção. A contenção que não depende de IP é o
+      contador `codigo_aprovacao_tentativas`, gravado na linha do orçamento.)*
+- [x] Retornar erros públicos genéricos, sem status interno, existência de conta,
       stack trace, ID interno ou detalhe de autorização.
+      *(`CODIGO_APROVACAO_ERRO_PUBLICO` e `ACAO_PUBLICA_ERRO_GENERICO`. Orçamento
+      inexistente, de status incompatível e código errado devolvem o mesmo texto; o
+      reenvio devolve a mesma resposta de sucesso em qualquer recusa.)*
 - [ ] Obter IP e user-agent da requisição por política de proxy confiável; nunca da
-      query string fornecida pelo chamador.
+      query string fornecida pelo chamador. *(`main.ts` já define
+      `trust proxy = 1`, mas falta a varredura dos pontos que leem
+      `x-forwarded-for` diretamente.)*
 
 ### HS-04 — Tokens, códigos e dados sensíveis
 
-- [ ] Remover `Math.random()` de qualquer segredo de aprovação.
-- [ ] Gerar segredo com CSPRNG e entropia adequada; persistir somente hash com
+- [x] Remover `Math.random()` de qualquer segredo de aprovação.
+      *(`gerarCodigoAprovacao` foi excluído.)*
+- [x] Gerar segredo com CSPRNG e entropia adequada; persistir somente hash com
       comparação resistente a timing.
-- [ ] Vincular o segredo à finalidade e ao orçamento/versão aplicável, com expiração,
+      *(`common/security/codigo-aprovacao.ts`: `randomBytes(32)` em base64url,
+      SHA-256 no banco e `timingSafeEqual` na comparação. O valor em claro existe
+      apenas entre a emissão e o envio do e-mail.)*
+- [x] Vincular o segredo à finalidade e ao orçamento/versão aplicável, com expiração,
       revogação, uso único e limite de tentativas.
-- [ ] Invalidar códigos legados ativos que não atendam ao contrato ou forçar sua
+      *(O hash mora na linha do orçamento, então serve só àquele orçamento. Expira em
+      30 dias — mesma validade da proposta —, é revogado ao cancelar/rejeitar, é
+      consumido uma única vez e trava em 10 tentativas. Editar a proposta reemite o
+      código, o que amarra o segredo à versão vigente.)*
+- [x] Invalidar códigos legados ativos que não atendam ao contrato ou forçar sua
       reemissão segura.
+      *(A migration `20260731143000_orcamento_codigo_aprovacao_seguro` zera todos os
+      `codigo_aprovacao` em texto claro. Sem backfill: um código de ~41 bits não vira
+      segredo válido só por ser hasheado. A reemissão é sob demanda, pelo botão de
+      reenvio na página pública ou pelo reenvio da proposta.)*
 - [ ] Remover código, token, senha e dados pessoais desnecessários de logs,
       telemetria, erros e auditoria; revisar também logs históricos acessíveis.
-      *(Parcial: `LinksV2Service.acessarLinkPublico` deixou de registrar o token em
-      texto claro. Falta a varredura completa dos demais services.)*
+      *(Parcial: `LinksV2Service.acessarLinkPublico` não registra mais o token, o
+      `console.log` que imprimia o código de aprovação em bloco foi removido e a
+      listagem autenticada deixou de devolver `codigo_aprovacao` no corpo da resposta.
+      Falta a varredura dos logs de depuração remanescentes em `orcamentos-v2` e a
+      revisão dos logs históricos já gravados.)*
 
-Enquanto contato aprovador e versão imutável ainda não existirem, o hotfix não deve
-simular essa autoridade. O aceite público legado deve ficar restrito ao contrato
-seguro que puder ser comprovado; caso contrário, deve ser temporariamente
-desabilitado, mantendo alternativa autenticada e auditável. O aceite B2B completo
-continua nas Fases 1, 4, 6 e 8.
+O contrato aprovado pelo PO foi o **seguro completo com migration aditiva**, mantendo
+o aceite público funcionando. O meio-termo em texto claro está rejeitado por não
+encerrar o HS-04; a desativação total permanece apenas como contingência de rollout
+caso o fluxo seguro apresente falha crítica. O aceite B2B completo (contato aprovador
+e versão imutável) continua nas Fases 1, 4, 6 e 8 — o hotfix não simula essa
+autoridade.
+
+**Rollout expand-and-contract.** Etapas 1 a 4 (adicionar campos, emitir tokens novos,
+ler pelo hash, invalidar o legado) estão nesta entrega. A etapa 5 — remover a coluna
+`codigo_aprovacao` e seu índice único — fica para entrega posterior. Não há período de
+leitura dupla: a leitura já nasce apontando só para o hash. O rollback é fail-closed
+por construção, porque a invalidação do texto claro é irreversível; reverter a
+migration desativa o aceite público em vez de reabri-lo com segredo fraco.
 
 ### HS-05 — Atomicidade, idempotência e concorrência do aceite existente
 
 - [ ] Centralizar os caminhos interno e público em um único caso de uso no backend.
-- [ ] Impedir que repetição, clique duplo ou requisições concorrentes criem mais de
+      *(Não feito. `processarAcaoClientePublico` e `fecharPedidoInterno` continuam
+      separados. Unificar exige o contrato de aceite das fases funcionais.)*
+- [x] Impedir que repetição, clique duplo ou requisições concorrentes criem mais de
       uma OS, cobrança ou efeito equivalente para o mesmo aceite.
-- [ ] Usar garantias estruturais já disponíveis (`@unique`) e transação curta para
+      *(No caminho público, o consumo do código é a chave de idempotência: só uma
+      requisição marca `codigo_aprovacao_usado_em`, e as demais recebem o estado atual
+      sem disparar efeito. Coberto por teste de clique duplo.)*
+- [x] Usar garantias estruturais já disponíveis (`@unique`) e transação curta para
       estado e efeitos locais. Consulta prévia isolada não é idempotência.
-- [ ] Não silenciar falha parcial. Se um efeito não puder compartilhar transação,
+      *(A serialização vem de dois `UPDATE ... WHERE` condicionais dentro de um
+      `$transaction`: um exige "não usado, não revogado, não expirado e abaixo do
+      limite"; o outro exige o status de origem. Nenhuma decisão depende de leitura
+      anterior.)*
+- [x] Não silenciar falha parcial. Se um efeito não puder compartilhar transação,
       registrar estado recuperável e processamento idempotente; não afirmar sucesso
       antes da conclusão contratada.
-- [ ] Não executar e-mail, webhook ou rede externa dentro de transação de banco.
+      *(Falha na geração da OS reverte status e consumo do código juntos e responde
+      erro — o cliente continua com um código utilizável em vez de ficar sem saída.
+      Falha na cobrança segue não revertendo a aprovação, como já era, e é registrada
+      para tratamento manual.)*
+- [x] Não executar e-mail, webhook ou rede externa dentro de transação de banco.
+      *(A transação cobre apenas os dois UPDATEs. OS, cobrança e notificação rodam
+      depois dela.)*
 - [ ] Gravar auditoria sanitizada na mesma transação da mutação sensível.
+      *(Bloqueado: `registrarLog` só escreve no logger. Persistir auditoria em
+      `OrcamentoLog` é pré-requisito e não estava no recorte desta entrega.)*
 
 O hotfix estabiliza o aceite existente. `pedido_comercial`, snapshot contratual,
 evidência B2B completa, gates e novos handoffs continuam nas fases previstas; não
@@ -229,14 +309,20 @@ devem ser criados antecipadamente apenas para encerrar este gate.
 ## 4. Testes e evidências obrigatórias
 
 - [ ] Matriz endpoint × público/autenticado × permissão × tenant revisada.
-- [ ] Testes unitários de permissão, token, expiração, tentativas e sanitização.
-      *(Permissão coberta em `vendas-permissions.service.spec.ts`; token, expiração e
-      tentativas dependem do HS-04.)*
+- [x] Testes unitários de permissão, token, expiração, tentativas e sanitização.
+      *(`vendas-permissions.service.spec.ts` para permissão;
+      `codigo-aprovacao.spec.ts`, 11 casos, para entropia, hash, expiração UTC e
+      comparação; `orcamentos-v2-aceite-publico.spec.ts`, 12 casos, para código
+      inválido, expirado, revogado, teto de tentativas, ausência de código e resposta
+      sem vazamento do segredo.)*
 - [ ] Integração com dois tenants cobrindo leitura e mutação por IDs trocados.
 - [x] Testes por persona: sem permissão, vendedor, gestor e administrador.
       *(`vendas-permissions.service.spec.ts`, 15 casos: piso por função, perfil ativo
       e inativo, outra loja, usuário inativo e inexistente.)*
-- [ ] Concorrência/retry comprova no máximo um conjunto de efeitos por aceite.
+- [x] Concorrência/retry comprova no máximo um conjunto de efeitos por aceite.
+      *(`orcamentos-v2-aceite-publico.spec.ts`: clique duplo com o mesmo código gera
+      uma única OS e devolve a mesma resposta. O teste simula as condições dos
+      `updateMany`; falta o ensaio com concorrência real em banco.)*
 - [x] Rotas não declaradas públicas retornam autenticação obrigatória.
       *(`rotas-publicas.spec.ts`, 39 casos, e `rotas-publicas.validator.spec.ts`,
       que inicializa o `AppModule` real e falha se houver divergência.)*

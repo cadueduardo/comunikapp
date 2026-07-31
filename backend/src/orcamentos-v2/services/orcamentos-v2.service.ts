@@ -42,10 +42,24 @@ import {
 import { MetodoCobrancaChapa } from '../../common/calculo-chapa/calculo-chapa.types';
 import { distribuirPrecoFinal } from '../utils/distribuicao-preco.util';
 import { resolverPrecosPdfComArte } from '../utils/pdf-arte-linha.util';
-import { TipoFornecedor } from '@prisma/client';
+import { Prisma, TipoFornecedor } from '@prisma/client';
 import { calcularCustoUnitarioUso } from '../../common/custos/custo-unitario-insumo.util';
 import { VendasPermissionsService } from '../../vendas/permissions/vendas-permissions.service';
 import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
+import {
+  CODIGO_APROVACAO_ERRO_PUBLICO,
+  CODIGO_APROVACAO_MAX_TENTATIVAS,
+  calcularHashCodigoAprovacao,
+  emitirCodigoAprovacao,
+  formatoCodigoAprovacaoValido,
+  hashesConferem,
+} from '../../common/security/codigo-aprovacao';
+import {
+  ACAO_PUBLICA_ERRO_GENERICO,
+  AcaoClientePublicoDto,
+  ConflitoAcaoPublicaError,
+  STATUS_QUE_ACEITAM_ACAO_PUBLICA,
+} from '../dto/acao-cliente-publico.dto';
 
 /**
  * Serviço Principal de Orçamentos V2
@@ -1038,7 +1052,9 @@ export class OrcamentosV2Service {
             atendente: true,
             observacoes_internas: true,
             observacoes_cliente: true,
-            codigo_aprovacao: true,
+            // Gate 0S / HS-04: `codigo_aprovacao` saiu daqui. A listagem
+            // devolvia o segredo do aceite em texto claro para qualquer
+            // usuário da loja com permissão de leitura.
             cliente: true,
             produtos: true,
           },
@@ -1584,9 +1600,16 @@ export class OrcamentosV2Service {
             (Array.isArray(orc.produtos)
               ? orc.produtos.reduce((s, p) => s + toNum(p?.preco_total), 0)
               : 0);
-          const codigoAprovacao = String(orc.codigo_aprovacao ?? '');
           const nomeServico = String(
             orc.nome_servico ?? orc.titulo ?? 'Orçamento',
+          );
+
+          // Gate 0S / HS-04: a proposta mudou, então o código anterior deixa
+          // de valer e um novo é emitido junto com o aviso. Não há como
+          // reaproveitar o antigo — o banco só tem o hash dele.
+          const codigoAprovacao = await this.emitirCodigoAprovacaoDoOrcamento(
+            id,
+            lojaId,
           );
 
           await this.mailService.enviarNotificacaoOrcamentoAtualizado(
@@ -2275,55 +2298,219 @@ export class OrcamentosV2Service {
   }
 
   /**
-   * Gerar código de aprovação único - BASEADO NO LEGADO
+   * Gate 0S / HS-04 - Emite um novo código de aprovação para o orçamento.
+   *
+   * Persiste apenas o hash e devolve o valor em claro **exclusivamente** para
+   * quem vai entregá-lo ao cliente pelo canal dele (e-mail). O retorno desta
+   * função não pode ser colocado em resposta HTTP nem em log.
+   *
+   * Emitir é sempre reemitir: qualquer código anterior (inclusive o legado em
+   * texto claro) é descartado no mesmo UPDATE, junto com o contador de
+   * tentativas, a marca de uso e a de revogação. Não existe caminho em que
+   * dois códigos fiquem válidos ao mesmo tempo para o mesmo orçamento.
    */
-  private async gerarCodigoAprovacao(): Promise<string> {
-    const caracteres = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let codigo: string;
-    let tentativas = 0;
-    const maxTentativas = 10;
+  private async emitirCodigoAprovacaoDoOrcamento(
+    orcamentoId: string,
+    lojaId: string,
+  ): Promise<string> {
+    const emitido = emitirCodigoAprovacao();
 
-    do {
-      codigo = '';
-      for (let i = 0; i < 8; i++) {
-        codigo += caracteres.charAt(
-          Math.floor(Math.random() * caracteres.length),
-        );
-      }
-      tentativas++;
+    const { count } = await this.prisma.orcamento.updateMany({
+      where: { id: orcamentoId, loja_id: lojaId },
+      data: {
+        codigo_aprovacao_hash: emitido.hash,
+        codigo_aprovacao_expira_em: emitido.expiraEm,
+        codigo_aprovacao_tentativas: 0,
+        codigo_aprovacao_usado_em: null,
+        codigo_aprovacao_revogado_em: null,
+        // Etapa "contract" do rollout: nenhum fluxo volta a gravar texto claro.
+        codigo_aprovacao: null,
+      },
+    });
 
-      // Verificar se o código já existe
-      const existe = await this.prisma.orcamento.findUnique({
-        where: { codigo_aprovacao: codigo },
-      });
+    if (count !== 1) {
+      throw new NotFoundException('Orçamento não encontrado');
+    }
 
-      if (!existe) {
-        return codigo;
-      }
-    } while (tentativas < maxTentativas);
-
-    throw new Error(
-      'Não foi possível gerar um código único após várias tentativas',
+    this.logger.log(
+      'Codigo de aprovacao emitido para o orcamento ' +
+        orcamentoId +
+        ' (expira em ' +
+        emitido.expiraEm.toISOString() +
+        ')',
     );
+
+    return emitido.codigo;
   }
 
   /**
-   * Validar código de aprovação - BASEADO NO LEGADO
+   * Gate 0S / HS-04 - Revoga o código ativo sem emitir outro.
+   *
+   * Usado quando o orçamento sai do estado em que o aceite público faz
+   * sentido. Revogar é explícito e não depende da expiração.
    */
-  private async validarCodigoAprovacao(
-    codigo: string,
+  private async revogarCodigoAprovacaoDoOrcamento(
     orcamentoId: string,
-  ): Promise<boolean> {
-    const orcamento = await this.prisma.orcamento.findUnique({
-      where: { id: orcamentoId },
-      select: { codigo_aprovacao: true },
+    lojaId: string,
+    motivo: string,
+  ): Promise<void> {
+    const { count } = await this.prisma.orcamento.updateMany({
+      where: {
+        id: orcamentoId,
+        loja_id: lojaId,
+        codigo_aprovacao_hash: { not: null },
+        codigo_aprovacao_revogado_em: null,
+      },
+      data: { codigo_aprovacao_revogado_em: new Date() },
     });
 
-    if (!orcamento) {
-      return false;
+    if (count > 0) {
+      this.logger.log(
+        'Codigo de aprovacao revogado no orcamento ' +
+          orcamentoId +
+          '. Motivo: ' +
+          motivo,
+      );
+    }
+  }
+
+  /**
+   * Registra uma tentativa malsucedida.
+   *
+   * Fica fora de qualquer transação de aceite de propósito: a tentativa
+   * precisa persistir mesmo quando a requisição termina em erro. O `lt` no
+   * filtro evita que o contador cresça sem limite sob ataque.
+   */
+  private async registrarTentativaCodigoAprovacao(
+    orcamentoId: string,
+  ): Promise<void> {
+    await this.prisma.orcamento.updateMany({
+      where: {
+        id: orcamentoId,
+        codigo_aprovacao_tentativas: { lt: CODIGO_APROVACAO_MAX_TENTATIVAS },
+      },
+      data: { codigo_aprovacao_tentativas: { increment: 1 } },
+    });
+  }
+
+  /**
+   * Gate 0S / HS-04 - Verifica o código informado sem consumi-lo.
+   *
+   * Roda fora de qualquer transação de propósito: o contador de tentativas
+   * precisa persistir mesmo quando a requisição termina em erro, e um
+   * incremento dentro de transação abortada seria descartado — exatamente o
+   * que um atacante de força bruta gostaria.
+   *
+   * A comparação é sempre sobre hashes, em tempo constante. O veredito `APTO`
+   * não é garantia de nada: quem decide o vencedor da corrida é o UPDATE
+   * condicional em `consumirCodigoAprovacaoNaTransacao`.
+   */
+  private async verificarCodigoAprovacao(
+    orcamentoId: string,
+    codigoInformado: unknown,
+    agora: Date,
+  ): Promise<
+    | { situacao: 'INVALIDO' }
+    | { situacao: 'JA_CONSUMIDO' }
+    | { situacao: 'APTO'; hash: string }
+  > {
+    if (!formatoCodigoAprovacaoValido(codigoInformado)) {
+      await this.registrarTentativaCodigoAprovacao(orcamentoId);
+      return { situacao: 'INVALIDO' };
     }
 
-    return orcamento.codigo_aprovacao === codigo;
+    const registro = await this.prisma.orcamento.findUnique({
+      where: { id: orcamentoId },
+      select: {
+        codigo_aprovacao_hash: true,
+        codigo_aprovacao_expira_em: true,
+        codigo_aprovacao_tentativas: true,
+        codigo_aprovacao_usado_em: true,
+        codigo_aprovacao_revogado_em: true,
+      },
+    });
+
+    if (!registro) {
+      return { situacao: 'INVALIDO' };
+    }
+
+    const hash = calcularHashCodigoAprovacao(codigoInformado);
+
+    if (!hashesConferem(hash, registro.codigo_aprovacao_hash)) {
+      await this.registrarTentativaCodigoAprovacao(orcamentoId);
+      return { situacao: 'INVALIDO' };
+    }
+
+    // A partir daqui o chamador provou conhecer o segredo. "Já usado" costuma
+    // ser o mesmo cliente clicando duas vezes, então vira idempotência, não
+    // falha — e por isso não conta como tentativa.
+    if (registro.codigo_aprovacao_usado_em) {
+      return { situacao: 'JA_CONSUMIDO' };
+    }
+
+    if (
+      registro.codigo_aprovacao_revogado_em ||
+      !registro.codigo_aprovacao_expira_em ||
+      registro.codigo_aprovacao_expira_em <= agora ||
+      registro.codigo_aprovacao_tentativas >= CODIGO_APROVACAO_MAX_TENTATIVAS
+    ) {
+      await this.registrarTentativaCodigoAprovacao(orcamentoId);
+      return { situacao: 'INVALIDO' };
+    }
+
+    return { situacao: 'APTO', hash };
+  }
+
+  /**
+   * Gate 0S / HS-04 + HS-05 - Queima o código em um único UPDATE condicional.
+   *
+   * Este é o ponto de serialização do aceite público: a condição
+   * "não usado, não revogado, não expirado e abaixo do limite de tentativas"
+   * vive no `WHERE`, então o banco garante que exatamente uma requisição
+   * concorrente recebe `count === 1`. Consulta prévia não substitui isso.
+   *
+   * Recebe o cliente da transação para que a queima do token e a transição de
+   * status sejam atômicas entre si: nenhuma falha pode deixar o código gasto
+   * com a proposta ainda pendente.
+   */
+  private async consumirCodigoAprovacaoNaTransacao(
+    tx: Prisma.TransactionClient,
+    orcamentoId: string,
+    hash: string,
+    agora: Date,
+  ): Promise<boolean> {
+    const { count } = await tx.orcamento.updateMany({
+      where: {
+        id: orcamentoId,
+        codigo_aprovacao_hash: hash,
+        codigo_aprovacao_usado_em: null,
+        codigo_aprovacao_revogado_em: null,
+        codigo_aprovacao_expira_em: { gt: agora },
+        codigo_aprovacao_tentativas: { lt: CODIGO_APROVACAO_MAX_TENTATIVAS },
+      },
+      data: { codigo_aprovacao_usado_em: agora },
+    });
+
+    return count === 1;
+  }
+
+  /**
+   * Devolve o código ao estado "não usado" quando o aceite foi registrado mas
+   * um efeito obrigatório falhou depois da transação.
+   *
+   * Sem isso, uma falha na geração da OS deixaria o cliente com o orçamento
+   * revertido para pendente e sem código utilizável, ou seja, sem saída. A
+   * reversão é condicionada ao hash para não reabrir um código que já tenha
+   * sido substituído por uma nova emissão nesse meio-tempo.
+   */
+  private async reverterConsumoCodigoAprovacao(
+    orcamentoId: string,
+    hash: string,
+  ): Promise<void> {
+    await this.prisma.orcamento.updateMany({
+      where: { id: orcamentoId, codigo_aprovacao_hash: hash },
+      data: { codigo_aprovacao_usado_em: null },
+    });
   }
 
   /**
@@ -2331,14 +2518,10 @@ export class OrcamentosV2Service {
    */
   async processarAcaoClientePublico(
     id: string,
-    dados: {
-      acao: 'APROVAR' | 'REJEITAR' | 'NEGOCIAR';
-      observacoes?: string;
-      codigo_aprovacao?: string;
-      cliente_nome?: string;
-      cliente_email?: string;
-    },
+    dados: AcaoClientePublicoDto,
   ) {
+    const agora = new Date();
+
     this.logger.log(
       'Processando acao publica do cliente: ' +
         dados.acao +
@@ -2348,96 +2531,242 @@ export class OrcamentosV2Service {
 
     const orcamento = await this.prisma.orcamento.findUnique({
       where: { id },
-      include: {
-        cliente: true,
-        loja: true,
-      },
+      select: { id: true, status: true, loja_id: true },
     });
 
     if (!orcamento) {
-      throw new NotFoundException('Orcamento nao encontrado');
+      // Endpoint público: não confirmamos a existência de um orçamento para
+      // quem não provou conhecer o segredo.
+      throw new BadRequestException(ACAO_PUBLICA_ERRO_GENERICO);
+    }
+
+    const lojaContexto = orcamento.loja_id;
+
+    // Gate 0S / HS-04: para APROVAR, a posse do código é verificada antes de
+    // qualquer avaliação de estado. Assim o endereço público não vira um
+    // oráculo de status de proposta para quem não tem o código.
+    let hashConsumido: string | null = null;
+
+    if (dados.acao === 'APROVAR') {
+      const verificacao = await this.verificarCodigoAprovacao(
+        id,
+        dados.codigo_aprovacao,
+        agora,
+      );
+
+      if (verificacao.situacao === 'INVALIDO') {
+        this.logger.warn(
+          '[ACEITE_PUBLICO] Codigo de aprovacao recusado para o orcamento ' +
+            id,
+        );
+        throw new BadRequestException(CODIGO_APROVACAO_ERRO_PUBLICO);
+      }
+
+      if (verificacao.situacao === 'JA_CONSUMIDO') {
+        // Clique duplo, retry do navegador ou reenvio do formulário. O aceite
+        // já foi registrado; devolvemos o estado atual sem repetir nenhum
+        // efeito (nada de segunda OS, segunda cobrança ou segundo aviso).
+        this.logger.log(
+          '[ACEITE_PUBLICO] Codigo ja consumido no orcamento ' +
+            id +
+            '. Respondendo de forma idempotente.',
+        );
+        return await this.montarRespostaAcaoPublica(id);
+      }
+
+      hashConsumido = verificacao.hash;
+    }
+
+    if (dados.acao === 'REJEITAR' && !dados.observacoes?.trim()) {
+      throw new BadRequestException('Motivo da rejeição é obrigatório.');
+    }
+
+    const { status: novoStatus, statusAprovacao, observacoes } =
+      this.resolverTransicaoAcaoPublica(dados);
+
+    // Gate 0S / HS-05: a queima do código e a transição de estado acontecem na
+    // mesma transação. Sem isso, uma falha entre as duas deixaria o cliente
+    // com o código gasto e a proposta ainda pendente.
+    const resultado = await this.prisma.$transaction(async (tx) => {
+      if (hashConsumido) {
+        const consumiu = await this.consumirCodigoAprovacaoNaTransacao(
+          tx,
+          id,
+          hashConsumido,
+          agora,
+        );
+
+        if (!consumiu) {
+          return 'CORRIDA_PERDIDA' as const;
+        }
+      }
+
+      // Transição condicionada ao estado de origem: é o `WHERE` que serializa
+      // requisições concorrentes. Ler o status antes e decidir na aplicação
+      // não impediria duas transições simultâneas.
+      const transicao = await tx.orcamento.updateMany({
+        where: { id, status: { in: STATUS_QUE_ACEITAM_ACAO_PUBLICA } },
+        data: {
+          status: novoStatus,
+          status_aprovacao: statusAprovacao,
+          observacoes_cliente: observacoes,
+          data_atualizacao: agora,
+        },
+      });
+
+      if (transicao.count !== 1) {
+        // Lançar aqui desfaz também a queima do código: ou o aceite inteiro
+        // vale, ou nada dele vale.
+        throw new ConflitoAcaoPublicaError();
+      }
+
+      return 'APLICADO' as const;
+    }).catch((erro) => {
+      if (erro instanceof ConflitoAcaoPublicaError) {
+        return 'CONFLITO_DE_ESTADO' as const;
+      }
+      throw erro;
+    });
+
+    if (resultado !== 'APLICADO') {
+      // `CORRIDA_PERDIDA`: outra requisição consumiu o mesmo código entre a
+      // verificação e o UPDATE — cenário típico de clique duplo, e o aceite
+      // dela já está registrado.
+      if (resultado === 'CORRIDA_PERDIDA' && dados.acao === 'APROVAR') {
+        return await this.montarRespostaAcaoPublica(id);
+      }
+
+      this.logger.warn(
+        '[ACAO_PUBLICA] Acao ' +
+          dados.acao +
+          ' recusada no orcamento ' +
+          id +
+          ': estado incompatível.',
+      );
+      throw new BadRequestException(ACAO_PUBLICA_ERRO_GENERICO);
+    }
+
+    if (dados.acao === 'APROVAR') {
+      try {
+        await this.criarOSAutomaticaParaOrcamento(
+          lojaContexto,
+          id,
+          'CLIENTE_PUBLICO',
+          'PROCESSAR_ACAO_PUBLICA',
+        );
+      } catch (error) {
+        this.logger.error(
+          '[OS_AUTO] Falha ao gerar OS automatica para o orcamento ' +
+            id +
+            ' via canal publico: ' +
+            (error as Error).message,
+        );
+
+        // Reverte estado e código juntos. Reverter só o status deixaria o
+        // cliente sem proposta aprovada e sem código utilizável — sem saída.
+        await this.prisma.orcamento.updateMany({
+          where: { id },
+          data: {
+            status: orcamento.status,
+            status_aprovacao: 'PENDENTE',
+            data_atualizacao: new Date(),
+          },
+        });
+
+        if (hashConsumido) {
+          await this.reverterConsumoCodigoAprovacao(id, hashConsumido);
+        }
+
+        throw new InternalServerErrorException(
+          'Falha ao gerar OS automaticamente. Status do orcamento foi revertido.',
+        );
+      }
+
+      // Fase 6 - Cria cobranca financeira automaticamente. Igual a
+      // aprovacao interna, falha aqui nao reverte a aprovacao - apenas avisa.
+      try {
+        const orcamentoParaCobranca = await this.prisma.orcamento.findFirst({
+          where: { id, loja_id: lojaContexto },
+        });
+
+        await this.criarCobrancaAposAprovacao(
+          orcamentoParaCobranca,
+          id,
+          lojaContexto,
+          'CLIENTE_PUBLICO',
+        );
+        this.homeCacheService.invalidar(lojaContexto);
+      } catch (cobrancaError) {
+        this.logger.warn(
+          '[COBRANCA_AUTO] Falha na criacao da cobranca para orcamento ' +
+            id +
+            ' via canal publico: ' +
+            (cobrancaError as Error).message,
+        );
+      }
     }
 
     this.logger.log(
-      'Orcamento encontrado: ' + orcamento.id + ', status: ' + orcamento.status,
+      'Acao ' + dados.acao + ' processada com sucesso para o orcamento ' + id,
     );
 
-    const statusValidos = ['pendente', 'enviado', 'rascunho'];
-    if (!statusValidos.includes(orcamento.status)) {
-      this.logger.warn(
-        'Orcamento ' +
-          orcamento.id +
-          ' nao esta em status valido. Status atual: ' +
-          orcamento.status,
-      );
-      throw new BadRequestException(
-        'Orcamento nao esta em status valido para esta acao. Status atual: ' +
-          orcamento.status +
-          '. Status validos: ' +
-          statusValidos.join(', '),
-      );
-    }
+    const resposta = await this.montarRespostaAcaoPublica(id);
 
-    const statusAnterior = orcamento.status;
-    const statusAprovacaoAnterior = orcamento.status_aprovacao;
-    const observacoesClienteAnterior = (orcamento as any).observacoes_cliente;
-    const codigoAprovacaoAnterior = orcamento.codigo_aprovacao;
-    const lojaContexto = orcamento.loja_id;
+    await this.notificarAcaoCliente(
+      { ...resposta, loja_id: lojaContexto },
+      dados.acao,
+    );
+    await this.registrarLog(id, dados.acao, observacoes);
 
-    let statusAprovacao = '';
-    let observacoes = '';
+    return resposta;
+  }
 
+  /**
+   * Traduz a ação do cliente para o estado resultante.
+   *
+   * Fica separado para que a transição seja um dado, não um encadeamento de
+   * ternários dentro do UPDATE — e para que qualquer ação fora do contrato
+   * pare aqui, antes de tocar o banco.
+   */
+  private resolverTransicaoAcaoPublica(dados: AcaoClientePublicoDto): {
+    status: string;
+    statusAprovacao: string;
+    observacoes: string;
+  } {
     switch (dados.acao) {
       case 'APROVAR':
-        if (!dados.codigo_aprovacao) {
-          throw new BadRequestException('Codigo de aprovacao e obrigatorio');
-        }
-
-        const codigoValido = await this.validarCodigoAprovacao(
-          dados.codigo_aprovacao,
-          id,
-        );
-        if (!codigoValido) {
-          throw new BadRequestException('Codigo de aprovacao invalido');
-        }
-
-        statusAprovacao = 'APROVADO';
-        observacoes = 'Orcamento aprovado pelo cliente';
-        break;
-
+        return {
+          status: 'aprovado',
+          statusAprovacao: 'APROVADO',
+          observacoes: 'Orcamento aprovado pelo cliente',
+        };
       case 'REJEITAR':
-        if (!dados.observacoes) {
-          throw new BadRequestException('Motivo da rejeicao e obrigatorio');
-        }
-
-        statusAprovacao = 'REJEITADO';
-        observacoes = dados.observacoes;
-        break;
-
+        return {
+          status: 'rejeitado',
+          statusAprovacao: 'REJEITADO',
+          observacoes: dados.observacoes?.trim() ?? '',
+        };
       case 'NEGOCIAR':
-        statusAprovacao = 'NEGOCIANDO';
-        observacoes = 'Cliente iniciou negociacao';
-        break;
-
+        return {
+          status: 'negociando',
+          statusAprovacao: 'NEGOCIANDO',
+          observacoes: 'Cliente iniciou negociacao',
+        };
       default:
-        throw new BadRequestException('Acao invalida');
+        throw new BadRequestException(ACAO_PUBLICA_ERRO_GENERICO);
     }
+  }
 
-    const orcamentoAtualizado = await this.prisma.orcamento.update({
+  /**
+   * Representação devolvida ao cliente público após uma ação.
+   *
+   * Relê do banco em vez de reaproveitar o retorno do UPDATE para que a
+   * resposta idempotente (clique duplo) e a resposta do primeiro aceite sejam
+   * exatamente iguais. Nenhum campo de código de aprovação é exposto.
+   */
+  private async montarRespostaAcaoPublica(id: string) {
+    const orcamento = await this.prisma.orcamento.findUnique({
       where: { id },
-      data: {
-        status:
-          dados.acao === 'APROVAR'
-            ? 'aprovado'
-            : dados.acao === 'REJEITAR'
-              ? 'rejeitado'
-              : dados.acao === 'NEGOCIAR'
-                ? 'negociando'
-                : orcamento.status,
-        status_aprovacao: statusAprovacao as any,
-        observacoes_cliente: observacoes,
-        data_atualizacao: new Date(),
-      },
       include: {
         cliente: {
           select: {
@@ -2475,84 +2804,29 @@ export class OrcamentosV2Service {
       },
     });
 
-    if (dados.acao === 'APROVAR') {
-      try {
-        await this.criarOSAutomaticaParaOrcamento(
-          lojaContexto,
-          orcamentoAtualizado.id,
-          'CLIENTE_PUBLICO',
-          'PROCESSAR_ACAO_PUBLICA',
-        );
-      } catch (error) {
-        this.logger.error(
-          '[OS_AUTO] Falha ao gerar OS automatica para o orcamento ' +
-            orcamentoAtualizado.id +
-            ' via canal publico: ' +
-            error.message,
-        );
-
-        await this.prisma.orcamento.update({
-          where: { id },
-          data: {
-            status: statusAnterior,
-            status_aprovacao: statusAprovacaoAnterior,
-            observacoes_cliente: observacoesClienteAnterior,
-            codigo_aprovacao: codigoAprovacaoAnterior,
-            data_atualizacao: new Date(),
-          },
-        });
-
-        throw new InternalServerErrorException(
-          'Falha ao gerar OS automaticamente. Status do orcamento foi revertido.',
-        );
-      }
-
-      // Fase 6 - Cria cobranca financeira automaticamente. Igual a
-      // aprovacao interna, falha aqui nao reverte a aprovacao - apenas avisa.
-      try {
-        await this.criarCobrancaAposAprovacao(
-          orcamentoAtualizado,
-          orcamentoAtualizado.id,
-          lojaContexto,
-          'CLIENTE_PUBLICO',
-        );
-        this.homeCacheService.invalidar(lojaContexto);
-      } catch (cobrancaError) {
-        this.logger.warn(
-          '[COBRANCA_AUTO] Falha na criacao da cobranca para orcamento ' +
-            orcamentoAtualizado.id +
-            ' via canal publico: ' +
-            (cobrancaError as Error).message,
-        );
-      }
+    if (!orcamento) {
+      throw new BadRequestException(ACAO_PUBLICA_ERRO_GENERICO);
     }
 
-    this.logger.log(
-      'Acao ' + dados.acao + ' processada com sucesso para o orcamento ' + id,
-    );
-
-    await this.notificarAcaoCliente(orcamentoAtualizado, dados.acao);
-    await this.registrarLog(id, dados.acao, observacoes);
-
     return {
-      id: orcamentoAtualizado.id,
-      numero: orcamentoAtualizado.numero,
-      nome_servico: orcamentoAtualizado.titulo,
-      descricao: orcamentoAtualizado.descricao,
-      quantidade_produto: orcamentoAtualizado.quantidade_produto,
-      unidade_medida_produto: orcamentoAtualizado.unidade_medida_produto,
-      preco_final: orcamentoAtualizado.preco_final,
-      status: orcamentoAtualizado.status,
-      status_aprovacao: orcamentoAtualizado.status_aprovacao,
-      observacoes_cliente: orcamentoAtualizado.observacoes_cliente,
-      criado_em: orcamentoAtualizado.data_criacao,
-      cliente: orcamentoAtualizado.cliente,
-      loja: orcamentoAtualizado.loja,
-      prazo_entrega: orcamentoAtualizado.prazo_entrega,
-      forma_pagamento: orcamentoAtualizado.forma_pagamento,
-      validade_proposta: orcamentoAtualizado.validade_proposta,
-      atendente: orcamentoAtualizado.atendente,
-      observacoes: orcamentoAtualizado.observacoes_internas,
+      id: orcamento.id,
+      numero: orcamento.numero,
+      nome_servico: orcamento.titulo,
+      descricao: orcamento.descricao,
+      quantidade_produto: orcamento.quantidade_produto,
+      unidade_medida_produto: orcamento.unidade_medida_produto,
+      preco_final: orcamento.preco_final,
+      status: orcamento.status,
+      status_aprovacao: orcamento.status_aprovacao,
+      observacoes_cliente: orcamento.observacoes_cliente,
+      criado_em: orcamento.data_criacao,
+      cliente: orcamento.cliente,
+      loja: orcamento.loja,
+      prazo_entrega: orcamento.prazo_entrega,
+      forma_pagamento: orcamento.forma_pagamento,
+      validade_proposta: orcamento.validade_proposta,
+      atendente: orcamento.atendente,
+      observacoes: orcamento.observacoes_internas,
     };
   }
 
@@ -2962,26 +3236,17 @@ export class OrcamentosV2Service {
     const statusAnterior = orcamento.status;
     const statusAprovacaoAnterior = orcamento.status_aprovacao;
     const observacoesClienteAnterior = (orcamento as any).observacoes_cliente;
-    const codigoAprovacaoAnterior = orcamento.codigo_aprovacao;
 
     const dadosAtualizacao: any = {
       status: novoStatus,
       data_atualizacao: new Date(),
     };
 
-    if (novoStatus === 'enviado' && !orcamento.codigo_aprovacao) {
-      const codigoAprovacao = await this.gerarCodigoAprovacao();
-      dadosAtualizacao.codigo_aprovacao = codigoAprovacao;
-
-      this.logger.log('Codigo de aprovacao gerado: ' + codigoAprovacao);
-      console.log('==========================================');
-      console.log('CODIGO DE APROVACAO GERADO!');
-      console.log('==========================================');
-      console.log('Orcamento: ' + orcamento.numero);
-      console.log('Cliente: ' + orcamento.cliente.nome);
-      console.log('Codigo: ' + codigoAprovacao);
-      console.log('==========================================');
-    }
+    // Gate 0S / HS-04: a mudança de status não emite mais código de aprovação.
+    // Emitir só faz sentido junto com a entrega ao cliente, porque o valor em
+    // claro existe apenas naquele instante — o banco guarda somente o hash.
+    // Quem emite é `enviarOrcamento`, `reenviarCodigoAprovacao` e o reenvio
+    // automático de `atualizarOrcamento`.
 
     const orcamentoAtualizado = await this.prisma.orcamento.update({
       where: { id },
@@ -3014,7 +3279,6 @@ export class OrcamentosV2Service {
             status: statusAnterior,
             status_aprovacao: statusAprovacaoAnterior,
             observacoes_cliente: observacoesClienteAnterior,
-            codigo_aprovacao: codigoAprovacaoAnterior,
             data_atualizacao: new Date(),
           },
         });
@@ -3023,6 +3287,16 @@ export class OrcamentosV2Service {
           'Falha ao gerar OS automaticamente. Status do orcamento foi revertido.',
         );
       }
+    }
+
+    // Gate 0S / HS-04: sair para um estado onde o aceite público não se aplica
+    // mais invalida o código imediatamente, sem depender da expiração.
+    if (['cancelado', 'rejeitado'].includes(String(novoStatus).toLowerCase())) {
+      await this.revogarCodigoAprovacaoDoOrcamento(
+        id,
+        lojaId,
+        'status alterado para ' + novoStatus,
+      );
     }
 
     await this.registrarLog(
@@ -3065,7 +3339,6 @@ export class OrcamentosV2Service {
       throw new NotFoundException('Orçamento não encontrado');
     }
 
-    // Alterar status para 'enviado' (gera codigo_aprovacao se não existir)
     const orcamentoAtualizado = await this.alterarStatus(
       id,
       'enviado',
@@ -3084,7 +3357,14 @@ export class OrcamentosV2Service {
           process.env.FRONTEND_URL || 'https://comunikapp.com.br';
         const linkPublico = `${frontendUrl}/orcamento-v2/${id}`;
         const precoFinal = Number(orcamentoAtualizado.preco_final) || 0;
-        const codigoAprovacao = orcamentoAtualizado.codigo_aprovacao || '';
+
+        // Gate 0S / HS-04: o código é emitido aqui, imediatamente antes do
+        // envio, porque este é o único ponto do fluxo em que o valor em claro
+        // existe e tem para onde ir. Emitir invalida qualquer código anterior.
+        const codigoAprovacao = await this.emitirCodigoAprovacaoDoOrcamento(
+          id,
+          lojaId,
+        );
 
         await this.mailService.enviarOrcamentoCliente(
           orcamentoAtualizado.cliente.email,
@@ -3597,26 +3877,51 @@ export class OrcamentosV2Service {
       },
     });
 
+    // Gate 0S / HS-04: endpoint público. Toda recusa devolve a mesma resposta
+    // de sucesso genérica, porque distinguir "orçamento inexistente",
+    // "orçamento de outra loja" e "cliente sem e-mail" transformaria este
+    // endpoint em um enumerador de orçamentos e de cadastro de clientes.
+    // O código só é emitido e enviado quando tudo confere, e sempre para o
+    // e-mail já cadastrado — nunca para um endereço vindo da requisição.
+    const respostaGenerica = {
+      success: true,
+      message:
+        'Se o orçamento estiver disponível para aprovação, um novo código será enviado ao e-mail cadastrado.',
+    };
+
     if (!orcamento) {
-      throw new NotFoundException('Orçamento não encontrado');
+      this.logger.warn(
+        'Reenvio de codigo recusado: orcamento ' + id + ' inexistente.',
+      );
+      return respostaGenerica;
     }
 
     if (!orcamento.cliente?.email) {
-      throw new BadRequestException(
-        'Orçamento não possui cliente com e-mail cadastrado para reenvio do código',
+      this.logger.warn(
+        'Reenvio de codigo recusado: orcamento ' +
+          id +
+          ' sem e-mail de cliente cadastrado.',
       );
+      return respostaGenerica;
     }
 
-    // Verificar se já tem código de aprovação; gerar se não existir
-    let codigoAprovacao = orcamento.codigo_aprovacao;
-    if (!codigoAprovacao) {
-      codigoAprovacao = await this.gerarCodigoAprovacao();
-
-      await this.prisma.orcamento.update({
-        where: { id },
-        data: { codigo_aprovacao: codigoAprovacao },
-      });
+    // Só faz sentido reenviar código de proposta que ainda pode ser aceita.
+    if (!STATUS_QUE_ACEITAM_ACAO_PUBLICA.includes(String(orcamento.status))) {
+      this.logger.warn(
+        'Reenvio de codigo recusado: orcamento ' +
+          id +
+          ' em status que nao aceita aprovacao publica.',
+      );
+      return respostaGenerica;
     }
+
+    // Reemissão sempre gera um código novo: o anterior não é recuperável
+    // (só o hash está no banco) e mantê-lo válido ampliaria a janela de
+    // exposição sem nenhum ganho.
+    const codigoAprovacao = await this.emitirCodigoAprovacaoDoOrcamento(
+      id,
+      orcamento.loja_id,
+    );
 
     const frontendUrl = process.env.FRONTEND_URL || 'https://comunikapp.com.br';
     const linkPublico = `${frontendUrl}/orcamento-v2/${id}`;
@@ -3637,10 +3942,7 @@ export class OrcamentosV2Service {
       `📧 Código de aprovação reenviado por e-mail para orçamento ${orcamento.numero}`,
     );
 
-    return {
-      success: true,
-      message: 'Código de aprovação reenviado com sucesso para o e-mail cadastrado',
-    };
+    return respostaGenerica;
   }
 
   /**

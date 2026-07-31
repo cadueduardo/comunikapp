@@ -335,17 +335,35 @@ Itens que a auditoria encontrou e que violam
 `docs/database/boas-praticas-schema-prisma.md` diretamente. Não exigem mudança de
 schema, mas são obrigatórios nas fases indicadas:
 
-| Item | Regra violada | Fase |
-|---|---|---|
-| `gerarCodigoAprovacao` usa `Math.random()` (`orcamentos-v2.service.ts:2271–2299`) | §Segurança: "`Math.random().toString(36)` não é seguro criptograficamente" | 8 |
-| `alterarStatus` imprime o código de aprovação em `console.log` (`:2961–2967`) | §Segurança: "Nunca logar segredo em texto puro" | 6 |
-| `links-v2.service.ts:422–436` resolve orçamento sem `loja_id` | §Segurança: "Nunca resolver um recurso multi-tenant só por `id`" | 2 |
-| Orçamentos V2 sem camada de autorização (`@Roles` inerte) | `AGENTS.md`: "Toda mutação sensível deve ter autorização no backend" | 2 |
-| `@Body() dados: any` em `orcamentos-v2.controller.ts:81` e `:487` | §Segurança: "Todo endpoint que recebe `@Body()` precisa de DTO tipado" | 1 |
-| `processarAcaoClientePublico` recebe body tipado inline sem DTO | idem | 8 |
-| Aprovação sem `$transaction` (`:3129–3326`) | §Performance: "Use `$transaction` para operações que precisam ser atômicas" | 8 |
-| `clientes.controller.ts` sem `take`/`skip` | §Performance: "Toda listagem em tabela que cresce por loja precisa de paginação" | 4 |
-| Erro público expõe status do orçamento a anônimo (`:2364–2369`) | `AGENTS.md`: "Erros públicos devem ser estáveis, sem confirmação indevida" | 8 |
+| Item | Regra violada | Fase | Situação |
+|---|---|---|---|
+| `gerarCodigoAprovacao` usa `Math.random()` | §Segurança: "`Math.random().toString(36)` não é seguro criptograficamente" | 8 | Corrigido no Gate 0S (HS-04). Exigiu migration, ver §9.1 |
+| `alterarStatus` imprime o código de aprovação em `console.log` | §Segurança: "Nunca logar segredo em texto puro" | 6 | Corrigido no Gate 0S |
+| `links-v2.service.ts` resolve orçamento sem `loja_id` | §Segurança: "Nunca resolver um recurso multi-tenant só por `id`" | 2 | Corrigido no Gate 0S (HS-02) |
+| Orçamentos V2 sem camada de autorização (`@Roles` inerte) | `AGENTS.md`: "Toda mutação sensível deve ter autorização no backend" | 2 | Corrigido no Gate 0S (HS-01) |
+| `@Body() dados: any` em `orcamentos-v2.controller.ts` | §Segurança: "Todo endpoint que recebe `@Body()` precisa de DTO tipado" | 1 | Aberto nas rotas autenticadas |
+| `processarAcaoClientePublico` recebe body tipado inline sem DTO | idem | 8 | Corrigido no Gate 0S (HS-03) |
+| Aprovação sem `$transaction` | §Performance: "Use `$transaction` para operações que precisam ser atômicas" | 8 | Corrigido no caminho público (HS-05); `fecharPedidoInterno` segue aberto |
+| `clientes.controller.ts` sem `take`/`skip` | §Performance: "Toda listagem em tabela que cresce por loja precisa de paginação" | 4 | Aberto |
+| Erro público expõe status do orçamento a anônimo | `AGENTS.md`: "Erros públicos devem ser estáveis, sem confirmação indevida" | 8 | Corrigido no Gate 0S (HS-03) |
+
+### 9.1 Migration não prevista neste plano, aplicada pelo Gate 0S
+
+`20260731143000_orcamento_codigo_aprovacao_seguro` acrescenta a `orcamento` os campos
+`codigo_aprovacao_hash`, `codigo_aprovacao_expira_em`, `codigo_aprovacao_tentativas`,
+`codigo_aprovacao_usado_em` e `codigo_aprovacao_revogado_em`, e zera todos os
+`codigo_aprovacao` em texto claro existentes.
+
+Ela não estava nas 15 migrations planejadas porque o plano classificara o HS-04 como
+correção sem schema. Ao implementar, ficou claro que guardar somente o hash é
+impossível sem coluna de hash. A migration não é especulativa: corrige uma
+vulnerabilidade em uso e todos os campos são consumidos na mesma entrega. É a etapa
+"expand" de um rollout expand-and-contract — a remoção da coluna antiga e do índice
+único `Orcamento_codigo_aprovacao_key` fica para entrega posterior.
+
+Ressalva de processo: foi escrita à mão, porque não havia banco MySQL alcançável no
+ambiente para rodar `prisma migrate dev`. Antes do deploy é obrigatório aplicá-la em
+um banco de desenvolvimento e confirmar `prisma migrate status` sem drift.
 
 ---
 

@@ -440,6 +440,37 @@ export class MailService implements OnModuleInit {
     return `${u}@${domain}`;
   }
 
+  /**
+   * Gate 0S / HS-04 - Bloco do código de aprovação.
+   *
+   * O código passou a ser um token opaco de 256 bits (43 caracteres), então
+   * ele é apresentado para **cópia**, não para digitação: fonte monoespaçada,
+   * quebra de linha permitida e aviso de uso único. O `codigoAnterior`
+   * sinaliza que emissões novas invalidam a anterior, evitando que o cliente
+   * tente usar o código de um e-mail antigo.
+   */
+  private static blocoCodigoAprovacao(
+    codigoAprovacao: string,
+    substituiAnterior = false,
+  ): string {
+    const avisoSubstituicao = substituiAnterior
+      ? '<p style="margin: 10px 0 0 0; color: #856404; font-size: 13px;">Este código substitui qualquer código enviado anteriormente para este orçamento.</p>'
+      : '';
+
+    return `
+            <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <h4 style="margin: 0 0 10px 0; color: #856404;">Código de Aprovação</h4>
+              <p style="margin: 0 0 10px 0; color: #856404;">
+                Para aprovar este orçamento, copie e cole o código abaixo na página da proposta:
+              </p>
+              <p style="margin: 0; padding: 12px; background-color: #ffffff; border: 1px solid #ffeaa7; border-radius: 4px; font-family: Consolas, Menlo, monospace; font-size: 14px; word-break: break-all; color: #333;">${codigoAprovacao}</p>
+              <p style="margin: 10px 0 0 0; color: #856404; font-size: 13px;">
+                O código diferencia maiúsculas de minúsculas, vale para uma única aprovação e expira em 30 dias. Não repasse este código a terceiros.
+              </p>
+              ${avisoSubstituicao}
+            </div>`;
+  }
+
   async enviarOrcamentoCliente(
     emailCliente: string,
     nomeCliente: string,
@@ -479,12 +510,7 @@ export class MailService implements OnModuleInit {
               </a>
             </div>
             
-            <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <h4 style="margin: 0 0 10px 0; color: #856404;">Código de Aprovação</h4>
-              <p style="margin: 0; color: #856404;">
-                Para aprovar este orçamento, use o código: <strong>${codigoAprovacao}</strong>
-              </p>
-            </div>
+            ${MailService.blocoCodigoAprovacao(codigoAprovacao)}
             
             <p style="color: #666; font-size: 14px;">
               Este link é válido por 30 dias. Após esse período, entre em contato conosco para uma nova avaliação.
@@ -554,12 +580,7 @@ export class MailService implements OnModuleInit {
               </a>
             </div>
             
-            <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <h4 style="margin: 0 0 10px 0; color: #856404;">Código de Aprovação</h4>
-              <p style="margin: 0; color: #856404;">
-                Para aprovar este orçamento, use o código: <strong>${codigoAprovacao}</strong>
-              </p>
-            </div>
+            ${MailService.blocoCodigoAprovacao(codigoAprovacao, true)}
             
             <p style="color: #666; font-size: 14px;">
               Entre em contato conosco se tiver dúvidas sobre as alterações.

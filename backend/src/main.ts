@@ -187,6 +187,52 @@ async function bootstrap() {
     return next();
   });
 
+  // Gate 0S / HS-04: rate limit das duas rotas anonimas de proposta comercial
+  // (acao do cliente e reenvio do codigo de aprovacao).
+  //
+  // A chave e o par (orcamento, IP), nao so o IP. O ativo a proteger e um
+  // orcamento especifico - quem tenta adivinhar um codigo ataca um alvo - e
+  // clientes legitimos de propostas diferentes podem sair pelo mesmo IP
+  // corporativo, caso em que um contador so por IP puniria um por causa do
+  // outro. `trust proxy` ja esta configurado acima, entao `req.ip` e o IP real.
+  //
+  // Este limite e a camada de borda e nao substitui o contador
+  // `codigo_aprovacao_tentativas`, gravado na linha do orcamento: e ele que
+  // trava o alvo quando o atacante troca de IP ou quando ha mais de uma
+  // instancia do backend.
+  const ROTA_ACAO_PUBLICA_PROPOSTA =
+    /^\/(?:api\/)?orcamentos-v2\/([^/]+)\/(?:publico\/acao|reenviar-codigo)\/?$/;
+
+  const acaoPublicaPropostaLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: isProd ? 5 : 50,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: any) => {
+      const path = String(req.path || req.url || '').split('?')[0];
+      const orcamentoId = ROTA_ACAO_PUBLICA_PROPOSTA.exec(path)?.[1] ?? 'sem-id';
+      return `${orcamentoId}:${req.ip ?? 'sem-ip'}`;
+    },
+    message: {
+      statusCode: 429,
+      message:
+        'Muitas tentativas em sequência. Aguarde alguns instantes e tente novamente.',
+    },
+    skip: (req: any) => req.method === 'OPTIONS',
+    validate: { xForwardedForHeader: false },
+  }) as any;
+
+  app.use((req: any, res: any, next: any) => {
+    const path = String(req.path || req.url || '').split('?')[0];
+    if (
+      req.method === 'POST' &&
+      ROTA_ACAO_PUBLICA_PROPOSTA.test(path)
+    ) {
+      return acaoPublicaPropostaLimiter(req, res, next);
+    }
+    return next();
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
