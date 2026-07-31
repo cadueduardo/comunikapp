@@ -1,6 +1,6 @@
 # Fase 0 — Governança, auditoria e decisões bloqueadoras
 
-**Status da fase:** executada, **aguardando decisão do product owner**
+**Status da fase:** **concluída documentalmente**; desenvolvimento condicionado ao hotfix de segurança
 **Branch:** `feat/modulo-vendas`
 **Data:** 2026-07-31
 
@@ -14,16 +14,17 @@ Esta pasta é o endereço oficial dos entregáveis da Fase 0 definidos em
 | # | Documento | Entregável do plano | Estado |
 |---|-----------|---------------------|--------|
 | 01 | [Auditoria do estado real](./01-auditoria-estado-real.md) | Inventário atualizado de reuso e dívidas | Concluído |
-| 02 | [Decisões DV-01 a DV-16](./02-registro-de-decisoes.md) | Registro de decisões | **Bloqueado — aguarda PO** |
-| 03 | [Nomenclatura canônica e matriz RBAC](./03-nomenclatura-e-matriz-rbac.md) | Matriz inicial de permissões | Proposto |
-| 04 | [Máquina de estados comercial](./04-maquina-de-estados-comercial.md) | Máquina de estados proposta | Proposto |
-| 05 | [Matriz de gates](./05-matriz-de-gates.md) | Matriz de gates por cenário | Proposto |
-| 06 | [Plano de migrations](./06-plano-de-migrations.md) | Plano de migrations | Proposto |
-| 07 | [Matriz de rastreabilidade](./07-matriz-de-rastreabilidade.md) | Matriz de testes e rastreabilidade | Proposto |
-| 08 | [Resumo executivo das decisões](./08-resumo-executivo-decisoes.md) | Apoio à reunião de kickoff | Concluído |
+| 02 | [Decisões DV-01 a DV-16](./02-registro-de-decisoes.md) | Registro de decisões | **Decidido** |
+| 03 | [Nomenclatura canônica e matriz RBAC](./03-nomenclatura-e-matriz-rbac.md) | Matriz inicial de permissões | Aprovado |
+| 04 | [Máquina de estados comercial](./04-maquina-de-estados-comercial.md) | Máquina de estados proposta | Aprovado |
+| 05 | [Matriz de gates](./05-matriz-de-gates.md) | Matriz de gates por cenário | Aprovado |
+| 06 | [Plano de migrations](./06-plano-de-migrations.md) | Plano de migrations | Aprovado |
+| 07 | [Matriz de rastreabilidade](./07-matriz-de-rastreabilidade.md) | Matriz de testes e rastreabilidade | Aprovado |
+| 08 | [Resumo executivo das decisões](./08-resumo-executivo-decisoes.md) | Síntese do contrato aprovado | Concluído |
+| 09 | [Gate 0S — hotfix de segurança](./09-gate-hotfix-seguranca.md) | Escopo, testes e critérios de liberação | **Não iniciado — bloqueia Fase 1** |
 
-"Proposto" significa que o artefato está completo, mas depende de uma ou mais
-decisões do documento 02 para virar contrato.
+Os documentos 03 a 07 passam a compor o contrato da implementação. Divergência
+futura deve ser registrada como nova decisão, nunca resolvida silenciosamente no código.
 
 O documento 08 não é entregável previsto no plano: é um recorte do documento 02
 organizado por urgência, para a reunião de decisão. O estado oficial de cada
@@ -56,17 +57,17 @@ Os três achados que mais alteram o trabalho:
 
 ---
 
-## Decisões pendentes
+## Decisões bloqueadoras resolvidas
 
 O documento 02 contém 16 decisões. As 12 primeiras vêm do RP §15; as quatro últimas
 nasceram desta auditoria e são bloqueadoras:
 
-| ID | Assunto | Impacto se não decidido |
+| ID | Assunto | Contrato aprovado |
 |----|---------|-------------------------|
-| DV-13 | Estratégia de autorização | Fase 2 não pode começar |
-| DV-14 | Reconciliação de status | Fases 1 e 6 não podem começar |
-| DV-15 | Destino do histórico órfão | Fase 1 não pode começar |
-| DV-16 | Ordem de entrega das fases | Sequência do projeto indefinida |
+| DV-13 | Estratégia de autorização | Serviço de permissões no backend + hotfix crítico prévio |
+| DV-14 | Reconciliação de status | `status_comercial` canônico com migração compatível |
+| DV-15 | Destino do histórico órfão | Versão imutável + timeline canônicas; legado sem drop imediato |
+| DV-16 | Ordem de entrega das fases | Segurança → contratos → autorização → navegação |
 
 ---
 
@@ -74,7 +75,11 @@ nasceram desta auditoria e são bloqueadoras:
 
 A fase só está concluída quando:
 
-- [ ] As 16 decisões estão em estado `DECIDIDO` no documento 02.
-- [ ] As decisões fechadas foram replicadas no RP no mesmo commit.
-- [ ] Os documentos 03 a 07 saíram de "Proposto" para "Aprovado".
-- [ ] O checkbox **FASE 0 CONCLUÍDA** foi marcado no plano de ação.
+- [x] As 16 decisões estão em estado `DECIDIDO` no documento 02.
+- [x] As decisões fechadas foram replicadas no RP no mesmo commit.
+- [x] Os documentos 03 a 07 saíram de "Proposto" para "Aprovado".
+- [x] O checkbox **FASE 0 CONCLUÍDA** foi marcado no plano de ação.
+
+> A conclusão deste gate não libera implementação funcional imediatamente. DV-13
+> e DV-16 exigem primeiro um hotfix isolado para autorização, IDOR, rotas públicas,
+> aceite transacional/idempotente e remoção de segredos dos logs.

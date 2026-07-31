@@ -1,7 +1,7 @@
 # Fase 0 — Matriz de rastreabilidade
 
 **Documento:** entregável "Matriz de testes e rastreabilidade" da Fase 0
-**Status:** proposto
+**Status:** aprovado — contrato funcional fechado em 2026-07-31
 **Cobertura:** os 44 critérios de aceite do RP §8, mais os não-objetivos do RP §11
 
 > Como usar: nenhuma fase pode marcar seu gate de conclusão sem que todos os

@@ -1,14 +1,15 @@
 # Módulo de Vendas
 
-**Status:** Fase 0 executada — **aguardando decisão do product owner** sobre as 16
-questões de `fase-0/02-registro-de-decisoes.md`. Implementação de código **não
-iniciada**.
+**Status:** Fase 0 **concluída documentalmente**; as 16 decisões estão aprovadas.
+Implementação de código **não iniciada** e condicionada ao hotfix de segurança de
+DV-13/DV-16.
 
 | Documento | Conteúdo |
 |-----------|----------|
 | [`RP-modulo-vendas.md`](./RP-modulo-vendas.md) | Auditoria do projeto, benchmark, requisitos, jornada UX de vendedor/gestor, carteira, arquitetura de informação, gates, épicos, maturidade e riscos |
 | [`PLANO-ACAO-MODULO-VENDAS.md`](./PLANO-ACAO-MODULO-VENDAS.md) | Sequência executável em 15 fases, dependências, premissas, checklists, testes, gates obrigatórios e rastreabilidade com o RP |
 | [`fase-0/`](./fase-0/README.md) | Entregáveis da Fase 0: auditoria do código real, registro de decisões, nomenclatura e RBAC, máquina de estados, gates, plano de migrations e rastreabilidade |
+| [`fase-0/09-gate-hotfix-seguranca.md`](./fase-0/09-gate-hotfix-seguranca.md) | Escopo executável do hotfix obrigatório, exclusões, testes e critérios para liberar a Fase 1 |
 
 ## Onde está o estado real do código
 

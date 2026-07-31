@@ -1,6 +1,6 @@
 # Plano de Ação — Implementação do Módulo de Vendas
 
-**Status geral:** Fase 0 executada, aguardando decisão do PO  
+**Status geral:** Fase 0 concluída documentalmente; hotfix de segurança é o próximo gate
 **Documento de produto obrigatório:** [`RP-modulo-vendas.md`](./RP-modulo-vendas.md)  
 **Entregáveis da Fase 0:** [`fase-0/`](./fase-0/README.md)  
 **Auditoria do código real:** [`fase-0/01-auditoria-estado-real.md`](./fase-0/01-auditoria-estado-real.md) — prevalece sobre o RP §4 em caso de divergência  
@@ -213,13 +213,10 @@ flowchart TD
     F13 --> F14["Fase 14<br/>Maturidade futura"]
 ```
 
-> **Divergência registrada (DV-16).** O RP §10 recomenda começar por "nav + home
-> com cards" por ser valor imediato e risco baixo; o mapa acima coloca a navegação
-> só na Fase 3, atrás de Contratos e RBAC. As duas orientações estão escritas como
-> oficiais e precisam ser reconciliadas antes do primeiro PR de código. A
-> recomendação da Fase 0 é antecipar a Fase 3 **apenas com navegação e cards para
-> rotas já existentes**, sem KPI, fila ou dado novo — o que a torna independente de
-> F1 e F2. Ver `fase-0/02-registro-de-decisoes.md`, DV-16.
+> **Decisão DV-16.** A ordem obrigatória é Fase 0 → hotfix de segurança → Fase 1 →
+> Fase 2 → Fase 3. Navegação e home não serão antecipadas: expor uma nova entrada
+> para contratos sem autorização efetiva ampliaria a superfície de ataque. Ver
+> `fase-0/02-registro-de-decisoes.md`, DV-13 e DV-16.
 
 ### Marcos de produto
 
@@ -233,9 +230,32 @@ flowchart TD
 
 ---
 
+## 3.1 Gate 0S — Hotfix de segurança do legado comercial
+
+**Status:** [ ] Não iniciado
+**Dependência:** Fase 0 concluída
+**Bloqueia:** Fase 1 e qualquer publicação de navegação/rota de Vendas
+**Contrato obrigatório:**
+[`fase-0/09-gate-hotfix-seguranca.md`](./fase-0/09-gate-hotfix-seguranca.md)
+
+Este gate não cria produto novo. Ele corrige ou contém os riscos já existentes em
+Orçamentos V2: autorização inerte, IDOR, fronteira pública divergente, segredo
+inseguro, vazamento em logs/erros e aceite sujeito a repetição ou falha parcial.
+
+- [ ] HS-01 — autorização efetiva e negação por padrão.
+- [ ] HS-02 — isolamento multi-tenant e correção de IDOR.
+- [ ] HS-03 — fronteira pública única, DTOs e rate limit.
+- [ ] HS-04 — tokens seguros, revogáveis e sem exposição.
+- [ ] HS-05 — aceite legado atômico/idempotente ou desabilitado de forma segura.
+- [ ] HS-06 — observabilidade sanitizada e rollback fail-closed.
+- [ ] Testes cross-tenant, persona, rota pública, concorrência e carga aprovados.
+- [ ] **GATE 0S CONCLUÍDO — FASE 1 LIBERADA.**
+
+---
+
 ## 4. Fase 0 — Governança, auditoria e decisões bloqueadoras
 
-**Status:** [x] Executada — aguardando decisão do PO  
+**Status:** [x] Concluída documentalmente — 2026-07-31
 **Dependência:** nenhuma  
 **Referências do RP:** Veredito; §§0, 3, 4, 9, 11 e 15; DV-01–DV-12.  
 **Objetivo:** congelar o contrato de produto e confirmar o estado real antes de
@@ -253,19 +273,19 @@ qualquer migration ou alteração de fluxo.
       → todos confirmados, `fase-0/01-auditoria-estado-real.md` §12
 - [x] Registrar divergências entre RP, schema, migrations, backend e frontend.
       → dez dívidas D-01 a D-10, `fase-0/01-auditoria-estado-real.md` §1
-- [ ] Resolver DV-01: pedido confirmado como evento/projeção ou entidade.
-- [ ] Resolver DV-02: campos que invalidam aceite.
-- [ ] Resolver DV-03: matriz de gates por tipo de venda.
-- [ ] Resolver DV-04 e DV-05: alçadas e exposição de custo/margem.
-- [ ] Resolver DV-06: evidência e autoridade do aprovador B2B.
-- [ ] Resolver DV-07–DV-09: expiração, canais e SLA.
-- [ ] Resolver DV-10: limite do pós-venda.
-- [ ] Confirmar DV-11 e DV-12: participantes e acesso a todos os clientes.
-- [ ] **Resolver DV-13: estratégia de autorização.** Não existe `RolesGuard`;
+- [x] Resolver DV-01: pedido confirmado como evento + projeção `pedido_comercial`.
+- [x] Resolver DV-02: snapshot visível ao cliente define invalidação do aceite.
+- [x] Resolver DV-03: matriz configurável de gates por loja/tipo de venda.
+- [x] Resolver DV-04 e DV-05: alçadas por perfil e custo detalhado negado por padrão.
+- [x] Resolver DV-06: contato aprovador e evidência segura de aceite B2B.
+- [x] Resolver DV-07–DV-09: expiração automática, canais e SLA na Fase 13.
+- [x] Resolver DV-10: pós-venda limitado a aceite e satisfação/recompra.
+- [x] Confirmar DV-11 e DV-12: participantes e rollout seguro de carteira.
+- [x] **Resolver DV-13: estratégia de autorização.** Não existe `RolesGuard`;
       `@Roles` é metadata inerte. Bloqueia a Fase 2 inteira.
-- [ ] **Resolver DV-14: reconciliação dos três vocabulários de status.**
-- [ ] **Resolver DV-15: destino das quatro tabelas de histórico, três órfãs.**
-- [ ] **Resolver DV-16: ordem de entrega**, divergente entre RP §10 e o mapa de
+- [x] **Resolver DV-14: reconciliação dos três vocabulários de status.**
+- [x] **Resolver DV-15: destino das quatro tabelas de histórico, três órfãs.**
+- [x] **Resolver DV-16: ordem de entrega**, divergente entre RP §10 e o mapa de
       dependências deste plano.
 - [x] Definir nomenclatura canônica de papéis, permissões, status e eventos.
       → `fase-0/03-nomenclatura-e-matriz-rbac.md` e
@@ -274,12 +294,12 @@ qualquer migration ou alteração de fluxo.
       → `fase-0/07-matriz-de-rastreabilidade.md`
 - [x] Classificar qualquer mudança de banco como necessária agora ou futura.
       → `fase-0/06-plano-de-migrations.md`, 15 migrations distribuídas por fase
-- [ ] Atualizar o RP com as decisões fechadas.
+- [x] Atualizar o RP com as decisões fechadas.
 
 ### Entregáveis
 
 - [x] Registro de decisões — `fase-0/02-registro-de-decisoes.md`
-      (16 decisões registradas; **nenhuma fechada**).
+      (16 decisões registradas e fechadas em 2026-07-31).
 - [x] Inventário atualizado de reuso e dívidas — `fase-0/01-auditoria-estado-real.md`.
 - [x] Matriz inicial de permissões — `fase-0/03-nomenclatura-e-matriz-rbac.md`,
       31 permissões `vendas.*`.
@@ -294,16 +314,15 @@ qualquer migration ou alteração de fluxo.
 
 ### Gate de conclusão
 
-- [ ] **FASE 0 CONCLUÍDA:** não há decisão P0 de produto/arquitetura pendente para
-      iniciar contratos e segurança.
-      **Bloqueado:** 16 decisões pendentes em `fase-0/02-registro-de-decisoes.md`.
+- [x] **FASE 0 CONCLUÍDA:** não há decisão P0 de produto/arquitetura pendente.
+      **Próximo gate obrigatório:** hotfix de segurança de DV-13/DV-16 antes da Fase 1.
 
 ---
 
 ## 5. Fase 1 — Contratos de domínio, dados e compatibilidade
 
 **Status:** [ ] Não iniciada  
-**Dependência:** Fase 0 concluída  
+**Dependência:** Fase 0 concluída **e hotfix de segurança DV-13/DV-16 validado**
 **Referências do RP:** §§3, 4.8, 4.9, 5.2, 5.3, 7/E1-4–E1-7 e 14.1.  
 **Objetivo:** definir contratos canônicos sem criar um segundo Orçamento, Cliente,
 chat, Arte, pedido operacional ou OS Aditiva.
@@ -1048,9 +1067,9 @@ Cada item abaixo exige RP/delta próprio, decisão de produto e novos critérios
 
 ## 20. Checklist mestre de progresso
 
-- [ ] Fase 0 — Governança, auditoria e decisões
-      *(auditoria e artefatos concluídos em `fase-0/`; bloqueada por 16 decisões
-      pendentes do PO)*
+- [x] Fase 0 — Governança, auditoria e decisões
+      *(contrato documental aprovado em `fase-0/`; próximo gate: hotfix de segurança)*
+- [ ] Gate 0S — Hotfix de segurança do legado comercial
 - [ ] Fase 1 — Contratos de domínio, dados e compatibilidade
 - [ ] Fase 2 — RBAC, segurança e multi-tenancy
 - [ ] Fase 3 — Fundação visual e navegação

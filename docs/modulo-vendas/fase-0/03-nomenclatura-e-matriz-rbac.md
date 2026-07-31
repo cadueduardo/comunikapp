@@ -1,7 +1,7 @@
 # Fase 0 — Nomenclatura canônica e matriz RBAC de Vendas
 
 **Documento:** entregáveis "Nomenclatura canônica" e "Matriz inicial de permissões"
-**Status:** proposto — depende de DV-13, DV-04, DV-05, DV-11 e DV-12
+**Status:** aprovado — DV-13, DV-04, DV-05, DV-11 e DV-12 decididas em 2026-07-31
 **Referências:** RP §§4.5, 4.9, 5.1, 8.8; `01-auditoria-estado-real.md` §2
 
 ---
@@ -71,6 +71,29 @@ Regras obrigatórias herdadas do padrão:
 
 **Proibido em Vendas:** usar `@Roles(...)` como se autorizasse. O decorator continua
 existindo no repositório, mas não tem efeito.
+
+### 2.1 Recorte obrigatório do Gate 0S
+
+Antes de criar o catálogo completo da Fase 2, o hotfix deve proteger **todos os
+endpoints já existentes** de Orçamentos V2 com um catálogo mínimo explícito. A
+matriz endpoint × permissão deve ser anexada ao PR e nenhuma operação pode cair em
+“autenticado pode tudo”. Permissões futuras de carteira, contatos, alçada e pipeline
+não devem ser semeadas antecipadamente.
+
+O bypass administrativo previsto neste documento não elimina escopo de tenant,
+auditoria, validação, idempotência ou segregação de autoaprovação. Ele significa
+apenas autorização funcional dentro da loja autenticada. O contrato executável e os
+testes do hotfix estão no
+[`09-gate-hotfix-seguranca.md`](./09-gate-hotfix-seguranca.md), HS-01 e HS-02.
+
+**Ajustes feitos na execução do hotfix**, detalhados em
+[`09-gate-hotfix-seguranca.md`](./09-gate-hotfix-seguranca.md) §2.0:
+
+- Enquanto `perfil_permissao` estiver vazia, a autorização é a união entre um piso por
+  `usuario_funcao` derivado da matriz da §4 e as permissões explicitamente cadastradas.
+  Sem esse piso, negar por padrão deixaria só administradores operando Orçamentos V2.
+- `vendas.proposta.excluir` foi acrescentada ao catálogo mínimo por causa do endpoint
+  `DELETE /orcamentos-v2/:id`, que já existe. Precisa ser ratificada na Fase 2.
 
 ---
 

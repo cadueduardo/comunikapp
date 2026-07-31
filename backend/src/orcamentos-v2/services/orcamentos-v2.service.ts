@@ -44,6 +44,8 @@ import { distribuirPrecoFinal } from '../utils/distribuicao-preco.util';
 import { resolverPrecosPdfComArte } from '../utils/pdf-arte-linha.util';
 import { TipoFornecedor } from '@prisma/client';
 import { calcularCustoUnitarioUso } from '../../common/custos/custo-unitario-insumo.util';
+import { VendasPermissionsService } from '../../vendas/permissions/vendas-permissions.service';
+import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 
 /**
  * Serviço Principal de Orçamentos V2
@@ -75,6 +77,7 @@ export class OrcamentosV2Service {
     private readonly cobrancaVencimentoService: CobrancaVencimentoService,
     private readonly parcelasBuilder: ParcelasBuilderService,
     private readonly homeCacheService: HomeCacheService,
+    private readonly vendasPermissions: VendasPermissionsService,
   ) {}
 
   private async validarEntregaInstalacao(
@@ -1624,6 +1627,12 @@ export class OrcamentosV2Service {
     usuarioId: string,
     motivo?: string,
   ): Promise<void> {
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_EXCLUIR,
+    );
+
     this.logger.log(`🗑️ Removendo orçamento ${id} da loja ${lojaId}`);
 
     try {
@@ -2927,6 +2936,12 @@ export class OrcamentosV2Service {
     userId: string,
     observacoes?: string,
   ) {
+    await this.vendasPermissions.assertPode(
+      userId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    );
+
     this.logger.log(
       'Alterando status do orcamento ' + id + ' para ' + novoStatus,
     );
@@ -3132,6 +3147,12 @@ export class OrcamentosV2Service {
     userId: string,
     observacoes?: string,
   ) {
+    await this.vendasPermissions.assertPode(
+      userId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_ACEITE_REGISTRAR,
+    );
+
     this.logger.log(
       'Aprovacao interna + geracao de OS solicitada para o orcamento ' + id,
     );

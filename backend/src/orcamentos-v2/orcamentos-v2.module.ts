@@ -10,6 +10,7 @@ import { OSModule } from '../os/os.module';
 import { ArteAprovacaoModule } from '../modules/arte-aprovacao/arte-aprovacao.module';
 import { FinanceiroModule } from '../financeiro/financeiro.module';
 import { HomeOperacionalModule } from '../home-operacional/home-operacional.module';
+import { VendasSecurityModule } from '../vendas/vendas-security.module';
 import { getRequiredJwtSecret } from '../auth/jwt-secret';
 
 // Controllers
@@ -52,6 +53,8 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     FinanceiroModule, // Fase 6 - Cobranca/Recebimento (CobrancasService + CobrancaVencimentoService)
     HomeOperacionalModule, // Fase 6 - Invalidar cache da home apos aprovacao
     ArteAprovacaoModule,
+    VendasSecurityModule, // Gate 0S - autorizacao comercial
+
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

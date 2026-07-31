@@ -1,7 +1,7 @@
 # Fase 0 — Máquina de estados comercial
 
 **Documento:** entregável "Máquina de estados proposta" da Fase 0
-**Status:** proposto — depende de DV-14, DV-01, DV-02 e DV-07
+**Status:** aprovado — DV-14, DV-01, DV-02 e DV-07 decididas em 2026-07-31
 **Referências:** RP §§4.9 (4), 5.3, 6.5.6, 8.2, 8.6; `01-auditoria-estado-real.md` §4
 
 ---
@@ -153,9 +153,19 @@ Transição não listada é **inválida** e deve retornar erro estável em pt-BR
    `pedido_confirmado` invalida o aceite e força nova versão.
 6. Depois de `pedido_confirmado`, o orçamento **não muda mais de estado comercial**.
    Alterações passam a ser aditivo ou cancelamento de pedido.
-7. Expiração roda por job diário no timezone da loja e nunca é calculada só na
-   leitura da tela.
+7. Expiração usa `expira_em` em UTC e é processada por job global em lotes
+   indexados, além de ser validada no acesso sensível; timezone da loja serve para
+   apresentação e cálculo contratual da data, não para criar um job por tenant.
 8. Reabertura é sempre auditada e nunca reaproveita a validade antiga.
+
+### 6.1 Limite entre o Gate 0S e esta máquina futura
+
+O hotfix não implanta `status_comercial`, snapshots ou as 23 transições. Ele deve
+impedir escrita arbitrária no fluxo legado que represente risco de segurança e
+centralizar o aceite existente com validações compatíveis. A migração completa da
+máquina permanece nas Fases 1 e 6. Se o legado não puder atender uma ação pública de
+forma segura antes disso, a ação deve ser negada temporariamente, conforme
+[`09-gate-hotfix-seguranca.md`](./09-gate-hotfix-seguranca.md).
 
 ---
 

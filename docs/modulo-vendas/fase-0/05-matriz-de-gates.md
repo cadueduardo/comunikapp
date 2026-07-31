@@ -1,7 +1,7 @@
 # Fase 0 — Matriz de gates de liberação operacional
 
 **Documento:** entregável "Matriz de gates por cenário" da Fase 0
-**Status:** proposto — depende de DV-03, DV-01 e DV-06
+**Status:** aprovado — DV-03, DV-01 e DV-06 decididas em 2026-07-31
 **Referências:** RP §§3.11–3.13, 5.3.1, 6.5.7, 7/E1A-3, 8.6 (18), 9
 
 ---
@@ -133,8 +133,15 @@ flowchart TD
 
 Para G1, nada disso é gravado hoje. Ver `01-auditoria-estado-real.md` §8: o aceite
 não registra `data_aprovacao`, `aprovado_por`, IP nem user-agent, e o
-`codigo_aprovacao` usa `Math.random()`. É migration e correção obrigatórias da
-Fase 1 e da Fase 8.
+`codigo_aprovacao` usa `Math.random()`.
+
+O Gate 0S deve remover imediatamente o segredo inseguro, a enumeração, a repetição e
+a possibilidade de efeitos parciais. Se a autoridade/evidência mínima não puder ser
+comprovada sem antecipar os modelos aprovados, o aceite público fica desabilitado de
+forma segura. A persistência completa da evidência G1 continua sendo migration das
+Fases 1 e 8. Portanto, concluir o hotfix **não significa satisfazer G1** nem liberar
+produção; significa apenas não manter o fluxo legado vulnerável. Ver
+[`09-gate-hotfix-seguranca.md`](./09-gate-hotfix-seguranca.md), HS-04 e HS-05.
 
 ---
 

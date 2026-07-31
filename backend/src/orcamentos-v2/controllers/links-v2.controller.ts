@@ -21,8 +21,10 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-import { Roles } from '../../auth/decorators/roles.decorator';
-import { CurrentUser as User } from '../../auth/decorators';
+import { Identidade, IdentidadeAutenticada } from '../../auth/decorators';
+import { VendasPermissionsGuard } from '../../vendas/permissions/vendas-permissions.guard';
+import { RequerPermissaoVendas } from '../../vendas/permissions/requer-permissao-vendas.decorator';
+import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 
 import { LinksV2Service } from '../services/links-v2.service';
 
@@ -30,13 +32,15 @@ import { LinksV2Service } from '../services/links-v2.service';
  * Controller de Links V2 para Orçamentos
  * Endpoints para links públicos e compartilhamento
  *
- * ✅ ARQUIVO ≤ 200 LINHAS (CONFORME PREMISSAS)
  * ✅ ENDPOINTS DE LINKS COMPLETOS
  * ✅ SISTEMA DE COMPARTILHAMENTO
+ *
+ * Autorização (Gate 0S): todo endpoint declara sua permissão e recebe a loja
+ * da identidade autenticada, que é propagada até as consultas do service.
  */
 @ApiTags('Orçamentos V2 - Links')
 @Controller('orcamentos-v2/links')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, VendasPermissionsGuard)
 @ApiBearerAuth()
 export class LinksV2Controller {
   constructor(private readonly linksV2Service: LinksV2Service) {}
@@ -46,7 +50,7 @@ export class LinksV2Controller {
    */
   @Post(':orcamentoId')
   @HttpCode(HttpStatus.CREATED)
-  @Roles('orcamentos.links.criar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_ENVIAR)
   @ApiOperation({
     summary: 'Cria link público',
     description: 'Cria link público para compartilhamento do orçamento',
@@ -102,12 +106,13 @@ export class LinksV2Controller {
       max_visualizacoes?: number;
       senha?: string;
     },
-    @User() usuario: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       const link = await this.linksV2Service.criarLinkPublico(
         orcamentoId,
-        usuario.id,
+        identidade.usuarioId,
+        identidade.lojaId,
         dados.permissoes as any,
         dados.data_expiracao ? new Date(dados.data_expiracao) : undefined,
         dados.max_visualizacoes,
@@ -133,7 +138,7 @@ export class LinksV2Controller {
    */
   @Get(':orcamentoId')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.links.consultar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Lista links públicos',
     description: 'Lista todos os links públicos de um orçamento',
@@ -163,12 +168,13 @@ export class LinksV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async listarLinksPublicos(
     @Param('orcamentoId') orcamentoId: string,
-    @User() usuario: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       const links = await this.linksV2Service.listarLinksPublicos(
         orcamentoId,
-        usuario.id,
+        identidade.usuarioId,
+        identidade.lojaId,
       );
 
       return {
@@ -187,7 +193,7 @@ export class LinksV2Controller {
    */
   @Put(':linkId')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.links.editar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_ENVIAR)
   @ApiOperation({
     summary: 'Atualiza link público',
     description: 'Atualiza configurações de um link público',
@@ -233,12 +239,13 @@ export class LinksV2Controller {
       senha?: string;
       ativo?: boolean;
     },
-    @User() usuario: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       const link = await this.linksV2Service.atualizarLinkPublico(
         linkId,
-        usuario.id,
+        identidade.usuarioId,
+        identidade.lojaId,
         {
           permissoes: dados.permissoes as any,
           dataExpiracao: dados.data_expiracao
@@ -266,7 +273,7 @@ export class LinksV2Controller {
    */
   @Delete(':linkId')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.links.remover')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_ENVIAR)
   @ApiOperation({
     summary: 'Remove link público',
     description: 'Remove (desativa) um link público',
@@ -288,10 +295,14 @@ export class LinksV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async removerLinkPublico(
     @Param('linkId') linkId: string,
-    @User() usuario: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
-      await this.linksV2Service.removerLinkPublico(linkId, usuario.id);
+      await this.linksV2Service.removerLinkPublico(
+        linkId,
+        identidade.usuarioId,
+        identidade.lojaId,
+      );
 
       return {
         success: true,
@@ -311,7 +322,7 @@ export class LinksV2Controller {
    */
   @Get(':orcamentoId/estatisticas')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.links.consultar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Estatísticas dos links',
     description: 'Retorna estatísticas dos links públicos de um orçamento',
@@ -337,12 +348,13 @@ export class LinksV2Controller {
   @ApiResponse({ status: 500, description: 'Erro interno do servidor' })
   async buscarEstatisticasLinks(
     @Param('orcamentoId') orcamentoId: string,
-    @User() usuario: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       const estatisticas = await this.linksV2Service.buscarEstatisticasLinks(
         orcamentoId,
-        usuario.id,
+        identidade.usuarioId,
+        identidade.lojaId,
       );
 
       return {
@@ -361,7 +373,7 @@ export class LinksV2Controller {
    */
   @Get(':linkId/acessos')
   @HttpCode(HttpStatus.OK)
-  @Roles('orcamentos.links.consultar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Histórico de acessos',
     description: 'Retorna histórico de acessos de um link público',
@@ -397,12 +409,13 @@ export class LinksV2Controller {
     @Param('linkId') linkId: string,
     @Query('pagina') pagina: number = 1,
     @Query('por_pagina') porPagina: number = 50,
-    @User() usuario: any,
+    @Identidade() identidade: IdentidadeAutenticada,
   ) {
     try {
       const historico = await this.linksV2Service.buscarHistoricoAcessos(
         linkId,
-        usuario.id,
+        identidade.usuarioId,
+        identidade.lojaId,
         pagina,
         porPagina,
       );
@@ -421,8 +434,14 @@ export class LinksV2Controller {
   /**
    * Acessa link público (sem autenticação)
    */
+  /**
+   * Apesar do nome, esta rota nunca esteve aberta: o controller inteiro exige
+   * JWT. Ela permanece autenticada aqui para não abrir uma fronteira pública
+   * nova durante o hotfix. A fronteira pública canônica é definida no HS-03.
+   */
   @Get('publico/:token')
   @HttpCode(HttpStatus.OK)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Acessa link público',
     description: 'Acessa orçamento através de link público',

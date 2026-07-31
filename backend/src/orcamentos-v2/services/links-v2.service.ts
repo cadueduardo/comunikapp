@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   LinkPublico,
@@ -28,6 +33,7 @@ export class LinksV2Service {
   async criarLinkPublico(
     orcamentoId: string,
     usuarioId: string,
+    lojaId: string,
     permissoes: PermissaoLink[],
     dataExpiracao?: Date,
     maxVisualizacoes?: number,
@@ -36,11 +42,8 @@ export class LinksV2Service {
     this.logger.log(`🔗 Criando link público para orçamento ${orcamentoId}`);
 
     try {
-      // Validar orçamento
-      const orcamento = await this.validarOrcamento(orcamentoId);
-
-      // Validar permissões do usuário
-      await this.validarPermissoesUsuario(orcamentoId, usuarioId);
+      await this.validarOrcamento(orcamentoId, lojaId);
+      await this.validarAcessoAoOrcamento(orcamentoId, usuarioId, lojaId);
 
       // Gerar token único
       const token = this.gerarTokenUnico();
@@ -83,7 +86,8 @@ export class LinksV2Service {
     orcamento: any;
     permissoes: PermissaoLink[];
   }> {
-    this.logger.log(`🔍 Acessando link público com token: ${token}`);
+    // O token é credencial de acesso e não pode ir para o log.
+    this.logger.log('🔍 Acessando link público por token');
 
     try {
       // Buscar link público
@@ -156,12 +160,12 @@ export class LinksV2Service {
   async listarLinksPublicos(
     orcamentoId: string,
     usuarioId: string,
+    lojaId: string,
   ): Promise<LinkPublico[]> {
     this.logger.log(`📋 Listando links públicos do orçamento ${orcamentoId}`);
 
     try {
-      // Validar permissões do usuário
-      await this.validarPermissoesUsuario(orcamentoId, usuarioId);
+      await this.validarAcessoAoOrcamento(orcamentoId, usuarioId, lojaId);
 
       // Buscar links públicos
       const links = await this.prisma.linkPublico.findMany({
@@ -186,6 +190,7 @@ export class LinksV2Service {
   async atualizarLinkPublico(
     linkId: string,
     usuarioId: string,
+    lojaId: string,
     dados: {
       permissoes?: PermissaoLink[];
       dataExpiracao?: Date;
@@ -197,18 +202,13 @@ export class LinksV2Service {
     this.logger.log(`✏️ Atualizando link público ${linkId}`);
 
     try {
-      // Buscar link público
-      const linkPublico = await this.prisma.linkPublico.findUnique({
-        where: { id: linkId },
-        include: {},
-      });
+      const linkPublico = await this.buscarLinkDaLoja(linkId, lojaId);
 
-      if (!linkPublico) {
-        throw new Error('Link público não encontrado');
-      }
-
-      // Validar permissões do usuário
-      await this.validarPermissoesUsuario(linkPublico.orcamento_id, usuarioId);
+      await this.validarAcessoAoOrcamento(
+        linkPublico.orcamento_id,
+        usuarioId,
+        lojaId,
+      );
 
       // Preparar dados para atualização
       const dadosAtualizacao: any = {};
@@ -253,22 +253,21 @@ export class LinksV2Service {
   /**
    * Remove link público
    */
-  async removerLinkPublico(linkId: string, usuarioId: string): Promise<void> {
+  async removerLinkPublico(
+    linkId: string,
+    usuarioId: string,
+    lojaId: string,
+  ): Promise<void> {
     this.logger.log(`🗑️ Removendo link público ${linkId}`);
 
     try {
-      // Buscar link público
-      const linkPublico = await this.prisma.linkPublico.findUnique({
-        where: { id: linkId },
-        include: {},
-      });
+      const linkPublico = await this.buscarLinkDaLoja(linkId, lojaId);
 
-      if (!linkPublico) {
-        throw new Error('Link público não encontrado');
-      }
-
-      // Validar permissões do usuário
-      await this.validarPermissoesUsuario(linkPublico.orcamento_id, usuarioId);
+      await this.validarAcessoAoOrcamento(
+        linkPublico.orcamento_id,
+        usuarioId,
+        lojaId,
+      );
 
       // Remover link público (soft delete)
       await this.prisma.linkPublico.update({
@@ -289,6 +288,7 @@ export class LinksV2Service {
   async buscarEstatisticasLinks(
     orcamentoId: string,
     usuarioId: string,
+    lojaId: string,
   ): Promise<{
     total_links: number;
     links_ativos: number;
@@ -302,8 +302,7 @@ export class LinksV2Service {
     );
 
     try {
-      // Validar permissões do usuário
-      await this.validarPermissoesUsuario(orcamentoId, usuarioId);
+      await this.validarAcessoAoOrcamento(orcamentoId, usuarioId, lojaId);
 
       // Buscar estatísticas
       const [
@@ -362,6 +361,7 @@ export class LinksV2Service {
   async buscarHistoricoAcessos(
     linkId: string,
     usuarioId: string,
+    lojaId: string,
     pagina: number = 1,
     porPagina: number = 50,
   ): Promise<{
@@ -373,20 +373,13 @@ export class LinksV2Service {
     this.logger.log(`📋 Buscando histórico de acessos do link ${linkId}`);
 
     try {
-      // Buscar link público
-      const linkPublico = await this.prisma.linkPublico.findUnique({
-        where: { id: linkId },
-        include: {
-          orcamento: true,
-        },
-      });
+      const linkPublico = await this.buscarLinkDaLoja(linkId, lojaId);
 
-      if (!linkPublico) {
-        throw new Error('Link público não encontrado');
-      }
-
-      // Validar permissões do usuário
-      await this.validarPermissoesUsuario(linkPublico.orcamento_id, usuarioId);
+      await this.validarAcessoAoOrcamento(
+        linkPublico.orcamento_id,
+        usuarioId,
+        lojaId,
+      );
 
       // Calcular paginação
       const skip = (pagina - 1) * porPagina;
@@ -419,34 +412,71 @@ export class LinksV2Service {
 
   // Métodos privados auxiliares
 
-  private async validarOrcamento(orcamentoId: string): Promise<any> {
-    const orcamento = await this.prisma.orcamento.findUnique({
-      where: { id: orcamentoId },
+  /**
+   * Resolve o link sempre pelo orçamento da loja autenticada. Buscar apenas
+   * por `id` permitiria manipular link de outro tenant (IDOR).
+   */
+  private async buscarLinkDaLoja(linkId: string, lojaId: string) {
+    const link = await this.prisma.linkPublico.findFirst({
+      where: { id: linkId, orcamento: { loja_id: lojaId } },
+    });
+
+    if (!link) {
+      throw new NotFoundException('Link público não encontrado');
+    }
+
+    return link;
+  }
+
+  /**
+   * Resolve o orçamento sempre dentro da loja autenticada. Buscar apenas por
+   * `id` permitiria acessar orçamento de outro tenant (IDOR).
+   */
+  private async validarOrcamento(
+    orcamentoId: string,
+    lojaId: string,
+  ): Promise<any> {
+    const orcamento = await this.prisma.orcamento.findFirst({
+      where: { id: orcamentoId, loja_id: lojaId },
     });
 
     if (!orcamento) {
-      throw new Error('Orçamento não encontrado');
+      throw new NotFoundException('Orçamento não encontrado');
     }
 
     if (!orcamento.ativo) {
-      throw new Error('Orçamento inativo');
+      throw new BadRequestException('Orçamento inativo');
     }
 
     return orcamento;
   }
 
-  private async validarPermissoesUsuario(
+  /**
+   * Confirma que o orçamento pertence à loja autenticada e que o usuário está
+   * ativo nessa mesma loja. A permissão funcional é verificada pelo
+   * `VendasPermissionsGuard` na entrada HTTP.
+   *
+   * Não distingue "não existe" de "existe em outra loja", para não permitir
+   * enumeração de identificadores.
+   */
+  private async validarAcessoAoOrcamento(
     orcamentoId: string,
     usuarioId: string,
+    lojaId: string,
   ): Promise<void> {
-    // TODO: Implementar validação de permissões do usuário
-    // Por enquanto, apenas verificar se o usuário existe
-    const usuario = await this.prisma.usuario.findUnique({
-      where: { id: usuarioId },
-    });
+    const [orcamento, usuario] = await Promise.all([
+      this.prisma.orcamento.findFirst({
+        where: { id: orcamentoId, loja_id: lojaId },
+        select: { id: true },
+      }),
+      this.prisma.usuario.findFirst({
+        where: { id: usuarioId, loja_id: lojaId, status: 'ATIVO', ativo: true },
+        select: { id: true },
+      }),
+    ]);
 
-    if (!usuario) {
-      throw new Error('Usuário não encontrado');
+    if (!orcamento || !usuario) {
+      throw new NotFoundException('Orçamento não encontrado');
     }
   }
 

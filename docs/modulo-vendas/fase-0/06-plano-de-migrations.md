@@ -1,7 +1,7 @@
 # Fase 0 — Plano de migrations
 
 **Documento:** entregável "Plano de migrations, sem aplicar estrutura especulativa"
-**Status:** proposto — depende de DV-01, DV-02, DV-07, DV-11, DV-14 e DV-15
+**Status:** aprovado — DV-01, DV-02, DV-07, DV-11, DV-14 e DV-15 decididas em 2026-07-31
 **Referência obrigatória:** `docs/database/boas-praticas-schema-prisma.md`
 
 > Regra que vale para todo item deste plano: **nenhuma estrutura é criada antes da

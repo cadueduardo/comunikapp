@@ -1094,22 +1094,25 @@ Matriz mínima de autorização:
 
 ---
 
-## 10. Sequência sugerida de implementação (quando autorizada)
+## 10. Sequência aprovada de implementação (quando autorizada)
 
-> **Atenção (DV-16).** Esta sequência diverge do mapa de dependências do
-> [plano de ação](./PLANO-ACAO-MODULO-VENDAS.md) §3, que coloca a navegação na
-> Fase 3, atrás de Contratos e RBAC. As duas precisam ser reconciliadas antes do
-> primeiro PR de código. A recomendação da Fase 0 é manter a antecipação abaixo,
-> desde que o item 1 entregue **apenas navegação e cards para rotas já existentes**,
-> sem KPI, contagem ou fila — o que o torna independente das fases 1 e 2.
+> **Decisão DV-16.** Segurança e contratos precedem qualquer nova navegação. O
+> hotfix crítico de DV-13 é um gate isolado e obrigatório; a sequência abaixo não
+> pode ser reordenada por conveniência visual.
 
-1. **Nav + home vazia com cards** apontando rotas existentes (valor imediato, baixo risco).
-2. **RBAC comercial** em precificar/gerar aditiva + tela `/vendas/aditivos`.
-3. **Limpeza de CTAs** em Recebimentos / copy “financeiro” no ato comercial.
-4. **Máquina de estados, versão aceita, pedido confirmado e idempotência dos handoffs**.
-5. **KPIs, fila de negociação e CRM operacional mínimo**.
-6. **Governança de desconto/margem e integração com aprovação de arte**.
-7. Só depois, com novo RP/delta: E4 (aba OS, custo vs preço, modo solo).
+1. **Hotfix de segurança:** autorização efetiva, IDOR/rotas públicas, aceite
+   transacional e idempotente, token seguro e remoção de segredo dos logs.
+   O escopo e o gate verificável estão em
+   [`fase-0/09-gate-hotfix-seguranca.md`](./fase-0/09-gate-hotfix-seguranca.md).
+2. **Contratos e dados:** status comercial, versões, pedido confirmado, contatos,
+   carteira e migrations aditivas/backfill em lotes.
+3. **RBAC comercial:** permissões, alçadas e projeções mínimas sem custo detalhado.
+4. **Nav + home de Vendas:** somente após os gates anteriores, com dados reais e
+   consultas paginadas/indexadas.
+5. **Máquina de estados, negociação, gates e handoffs idempotentes**.
+6. **KPIs, fila de negociação e CRM operacional mínimo**.
+7. **Governança de desconto/margem e integração com aprovação de arte**.
+8. Só depois, com novo RP/delta: E4 (aba OS, custo vs preço, modo solo).
 
 ---
 
@@ -1228,29 +1231,33 @@ atual do ComunikApp, considerar o módulo **funcionalmente completo** somente qu
 
 ---
 
-## 15. Questões de produto que precisam de decisão antes do código
+## 15. Decisões de produto e arquitetura aprovadas antes do código
 
 > **O registro oficial de decisão é
 > [`fase-0/02-registro-de-decisoes.md`](./fase-0/02-registro-de-decisoes.md).** A
-> tabela abaixo permanece como resumo da recomendação inicial. O registro contém as
-> opções detalhadas, o impacto de cada uma e quatro decisões adicionais nascidas da
+> tabela abaixo replica o contrato aprovado em 2026-07-31. O registro contém as
+> opções detalhadas, as salvaguardas de segurança e desempenho e quatro decisões nascidas da
 > auditoria: **DV-13** (estratégia de autorização), **DV-14** (reconciliação de
 > status), **DV-15** (destino do histórico órfão) e **DV-16** (ordem de entrega).
 
-| ID | Decisão | Recomendação inicial |
+| ID | Decisão | Contrato aprovado |
 |----|---------|----------------------|
-| DV-01 | Pedido confirmado será entidade, evento ou projeção do orçamento aceito? | Começar como evento/projeção; criar tabela só se houver comportamento próprio não atendido |
-| DV-02 | Quais alterações invalidam o aceite? | Preço, itens, quantidades, prazo, entrega/instalação, condição de pagamento e termos |
+| DV-01 | Pedido confirmado será entidade, evento ou projeção do orçamento aceito? | Evento de domínio + projeção persistida leve `pedido_comercial`, 1:1 com o orçamento e criação idempotente/transacional |
+| DV-02 | Quais alterações invalidam o aceite? | Comparar por hash canônico a versão aceita com os campos visíveis ao cliente; qualquer alteração material exige nova versão e novo aceite |
 | DV-03 | Quais gates liberam produção por tipo de venda? | Matriz configurável por loja/tipo de produto; nunca um booleano global |
-| DV-04 | Quem pode aprovar desconto/margem excepcional? | Permissão granular + limite por perfil; ADMIN não substitui trilha de auditoria |
+| DV-04 | Quem pode aprovar desconto/margem excepcional? | Permissão granular + alçada numérica por perfil, sem autoaprovação e com auditoria obrigatória, inclusive para ADMIN |
 | DV-05 | Comercial vê custo detalhado ou apenas margem/limite? | Permissão separada; padrão de equipe mostra informação mínima para decidir preço |
-| DV-06 | Quem é o aprovador válido do cliente B2B? | Contato/papel registrado + evidência do aceite; política jurídica define assinatura |
-| DV-07 | Política de expiração e revalidação | Data real, timezone da loja e reprecificação assistida após expirar |
-| DV-08 | Canais oficiais do follow-up | In-app e e-mail no P1; WhatsApp somente com integração, consentimento e templates aprovados |
-| DV-09 | SLA de proposta e negociação | Configurável por loja, com defaults e pausa justificável |
-| DV-10 | Escopo de pós-venda | Aceite de entrega/instalação + satisfação simples no P2; suporte/tickets em módulo próprio |
+| DV-06 | Quem é o aprovador válido do cliente B2B? | Contato ativo cadastrado como aprovador; token criptograficamente seguro, limitado a contato/versão/finalidade, com expiração, uso único e evidência auditável |
+| DV-07 | Política de expiração e revalidação | Expiração automática em UTC e revalidação obrigatória de preço/prazo, gerando nova versão e novo token |
+| DV-08 | Canais oficiais do follow-up | In-app direcionado ao usuário + e-mail assíncrono; WhatsApp somente em fase futura com consentimento e templates aprovados |
+| DV-09 | SLA de proposta e negociação | Fora do mínimo operacional; entra na Fase 13 com política configurável por loja |
+| DV-10 | Escopo de pós-venda | Aceite de entrega/instalação + satisfação/recompra simples; suporte e tickets permanecem em módulo próprio |
 | DV-11 | Um cliente pode ter mais de um vendedor participante? | Sim, com um responsável principal; participantes não recebem poderes de gestão automaticamente |
-| DV-12 | Quem pode ver “Todos os clientes”? | Gestor/Admin por padrão; demais somente por permissão explícita |
+| DV-12 | Quem pode ver “Todos os clientes”? | Gestor/Admin por permissão; vendedor inicia em Minha carteira, com rollout gradual e flag temporária apenas para compatibilidade de lojas existentes |
+| DV-13 | Qual estratégia de autorização será usada? | `VendasPermissionsService`, com `usuario_funcao` como fonte canônica e validação no backend; hotfix de autorização/IDOR/aceite é pré-requisito de qualquer nova entrega |
+| DV-14 | Como reconciliar os vocabulários de status? | Novo `status_comercial` canônico; legado derivado durante transição, backfill em lotes e transições centralizadas com concorrência otimista |
+| DV-15 | Qual o destino das tabelas de histórico? | `VersaoOrcamento` como snapshot imutável e `HistoricoOrcamento` como timeline; tabelas órfãs descontinuadas sem drop imediato |
+| DV-16 | Qual a ordem de entrega? | Fase 0 → hotfix de segurança → Fase 1 → Fase 2 → Fase 3; nenhuma vitrine antecipada sobre contratos inseguros |
 
 ---
 
@@ -1263,3 +1270,4 @@ atual do ComunikApp, considerar o módulo **funcionalmente completo** somente qu
 | 2026-07-30 | Produto/arquitetura (carteira) | Clientes incorporado à navegação de Vendas; cadastro mestre da loja separado de carteira, visões, transferência, deduplicação e acessos contextuais |
 | 2026-07-30 | Produto/UX (jornada) | Jornada operacional de vendedor e gestor, home acionável, novo atendimento, ficha 360º, proposta, negociação, acompanhamento e aditivo |
 | 2026-07-31 | Arquitetura (Fase 0) | Auditoria do código real; §4.10 com dez dívidas não previstas; DV-13 a DV-16; unificação da decisão de custo interno (E4-2 promovido para a Fase 2); divergência de sequência registrada em §10 |
+| 2026-07-31 | Produto/arquitetura (decisões) | DV-01 a DV-16 aprovadas e incorporadas ao contrato do RP, com segurança crítica antes das fases funcionais |

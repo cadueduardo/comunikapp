@@ -1,7 +1,7 @@
 # Fase 0 — Registro de decisões de produto e arquitetura
 
 **Documento:** entregável "Registro de decisões DV-01–DV-12" da Fase 0
-**Status:** **aguardando decisão do product owner**
+**Status:** **DECIDIDO — contrato aprovado para planejamento — 2026-07-31**
 **Origem:** RP §15, ampliado pela auditoria em `01-auditoria-estado-real.md`
 
 > Este é o artefato bloqueador da Fase 0. Enquanto uma decisão estiver como
@@ -17,22 +17,22 @@
 
 | ID | Assunto | Bloqueia | Estado |
 |----|---------|----------|--------|
-| DV-01 | Natureza do pedido confirmado | Fases 1, 8 | PENDENTE |
-| DV-02 | Alterações que invalidam o aceite | Fases 1, 6 | PENDENTE |
-| DV-03 | Gates por tipo de venda | Fases 1, 8 | PENDENTE |
-| DV-04 | Quem aprova exceção de desconto/margem | Fases 2, 7 | PENDENTE |
-| DV-05 | Exposição de custo ao comercial | Fases 2, 7 | PENDENTE |
-| DV-06 | Aprovador válido do cliente B2B | Fases 1, 8 | PENDENTE |
-| DV-07 | Expiração e revalidação da proposta | Fases 1, 6 | PENDENTE |
-| DV-08 | Canais oficiais de follow-up | Fase 5 | PENDENTE |
-| DV-09 | SLA de proposta e negociação | Fase 5 | PENDENTE |
-| DV-10 | Escopo do pós-venda | Fase 13 | PENDENTE |
-| DV-11 | Vendedores participantes | Fases 1, 4 | PENDENTE |
-| DV-12 | Quem vê "Todos os clientes" | Fases 2, 4 | PENDENTE |
-| **DV-13** | **Estratégia de autorização (novo)** | **Fase 2 — bloqueia tudo** | PENDENTE |
-| **DV-14** | **Reconciliação de status (novo)** | **Fases 1, 6** | PENDENTE |
-| **DV-15** | **Destino do histórico órfão (novo)** | **Fases 1, 6** | PENDENTE |
-| **DV-16** | **Ordem de entrega das fases (novo)** | **Todas** | PENDENTE |
+| DV-01 | Natureza do pedido confirmado | Fases 1, 8 | **DECIDIDO — B** |
+| DV-02 | Alterações que invalidam o aceite | Fases 1, 6 | **DECIDIDO — snapshot visível ao cliente** |
+| DV-03 | Gates por tipo de venda | Fases 1, 8 | **DECIDIDO — B** |
+| DV-04 | Quem aprova exceção de desconto/margem | Fases 2, 7 | **DECIDIDO — política por perfil** |
+| DV-05 | Exposição de custo ao comercial | Fases 2, 7 | **DECIDIDO — A** |
+| DV-06 | Aprovador válido do cliente B2B | Fases 1, 8 | **DECIDIDO — contato aprovador vinculado** |
+| DV-07 | Expiração e revalidação da proposta | Fases 1, 6 | **DECIDIDO — automática + nova versão** |
+| DV-08 | Canais oficiais de follow-up | Fase 5 | **DECIDIDO — in-app + e-mail** |
+| DV-09 | SLA de proposta e negociação | Fase 5 | **DECIDIDO — Fase 13** |
+| DV-10 | Escopo do pós-venda | Fase 13 | **DECIDIDO — aceite + satisfação** |
+| DV-11 | Vendedores participantes | Fases 1, 4 | **DECIDIDO — B** |
+| DV-12 | Quem vê "Todos os clientes" | Fases 2, 4 | **DECIDIDO — B com transição segura** |
+| **DV-13** | **Estratégia de autorização (novo)** | **Fase 2 — bloqueia tudo** | **DECIDIDO — A + hotfix prévio** |
+| **DV-14** | **Reconciliação de status (novo)** | **Fases 1, 6** | **DECIDIDO — A** |
+| **DV-15** | **Destino do histórico órfão (novo)** | **Fases 1, 6** | **DECIDIDO — A** |
+| **DV-16** | **Ordem de entrega das fases (novo)** | **Todas** | **DECIDIDO — B (segurança primeiro)** |
 
 DV-13 a DV-16 não existiam no RP. Surgiram da auditoria e são bloqueadoras.
 
@@ -69,7 +69,27 @@ existe nem seed de perfis. Também é preciso decidir se o IDOR de `links-v2` e 
 divergência entre as duas listas de rota pública (`01-auditoria-estado-real.md` §3)
 são corrigidos dentro de Vendas ou em PR separado de segurança.
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — opção A — 2026-07-31.**
+
+Vendas adotará `VendasPermissionsService`, catálogo canônico e `assertPode()` nos
+services, seguindo o padrão funcional de Compras. Não será ativado `RolesGuard`
+global dentro deste projeto, pois as 37 declarações legadas usam vocabulários
+incompatíveis e sua ativação seria uma mudança transversal de alto risco.
+
+Condições obrigatórias:
+
+1. `usuario_funcao` é a fonte de verdade de papel; `UserRole`/`@Roles` permanece
+   legado e não pode ser usado como autorização nova.
+2. Toda checagem ocorre no service e recebe `usuarioId`/`lojaId` derivados do
+   contexto autenticado; esconder botão não autoriza ação.
+3. Permissões são carregadas de forma eficiente, com cache curto por
+   `(loja_id, usuario_id, session_version)` e invalidação ao alterar perfil,
+   permissão, usuário ou sessão. Cache nunca pode sobreviver à revogação.
+4. O IDOR de `links-v2`, as rotas públicas divergentes, DTOs `any`, código de
+   aprovação inseguro e segredo em log formam um **hotfix de segurança anterior a
+   qualquer nova navegação de Vendas**. Não aguardam a Fase 2 visual.
+5. O hotfix terá testes cross-tenant, rate limit nos fluxos públicos e negação por
+   padrão. Não será usado um bypass temporário ou fail-open.
 
 ---
 
@@ -96,7 +116,17 @@ Valores realmente gravados no banco hoje: `rascunho`, `pendente`, `enviado`,
 **Recomendação: opção A**, com a máquina de estados detalhada em
 `04-maquina-de-estados-comercial.md`.
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — opção A — 2026-07-31.**
+
+Será criado `status_comercial` canônico, em enum Prisma, separado dos eixos de OS e
+Financeiro. O campo `status` e `status_aprovacao` permanecem temporariamente como
+compatibilidade derivada, sem escrita direta por código novo.
+
+O backfill seguirá `04-maquina-de-estados-comercial.md` e será executado de forma
+aditiva, indexada e observável. O caminho de escrita passa por um único serviço de
+transição, com validação, optimistic locking e evento auditado na mesma transação.
+Backfills grandes devem operar em lotes idempotentes, evitando transação única longa
+e locks extensos. `em_execucao` e `concluido` não existirão no eixo comercial.
 
 ---
 
@@ -115,7 +145,17 @@ recebem registro. Ver `01-auditoria-estado-real.md` §5.
 
 **Recomendação: opção A.** Reaproveita o que já está modelado e evita drop.
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — opção A — 2026-07-31.**
+
+`VersaoOrcamento` será a fonte canônica do snapshot imutável da proposta e
+`HistoricoOrcamento` será a timeline canônica de eventos. `OrcamentoHistorico`,
+`OrcamentoLog` e `aprovacaoOrcamento` ficam formalmente descontinuados, sem drop
+nesta entrega e sem novos writers.
+
+Snapshots novos usam `Json` nativo e `hash_material`; consultas de listagem não
+carregam o snapshot completo. A API usa `select` mínimo e busca o conteúdo apenas no
+detalhe/validação, preservando memória, banda e latência. Retenção/remoção futura das
+tabelas legadas exigirá auditoria de dados e migration própria.
 
 ---
 
@@ -130,14 +170,26 @@ como oficiais.
 
 | Opção | Sequência | Efeito |
 |---|---|---|
-| **A — Vitrine antecipada** (recomendada) | F0 → F3 (nav/home só com cards de rotas existentes, sem dado novo) → F1 → F2 → demais | Algo navegável já na primeira entrega. A F3 antecipada não cria dado nem permissão, então não depende de F1/F2. A home com KPIs reais fica para depois da F2 |
-| B — Plano como está | F0 → F1 → F2 → F3 → … | Corretíssimo em dependência, mas duas fases inteiras sem entrega visível |
+| A — Vitrine antecipada | F0 → F3 (nav/home só com cards de rotas existentes, sem dado novo) → F1 → F2 → demais | Algo navegável já na primeira entrega, porém amplia a superfície exposta antes da autorização efetiva |
+| **B — Segurança e contratos primeiro** (aprovada) | F0 → hotfix de segurança → F1 → F2 → F3 → … | Preserva a ordem de dependências e impede a publicação de rotas sobre contratos inseguros |
 
-**Recomendação: opção A**, com a ressalva explícita de que a F3 antecipada entrega
-**apenas navegação e cards para rotas já existentes**. Qualquer contagem, KPI ou
-fila só entra depois da Fase 2.
+**Recomendação inicial reavaliada:** a opção A foi rejeitada após ponderar os
+achados de DV-13. A opção B oferece menor risco e evita retrabalho de contratos.
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — opção B — 2026-07-31.**
+
+A ordem oficial permanece a do plano de dependências:
+
+```text
+F0 → hotfix de segurança → F1 contratos/dados → F2 autorização → F3 navegação → demais
+```
+
+A vitrine não será antecipada. Criar novos caminhos para Orçamentos enquanto a
+autorização é inerte aumenta a superfície de ataque e consolida contratos ainda não
+reconciliados. A primeira entrega visível ocorrerá após segurança e contratos. Para
+reduzir tempo sem sacrificar a ordem, auditorias, design e componentes sem escrita
+podem ser preparados em paralelo, mas nenhuma rota nova será publicada antes do gate
+de F2.
 
 ---
 
@@ -160,7 +212,23 @@ orçamento, os três conceitos colapsam num só registro.
 | **B — Evento + tabela leve de pedido** (recomendada) | `pedido_comercial` com `orcamento_id`, `versao_aceita_id`, `status`, `aceito_em`, `evidencia_aceite`, `cancelado_em`. Migration pequena, comportamento próprio garantido |
 | C — Entidade completa com itens próprios | Duplica `ProdutoOrcamento` e a OS. Contra o RP §1 |
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — opção B, evento + tabela leve — 2026-07-31.**
+
+Será criado `pedido_comercial` como agregado leve, 1:1 com o orçamento aceito, sem
+duplicar itens, produto, cálculo ou OS. A confirmação publica o evento
+`vendas.pedido.confirmado`; a tabela mantém identidade, versão aceita, cliente,
+responsável, valor-snapshot, estado e cancelamento.
+
+Requisitos estruturais:
+
+- `loja_id` obrigatório e índices compostos orientados a status, responsável e
+  cliente;
+- `orcamento_id @unique` e chave idempotente para eliminar corrida de aceite;
+- `versao_aceita_id` com `onDelete: Restrict`;
+- mutação transacional curta para pedido + auditoria; handoffs externos usam outbox
+  ou comandos idempotentes, nunca chamadas de rede dentro da transação;
+- listagens usam projeções/selects mínimos e paginação por cursor quando o volume
+  justificar, sem carregar snapshots ou relações pesadas.
 
 ---
 
@@ -188,7 +256,28 @@ Campos candidatos a materiais, com base no schema real:
 Alterações **não materiais** propostas: `observacoes`, `tags`, `categoria`,
 `atendente`, anexos internos.
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — comparar o snapshot visível aceito — 2026-07-31.**
+
+Invalidam o aceite somente alterações materiais percebidas pelo cliente:
+
+1. preço unitário, desconto, acréscimo, preço total ou tributo destacado;
+2. inclusão, remoção ou alteração de item, quantidade, unidade, especificação,
+   material/acabamento visível ou personalização;
+3. prazo de entrega/execução e validade;
+4. modalidade, endereço, prazo e valor de entrega/instalação;
+5. condição de pagamento, entrada, parcelas, vencimentos e termos comerciais;
+6. terceirização apenas quando mudar escopo, executor comunicado ou prazo/condição
+   apresentados ao cliente.
+
+Não invalidam por si só: custo interno, margem, comissão, fornecedor interno não
+divulgado, tags, categoria, observações internas e anexos exclusivamente internos.
+Se qualquer alteração interna mudar um campo visível, o hash material muda e um novo
+aceite é obrigatório.
+
+O `hash_material` será calculado no backend sobre representação canônica ordenada,
+com versão do algoritmo. Nunca confiar em hash enviado pelo cliente. Depois de
+`pedido_confirmado`, alteração material segue aditivo/cancelamento formal; não edita
+o pedido silenciosamente.
 
 ---
 
@@ -206,7 +295,24 @@ Proposta detalhada em `05-matriz-de-gates.md`. A decisão aqui é apenas sobre o
 | **B — Configurável por loja, com default por tipo de venda** (recomendada) | Uma tabela de configuração de gates por loja. Alinhado ao precedente de `configuracao_instalacao_loja` |
 | C — Configurável por produto | Granularidade que ninguém pediu; custo alto de UI |
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — opção B — 2026-07-31.**
+
+Os gates serão configuráveis por loja, com defaults versionados por tipo de venda,
+em tabela própria do domínio comercial. Não serão adicionados a
+`configuracao_instalacao_loja` e não haverá configuração por produto no primeiro
+ciclo.
+
+Regras fechadas:
+
+- G1 comercial é obrigatório para toda venda;
+- G2 sinal deriva prioritariamente da condição de pagamento; configuração não pode
+  dispensar entrada contratualmente exigida;
+- G3 Arte é definido pela necessidade de prova do item;
+- G4 revisão técnica segue tipo/complexidade operacional;
+- dispensa fica restrita a Administrador no primeiro ciclo, com justificativa e
+  auditoria, sem permissão padrão do vendedor;
+- avaliação é independente, indexada e orientada a eventos dos domínios donos;
+  Vendas não faz polling N×M nem replica status de Arte/Financeiro/OS.
 
 ---
 
@@ -230,7 +336,24 @@ por **usuário**? O RP diz "por perfil"; o modelo `perfil_permissao` só tem
 `(modulo, acao, permitido)` — booleano, **sem campo de valor**. Guardar faixa de
 desconto exige tabela nova.
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — política numérica por perfil — 2026-07-31.**
+
+Limites pertencem ao perfil de acesso, não ao usuário. A permissão booleana define
+quem solicita/decide; `politica_alcada_comercial` guarda desconto máximo e margem
+mínima. Em múltiplos perfis, vale a política mais permissiva explicitamente
+atribuída, registrada na decisão para auditoria.
+
+Controles obrigatórios:
+
+- ninguém aprova a própria solicitação;
+- aprovação exige `vendas.alcada.aprovar` e limite compatível com a exceção;
+- Admin pode decidir como bypass administrativo, mas nunca sem justificativa,
+  snapshot e auditoria;
+- decisão usa optimistic locking e `status = pendente` na condição do update;
+- política efetiva pode ser cacheada por usuário/loja com invalidação ao alterar
+  perfil/política;
+- o nome técnico é **alçada comercial**, sem reutilizar
+  `AlcadasOrcamentoService` de OS.
 
 ---
 
@@ -254,7 +377,17 @@ unificada:
 | B — Manter congelado (E4-2) | Vendedor precifica sem referência de piso. Risco de margem já registrado no RP §9 |
 | C — Mostrar custo a todo perfil VENDAS | Simples, mas expõe custo interno por padrão, contra o princípio de menor privilégio |
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — opção A — 2026-07-31.**
+
+Será criada `vendas.preco.custo.ver`, negada por padrão ao Vendedor e concedida ao
+Gestor, Financeiro e Admin conforme matriz. O vendedor de equipe vê preço sugerido,
+margem resultante/indicador de limite e alertas de alçada, mas não composição de
+custo, fornecedor, salário, imposto interno ou demais detalhes protegidos.
+
+A proteção é aplicada no backend com DTO/projeção própria; ocultar coluna no frontend
+não é suficiente. Endpoints de lista, exportação, PDF, websocket, log e erro também
+devem omitir custo. A resposta deve selecionar apenas campos autorizados no banco,
+evitando buscar e depois remover dados sensíveis desnecessariamente.
 
 ---
 
@@ -274,7 +407,25 @@ evidência de aceite (Fase 1) + substituição do gerador de código (Fase 8).
 aprovador**, ou aceita qualquer portador do código? A primeira opção é mais segura e
 mais próxima do benchmark; a segunda preserva o fluxo atual sem atrito.
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — contato vinculado com papel de aprovador — 2026-07-31.**
+
+O envio para aceite deve selecionar um `cliente_contato` ativo, do mesmo tenant e
+com papel `aprovador`. O token é vinculado a orçamento, versão, contato, finalidade
+e expiração. Qualquer portador do código genérico deixa de ser suficiente.
+
+Segurança obrigatória:
+
+- token opaco gerado por CSPRNG, armazenado como hash, uso único/revogável e
+  comparação em tempo constante;
+- rate limit por token/IP/tenant, contador de tentativas e bloqueio progressivo;
+- não revelar se orçamento, contato ou token existe;
+- IP e user-agent vêm da requisição confiável/proxy configurado, nunca de query;
+- evidência registra contato, versão, canal, data/hora UTC, IP normalizado e
+  user-agent sanitizado, com minimização e política de retenção;
+- aceite manual interno exige permissão específica, motivo e evidência do canal;
+  é distinguido de autoaceite do cliente;
+- assinatura eletrônica jurídica permanece evolução própria; esta evidência é
+  aceite auditável, não promessa de assinatura qualificada.
 
 ---
 
@@ -290,7 +441,18 @@ mais próxima do benchmark; a segunda preserva o fluxo atual sem atrito.
 1. A expiração é **automática** (job diário muda o status) ou **assistida** (o status só muda quando alguém abre)? Recomendação: automática, com job diário, alinhado ao precedente já documentado para `VENCIDO` de cobrança em `docs/fase-0-home-operacional/01-status-oficiais.md`.
 2. Ao retomar proposta expirada, o preço é **revalidado obrigatoriamente** ou apenas sinalizado? Recomendação: revalidação obrigatória com nova versão, atendendo ao critério RP 8.6 (21).
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — expiração automática e revalidação obrigatória — 2026-07-31.**
+
+`expira_em` é calculado no envio a partir da política/validade e convertido para UTC,
+preservando timezone da loja para exibição e regra de calendário. Um job global
+processa propostas vencidas em lotes indexados por `(status_comercial, expira_em)`,
+com paginação por cursor, idempotência e execução concorrente segura. Não haverá um
+job por loja nem full scan diário.
+
+Reabrir proposta expirada exige recalcular custos/prazos, criar nova versão, nova
+validade e novo link/token. O sistema não reaproveita aceite, alçada ou validade
+anteriores. Falha do job não autoriza aceite: o endpoint valida `expira_em` em tempo
+real antes de aceitar.
 
 ---
 
@@ -307,7 +469,16 @@ no repositório.
 Adotar in-app + e-mail exige, portanto, uma migration em `notificacao` e a decisão
 de padronizar o envio de e-mail no `MailService`.
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — in-app endereçado + e-mail pelo MailService — 2026-07-31.**
+
+O primeiro ciclo suporta notificações in-app por usuário e e-mail centralizado no
+`MailService`. WhatsApp fica fora até existir integração oficial, consentimento,
+templates aprovados, opt-out, observabilidade e deduplicação.
+
+Envios são assíncronos via fila/outbox, com chave de deduplicação por
+evento+destinatário+canal, retry com backoff e dead-letter. O request comercial não
+aguarda SMTP. Falha de e-mail não reverte o evento de negócio, mas permanece visível
+para reprocessamento. Preferências e consentimentos são validados antes de enfileirar.
 
 ---
 
@@ -320,7 +491,13 @@ Competitivo? O RP §14.1 não lista SLA; §14.2 lista "lembretes e automações 
 Recomendação: **Núcleo Competitivo (Fase 13)**, mantendo apenas "próxima ação com
 prazo" no mínimo seguro.
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — Núcleo Competitivo/Fase 13 — 2026-07-31.**
+
+O Mínimo Operacional Seguro inclui próxima ação com responsável e prazo, mas não um
+motor de SLA. SLA configurável, pausa justificada, calendário útil, escalonamento e
+indicadores entram na Fase 13. Isso evita criar automação prematura sem dados de uso.
+Consultas futuras devem ser baseadas em prazos indexados e processamento em lote,
+não timers individuais em memória.
 
 ---
 
@@ -332,7 +509,12 @@ suporte/tickets em módulo próprio.
 Sem conflito com a auditoria. Confirmação formal necessária apenas para fechar a
 Fase 0.
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — aceite de entrega/instalação + satisfação simples — 2026-07-31.**
+
+Vendas registra fechamento comercial, aceite de entrega/instalação, nota simples de
+satisfação, comentário opcional e próxima ação/recompra. Chamados, suporte, garantia,
+SLA técnico e assistência pertencem a módulo próprio e não serão improvisados em
+Vendas. Pesquisa usa link revogável e proteção equivalente aos demais links públicos.
 
 ---
 
@@ -351,7 +533,17 @@ Participantes implicam tabela de junção adicional.
 | A — Só responsável principal no primeiro ciclo | 1 coluna + FK + índice | Atende "Minha carteira"; não atende colaboração |
 | **B — Responsável + tabela de participantes** (recomendada) | 1 coluna + 1 tabela de junção | Atende E3B-7, que é P0 no RP |
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — opção B — 2026-07-31.**
+
+Cada cliente terá um responsável comercial principal e zero ou mais participantes.
+A junção possui `loja_id`, unicidade `(cliente_id, usuario_id)` e índices para
+“Minha carteira”. Participar concede visibilidade/colaboração prevista na permissão,
+não poderes de gestor, transferência ou alçada.
+
+Transferência do principal e inclusão/remoção de participantes são transacionais e
+auditadas. Inativação de vendedor não apaga cliente nem histórico; gera fila de
+redistribuição. Listagens são paginadas no servidor e filtradas por índices, sem
+carregar participantes por N+1.
 
 ---
 
@@ -371,7 +563,18 @@ comportamento** para lojas que já operam assim.
 | A — Restringir para todos imediatamente | Cumpre o critério RP 8.8 (28); pode surpreender lojas em operação |
 | **B — Restringir com flag por loja, default aberto no piloto** (recomendada) | Permite rollout gradual conforme a Fase 12; a flag é removida quando todas as lojas estiverem migradas |
 
-**Decisão:** PENDENTE
+**Decisão:** **DECIDIDO — opção B, transição por loja — 2026-07-31.**
+
+Gestor/Admin veem todos por permissão; Vendedor entra em Minha carteira. Para evitar
+quebra abrupta, lojas existentes iniciam com compatibilidade aberta por flag
+temporária e plano de migração; lojas novas e piloto iniciam com carteira restrita
+(menor privilégio). A flag possui data de remoção e telemetria de uso; não se torna
+configuração permanente para contornar RBAC.
+
+Mesmo no modo compatível, ações sensíveis continuam exigindo permissão. A busca de
+deduplicação pode retornar correspondência mínima de cliente fora da carteira, sem
+expor contatos, histórico, valores ou responsável. Toda consulta permanece limitada
+ao `loja_id` autenticado e paginada no servidor.
 
 ---
 
@@ -379,8 +582,10 @@ comportamento** para lojas que já operam assim.
 
 | Papel | Nome | Data | Observação |
 |---|---|---|---|
-| Product owner | | | |
-| Arquitetura | | | |
+| Product owner | Aprovação registrada por solicitação do projeto | 2026-07-31 | As 16 decisões passam a compor o contrato funcional do módulo |
+| Arquitetura | Consolidação técnica da Fase 0 | 2026-07-31 | Segurança, desempenho, escalabilidade e compatibilidade incorporados às decisões |
 
-A Fase 0 só pode ser marcada como concluída quando **todas as 16 decisões** estiverem
-em estado `DECIDIDO` e replicadas no RP.
+As **16 decisões estão em estado `DECIDIDO`**. A Fase 0 pode ser encerrada após a
+replicação deste contrato no RP, no plano de ação e nos artefatos derivados. Esse
+encerramento é documental: **não autoriza iniciar funcionalidade de Vendas antes do
+hotfix de segurança definido em DV-13 e DV-16**.

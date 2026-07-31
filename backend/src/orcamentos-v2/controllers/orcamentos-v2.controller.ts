@@ -23,15 +23,16 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { Public } from '../../auth/decorators';
+import { Public, extrairIdentidadeAutenticada } from '../../auth/decorators';
 import { OrcamentosV2Service } from '../services/orcamentos-v2.service';
 import { IntegracaoMotorService } from '../services/integracao-motor.service';
 import { ValidacaoEstoqueService } from '../services/validacao-estoque.service';
 import { InsumosAutocompleteService } from '../services/insumos-autocomplete.service';
 import { NotificacoesService } from '../../notificacoes/notificacoes.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-import { Roles } from '../../auth/decorators/roles.decorator';
-import { UserRole } from '../../auth/enums/user-role.enum';
+import { VendasPermissionsGuard } from '../../vendas/permissions/vendas-permissions.guard';
+import { RequerPermissaoVendas } from '../../vendas/permissions/requer-permissao-vendas.decorator';
+import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 import { SimularChapaDto } from '../../common/calculo-chapa/simular-chapa.dto';
 import { OrcamentoOrigemSobraService } from '../services/orcamento-origem-sobra.service';
 
@@ -39,13 +40,17 @@ import { OrcamentoOrigemSobraService } from '../services/orcamento-origem-sobra.
  * Controller Principal de Orçamentos V2
  * Implementa todos os endpoints CRUD usando motor de cálculo V2
  *
- * ✅ ARQUIVO ≤ 200 LINHAS (CONFORME PREMISSAS)
  * ✅ INTEGRAÇÃO COMPLETA COM MOTOR FUNCIONANDO
  * ✅ ENDPOINTS DOCUMENTADOS COM SWAGGER
+ *
+ * Autorização (Gate 0S): `VendasPermissionsGuard` nega por padrão. Todo
+ * endpoint autenticado declara sua permissão com `@RequerPermissaoVendas`.
+ * O antigo `@Roles` foi removido daqui porque nunca autorizou nada.
  */
 @ApiTags('Orçamentos V2')
 @Controller('orcamentos-v2')
 @ApiBearerAuth()
+@UseGuards(VendasPermissionsGuard)
 export class OrcamentosV2Controller {
   constructor(
     private readonly orcamentosService: OrcamentosV2Service,
@@ -73,19 +78,23 @@ export class OrcamentosV2Controller {
    */
   @Post()
   @UseGuards(JwtAuthGuard)
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_CRIAR)
   @ApiOperation({ summary: 'Criar novo orçamento' })
   @ApiResponse({ status: 201, description: 'Orçamento criado com sucesso' })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async criarOrcamento(@Body() dados: any, @Request() req: any) {
-    const { loja_id, user_id } = req.user;
-    return await this.orcamentosService.criarOrcamento(dados, loja_id, user_id);
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
+    return await this.orcamentosService.criarOrcamento(
+      dados,
+      lojaId,
+      usuarioId,
+    );
   }
 
   // ===== ENDPOINTS DE NOTIFICAÇÕES V2 =====
   @Get('notificacoes')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({ summary: 'Listar notificações da loja' })
   @ApiResponse({ status: 200, description: 'Lista de notificações' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
@@ -94,11 +103,11 @@ export class OrcamentosV2Controller {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    const { loja_id } = req.user;
+    const { lojaId } = extrairIdentidadeAutenticada(req);
     const limitNumber = limit ? parseInt(limit) : 50;
     const offsetNumber = offset ? parseInt(offset) : 0;
     return this.notificacoesService.buscarNotificacoes(
-      loja_id,
+      lojaId,
       limitNumber,
       offsetNumber,
     );
@@ -108,7 +117,7 @@ export class OrcamentosV2Controller {
    * Busca notificações não visualizadas
    */
   @Get('notificacoes/nao-visualizadas')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({ summary: 'Listar notificações não visualizadas' })
   @ApiResponse({
     status: 200,
@@ -116,15 +125,15 @@ export class OrcamentosV2Controller {
   })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async buscarNaoVisualizadas(@Request() req: any) {
-    const { loja_id } = req.user;
-    return this.notificacoesService.buscarNaoVisualizadas(loja_id);
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    return this.notificacoesService.buscarNaoVisualizadas(lojaId);
   }
 
   /**
    * Conta notificações não visualizadas
    */
   @Get('notificacoes/nao-visualizadas/count')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({ summary: 'Contar notificações não visualizadas' })
   @ApiResponse({
     status: 200,
@@ -132,8 +141,8 @@ export class OrcamentosV2Controller {
   })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async contarNaoVisualizadas(@Request() req: any) {
-    const { loja_id } = req.user;
-    const count = await this.notificacoesService.contarNaoVisualizadas(loja_id);
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    const count = await this.notificacoesService.contarNaoVisualizadas(lojaId);
     return { count };
   }
 
@@ -141,7 +150,7 @@ export class OrcamentosV2Controller {
    * Marca notificação como visualizada
    */
   @Patch('notificacoes/:id/visualizar')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({ summary: 'Marcar notificação como visualizada' })
   @ApiResponse({
     status: 200,
@@ -150,8 +159,8 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   @ApiResponse({ status: 404, description: 'Notificação não encontrada' })
   async marcarComoVisualizada(@Param('id') id: string, @Request() req: any) {
-    const { loja_id } = req.user;
-    await this.notificacoesService.marcarComoVisualizada(id, loja_id);
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    await this.notificacoesService.marcarComoVisualizada(id, lojaId);
     return { message: 'Notificação marcada como visualizada' };
   }
 
@@ -159,7 +168,7 @@ export class OrcamentosV2Controller {
    * Marca todas as notificações como visualizadas
    */
   @Patch('notificacoes/visualizar-todas')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({ summary: 'Marcar todas as notificações como visualizadas' })
   @ApiResponse({
     status: 200,
@@ -167,8 +176,8 @@ export class OrcamentosV2Controller {
   })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async marcarTodasComoVisualizadas(@Request() req: any) {
-    const { loja_id } = req.user;
-    await this.notificacoesService.marcarTodasComoVisualizadas(loja_id);
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    await this.notificacoesService.marcarTodasComoVisualizadas(lojaId);
     return {
       message: 'Todas as notificações foram marcadas como visualizadas',
     };
@@ -178,15 +187,15 @@ export class OrcamentosV2Controller {
    * Deleta notificação
    */
   @Delete('notificacoes/:id')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Deletar notificação' })
   @ApiResponse({ status: 204, description: 'Notificação deletada com sucesso' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   @ApiResponse({ status: 404, description: 'Notificação não encontrada' })
   async deletarNotificacao(@Param('id') id: string, @Request() req: any) {
-    const { loja_id } = req.user;
-    await this.notificacoesService.deletarNotificacao(id, loja_id);
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    await this.notificacoesService.deletarNotificacao(id, lojaId);
   }
 
   // ===== ENDPOINTS DE CHAT V2 =====
@@ -194,20 +203,20 @@ export class OrcamentosV2Controller {
    * Buscar mensagens do chat (autenticado) - SEGUINDO PADRÃO DO LEGADO
    */
   @Get(':id/mensagens')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({ summary: 'Buscar mensagens do chat (autenticado)' })
   @ApiResponse({ status: 200, description: 'Mensagens encontradas' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   async buscarMensagensChat(@Param('id') id: string, @Request() req: any) {
-    const { loja_id } = req.user;
-    return await this.orcamentosService.buscarMensagensChatLegado(id, loja_id);
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    return await this.orcamentosService.buscarMensagensChatLegado(id, lojaId);
   }
 
   /**
    * Enviar mensagem no chat (autenticado - para vendedores) - SEGUINDO PADRÃO DO LEGADO
    */
   @Post(':id/mensagens')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @UseInterceptors(FileInterceptor('arquivo'))
   @ApiOperation({ summary: 'Enviar mensagem no chat (autenticado)' })
   @ApiResponse({ status: 201, description: 'Mensagem enviada com sucesso' })
@@ -226,7 +235,7 @@ export class OrcamentosV2Controller {
     body: any,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    const { loja_id } = req.user;
+    const { lojaId } = extrairIdentidadeAutenticada(req);
 
     // Criar DTO manualmente a partir do body
     const dados = {
@@ -238,7 +247,7 @@ export class OrcamentosV2Controller {
     return await this.orcamentosService.enviarMensagemChatLegado(
       id,
       dados,
-      loja_id,
+      lojaId,
       file,
     );
   }
@@ -247,6 +256,7 @@ export class OrcamentosV2Controller {
    * Marcar mensagem como lida (autenticado)
    */
   @Post('chat/:id/mensagens/:mensagemId/visualizar')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({ summary: 'Marcar mensagem como lida (autenticado)' })
   @ApiResponse({ status: 200, description: 'Mensagem marcada como lida' })
   @ApiResponse({ status: 404, description: 'Mensagem não encontrada' })
@@ -255,11 +265,11 @@ export class OrcamentosV2Controller {
     @Param('mensagemId') mensagemId: string,
     @Request() req: any,
   ) {
-    const { usuario_id } = req.user;
+    const { usuarioId } = extrairIdentidadeAutenticada(req);
     return await this.orcamentosService.marcarMensagemVisualizada(
       id,
       mensagemId,
-      usuario_id,
+      usuarioId,
     );
   }
 
@@ -366,7 +376,7 @@ export class OrcamentosV2Controller {
 
   @Post(':id/itens/:itemId/simular-chapa')
   @UseGuards(JwtAuthGuard)
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @ApiOperation({ summary: 'Simular cálculo da chapa para item do orçamento' })
   async simularChapaItem(
     @Param('id') id: string,
@@ -374,13 +384,13 @@ export class OrcamentosV2Controller {
     @Body() dados: SimularChapaDto,
     @Request() req: any,
   ) {
-    const { loja_id } = req.user;
-    return this.orcamentosService.simularChapaItem(id, itemId, dados, loja_id);
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    return this.orcamentosService.simularChapaItem(id, itemId, dados, lojaId);
   }
 
   @Put(':id/itens/:itemId/calculo-chapa')
   @UseGuards(JwtAuthGuard)
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @ApiOperation({
     summary: 'Salvar cálculo da chapa congelado no item do orçamento',
   })
@@ -390,19 +400,19 @@ export class OrcamentosV2Controller {
     @Body() dados: SimularChapaDto,
     @Request() req: any,
   ) {
-    const { loja_id } = req.user;
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
     return this.orcamentosService.salvarCalculoChapaItem(
       id,
       itemId,
       dados,
-      loja_id,
-      req.user?.id ?? req.user?.user_id,
+      lojaId,
+      usuarioId,
     );
   }
 
   @Get('origem-sobra/busca')
   @UseGuards(JwtAuthGuard)
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Buscar orçamentos para origem de sobra/retalho',
   })
@@ -411,9 +421,9 @@ export class OrcamentosV2Controller {
     @Query('limite') limite: string,
     @Request() req: any,
   ) {
-    const { loja_id } = req.user;
+    const { lojaId } = extrairIdentidadeAutenticada(req);
     return this.origemSobraService.buscarOrcamentos(
-      loja_id,
+      lojaId,
       q,
       limite ? Number(limite) : 20,
     );
@@ -421,7 +431,7 @@ export class OrcamentosV2Controller {
 
   @Get(':id/candidatos-sobra')
   @UseGuards(JwtAuthGuard)
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({
     summary: 'Listar materiais candidatos a sobra de um orçamento',
   })
@@ -429,33 +439,29 @@ export class OrcamentosV2Controller {
     @Param('id') id: string,
     @Request() req: any,
   ) {
-    const { loja_id } = req.user;
-    return this.origemSobraService.listarCandidatosSobra(loja_id, id);
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    return this.origemSobraService.listarCandidatosSobra(lojaId, id);
   }
 
   /**
    * Busca orçamento por ID
    */
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({ summary: 'Buscar orçamento por ID' })
   @ApiResponse({ status: 200, description: 'Orçamento encontrado' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async buscarOrcamento(@Param('id') id: string, @Request() req: any) {
-    if (!req.user) {
-      throw new Error('Usuário não autenticado');
-    }
-
-    const { loja_id } = req.user;
-    return await this.orcamentosService.buscarOrcamento(id, loja_id);
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    return await this.orcamentosService.buscarOrcamento(id, lojaId);
   }
 
   /**
    * Lista orçamentos com filtros
    */
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({ summary: 'Listar orçamentos com filtros' })
   @ApiResponse({ status: 200, description: 'Lista de orçamentos' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
@@ -464,9 +470,9 @@ export class OrcamentosV2Controller {
     @Query() paginacao: any,
     @Request() req: any,
   ) {
-    const { loja_id } = req.user;
+    const { lojaId } = extrairIdentidadeAutenticada(req);
     return await this.orcamentosService.listarOrcamentos(
-      loja_id,
+      lojaId,
       filtros,
       paginacao,
     );
@@ -476,7 +482,7 @@ export class OrcamentosV2Controller {
    * Atualiza orçamento existente
    */
   @Put(':id')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @ApiOperation({ summary: 'Atualizar orçamento existente' })
   @ApiResponse({ status: 200, description: 'Orçamento atualizado com sucesso' })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
@@ -487,12 +493,12 @@ export class OrcamentosV2Controller {
     @Body() dados: any,
     @Request() req: any,
   ) {
-    const { loja_id, user_id } = req.user;
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
     return await this.orcamentosService.atualizarOrcamento(
       id,
       dados,
-      loja_id,
-      user_id,
+      lojaId,
+      usuarioId,
     );
   }
 
@@ -500,7 +506,7 @@ export class OrcamentosV2Controller {
    * Remove orçamento
    */
   @Delete(':id')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EXCLUIR)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remover orçamento' })
   @ApiResponse({ status: 204, description: 'Orçamento removido com sucesso' })
@@ -511,11 +517,11 @@ export class OrcamentosV2Controller {
     @Request() req: any,
     @Body() body: { motivo?: string },
   ) {
-    const { loja_id, user_id } = req.user;
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
     await this.orcamentosService.removerOrcamento(
       id,
-      loja_id,
-      user_id,
+      lojaId,
+      usuarioId,
       body.motivo,
     );
   }
@@ -524,7 +530,7 @@ export class OrcamentosV2Controller {
    * Altera status do orçamento
    */
   @Put(':id/status')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @ApiOperation({ summary: 'Alterar status do orçamento' })
   @ApiResponse({ status: 200, description: 'Status alterado com sucesso' })
   @ApiResponse({ status: 400, description: 'Transição de status inválida' })
@@ -535,12 +541,12 @@ export class OrcamentosV2Controller {
     @Body() dados: { status: string; observacoes?: string },
     @Request() req: any,
   ) {
-    const { loja_id, user_id } = req.user;
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
     return await this.orcamentosService.alterarStatus(
       id,
       dados.status as any,
-      loja_id,
-      user_id,
+      lojaId,
+      usuarioId,
       dados.observacoes,
     );
   }
@@ -549,18 +555,18 @@ export class OrcamentosV2Controller {
    * Calcula orçamento via motor V2
    */
   @Post(':id/calcular')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
   @ApiOperation({ summary: 'Calcular orçamento via motor V2' })
   @ApiResponse({ status: 200, description: 'Cálculo realizado com sucesso' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async calcularOrcamento(@Param('id') id: string, @Request() req: any) {
-    const { loja_id } = req.user;
-    const orcamento = await this.orcamentosService.buscarOrcamento(id, loja_id);
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    const orcamento = await this.orcamentosService.buscarOrcamento(id, lojaId);
 
     return await this.integracaoMotor.calcularOrcamentoCompleto(
       orcamento,
-      loja_id,
+      lojaId,
     );
   }
 
@@ -568,18 +574,18 @@ export class OrcamentosV2Controller {
    * Valida estoque do orçamento (apenas alertas)
    */
   @Get(':id/validar-estoque')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({ summary: 'Validar estoque do orçamento (apenas alertas)' })
   @ApiResponse({ status: 200, description: 'Validação realizada' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async validarEstoque(@Param('id') id: string, @Request() req: any) {
-    const { loja_id } = req.user;
-    const orcamento = await this.orcamentosService.buscarOrcamento(id, loja_id);
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    const orcamento = await this.orcamentosService.buscarOrcamento(id, lojaId);
 
     return await this.validacaoEstoque.validarEstoqueOrcamento(
       orcamento,
-      loja_id,
+      lojaId,
     );
   }
 
@@ -587,7 +593,7 @@ export class OrcamentosV2Controller {
    * Busca insumos para auto-complete
    */
   @Get('insumos/autocomplete')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({ summary: 'Buscar insumos para auto-complete' })
   @ApiResponse({ status: 200, description: 'Lista de insumos' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
@@ -596,11 +602,11 @@ export class OrcamentosV2Controller {
     @Request() req: any,
     @Query('categoria_id') categoriaId?: string,
   ) {
-    const { loja_id } = req.user;
+    const { lojaId } = extrairIdentidadeAutenticada(req);
     return await this.insumosAutocomplete.buscarInsumos(
       busca,
       categoriaId,
-      loja_id,
+      lojaId,
     );
   }
 
@@ -608,27 +614,27 @@ export class OrcamentosV2Controller {
    * Obtém estatísticas do motor V2
    */
   @Get('motor/estatisticas')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({ summary: 'Obter estatísticas do motor V2' })
   @ApiResponse({ status: 200, description: 'Estatísticas do motor' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async obterEstatisticasMotor(@Request() req: any) {
-    const { loja_id } = req.user;
-    return await this.integracaoMotor.obterEstatisticasMotor(loja_id);
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    return await this.integracaoMotor.obterEstatisticasMotor(lojaId);
   }
 
   /**
    * Enviar orçamento para cliente
    */
   @Post(':id/enviar')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_ENVIAR)
   @ApiOperation({ summary: 'Enviar orçamento para cliente' })
   @ApiResponse({ status: 200, description: 'Orçamento enviado com sucesso' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async enviarOrcamento(@Param('id') id: string, @Request() req: any) {
-    const { loja_id, user_id } = req.user;
-    return await this.orcamentosService.enviarOrcamento(id, loja_id, user_id);
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
+    return await this.orcamentosService.enviarOrcamento(id, lojaId, usuarioId);
   }
 
   /**
@@ -638,7 +644,7 @@ export class OrcamentosV2Controller {
    * Fecha o pedido internamente e gera OS sem aprovação externa do cliente
    */
   @Post(':id/fechar-pedido')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_ACEITE_REGISTRAR)
   @ApiOperation({ summary: 'Fechar pedido internamente e gerar OS' })
   @ApiResponse({ status: 200, description: 'Pedido fechado com sucesso' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
@@ -648,17 +654,17 @@ export class OrcamentosV2Controller {
     @Body() body: { observacoes?: string },
     @Request() req: any,
   ) {
-    const { loja_id, user_id } = req.user;
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
     return await this.orcamentosService.fecharPedidoInterno(
       id,
-      loja_id,
-      user_id,
+      lojaId,
+      usuarioId,
       body?.observacoes,
     );
   }
 
   @Post(':id/duplicar')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_CRIAR)
   @ApiOperation({ summary: 'Duplicar orçamento existente' })
   @ApiResponse({ status: 201, description: 'Orçamento duplicado com sucesso' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
@@ -668,11 +674,11 @@ export class OrcamentosV2Controller {
     @Body() dados: { titulo?: string; descricao?: string },
     @Request() req: any,
   ) {
-    const { loja_id, user_id } = req.user;
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
     return await this.orcamentosService.duplicarOrcamento(
       id,
-      loja_id,
-      user_id,
+      lojaId,
+      usuarioId,
       dados,
     );
   }
@@ -681,7 +687,7 @@ export class OrcamentosV2Controller {
    * Exporta orçamento em diferentes formatos
    */
   @Get(':id/exportar/:formato')
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.OPERADOR)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_VER)
   @ApiOperation({ summary: 'Exportar orçamento em diferentes formatos' })
   @ApiResponse({ status: 200, description: 'Arquivo exportado com sucesso' })
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
@@ -692,8 +698,8 @@ export class OrcamentosV2Controller {
     @Param('formato') formato: string,
     @Request() req: any,
   ) {
-    const { loja_id } = req.user;
-    const orcamento = await this.orcamentosService.buscarOrcamento(id, loja_id);
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    const orcamento = await this.orcamentosService.buscarOrcamento(id, lojaId);
 
     // Validar formato
     const formatosSuportados = ['pdf', 'excel', 'csv'];

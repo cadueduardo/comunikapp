@@ -1,35 +1,33 @@
-# Fase 0 — Resumo executivo das decisões pendentes
+# Fase 0 — Resumo executivo das decisões aprovadas
 
 **Para:** product owner
 **Documento de referência:** [Registro de decisões DV-01 a DV-16](./02-registro-de-decisoes.md)
 **Data:** 2026-07-31
 **Tempo estimado de leitura:** 5 minutos
 
-> Este documento não substitui o registro de decisões. Ele existe para que o PO
-> saiba **o que precisa decidir primeiro** e **quais decisões realmente são de
-> produto**. Ao decidir, o estado oficial é gravado no documento 02.
+> Este documento não substitui o registro de decisões. Ele resume o contrato
+> aprovado; o estado oficial e as salvaguardas completas permanecem no documento 02.
 
 ---
 
 ## 1. O essencial em um parágrafo
 
-Dezesseis decisões estão em aberto e travam o início do desenvolvimento. Elas não
-têm o mesmo peso: **cinco destravam o início** e são quase todas de arquitetura,
-podendo ser ratificadas rapidamente; **oito são de produto** e exigem posicionamento
-do negócio; **três podem esperar** sem atrasar nada. Existe recomendação escrita para
-todas as dezesseis. Se o PO concordar com elas, a Fase 0 fecha em uma reunião.
+As dezesseis decisões foram fechadas em 2026-07-31. O contrato prioriza menor
+privilégio, consistência transacional, idempotência, isolamento por loja, migrations
+aditivas, processamento assíncrono e paginação/indexação no servidor. O início do
+desenvolvimento funcional permanece condicionado ao hotfix crítico de DV-13/DV-16.
 
 ---
 
-## 2. Três rodadas de decisão
+## 2. Decisões por ordem de impacto
 
 A ordem abaixo segue o que destrava mais cedo, não a numeração dos IDs.
 
-### Rodada 1 — destrava o início (5 decisões, majoritariamente arquitetura)
+### Bloco 1 — fundação e segurança (5 decisões)
 
 | ID | Pergunta em uma linha | Recomendação | Natureza |
 |----|----------------------|--------------|----------|
-| DV-16 | Começamos pela navegação ou pelos contratos? | Vitrine antecipada: F0 → F3 só com navegação → F1 → F2 | Estratégia de entrega |
+| DV-16 | Começamos pela navegação ou pelos contratos? | F0 → hotfix de segurança → F1 → F2 → F3 | Estratégia de entrega |
 | DV-13 | Como implementar autorização em Vendas? | Seguir o padrão de Compras (`VendasPermissionsService`) | Arquitetura |
 | DV-14 | Como reconciliar os três vocabulários de status? | Criar `status_comercial` novo e manter `status` por compatibilidade | Arquitetura |
 | DV-15 | O que fazer com as tabelas de histórico órfãs? | Eleger `VersaoOrcamento` e `HistoricoOrcamento`; descontinuar as outras três sem drop | Arquitetura |
@@ -44,9 +42,9 @@ PO precisa concordar apenas com a consequência de custo, não com o desenho.
 
 ---
 
-### Rodada 2 — destrava as Fases 1 e 2 (8 decisões de produto)
+### Bloco 2 — contrato de produto (8 decisões)
 
-Estas exigem posicionamento do negócio. Não há resposta tecnicamente correta.
+Estas decisões definem o comportamento comercial aprovado.
 
 | ID | Pergunta em uma linha | Recomendação | O que está em jogo |
 |----|----------------------|--------------|--------------------|
@@ -66,9 +64,9 @@ precisam de plano de comunicação, não só de decisão técnica.
 
 ---
 
-### Rodada 3 — pode esperar (3 decisões)
+### Bloco 3 — escopo posterior (3 decisões)
 
-Nenhuma bloqueia as Fases 1 a 4. Podem ser fechadas até a Fase 5.
+As decisões estão fechadas, embora a implementação pertença a fases posteriores.
 
 | ID | Pergunta em uma linha | Recomendação | Bloqueia |
 |----|----------------------|--------------|----------|
@@ -139,11 +137,11 @@ cronograma do módulo.
 
 ---
 
-## 6. Encaminhamento sugerido
+## 6. Encaminhamento aprovado
 
-1. Reunião única de kickoff com as rodadas 1 e 2 na pauta (13 decisões).
-2. Rodada 3 fechada por escrito até o início da Fase 5.
-3. Cada decisão fechada é gravada no documento 02 como
-   `DECIDIDO — <opção> — <data>` e replicada no RP no mesmo commit.
-4. Com as 16 fechadas, marcar o gate de conclusão no
-   [`README.md`](./README.md) da Fase 0 e liberar o início do desenvolvimento.
+1. Executar e validar o hotfix crítico de DV-13/DV-16 em entrega isolada.
+2. Iniciar a Fase 1 apenas após evidência de autorização efetiva, correção de IDOR,
+   aceite transacional/idempotente e ausência de segredos em logs.
+3. Tratar o documento 02 e o RP §15 como contrato; qualquer alteração exige nova
+   decisão registrada e atualização da rastreabilidade.
+4. Preservar migrations aditivas e rollout gradual nas mudanças incompatíveis.
