@@ -157,7 +157,7 @@ ser ratificado na Fase 2 junto com o catálogo definitivo.
 | `DELETE :linkId` | Mutação | enviar | `removerLinkPublico` | — |
 | `GET :orcamentoId/estatisticas` | Leitura | ver | `buscarEstatisticasLinks` | — |
 | `GET :linkId/acessos` | Leitura | ver | `buscarHistoricoAcessos` | — |
-| `GET publico/:token` | Mutação | ver | `acessarLinkPublico` — **corrigido**, ver §4.1 | `xt` |
+| `GET publico/:token` | Mutação | ver | `acessarLinkPublico` — **corrigido** (§4.1 tenant, §4.5 IP/UA) | `xt` |
 
 `GET publico/:token` é classificado como mutação porque incrementa o contador
 de visualizações e grava registro de acesso.
@@ -296,6 +296,26 @@ Todos removidos. Os que sobreviveram registram apenas identificador e contagem.
 
 ---
 
+### 4.5 IP e user-agent vinham da query em `links/publico/:token` — corrigido
+
+O handler aceitava `@Query('ip')` e `@Query('user_agent')` e os passava ao
+service. Isso contraria o HS-03: o chamador forjava a origem do registro de
+acesso. Passou a usar `extrairContextoDaRequisicao(req)`, a mesma fonte do
+aceite público e do rate limit.
+
+### 4.6 `ChatV2Service.buscarUsuarioSistema` criava conta com senha em claro — corrigido
+
+Método interno, sem endpoint HTTP hoje. Ainda assim era caminho alternativo
+perigoso: na ausência do e-mail `sistema@comunikapp.com`, criava um usuário
+com senha `sistema123` na primeira loja que `loja.findFirst()` encontrasse —
+conta compartilhada entre tenants e credencial previsível. Removido o create;
+se o usuário de serviço não existir, as mensagens usam autor virtual
+(`usuario_id` é anulável). `enviarMensagemSistema` e `enviarNotificacao`
+passaram a exigir `lojaId` e a validar o orçamento nele, para que um futuro
+chamador interno não escreva no chat de outra loja.
+
+---
+
 ## 5. O que a matriz não cobre
 
 - **Cobertura de teste por endpoint é parcial.** 24 dos 64 têm teste
@@ -306,3 +326,14 @@ Todos removidos. Os que sobreviveram registram apenas identificador e contagem.
   ratificação na Fase 2.
 - **`vendas.proposta.excluir`** foi acrescentado pelo Gate 0S e ainda não
   consta da matriz do artefato 03; também depende de ratificação.
+- **Vários `@Body()` ainda usam `any` ou objeto inline** sem DTO
+  `class-validator` (criar/atualizar orçamento, chat legado, cálculo em lote).
+  O HS-03 exigiu DTO tipado nas ações **públicas**, que já o têm
+  (`AcaoClientePublicoDto`). Endurecer o restante dos bodies autenticados é
+  dívida de tipagem, não abertura de fronteira — fica para a Fase 2, salvo
+  se algum body `any` for usado para injetar `loja_id` (hoje nenhum lê
+  `loja_id` do corpo).
+- **Consultas públicas sem `loja_id` no `where`** (`buscarOrcamentoPublico`,
+  `processarAcaoClientePublico`, `reenviarCodigoAprovacao`) são intencionais:
+  o cliente final não tem loja. O controle aí é de conteúdo e de abuso, não
+  de tenant.

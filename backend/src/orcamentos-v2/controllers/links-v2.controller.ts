@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   Query,
+  Request,
   UseGuards,
   HttpStatus,
   HttpCode,
@@ -25,6 +26,7 @@ import { Identidade, IdentidadeAutenticada } from '../../auth/decorators';
 import { VendasPermissionsGuard } from '../../vendas/permissions/vendas-permissions.guard';
 import { RequerPermissaoVendas } from '../../vendas/permissions/requer-permissao-vendas.decorator';
 import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
+import { extrairContextoDaRequisicao } from '../../common/security/contexto-requisicao';
 
 import { LinksV2Service } from '../services/links-v2.service';
 
@@ -474,17 +476,20 @@ export class LinksV2Controller {
   async acessarLinkPublico(
     @Param('token') token: string,
     @Identidade() identidade: IdentidadeAutenticada,
+    @Request() req: unknown,
     @Query('senha') senha?: string,
-    @Query('ip') ip?: string,
-    @Query('user_agent') userAgent?: string,
   ) {
     try {
+      // Gate 0S / HS-03: IP e user-agent saem da requisição confiável
+      // (`trust proxy`), nunca de `?ip=` / `?user_agent=` — o chamador
+      // escolheria o valor e a auditoria de acesso ficaria forjável.
+      const contexto = extrairContextoDaRequisicao(req);
       const resultado = await this.linksV2Service.acessarLinkPublico(
         token,
         identidade.lojaId,
         senha,
-        ip,
-        userAgent,
+        contexto.ip ?? undefined,
+        contexto.userAgent ?? undefined,
       );
 
       return {

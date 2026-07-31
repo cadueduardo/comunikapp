@@ -169,10 +169,14 @@ export class ChatV2Service {
   }
 
   /**
-   * Envia mensagem do sistema
+   * Envia mensagem do sistema.
+   *
+   * Gate 0S: exige `lojaId` e resolve o orçamento nele. Sem isso, um caminho
+   * interno que conhecesse só o id escreveria no chat de outra loja.
    */
   async enviarMensagemSistema(
     orcamentoId: string,
+    lojaId: string,
     conteudo: string,
     dadosExtras?: any,
   ): Promise<MensagemChat> {
@@ -181,10 +185,9 @@ export class ChatV2Service {
     );
 
     try {
-      // Buscar usuário do sistema
+      await this.validarOrcamento(orcamentoId, lojaId);
       const usuarioSistema = await this.buscarUsuarioSistema();
 
-      // Criar mensagem do sistema
       const mensagem = await this.prisma.mensagemChat.create({
         data: {
           orcamento_id: orcamentoId,
@@ -210,10 +213,13 @@ export class ChatV2Service {
   }
 
   /**
-   * Envia notificação no chat
+   * Envia notificação no chat.
+   *
+   * Gate 0S: mesma disciplina de tenant de `enviarMensagemSistema`.
    */
   async enviarNotificacao(
     orcamentoId: string,
+    lojaId: string,
     titulo: string,
     conteudo: string,
     tipo: 'info' | 'warning' | 'error' | 'success' = 'info',
@@ -221,10 +227,9 @@ export class ChatV2Service {
     this.logger.log(`🔔 Enviando notificação no orçamento ${orcamentoId}`);
 
     try {
-      // Buscar usuário do sistema
+      await this.validarOrcamento(orcamentoId, lojaId);
       const usuarioSistema = await this.buscarUsuarioSistema();
 
-      // Criar mensagem de notificação
       const mensagem = await this.prisma.mensagemChat.create({
         data: {
           orcamento_id: orcamentoId,
@@ -429,33 +434,23 @@ export class ChatV2Service {
     return orcamento;
   }
 
-  private async buscarUsuarioSistema(): Promise<any> {
-    // Buscar usuário do sistema ou criar um fictício
-    let usuarioSistema = await this.prisma.usuario.findFirst({
+  /**
+   * Autor das mensagens automáticas do chat.
+   *
+   * Gate 0S: a versão anterior criava um usuário real com senha em claro
+   * (`sistema123`) na primeira loja que `findFirst()` encontrasse. Isso é
+   * conta compartilhada entre tenants e credencial previsível. Agora:
+   * - se o usuário de serviço já existir, usa-o;
+   * - se não, usa autor virtual (`usuario_id` é anulável em `MensagemChat`);
+   * - nunca cria conta e nunca grava senha.
+   */
+  private async buscarUsuarioSistema(): Promise<{ id: string }> {
+    const usuarioSistema = await this.prisma.usuario.findFirst({
       where: { email: 'sistema@comunikapp.com' },
+      select: { id: true },
     });
 
-    if (!usuarioSistema) {
-      // Criar usuário do sistema se não existir: associar à primeira loja disponível ou sem loja
-      const loja = await this.prisma.loja.findFirst();
-      if (loja) {
-        usuarioSistema = await this.prisma.usuario.create({
-          data: {
-            nome: 'Sistema',
-            nome_completo: 'Sistema',
-            email: 'sistema@comunikapp.com',
-            senha: 'sistema123',
-            ativo: true,
-            loja_id: loja.id,
-          },
-        });
-      } else {
-        // fallback sem vínculo a loja (usa um id virtual)
-        return { id: 'sistema' };
-      }
-    }
-
-    return usuarioSistema;
+    return usuarioSistema ?? { id: 'sistema' };
   }
 
   private async processarMensagem(
