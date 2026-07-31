@@ -818,6 +818,43 @@ aplicada porque todas envolvem decisão que não cabe ao agente.
 | Índice único em `ordens_servico.orcamento_id` | Garantia estrutural, a que o HS-05 pede | A migration **falha no deploy** se a produção tiver duplicata. Exige a consulta de §4.2 antes, e não temos acesso ao banco de produção |
 | Criar a OS dentro da transação do aceite | Serializa pelo mesmo mecanismo do caminho principal | Exige `OsService.criarOSDeOrcamento` aceitar um `TransactionClient`; é refactor de um service fora do escopo do gate |
 | Desabilitar o caminho de recuperação concorrente | Nega por padrão, como o gate manda | Proposta aprovada que ficou sem OS passa a exigir intervenção manual |
+| ~~Lock de linha no orçamento (`SELECT … FOR UPDATE`)~~ | — | **Descartada por experimento — ver §4.5.2** |
+
+#### 4.5.2 A saída que parecia óbvia e não funciona
+
+Antes de escolher entre as três opções acima, uma quarta foi tentada, porque
+dispensaria migration e refactor: envolver o trecho de recuperação em uma
+transação `READ COMMITTED` que trava a linha do orçamento com
+`SELECT id FROM orcamento WHERE id = ? FOR UPDATE`. O perdedor da corrida
+esperaria no lock e, ao entrar, já enxergaria a OS do vencedor.
+
+O resultado medido foi pior que a duplicação: **nenhuma OS era criada**. Nas 8
+rodadas de 8 requisições, todas as tentativas expiravam.
+
+A causa foi isolada com um teste de duas conexões — uma segurando o lock, outra
+tentando inserir a OS:
+
+```
+Diagnóstico abortado: Transaction API error: Transaction already closed:
+A commit cannot be executed on an expired transaction. The timeout for this
+transaction was 30000 ms, however 30017 ms passed since the start.
+```
+
+O InnoDB adquire lock **compartilhado na linha pai** ao inserir a linha filha de
+uma foreign key. `ordens_servico.orcamento_id` referencia `orcamento.id`, então a
+inserção da OS precisa de um S-lock na exata linha em que a transação de
+recuperação mantém um X-lock. Como a OS é criada em outra conexão, forma-se um
+impasse que o InnoDB não detecta como deadlock — ele apenas espera até o timeout.
+
+Duas hipóteses alternativas foram testadas e eliminadas: não é exaustão do pool
+(o mesmo resultado ocorre com `connection_limit=40`) e não é o nível de
+isolamento.
+
+**Conclusão:** enquanto a criação da OS ocorrer fora da transação, qualquer lock
+exclusivo sobre a linha do orçamento bloqueia justamente a operação que se quer
+proteger. Isso elimina a família inteira de soluções por lock de linha e reduz o
+problema às três opções da tabela acima. Nenhum código desta tentativa foi
+mantido.
 
 ### 4.6 Carga e desempenho do caminho de autorização
 
