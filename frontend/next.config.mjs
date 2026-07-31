@@ -19,6 +19,35 @@ const nextConfig = {
         // (apontando para 127.0.0.1:4001 ou para o dominio publico).
         BACKEND_URL: process.env.BACKEND_URL || 'http://127.0.0.1:4000',
     },
+    async headers() {
+        // Gate 0S / HS-04: a página pública da proposta recebe o código de
+        // aprovação por formulário. Estes cabeçalhos são defesa adicional para
+        // que o segredo não escape por canais laterais do navegador.
+        //
+        // O Nginx de produção já envia `Referrer-Policy: no-referrer` no bloco
+        // do app; repetir aqui garante o mesmo comportamento em dev e em
+        // qualquer topologia sem aquele proxy na frente.
+        return [
+            {
+                source: '/orcamento-v2/:id',
+                headers: [
+                    { key: 'Referrer-Policy', value: 'no-referrer' },
+                    // Sem isto, o histórico do navegador e caches
+                    // intermediários guardariam a página preenchida.
+                    {
+                        key: 'Cache-Control',
+                        value: 'no-store, no-cache, must-revalidate',
+                    },
+                    // A página é endereçável por qualquer um que tenha o id do
+                    // orçamento; não pode entrar em índice de busca.
+                    {
+                        key: 'X-Robots-Tag',
+                        value: 'noindex, nofollow, noarchive, nosnippet',
+                    },
+                ],
+            },
+        ];
+    },
     async rewrites() {
         // fallback: só proxyia /api/* se não houver Route Handler do Next
         // (ex.: /api/auth/login, /api/auth/me ficam no BFF HttpOnly).

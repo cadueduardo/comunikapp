@@ -182,9 +182,15 @@ export default function OrcamentoV2PublicoPage() {
       setOrcamento(data);
       toast.success('Orçamento aprovado com sucesso!');
     } catch (error) {
-      console.error('Erro ao aprovar orçamento:', error);
+      // Sem `console.error(error)` com o objeto inteiro: em falha de rede o
+      // fetch pode carregar a requisição, e com ela o código, para o console.
       toast.error(error instanceof Error ? error.message : 'Erro ao aprovar orçamento');
     } finally {
+      // Limpa o código do estado assim que a requisição termina, com sucesso
+      // ou não. Em caso de sucesso ele já foi consumido e não vale mais; em
+      // caso de falha, colar de novo custa menos do que manter o segredo vivo
+      // na memória da aba, em snapshot de devtools ou em extensão do navegador.
+      setCodigoAprovacao('');
       setAprovando(false);
     }
   };

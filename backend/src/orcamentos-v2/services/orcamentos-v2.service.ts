@@ -3534,7 +3534,6 @@ export class OrcamentosV2Service {
     const statusAnterior = orcamento.status;
     const statusAprovacaoAnterior = orcamento.status_aprovacao;
     const observacoesClienteAnterior = (orcamento as any).observacoes_cliente;
-    const codigoAprovacaoAnterior = orcamento.codigo_aprovacao;
 
     const observacaoRegistro =
       observacoes?.trim() ||
@@ -3630,7 +3629,9 @@ export class OrcamentosV2Service {
           status: statusAnterior,
           status_aprovacao: statusAprovacaoAnterior,
           observacoes_cliente: observacoesClienteAnterior,
-          codigo_aprovacao: codigoAprovacaoAnterior,
+          // `codigo_aprovacao` saiu daqui: a coluna em texto claro está
+          // depreciada e o caminho de ida não a escreve mais, então restaurá-la
+          // no rollback só reintroduziria escrita em campo morto.
           data_atualizacao: new Date(),
         },
       });

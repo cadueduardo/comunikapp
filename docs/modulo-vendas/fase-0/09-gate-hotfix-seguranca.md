@@ -2,8 +2,8 @@
 
 **Status:** [x] em execução — **o gate NÃO está concluído**
 **Situação por item:** HS-01 concluído; HS-04 implementado, porém condicionado à
-validação real da migration (ver §2.5); HS-02, HS-03 e HS-05 parcialmente entregues;
-HS-06 pendente. Detalhamento em §2.0 a §2.5.
+validação real da migration (ver §2.7); HS-02, HS-03 e HS-05 parcialmente entregues;
+HS-06 pendente. Detalhamento em §2.0 a §2.7.
 **Natureza:** correção obrigatória do legado existente; não é fase funcional de Vendas
 **Bloqueia:** Fases 1 a 14 e qualquer nova rota, card ou navegação de Vendas
 **Origem:** DV-13, DV-16 e achados D-01, D-02 e D-08 da auditoria
@@ -134,12 +134,60 @@ comunicação. A reemissão é sob demanda — pelo botão "Reenviar Código" na
 proposta ou pelo reenvio manual da equipe. Se uma campanha de reemissão for desejada,
 ela é uma decisão operacional separada.
 
-**O código não viaja na URL.** O link do e-mail leva à página da proposta, mas não
-carrega o código como parâmetro. Token em query string vaza por histórico do
-navegador, cabeçalho `Referer` e log de acesso do proxy — exatamente os canais que
-este hotfix está fechando.
+## 2.3 Contrato de manuseio do token no cliente
 
-## 2.3 Rate limit das rotas públicas de proposta
+Aprovado pelo PO. **Magic link está fora deste contrato** e não deve ser implementado
+sem decisão específica: "seguir o link recebido" significa abrir a página pública pelo
+e-mail e colar o token separadamente.
+
+| Regra | Como está garantida |
+| --- | --- |
+| URL sem token, código ou segredo | O link do e-mail é `/orcamento-v2/{id}`, sem parâmetro |
+| Token entregue no corpo do e-mail | `MailService.blocoCodigoAprovacao` |
+| Página pública recebe por formulário | Campo controlado no diálogo de aprovação |
+| Envio apenas por POST, nunca em query string ou path | `POST /api/orcamentos-v2/{id}/publico/acao`, token no corpo JSON |
+| Sem conversão automática para maiúsculas | O `onChange` não transforma o valor |
+| Sem `localStorage`, `sessionStorage`, cookie ou estado na URL | Auditado: o token só existe no `useState` do componente |
+| Limpar o campo após o envio | `setCodigoAprovacao('')` no `finally`, em sucesso ou falha |
+| `Referrer-Policy: no-referrer` | `next.config.mjs` para `/orcamento-v2/:id`; o Nginx do app já enviava |
+| `Cache-Control: no-store` | `next.config.mjs` na página e nas duas rotas de proxy |
+| Página não indexável | `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` |
+| Logs sem corpo nem token | Proxies do Next logam só `error.name`; a página não loga o objeto de erro |
+| Mensagens genéricas | Ver §2.6 |
+
+Por que o token fica fora da URL: query string vaza por histórico do navegador,
+cabeçalho `Referer` e log de acesso do proxy — exatamente os canais que este hotfix
+está fechando. Pelo mesmo motivo a limpeza do campo acontece também quando a
+requisição falha: recolar custa menos do que manter o segredo vivo na memória da aba.
+
+## 2.4 Dois defeitos encontrados na auditoria deste contrato
+
+**O botão "Reenviar Código" respondia 405.** O arquivo
+`frontend/src/app/api/orcamentos-v2/[id]/reenviar-codigo/route.ts` estava **vazio** e
+versionado desde `5cd857a2`. Um `route.ts` sem exports faz o Next registrar a rota sem
+nenhum método e responder 405, além de ter precedência sobre o rewrite de fallback que
+levaria ao Nest. O defeito é anterior ao Gate 0S, mas passou a ser crítico: com os
+códigos legados invalidados, o reenvio é o caminho de recuperação de todo cliente com
+proposta aberta. O handler foi implementado.
+
+**O rate limit estava cego para o IP do cliente.** O navegador chama `/api/*`, que o
+Nginx encaminha ao BFF do Next (`127.0.0.1:3001`); o route handler abre uma **conexão
+nova** para o Nest (`BACKEND_URL`, `127.0.0.1:4001`) sem repassar `X-Forwarded-For`.
+O Nest via, portanto, o IP do processo Next em toda requisição pública, e as duas
+chaves do §2.5 colapsavam em uma só. O efeito prático era pior do que ausência de
+limite: o teto por IP viraria um **limite global** de 20 requisições por minuto para
+todos os clientes somados, negando serviço a quem tem proposta legítima.
+
+Corrigido em `frontend/src/lib/client-ip.ts`, que repassa o IP do cliente. A origem é
+confiável porque o Nginx **sobrescreve** `X-Forwarded-For` com `$remote_addr` na borda
+(`deploy/nginx/snippets/comunikapp-app-proxy.conf`), em vez de anexar — o chamador não
+escolhe o valor. O valor é validado antes do repasse.
+
+- [ ] **Validar em produção** que `req.ip` no Nest corresponde ao IP real do cliente.
+      Se o `BACKEND_URL` apontar para um host servido por Nginx, aquele Nginx
+      sobrescreve `X-Forwarded-For` de novo e anula o repasse.
+
+## 2.5 Rate limit das rotas públicas de proposta
 
 Implementado com `express-rate-limit` em `main.ts`, o mesmo mecanismo já usado pelas
 rotas sensíveis do financeiro e do admin. Uma segunda biblioteca de rate limit foi
@@ -161,6 +209,11 @@ início do bootstrap. Nenhum header livre nem parâmetro de query participa da c
 Endereços IPv6 são colapsados na /64 por `ipKeyGenerator`: sem isso, um atacante com
 um bloco IPv6 residencial teria um contador novo por endereço.
 
+**Os dois limites dependem do repasse de IP descrito em §2.4.** Se o BFF do Next
+deixar de repassar `X-Forwarded-For`, ou se passar a falar com o Nest através de um
+Nginx que sobrescreva o cabeçalho, as duas chaves voltam a colapsar no IP do processo
+Next. Está anotado em `main.ts`, no ponto onde os limitadores são construídos.
+
 **A chave não vaza.** Ela existe apenas no armazenamento interno do limitador. A
 resposta de excesso é a mesma nos dois limitadores e não menciona o orçamento.
 
@@ -174,7 +227,7 @@ multiplica. Antes de escalar horizontalmente, os limitadores sensíveis — este
 financeiro e do admin — precisam de store compartilhado, preferencialmente Redis. Está
 anotado no próprio `main.ts`.
 
-## 2.4 Alcance da indistinguibilidade das respostas públicas
+## 2.6 Alcance da indistinguibilidade das respostas públicas
 
 Para quem **não** apresenta o código correto, todas as recusas de `APROVAR` são a mesma
 resposta, com o mesmo status e o mesmo texto: código inválido, expirado, revogado,
@@ -196,7 +249,7 @@ entre orçamento inexistente (sem escrita) e código errado (que incrementa o co
 tentativas). Explorar isso exige medição estatística sob o rate limit de 5 por minuto e
 não revelaria mais do que a existência do id. Não foi tratado nesta entrega.
 
-## 2.5 Pendência que impede marcar o HS-04 como concluído
+## 2.7 Pendência que impede marcar o HS-04 como concluído
 
 A migration `20260731143000_orcamento_codigo_aprovacao_seguro` foi **escrita à mão**,
 porque não havia MySQL alcançável no ambiente de desenvolvimento (`localhost:3306`
@@ -293,21 +346,24 @@ TTL para produzir efeito.
 - [x] Aplicar limite de tamanho, rate limit por finalidade e defesa contra
       enumeração. IP não pode ser a única chave de contenção.
       *(Dois limitadores encadeados em `main.ts`, no mesmo padrão `express-rate-limit`
-      já usado pelas rotas sensíveis do financeiro e do admin — ver §2.3.)*
+      já usado pelas rotas sensíveis do financeiro e do admin — ver §2.5.)*
 - [x] Retornar erros públicos genéricos, sem status interno, existência de conta,
       stack trace, ID interno ou detalhe de autorização.
-      *(`CODIGO_APROVACAO_ERRO_PUBLICO` e `ACAO_PUBLICA_ERRO_GENERICO` — ver §2.4
+      *(`CODIGO_APROVACAO_ERRO_PUBLICO` e `ACAO_PUBLICA_ERRO_GENERICO` — ver §2.6
       para o alcance exato da indistinguibilidade.)*
 - [ ] Obter IP e user-agent da requisição por política de proxy confiável; nunca da
-      query string fornecida pelo chamador. *(`main.ts` já define
-      `trust proxy = 1`, mas falta a varredura dos pontos que leem
-      `x-forwarded-for` diretamente.)*
+      query string fornecida pelo chamador. *(Feito no caminho comercial: `main.ts`
+      define `trust proxy = 1` e o BFF repassa o IP validado (§2.4). Falta a varredura
+      dos demais pontos que leem `x-forwarded-for` diretamente — `platform.controller`,
+      `lojas.controller`, `financeiro.controller` e `admin-request-context` —, três dos
+      quais usam o **primeiro** elemento do cabeçalho, padrão apontado como
+      spoofável em `docs/cloudflare-hardening-plano.md` §4.)*
 
 ### HS-04 — Tokens, códigos e dados sensíveis
 
 > Os itens marcados abaixo estão implementados e cobertos por teste unitário, mas o
 > HS-04 **permanece aberto no gate** até a validação da migration em MySQL real
-> descrita em §2.5.
+> descrita em §2.7.
 
 - [x] Remover `Math.random()` de qualquer segredo de aprovação.
       *(`gerarCodigoAprovacao` foi excluído.)*
@@ -431,7 +487,7 @@ devem ser criados antecipadamente apenas para encerrar este gate.
       revisado quando aplicável.
 - [ ] Testes do backend afetado, validação Prisma quando houver schema, typecheck,
       build e `git diff --check` aprovados. *(Backend aprovado — ver §4.1. Falta a
-      validação da migration em banco real, §2.5, e o build.)*
+      validação da migration em banco real, §2.7, e o build.)*
 
 ### 4.1 Evidências desta entrega
 
@@ -442,15 +498,22 @@ devem ser criados antecipadamente apenas para encerrar este gate.
 `git diff --cached --check` sem apontamentos.
 
 **Frontend — baseline, não aprovação.** O typecheck do frontend **não passa** e já não
-passava antes deste gate. O que está demonstrado é ausência de regressão, medida assim:
+passava antes deste gate. O que está demonstrado é ausência de regressão:
 
 | Medição | Erros de typecheck |
 | --- | --- |
 | Antes (`5755db44`, arquivo restaurado e `tsc` reexecutado) | 328 |
-| Depois desta entrega | 328 |
+| Depois do contrato de token do cliente | 325 |
 
-Nenhum dos 328 erros está em `src/app/orcamento-v2/[id]/page.tsx`, o único arquivo de
-frontend alterado. A maior concentração é `orcamento-v2-form.tsx` (57), intocado aqui.
+Nenhum erro está nos arquivos alterados por este gate — `orcamento-v2/[id]/page.tsx`,
+as duas rotas de proxy, `lib/client-ip.ts` e `next.config.mjs` —, e nenhum arquivo novo
+passou a apresentar erro. A maior concentração é `orcamento-v2-form.tsx` (57), intocado
+aqui.
+
+Ressalva de método: o `tsc` do frontend inclui os tipos gerados em `.next/types`, que
+não são regenerados a cada medição. Por isso a igualdade exata entre execuções não é
+confiável e a diferença de três não foi atribuída a nenhum arquivo de código. A
+verificação que vale é a qualitativa: nenhum arquivo passou a ter erro.
 
 Este número é o baseline a ser comparado nas próximas entregas. Não deve ser lido como
 "typecheck do projeto aprovado": a dívida de tipagem do frontend continua aberta e é
@@ -459,7 +522,7 @@ anterior ao Gate 0S.
 ## 5. Gate de conclusão
 
 **Situação em 2026-07-31: o Gate 0S NÃO está concluído.** Falta a validação da
-migration em MySQL real (§2.5), o fechamento do HS-05 (caso de uso único e auditoria
+migration em MySQL real (§2.7), o fechamento do HS-05 (caso de uso único e auditoria
 persistida) e o HS-06 inteiro. Nenhuma fase funcional de Vendas está liberada.
 
 - [ ] HS-01 a HS-06 concluídos com evidência vinculada no PR.

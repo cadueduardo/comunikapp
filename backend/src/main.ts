@@ -206,6 +206,15 @@ async function bootstrap() {
   // inicio deste bootstrap. Nenhum header livre ou parametro de query
   // participa da chave.
   //
+  // DEPENDENCIA DE TOPOLOGIA: estas rotas chegam pelo BFF do Next
+  // (`/api/*` -> 127.0.0.1:3001 -> BACKEND_URL), e o BFF abre uma conexao nova
+  // para ca. Sem o repasse de `X-Forwarded-For` feito em
+  // `frontend/src/lib/client-ip.ts`, `req.ip` seria o IP do processo Next para
+  // todos os clientes e as duas chaves abaixo colapsariam em uma so. Se aquele
+  // repasse for removido, ou se o BFF passar a falar com o Nest atraves de um
+  // Nginx que sobrescreva `X-Forwarded-For`, estes limitadores deixam de
+  // isolar clientes e o limite por IP vira um teto global.
+  //
   // Esta e a camada de borda e **nao** substitui o contador
   // `codigo_aprovacao_tentativas`, gravado na linha do orcamento: e ele que
   // trava o alvo quando o atacante troca de IP.
