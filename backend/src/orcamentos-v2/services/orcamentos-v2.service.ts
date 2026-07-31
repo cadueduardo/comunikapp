@@ -1574,6 +1574,19 @@ export class OrcamentosV2Service {
       const orcamentoFinal = await this.buscarOrcamento(id, lojaId);
       const orc = orcamentoFinal as unknown as Record<string, unknown>;
 
+      // Gate 0S / HS-04: a proposta mudou, então o código que o cliente
+      // recebeu passou a valer para uma versão que não existe mais. A
+      // revogação é incondicional e acontece antes do envio — se o aviso de
+      // atualização não puder ser entregue (cliente sem e-mail, falha de
+      // SMTP), o resultado é a proposta ficar sem código utilizável até um
+      // reenvio explícito, e não um código válido apontando para conteúdo
+      // desatualizado. Sem código ativo, a revogação é um no-op.
+      await this.revogarCodigoAprovacaoDoOrcamento(
+        id,
+        lojaId,
+        'proposta editada após o envio',
+      );
+
       // 9. Enviar e-mail ao cliente se orçamento já foi enviado (status enviado)
       if (orc.status === 'enviado' && orcamentoFinal.cliente?.email) {
         try {
@@ -1604,9 +1617,9 @@ export class OrcamentosV2Service {
             orc.nome_servico ?? orc.titulo ?? 'Orçamento',
           );
 
-          // Gate 0S / HS-04: a proposta mudou, então o código anterior deixa
-          // de valer e um novo é emitido junto com o aviso. Não há como
-          // reaproveitar o antigo — o banco só tem o hash dele.
+          // A emissão acontece aqui, e não na revogação acima, porque só
+          // existe código quando existe entrega efetiva: o valor em claro
+          // vive apenas entre esta linha e o envio do e-mail.
           const codigoAprovacao = await this.emitirCodigoAprovacaoDoOrcamento(
             id,
             lojaId,
@@ -2534,10 +2547,17 @@ export class OrcamentosV2Service {
       select: { id: true, status: true, loja_id: true },
     });
 
+    // Endpoint público: não confirmamos a existência de um orçamento para quem
+    // não provou conhecer o segredo. Em APROVAR, a recusa por inexistência usa
+    // exatamente o mesmo texto da recusa por código errado — se usasse o texto
+    // genérico de ação, o endereço viraria um verificador de IDs de orçamento.
+    const erroDeRecusa =
+      dados.acao === 'APROVAR'
+        ? CODIGO_APROVACAO_ERRO_PUBLICO
+        : ACAO_PUBLICA_ERRO_GENERICO;
+
     if (!orcamento) {
-      // Endpoint público: não confirmamos a existência de um orçamento para
-      // quem não provou conhecer o segredo.
-      throw new BadRequestException(ACAO_PUBLICA_ERRO_GENERICO);
+      throw new BadRequestException(erroDeRecusa);
     }
 
     const lojaContexto = orcamento.loja_id;
@@ -2566,6 +2586,11 @@ export class OrcamentosV2Service {
         // Clique duplo, retry do navegador ou reenvio do formulário. O aceite
         // já foi registrado; devolvemos o estado atual sem repetir nenhum
         // efeito (nada de segunda OS, segunda cobrança ou segundo aviso).
+        //
+        // Este é o único desfecho de "código já usado" que difere da recusa
+        // genérica, e ele não abre oráculo: só é alcançável depois que a
+        // comparação de hash confirmou a posse do segredo. Quem não tem o
+        // código recebe `CODIGO_APROVACAO_ERRO_PUBLICO` em qualquer situação.
         this.logger.log(
           '[ACEITE_PUBLICO] Codigo ja consumido no orcamento ' +
             id +
@@ -2643,7 +2668,7 @@ export class OrcamentosV2Service {
           id +
           ': estado incompatível.',
       );
-      throw new BadRequestException(ACAO_PUBLICA_ERRO_GENERICO);
+      throw new BadRequestException(erroDeRecusa);
     }
 
     if (dados.acao === 'APROVAR') {

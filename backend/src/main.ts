@@ -3,7 +3,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import * as express from 'express';
 // cookie-parser é CJS sem .default; require evita undefined em runtime sem esModuleInterop
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -190,20 +190,46 @@ async function bootstrap() {
   // Gate 0S / HS-04: rate limit das duas rotas anonimas de proposta comercial
   // (acao do cliente e reenvio do codigo de aprovacao).
   //
-  // A chave e o par (orcamento, IP), nao so o IP. O ativo a proteger e um
-  // orcamento especifico - quem tenta adivinhar um codigo ataca um alvo - e
-  // clientes legitimos de propostas diferentes podem sair pelo mesmo IP
-  // corporativo, caso em que um contador so por IP puniria um por causa do
-  // outro. `trust proxy` ja esta configurado acima, entao `req.ip` e o IP real.
+  // Sao dois limites encadeados, porque cada um cobre um abuso diferente:
   //
-  // Este limite e a camada de borda e nao substitui o contador
+  // 1. por (orcamento, IP): protege o alvo. Quem tenta adivinhar um codigo
+  //    ataca um orcamento especifico. Chavear so por IP puniria um cliente
+  //    legitimo por causa de outro que saisse pelo mesmo IP corporativo.
+  // 2. por IP: protege contra varredura. Sozinho, o limite composto nao
+  //    conteria enumeracao - bastaria trocar o id do orcamento a cada
+  //    requisicao para ganhar um contador novo.
+  //
+  // A mensagem de excesso e a mesma nos dois e nao menciona o orcamento; a
+  // chave existe apenas no armazenamento interno do limitador.
+  //
+  // O IP vem de `req.ip`, resolvido pela politica `trust proxy` definida no
+  // inicio deste bootstrap. Nenhum header livre ou parametro de query
+  // participa da chave.
+  //
+  // Esta e a camada de borda e **nao** substitui o contador
   // `codigo_aprovacao_tentativas`, gravado na linha do orcamento: e ele que
-  // trava o alvo quando o atacante troca de IP ou quando ha mais de uma
-  // instancia do backend.
+  // trava o alvo quando o atacante troca de IP.
+  //
+  // ATENCAO ao escalar: o armazenamento e em memoria do processo. Com mais de
+  // uma instancia do backend, o limite passa a valer por instancia e o teto
+  // efetivo se multiplica. Antes de escalar horizontalmente, estes limitadores
+  // sensiveis precisam de store compartilhado (Redis).
   const ROTA_ACAO_PUBLICA_PROPOSTA =
     /^\/(?:api\/)?orcamentos-v2\/([^/]+)\/(?:publico\/acao|reenviar-codigo)\/?$/;
 
-  const acaoPublicaPropostaLimiter = rateLimit({
+  const mensagemExcessoAcaoPublica = {
+    statusCode: 429,
+    message:
+      'Muitas tentativas em sequência. Aguarde alguns instantes e tente novamente.',
+  };
+
+  // `ipKeyGenerator` colapsa IPv6 na /64. Sem isso, um atacante com um bloco
+  // IPv6 - o comum em provedor residencial - ganharia um contador novo a cada
+  // endereco e o limite nao valeria nada.
+  const chaveDeIp = (req: any): string =>
+    ipKeyGenerator(String(req.ip ?? 'sem-ip'));
+
+  const acaoPublicaPorOrcamentoLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: isProd ? 5 : 50,
     standardHeaders: true,
@@ -211,26 +237,32 @@ async function bootstrap() {
     keyGenerator: (req: any) => {
       const path = String(req.path || req.url || '').split('?')[0];
       const orcamentoId = ROTA_ACAO_PUBLICA_PROPOSTA.exec(path)?.[1] ?? 'sem-id';
-      return `${orcamentoId}:${req.ip ?? 'sem-ip'}`;
+      return `orcamento:${orcamentoId}:${chaveDeIp(req)}`;
     },
-    message: {
-      statusCode: 429,
-      message:
-        'Muitas tentativas em sequência. Aguarde alguns instantes e tente novamente.',
-    },
+    message: mensagemExcessoAcaoPublica,
+    skip: (req: any) => req.method === 'OPTIONS',
+    validate: { xForwardedForHeader: false },
+  }) as any;
+
+  const acaoPublicaPorIpLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: isProd ? 20 : 200,
+    standardHeaders: false,
+    legacyHeaders: false,
+    keyGenerator: (req: any) => `ip:${chaveDeIp(req)}`,
+    message: mensagemExcessoAcaoPublica,
     skip: (req: any) => req.method === 'OPTIONS',
     validate: { xForwardedForHeader: false },
   }) as any;
 
   app.use((req: any, res: any, next: any) => {
     const path = String(req.path || req.url || '').split('?')[0];
-    if (
-      req.method === 'POST' &&
-      ROTA_ACAO_PUBLICA_PROPOSTA.test(path)
-    ) {
-      return acaoPublicaPropostaLimiter(req, res, next);
+    if (req.method !== 'POST' || !ROTA_ACAO_PUBLICA_PROPOSTA.test(path)) {
+      return next();
     }
-    return next();
+    return acaoPublicaPorIpLimiter(req, res, (erro?: unknown) =>
+      erro ? next(erro) : acaoPublicaPorOrcamentoLimiter(req, res, next),
+    );
   });
 
   app.useGlobalPipes(

@@ -331,13 +331,80 @@ describe('OrcamentosV2Service - aceite público', () => {
     expect(registro.status).toBe('enviado');
   });
 
-  it('não revela se o orçamento existe quando o id é desconhecido', async () => {
-    await expect(
-      service.processarAcaoClientePublico('orcamento-inexistente', {
+  it('não distingue orçamento inexistente de código errado', async () => {
+    // Se as duas recusas tivessem textos diferentes, o endereço público viraria
+    // um verificador de IDs de orçamento para quem não tem código nenhum.
+    emitirCodigoValido();
+
+    const recusaPorCodigo = await service
+      .processarAcaoClientePublico(ORCAMENTO_ID, {
         acao: 'APROVAR',
         codigo_aprovacao: emitirCodigoAprovacao().codigo,
-      }),
-    ).rejects.toThrow(new BadRequestException(ACAO_PUBLICA_ERRO_GENERICO));
+      })
+      .catch((erro) => erro);
+
+    const recusaPorInexistencia = await service
+      .processarAcaoClientePublico('orcamento-inexistente', {
+        acao: 'APROVAR',
+        codigo_aprovacao: emitirCodigoAprovacao().codigo,
+      })
+      .catch((erro) => erro);
+
+    expect(recusaPorInexistencia).toBeInstanceOf(BadRequestException);
+    expect(recusaPorInexistencia.getStatus()).toBe(
+      recusaPorCodigo.getStatus(),
+    );
+    expect(recusaPorInexistencia.getResponse()).toEqual(
+      recusaPorCodigo.getResponse(),
+    );
+    expect(recusaPorInexistencia.message).toBe(CODIGO_APROVACAO_ERRO_PUBLICO);
+  });
+
+  it('usa a mesma recusa para código inválido, expirado e revogado', async () => {
+    const cenarios: Array<[string, () => string]> = [
+      ['inválido', () => (emitirCodigoValido(), emitirCodigoAprovacao().codigo)],
+      [
+        'expirado',
+        () => {
+          const codigo = emitirCodigoValido();
+          registro.codigo_aprovacao_expira_em = new Date(Date.now() - 1000);
+          return codigo;
+        },
+      ],
+      [
+        'revogado',
+        () => {
+          const codigo = emitirCodigoValido();
+          registro.codigo_aprovacao_revogado_em = new Date();
+          return codigo;
+        },
+      ],
+      [
+        'acima do limite de tentativas',
+        () => {
+          const codigo = emitirCodigoValido();
+          registro.codigo_aprovacao_tentativas =
+            CODIGO_APROVACAO_MAX_TENTATIVAS;
+          return codigo;
+        },
+      ],
+    ];
+
+    for (const [descricao, preparar] of cenarios) {
+      const codigo = preparar();
+
+      const erro = await service
+        .processarAcaoClientePublico(ORCAMENTO_ID, {
+          acao: 'APROVAR',
+          codigo_aprovacao: codigo,
+        })
+        .catch((e) => e);
+
+      expect([descricao, erro.message]).toEqual([
+        descricao,
+        CODIGO_APROVACAO_ERRO_PUBLICO,
+      ]);
+    }
   });
 
   it('recusa aprovação sem código', async () => {
@@ -384,6 +451,39 @@ describe('OrcamentosV2Service - aceite público', () => {
 
     expect(resposta.status).toBe('rejeitado');
     expect(resposta.observacoes_cliente).toBe('Valor acima do previsto');
+  });
+
+  describe('revogação', () => {
+    // A edição de uma proposta já enviada chama este caminho antes de decidir
+    // se consegue entregar um código novo. É o que impede um código válido de
+    // continuar apontando para uma versão da proposta que não existe mais.
+    const revogar = async () =>
+      (service as any).revogarCodigoAprovacaoDoOrcamento(
+        ORCAMENTO_ID,
+        LOJA_ID,
+        'proposta editada após o envio',
+      );
+
+    it('invalida o código ativo', async () => {
+      const codigo = emitirCodigoValido();
+
+      await revogar();
+
+      expect(registro.codigo_aprovacao_revogado_em).toBeInstanceOf(Date);
+      await expect(
+        service.processarAcaoClientePublico(ORCAMENTO_ID, {
+          acao: 'APROVAR',
+          codigo_aprovacao: codigo,
+        }),
+      ).rejects.toThrow(new BadRequestException(CODIGO_APROVACAO_ERRO_PUBLICO));
+    });
+
+    it('é inofensiva quando não há código ativo', async () => {
+      await revogar();
+
+      expect(registro.codigo_aprovacao_revogado_em).toBeNull();
+      expect(registro.codigo_aprovacao_hash).toBeNull();
+    });
   });
 
   it('recusa ação quando a proposta já saiu do estado que aceita ação pública', async () => {

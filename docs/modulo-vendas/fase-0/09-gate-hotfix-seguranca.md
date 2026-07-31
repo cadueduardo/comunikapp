@@ -1,6 +1,9 @@
 # Gate 0S — Hotfix de segurança anterior ao Módulo de Vendas
 
-**Status:** [x] em execução — HS-01 concluído; HS-02, HS-03, HS-04 e HS-05 parcialmente entregues; HS-06 pendente (ver §2.0, §2.1 e §2.2)
+**Status:** [x] em execução — **o gate NÃO está concluído**
+**Situação por item:** HS-01 concluído; HS-04 implementado, porém condicionado à
+validação real da migration (ver §2.5); HS-02, HS-03 e HS-05 parcialmente entregues;
+HS-06 pendente. Detalhamento em §2.0 a §2.5.
 **Natureza:** correção obrigatória do legado existente; não é fase funcional de Vendas
 **Bloqueia:** Fases 1 a 14 e qualquer nova rota, card ou navegação de Vendas
 **Origem:** DV-13, DV-16 e achados D-01, D-02 e D-08 da auditoria
@@ -104,19 +107,111 @@ caracteres que diferenciam maiúsculas de minúsculas. O e-mail e a página púb
 foram ajustados para copiar e colar, e o campo perdeu a conversão automática para
 maiúsculas — ela corromperia o token.
 
-**Emitir é sempre reemitir.** Existe no máximo um código válido por orçamento. Enviar
-a proposta, reenviar o código ou editar uma proposta já enviada gera um código novo e
-derruba o anterior. Isso mantém o segredo amarrado à versão vigente da proposta, mas
-significa que o cliente deve usar sempre o último e-mail recebido.
+**Emissão só onde há entrega, e no máximo um código válido por vez.** Alterar o status
+para "enviado" não gera mais código: emitir só faz sentido junto com a entrega, porque
+o valor em claro existe apenas naquele instante. Os três pontos de emissão são o envio
+inicial, o reenvio solicitado e o envio da proposta atualizada — e cada um derruba o
+código anterior.
 
-**Mudança de responsabilidade na emissão.** Alterar o status para "enviado" não gera
-mais código. Emitir só faz sentido junto com a entrega, porque o valor em claro existe
-apenas naquele instante — o banco guarda somente o hash. Quem emite é o envio da
-proposta, o reenvio e o aviso de proposta atualizada.
+**Editar uma proposta enviada revoga o código na hora.** A revogação é incondicional e
+acontece antes da tentativa de envio. Se o aviso de atualização não puder ser entregue
+— cliente sem e-mail cadastrado, falha de SMTP —, a proposta fica sem código utilizável
+até um reenvio explícito. É a direção segura: melhor exigir reenvio do que manter um
+código válido apontando para uma versão da proposta que não existe mais.
 
-**Limites que o suporte vai encontrar.** Cinco requisições públicas por minuto para o
-mesmo par orçamento+IP, somando ações e reenvios; dez tentativas erradas travam o
-código do orçamento até uma nova emissão.
+**Limites que o suporte vai encontrar.** Nas rotas públicas de proposta valem dois
+limites por minuto: 5 requisições para o mesmo par (orçamento, IP) e 20 para o mesmo
+IP em qualquer orçamento. Além disso, 10 tentativas erradas travam o código daquele
+orçamento até uma nova emissão.
+
+**Plano de comunicação antes do deploy.** Nesta ordem, para o cliente final: abrir o
+link recebido no e-mail; copiar e colar o código, nunca digitá-lo. Para a equipe
+comercial: propostas ainda aguardando resposta precisam de reenvio explícito.
+
+Não há reemissão automática em massa, por decisão registrada: disparar e-mail para
+toda a base de propostas abertas geraria mensagem inesperada e duplicidade de
+comunicação. A reemissão é sob demanda — pelo botão "Reenviar Código" na página da
+proposta ou pelo reenvio manual da equipe. Se uma campanha de reemissão for desejada,
+ela é uma decisão operacional separada.
+
+**O código não viaja na URL.** O link do e-mail leva à página da proposta, mas não
+carrega o código como parâmetro. Token em query string vaza por histórico do
+navegador, cabeçalho `Referer` e log de acesso do proxy — exatamente os canais que
+este hotfix está fechando.
+
+## 2.3 Rate limit das rotas públicas de proposta
+
+Implementado com `express-rate-limit` em `main.ts`, o mesmo mecanismo já usado pelas
+rotas sensíveis do financeiro e do admin. Uma segunda biblioteca de rate limit foi
+descartada: manter dois mecanismos para o mesmo problema é dívida sem contrapartida.
+
+**Dois limitadores encadeados**, porque cada um cobre um abuso diferente:
+
+| Chave | Teto (produção) | Abuso que contém |
+| --- | --- | --- |
+| `(orçamento, IP)` | 5 por minuto | força bruta contra um orçamento específico |
+| `IP` | 20 por minuto | varredura trocando o id do orçamento a cada requisição |
+
+O limite composto sozinho não conteria enumeração — bastaria trocar o id para ganhar
+um contador novo. O limite por IP sozinho puniria clientes legítimos de propostas
+diferentes que saíssem pelo mesmo IP corporativo. Os dois juntos cobrem os dois casos.
+
+**Origem do IP.** `req.ip`, resolvido pela política `trust proxy = 1` definida no
+início do bootstrap. Nenhum header livre nem parâmetro de query participa da chave.
+Endereços IPv6 são colapsados na /64 por `ipKeyGenerator`: sem isso, um atacante com
+um bloco IPv6 residencial teria um contador novo por endereço.
+
+**A chave não vaza.** Ela existe apenas no armazenamento interno do limitador. A
+resposta de excesso é a mesma nos dois limitadores e não menciona o orçamento.
+
+**Não substitui o contador persistente.** O limite de borda é complementar. Quem trava
+o alvo quando o atacante troca de IP é `codigo_aprovacao_tentativas`, gravado na linha
+do orçamento e compartilhado por todas as instâncias.
+
+**Restrição de escala registrada.** O armazenamento é em memória do processo. Com mais
+de uma instância do backend, o limite passa a valer por instância e o teto efetivo se
+multiplica. Antes de escalar horizontalmente, os limitadores sensíveis — estes e os do
+financeiro e do admin — precisam de store compartilhado, preferencialmente Redis. Está
+anotado no próprio `main.ts`.
+
+## 2.4 Alcance da indistinguibilidade das respostas públicas
+
+Para quem **não** apresenta o código correto, todas as recusas de `APROVAR` são a mesma
+resposta, com o mesmo status e o mesmo texto: código inválido, expirado, revogado,
+acima do limite de tentativas, orçamento em status incompatível e orçamento
+inexistente. A recusa por inexistência usa deliberadamente o texto de código inválido —
+se usasse o texto genérico de ação, o endereço público viraria um verificador de IDs de
+orçamento. Coberto por dois testes que comparam status e corpo das recusas.
+
+**Uma exceção, e por que ela não é oráculo.** Código já consumido devolve o estado atual
+da proposta em vez de erro. Isso é o que sustenta a idempotência exigida pelo HS-05:
+clique duplo, retry do navegador e reenvio de formulário não podem gerar uma segunda OS.
+O desfecho só é alcançável **depois** que a comparação de hash confirmou a posse do
+segredo — quem não tem o código recebe a recusa genérica em qualquer situação. Ou seja,
+o único agente capaz de distinguir "usado" de "inválido" é quem já detém o token, e para
+ele isso não é informação nova.
+
+Fica registrado o que **não** foi endereçado: o tempo de resposta ainda difere um pouco
+entre orçamento inexistente (sem escrita) e código errado (que incrementa o contador de
+tentativas). Explorar isso exige medição estatística sob o rate limit de 5 por minuto e
+não revelaria mais do que a existência do id. Não foi tratado nesta entrega.
+
+## 2.5 Pendência que impede marcar o HS-04 como concluído
+
+A migration `20260731143000_orcamento_codigo_aprovacao_seguro` foi **escrita à mão**,
+porque não havia MySQL alcançável no ambiente de desenvolvimento (`localhost:3306`
+recusou conexão). Ela é aceita como artefato provisório, mas o HS-04 só pode ser
+marcado como concluído depois de, em banco MySQL de desenvolvimento:
+
+- [ ] aplicar a migration;
+- [ ] inspecionar campos e índices resultantes contra o schema;
+- [ ] testar rollback e compatibilidade;
+- [ ] `prisma migrate status` sem drift;
+- [ ] exercitar emissão, expiração, revogação, uso único e concorrência contra o banco
+      real, não apenas contra o registro simulado dos testes unitários.
+
+Enquanto esses cinco itens não tiverem evidência, o código do HS-04 está pronto, mas o
+item permanece aberto no gate.
 
 ### Bug corrigido junto: autor da ação chegava indefinido
 
@@ -197,21 +292,22 @@ TTL para produzir efeito.
       `POST :id/publico/acao` e `POST :id/reenviar-codigo`; a segunda não tem corpo.)*
 - [x] Aplicar limite de tamanho, rate limit por finalidade e defesa contra
       enumeração. IP não pode ser a única chave de contenção.
-      *(Limitador em `main.ts`, no mesmo padrão `express-rate-limit` já usado pelas
-      rotas sensíveis do financeiro e do admin: chave por par (orçamento, IP), 5
-      requisições por minuto em produção. A contenção que não depende de IP é o
-      contador `codigo_aprovacao_tentativas`, gravado na linha do orçamento.)*
+      *(Dois limitadores encadeados em `main.ts`, no mesmo padrão `express-rate-limit`
+      já usado pelas rotas sensíveis do financeiro e do admin — ver §2.3.)*
 - [x] Retornar erros públicos genéricos, sem status interno, existência de conta,
       stack trace, ID interno ou detalhe de autorização.
-      *(`CODIGO_APROVACAO_ERRO_PUBLICO` e `ACAO_PUBLICA_ERRO_GENERICO`. Orçamento
-      inexistente, de status incompatível e código errado devolvem o mesmo texto; o
-      reenvio devolve a mesma resposta de sucesso em qualquer recusa.)*
+      *(`CODIGO_APROVACAO_ERRO_PUBLICO` e `ACAO_PUBLICA_ERRO_GENERICO` — ver §2.4
+      para o alcance exato da indistinguibilidade.)*
 - [ ] Obter IP e user-agent da requisição por política de proxy confiável; nunca da
       query string fornecida pelo chamador. *(`main.ts` já define
       `trust proxy = 1`, mas falta a varredura dos pontos que leem
       `x-forwarded-for` diretamente.)*
 
 ### HS-04 — Tokens, códigos e dados sensíveis
+
+> Os itens marcados abaixo estão implementados e cobertos por teste unitário, mas o
+> HS-04 **permanece aberto no gate** até a validação da migration em MySQL real
+> descrita em §2.5.
 
 - [x] Remover `Math.random()` de qualquer segredo de aprovação.
       *(`gerarCodigoAprovacao` foi excluído.)*
@@ -223,9 +319,10 @@ TTL para produzir efeito.
 - [x] Vincular o segredo à finalidade e ao orçamento/versão aplicável, com expiração,
       revogação, uso único e limite de tentativas.
       *(O hash mora na linha do orçamento, então serve só àquele orçamento. Expira em
-      30 dias — mesma validade da proposta —, é revogado ao cancelar/rejeitar, é
-      consumido uma única vez e trava em 10 tentativas. Editar a proposta reemite o
-      código, o que amarra o segredo à versão vigente.)*
+      30 dias — mesma validade da proposta —, é consumido uma única vez e trava em 10
+      tentativas. A revogação explícita ocorre ao cancelar, ao rejeitar e ao editar
+      uma proposta já enviada; a emissão do substituto acontece apenas no novo envio,
+      o que amarra o segredo à versão vigente sem deixar código órfão.)*
 - [x] Invalidar códigos legados ativos que não atendam ao contrato ou forçar sua
       reemissão segura.
       *(A migration `20260731143000_orcamento_codigo_aprovacao_seguro` zera todos os
@@ -312,9 +409,10 @@ devem ser criados antecipadamente apenas para encerrar este gate.
 - [x] Testes unitários de permissão, token, expiração, tentativas e sanitização.
       *(`vendas-permissions.service.spec.ts` para permissão;
       `codigo-aprovacao.spec.ts`, 11 casos, para entropia, hash, expiração UTC e
-      comparação; `orcamentos-v2-aceite-publico.spec.ts`, 12 casos, para código
-      inválido, expirado, revogado, teto de tentativas, ausência de código e resposta
-      sem vazamento do segredo.)*
+      comparação; `orcamentos-v2-aceite-publico.spec.ts`, 15 casos, para código
+      inválido, expirado, revogado, teto de tentativas, ausência de código, revogação
+      por edição, indistinguibilidade das recusas e resposta sem vazamento do
+      segredo.)*
 - [ ] Integração com dois tenants cobrindo leitura e mutação por IDs trocados.
 - [x] Testes por persona: sem permissão, vendedor, gestor e administrador.
       *(`vendas-permissions.service.spec.ts`, 15 casos: piso por função, perfil ativo
@@ -332,9 +430,37 @@ devem ser criados antecipadamente apenas para encerrar este gate.
       regressão aceitável registrada; consultas críticas possuem plano/índice
       revisado quando aplicável.
 - [ ] Testes do backend afetado, validação Prisma quando houver schema, typecheck,
-      build e `git diff --check` aprovados.
+      build e `git diff --check` aprovados. *(Backend aprovado — ver §4.1. Falta a
+      validação da migration em banco real, §2.5, e o build.)*
+
+### 4.1 Evidências desta entrega
+
+**Backend.** `npx tsc -p tsconfig.build.json --noEmit` sem erros.
+`npx prisma validate` aprovado. Testes: 66 casos em 4 suítes
+(`codigo-aprovacao.spec.ts`, `orcamentos-v2-aceite-publico.spec.ts`,
+`rotas-publicas.spec.ts`, `rotas-publicas.validator.spec.ts`).
+`git diff --cached --check` sem apontamentos.
+
+**Frontend — baseline, não aprovação.** O typecheck do frontend **não passa** e já não
+passava antes deste gate. O que está demonstrado é ausência de regressão, medida assim:
+
+| Medição | Erros de typecheck |
+| --- | --- |
+| Antes (`5755db44`, arquivo restaurado e `tsc` reexecutado) | 328 |
+| Depois desta entrega | 328 |
+
+Nenhum dos 328 erros está em `src/app/orcamento-v2/[id]/page.tsx`, o único arquivo de
+frontend alterado. A maior concentração é `orcamento-v2-form.tsx` (57), intocado aqui.
+
+Este número é o baseline a ser comparado nas próximas entregas. Não deve ser lido como
+"typecheck do projeto aprovado": a dívida de tipagem do frontend continua aberta e é
+anterior ao Gate 0S.
 
 ## 5. Gate de conclusão
+
+**Situação em 2026-07-31: o Gate 0S NÃO está concluído.** Falta a validação da
+migration em MySQL real (§2.5), o fechamento do HS-05 (caso de uso único e auditoria
+persistida) e o HS-06 inteiro. Nenhuma fase funcional de Vendas está liberada.
 
 - [ ] HS-01 a HS-06 concluídos com evidência vinculada no PR.
 - [ ] Nenhuma vulnerabilidade P0/P1 do escopo permanece aberta sem contenção que
