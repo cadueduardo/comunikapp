@@ -6,10 +6,10 @@
 históricos de produção; **HS-05 concluído** — a duplicação de OS encontrada na
 reauditoria foi fechada pelo índice único `ordens_servico_orcamento_id_key` (§4.5);
 HS-06 concluído exceto métricas e alertas, bloqueados por ausência de backend de
-observabilidade; HS-03 parcialmente entregue. Detalhamento em §2.0 a §2.8 e critérios
-de saída em §5.
+observabilidade; HS-03 concluído — a varredura dos pontos que liam `x-forwarded-for`
+diretamente foi fechada (§4.9). Detalhamento em §2.0 a §2.8 e critérios de saída em §5.
 **Engine de destino:** MySQL 8.0.46 (Ubuntu 24.04), InnoDB, `REPEATABLE-READ` —
-verificada na VPS, não inferida (§4.7).
+verificada na VPS, e as migrations e validações rodaram na mesma versão no CI (§4.8).
 **Anexos:** [matriz de endpoints](./11-matriz-endpoints-orcamentos-v2.md) ·
 [observabilidade e logs de produção](./10-observabilidade-e-logs-producao.md)
 **Natureza:** correção obrigatória do legado existente; não é fase funcional de Vendas
@@ -412,13 +412,9 @@ TTL para produzir efeito.
       stack trace, ID interno ou detalhe de autorização.
       *(`CODIGO_APROVACAO_ERRO_PUBLICO` e `ACAO_PUBLICA_ERRO_GENERICO` — ver §2.6
       para o alcance exato da indistinguibilidade.)*
-- [ ] Obter IP e user-agent da requisição por política de proxy confiável; nunca da
-      query string fornecida pelo chamador. *(Feito no caminho comercial: `main.ts`
-      define `trust proxy = 1` e o BFF repassa o IP validado (§2.4). Falta a varredura
-      dos demais pontos que leem `x-forwarded-for` diretamente — `platform.controller`,
-      `lojas.controller`, `financeiro.controller` e `admin-request-context` —, três dos
-      quais usam o **primeiro** elemento do cabeçalho, padrão apontado como
-      spoofável em `docs/cloudflare-hardening-plano.md` §4.)*
+- [x] Obter IP e user-agent da requisição por política de proxy confiável; nunca da
+      query string fornecida pelo chamador. *(Caminho comercial em §2.4; varredura dos
+      demais pontos concluída — ver §4.9.)*
 
 ### HS-04 — Tokens, códigos e dados sensíveis
 
@@ -1001,8 +997,61 @@ arquivo de migration. O SQL do HS-04 portanto **nunca** havia rodado em MySQL 8.
    foreign key nunca seria exercitado;
 7. roda os três scripts de validação: código de aprovação, cross-tenant e aceite.
 
-Enquanto o job não tiver executado ao menos uma vez, **HS-04 não pode ser declarado
-compatível com MySQL 8**. Inspeção da DDL não substitui execução.
+**Resultado da execução.** [Run 30676166384](https://github.com/cadueduardo/comunikapp/actions/runs/30676166384),
+job "Gate 0S — migration e testes em MySQL 8", 1m54s, verde. O serviço reportou
+`8.0.46` — a **mesma versão da produção**, o que torna a evidência diretamente
+transferível:
+
+| Passo | Resultado |
+|---|---:|
+| Efeito estrutural da migration do HS-04 | 7/7 |
+| HS-04 — código de aprovação em banco real | 13/13 |
+| HS-01 e HS-02 — isolamento entre dois tenants | 30/30 |
+| HS-05 — aceite atômico, idempotente e concorrente | 13/13 |
+
+Duas correções foram necessárias para o job chegar a rodar, e ambas eram defeitos
+reais dos scripts, não do ambiente:
+
+- `preparar-estado-pre-migration-hs04.ts` removia as colunas do HS-04 **antes** de
+  semear o orçamento. O Prisma Client é gerado a partir do schema já migrado, então o
+  `create` emitia justamente as colunas recém-removidas e abortava com `P2022`. A
+  semeadura passou a preceder o `DROP COLUMN`.
+- `verificar-migration-hs04.ts` comparava `COLUMN_DEFAULT` com `null`. O MySQL devolve
+  `NULL`, mas o MariaDB 10.2+ devolve a **string** `'NULL'`, então quatro colunas
+  corretas apareciam como falha ao rodar localmente. O valor passou a ser normalizado.
+
+**Gatilho do pipeline.** O workflow só disparava em `main`, `develop` e `feature/*`,
+enquanto a convenção do repositório é `feat/*` — nenhuma branch de trabalho executava
+o CI. O gatilho foi corrigido e `workflow_dispatch` adicionado. O deploy continua
+restrito a `main` pelo `if` do job `build-and-deploy`.
+
+### 4.9 Varredura dos pontos que liam `x-forwarded-for` diretamente
+
+O caminho comercial já usava `req.ip` sob `trust proxy = 1`, mas cinco pontos fora dele
+continuavam lendo o cabeçalho na mão. Todos pegavam o **primeiro** elemento, que é
+exatamente o que o chamador controla quando o proxy anexa em vez de sobrescrever:
+
+| Onde | O que alimentava | Correção |
+|---|---|---|
+| `lojas.controller` — `POST login` | Origem registrada do login | `extrairContextoDaRequisicao(req)` |
+| `lojas.controller` — `POST login/2fa` | Origem registrada da verificação em duas etapas | idem |
+| `platform.controller` — `POST interesse-beta` | Origem de rota **pública** | idem |
+| `financeiro.controller` — `extrairIp` | Auditoria financeira | idem |
+| `admin-request-context` | Auditoria administrativa | `request.ip`, mantendo truncamento e `x-correlation-id` |
+| `api/arte-aprovacao/links/public/[token]/approve` (BFF) | Repassava o cabeçalho cru ao Nest | `cabecalhosDeEncaminhamento`, que valida o formato e lê o **último** elemento |
+
+O caso do BFF era o mais direto de explorar: bastava enviar
+`X-Forwarded-For: 1.2.3.4` para escolher a própria origem no rate limit e na auditoria
+do backend, porque o valor era repassado sem validação.
+
+Hoje o Nginx sobrescreve o cabeçalho com `$remote_addr`, o que já neutralizava a
+maior parte disso na prática. O problema é que isso é uma propriedade da configuração
+do proxy, não do código: uma volta a `$proxy_add_x_forwarded_for` reabriria os seis
+pontos de uma vez, em silêncio.
+
+Verificação de fechamento: a única leitura direta de `x-forwarded-for` que resta no
+código é a de `frontend/src/lib/client-ip.ts`, que é o ponto único autorizado a
+interpretá-lo.
 
 ## 5. Gate de conclusão
 
@@ -1014,10 +1063,11 @@ multi-tenant com dois tenants (§4.4), o HS-05 ponta a ponta com garantia estrut
 (§4.6), o build completo (§4.7), a identificação da engine real de destino (§4.8) e a
 maior parte do HS-06.
 
+A engine de destino também está fechada: as duas migrations e os três scripts de
+validação rodaram em MySQL 8.0.46 no CI, a mesma versão da produção (§4.8).
+
 O que mantém o gate aberto:
 
-- **HS-04, engine**: nem a migration do HS-04 nem a do índice único rodaram em MySQL 8.
-  O job de CI existe (§4.8), mas ainda não executou.
 - **HS-04, produção defasada**: a migration do HS-04 não está aplicada na VPS e há 2
   códigos de aprovação em texto claro no banco (§4.8). Só o deploy fecha isso.
 - **HS-04, logs históricos**: runbook pronto
@@ -1025,7 +1075,6 @@ O que mantém o gate aberto:
   ao ambiente e autorização específica.
 - **HS-06**: métricas e alertas dependem de escolher um backend de observabilidade
   ([anexo](./10-observabilidade-e-logs-producao.md) §2, com recomendação).
-- **HS-03**: varredura dos demais pontos que leem `x-forwarded-for` diretamente.
 
 Nenhuma fase funcional de Vendas está liberada.
 

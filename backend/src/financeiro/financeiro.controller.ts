@@ -15,6 +15,7 @@ import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentLojaId, CurrentUser } from '../auth/decorators';
 import { AuthenticatedUser } from '../auth/auth.service';
+import { extrairContextoDaRequisicao } from '../common/security/contexto-requisicao';
 import { CobrancasService } from './services/cobrancas.service';
 import { FinanceiroDashboardService } from './services/financeiro-dashboard.service';
 import { RegistrarRecebimentoDto } from './dto/registrar-recebimento.dto';
@@ -156,9 +157,10 @@ export class FinanceiroController {
     return data;
   }
 
+  // Gate 0S / HS-03: `req.ip`, resolvido pela política `trust proxy` do
+  // bootstrap. A versão anterior lia o primeiro elemento de `x-forwarded-for`,
+  // que é o elemento que o chamador controla.
   private extrairIp(req: Request): string | undefined {
-    const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
-    return req.ip;
+    return extrairContextoDaRequisicao(req).ip ?? undefined;
   }
 }

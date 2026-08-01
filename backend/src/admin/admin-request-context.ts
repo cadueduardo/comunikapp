@@ -14,16 +14,17 @@ function safeHeader(value: string | string[] | undefined, max: number) {
 export function getAdminRequestContext(
   request: Request,
 ): AdminRequestContext {
-  const forwarded = safeHeader(request.headers['x-forwarded-for'], 256)
-    ?.split(',')[0]
-    ?.trim();
   const correlationId = safeHeader(
     request.headers['x-correlation-id'],
     128,
   );
 
   return {
-    ipAddress: (forwarded || request.ip || '').slice(0, 45) || undefined,
+    // Gate 0S / HS-03: `request.ip`, resolvido pela política `trust proxy` do
+    // bootstrap. Antes vinha do primeiro elemento de `x-forwarded-for`, que o
+    // chamador escolhe — e aqui isso alimenta a auditoria administrativa,
+    // justamente o registro que precisa ser confiável.
+    ipAddress: (request.ip || '').slice(0, 45) || undefined,
     userAgent: safeHeader(request.headers['user-agent'], 512),
     correlationId:
       correlationId && /^[a-zA-Z0-9._:-]+$/.test(correlationId)

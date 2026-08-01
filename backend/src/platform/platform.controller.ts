@@ -17,6 +17,7 @@ import { PlatformAdminGuard } from './platform-admin.guard';
 import { PlatformService } from './platform.service';
 import { CurrentUser } from '../auth/decorators';
 import { AuthenticatedUser } from '../auth/auth.service';
+import { extrairContextoDaRequisicao } from '../common/security/contexto-requisicao';
 
 @Controller('platform')
 export class PlatformController {
@@ -37,11 +38,13 @@ export class PlatformController {
   @Post('interesse-beta')
   @Public()
   registerBetaInterest(@Body() dto: InteresseBetaDto, @Request() req: any) {
-    const ip =
-      req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
-      req.ip ||
-      'unknown';
-    return this.platformService.registerBetaInterest(dto, ip);
+    // Gate 0S / HS-03: o IP vem de `req.ip`, resolvido pela política
+    // `trust proxy` do bootstrap. Ler o primeiro elemento de
+    // `x-forwarded-for` deixava o valor à escolha do chamador — bastava
+    // prefixar o cabeçalho. Hoje o Nginx sobrescreve o cabeçalho na borda, mas
+    // essa é uma propriedade da configuração do proxy, não do código.
+    const { ip } = extrairContextoDaRequisicao(req);
+    return this.platformService.registerBetaInterest(dto, ip ?? 'unknown');
   }
 
   @Post('feedback-beta')

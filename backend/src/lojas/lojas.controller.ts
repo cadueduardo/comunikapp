@@ -18,6 +18,7 @@ import { diskStorage } from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { extname } from 'path';
 import { LojasService } from './lojas.service';
+import { extrairContextoDaRequisicao } from '../common/security/contexto-requisicao';
 import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -46,12 +47,12 @@ export class LojasController {
   @Public()
   @Post('login')
   login(@Body() loginDto: LoginDto, @Req() req: Request) {
-    const clientIp = req.headers['x-forwarded-for']
-      ?.toString()
-      .split(',')[0]
-      ?.trim();
-    const userAgent = req.headers['user-agent']?.toString() || 'unknown';
-    return this.lojasService.login(loginDto, clientIp || req.ip, userAgent);
+    // Gate 0S / HS-03: `req.ip` em vez do primeiro elemento de
+    // `x-forwarded-for`. Este é o registro de origem do login — se o chamador
+    // escolhe o valor, a trilha de acesso e qualquer bloqueio por origem
+    // deixam de significar alguma coisa.
+    const { ip, userAgent } = extrairContextoDaRequisicao(req);
+    return this.lojasService.login(loginDto, ip ?? undefined, userAgent ?? 'unknown');
   }
 
   @Public()
@@ -60,15 +61,11 @@ export class LojasController {
     @Body() dto: VerifyTwoFactorLoginDto,
     @Req() req: Request,
   ) {
-    const clientIp = req.headers['x-forwarded-for']
-      ?.toString()
-      .split(',')[0]
-      ?.trim();
-    const userAgent = req.headers['user-agent']?.toString() || 'unknown';
+    const { ip, userAgent } = extrairContextoDaRequisicao(req);
     return this.lojasService.verifyTwoFactorLogin(
       dto,
-      clientIp || req.ip,
-      userAgent,
+      ip ?? undefined,
+      userAgent ?? 'unknown',
     );
   }
 
