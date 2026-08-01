@@ -34,22 +34,10 @@ async function principal() {
   );
   console.log(`Engine: ${versao[0]?.v}`);
 
-  for (const coluna of COLUNAS_DA_MIGRATION) {
-    const existe = await prisma.$queryRawUnsafe<Array<{ qtd: bigint }>>(
-      `SELECT COUNT(*) AS qtd FROM information_schema.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME = 'orcamento'
-          AND COLUMN_NAME = ?`,
-      coluna,
-    );
-    if (Number(existe[0]?.qtd ?? 0) > 0) {
-      await prisma.$executeRawUnsafe(
-        `ALTER TABLE \`orcamento\` DROP COLUMN \`${coluna}\``,
-      );
-      console.log(`removida: ${coluna}`);
-    }
-  }
-
+  // A semeadura vem **antes** do `DROP COLUMN`, e não depois: o Prisma Client é
+  // gerado a partir do schema já migrado, então qualquer `create` emite as
+  // colunas do HS-04 e falha com `P2022` se elas já tiverem sido removidas.
+  //
   // Uma loja, um orçamento e um código legado em texto claro — é esse valor que
   // a migration precisa apagar. Sem ele, o passo 2 da migration não seria
   // exercitado de fato.
@@ -95,6 +83,22 @@ async function principal() {
     'ABC12345',
     orcamento.id,
   );
+
+  for (const coluna of COLUNAS_DA_MIGRATION) {
+    const existe = await prisma.$queryRawUnsafe<Array<{ qtd: bigint }>>(
+      `SELECT COUNT(*) AS qtd FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'orcamento'
+          AND COLUMN_NAME = ?`,
+      coluna,
+    );
+    if (Number(existe[0]?.qtd ?? 0) > 0) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE \`orcamento\` DROP COLUMN \`${coluna}\``,
+      );
+      console.log(`removida: ${coluna}`);
+    }
+  }
 
   console.log(
     `Estado pré-migration pronto: 1 orçamento com código legado em texto claro.`,

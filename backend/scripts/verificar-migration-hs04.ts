@@ -32,6 +32,16 @@ const ESPERADO: Record<
   codigo_aprovacao_revogado_em: { tipo: /^datetime\(3\)/i, nulo: true, padrao: null },
 };
 
+/**
+ * "Sem valor padrão" tem duas representações conforme a engine: o MySQL devolve
+ * `NULL` em `COLUMN_DEFAULT`, o MariaDB 10.2+ devolve a string literal `'NULL'`.
+ * Sem normalizar, este script só passaria em MySQL — e a checagem local em
+ * MariaDB acusaria falha onde a migration está correta.
+ */
+function padraoNormalizado(valor: string | null): string | null {
+  return valor === null || valor === 'NULL' ? null : valor;
+}
+
 const resultados: Array<{ nome: string; ok: boolean; detalhe: string }> = [];
 
 function verificar(nome: string, ok: boolean, detalhe: string) {
@@ -61,7 +71,7 @@ async function principal() {
     }
     const tipoOk = esperado.tipo.test(c.COLUMN_TYPE);
     const nuloOk = (c.IS_NULLABLE === 'YES') === esperado.nulo;
-    const padraoOk = (c.COLUMN_DEFAULT ?? null) === esperado.padrao;
+    const padraoOk = padraoNormalizado(c.COLUMN_DEFAULT) === esperado.padrao;
     verificar(
       `coluna ${nome}`,
       tipoOk && nuloOk && padraoOk,
