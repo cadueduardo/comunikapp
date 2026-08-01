@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { StatusOS } from '@prisma/client';
 import { OSService } from '../os.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import {
@@ -195,7 +196,9 @@ describe('OSService - OS Direta/Interna', () => {
           criado_por: usuarioId,
           versao: 1,
           materiais_disponivel: false,
-          status: 'FILA',
+          // OS comercial nasce aguardando o financeiro, não em FILA: o status
+          // inicial acompanha o do `create()` principal.
+          status: StatusOS.AGUARDANDO_APROVACAO_FINANCEIRA,
           data_abertura: expect.any(Date),
         }),
       });
@@ -263,7 +266,8 @@ describe('OSService - OS Direta/Interna', () => {
           criado_por: usuarioId,
           versao: 1,
           materiais_disponivel: false,
-          status: 'FILA',
+          // OS interna nasce aguardando aprovação orçamentária.
+          status: StatusOS.AGUARDANDO_APROVACAO_ORCAMENTARIA,
           data_abertura: expect.any(Date),
           aprovacao_gerencial: 'PENDENTE',
         }),

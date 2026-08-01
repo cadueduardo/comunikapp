@@ -1,6 +1,7 @@
 import { ExpedicaoCriacaoService } from '../../../expedicao/services/expedicao-criacao.service';
 import { ArteProducaoService } from '../../../catalogo/producao/arte-producao.service';
 import { PcpBloqueioSinalService } from '../../../instalacao/services/pcp-bloqueio-sinal.service';
+import { ItemOSInstalacaoCriacaoService } from '../../../instalacao/services/item-os-instalacao-criacao.service';
 import { StatusLiberacaoPcp } from '../../../instalacao/constants/pcp-liberacao.constants';
 
 export const mockExpedicaoCriacaoService = {
@@ -26,6 +27,10 @@ export const mockPcpBloqueioSinalService = {
   desbloquearItensPorOrcamento: jest.fn().mockResolvedValue(0),
 };
 
+export const mockItemOSInstalacaoCriacaoService = {
+  processarBaixaProducaoOs: jest.fn().mockResolvedValue(undefined),
+};
+
 export const osServiceExtraProviders = [
   {
     provide: ExpedicaoCriacaoService,
@@ -38,5 +43,9 @@ export const osServiceExtraProviders = [
   {
     provide: PcpBloqueioSinalService,
     useValue: mockPcpBloqueioSinalService,
+  },
+  {
+    provide: ItemOSInstalacaoCriacaoService,
+    useValue: mockItemOSInstalacaoCriacaoService,
   },
 ];

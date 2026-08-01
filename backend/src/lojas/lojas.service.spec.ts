@@ -5,6 +5,7 @@ import { MailService } from '../mail/mail.service';
 import { AuthService } from '../auth/auth.service';
 import { TwoFactorService } from '../auth/two-factor.service';
 import { PendingSignupService } from './pending-signup.service';
+import { CloudflareSaaSService } from './cloudflare-saas.service';
 
 jest.mock('../auth/two-factor.service', () => ({
   TwoFactorService: class TwoFactorService {},
@@ -45,6 +46,10 @@ describe('LojasService', () => {
         },
         {
           provide: PendingSignupService,
+          useValue: {},
+        },
+        {
+          provide: CloudflareSaaSService,
           useValue: {},
         },
       ],

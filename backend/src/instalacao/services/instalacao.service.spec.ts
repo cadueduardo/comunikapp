@@ -1,5 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
-import { CategoriaOcorrencia, TipoOcorrencia } from '@prisma/client';
+import {
+  CategoriaOcorrencia,
+  StatusInstalacaoOs,
+  TipoOcorrencia,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StatusRollupService } from '../../financeiro/services/status-rollup.service';
 import { InstalacaoService } from './instalacao.service';
@@ -12,6 +16,7 @@ describe('InstalacaoService', () => {
 
   const fechamentoMock = {
     reterAposInstalacaoCompleta: jest.fn(),
+    reconciliarStatusComRelatorioEmitido: jest.fn().mockResolvedValue(undefined),
   };
 
   const agendaSyncMock = {
@@ -40,14 +45,23 @@ describe('InstalacaoService', () => {
     ordemServico: { findFirst: jest.fn(), findMany: jest.fn() },
     cobranca: { findMany: jest.fn() },
     taxaOcorrenciaLoja: { findUnique: jest.fn() },
-    ocorrenciaInstalacao: { create: jest.fn() },
+    ocorrenciaInstalacao: { create: jest.fn(), findMany: jest.fn() },
+    // Usado por `listarOsInstalacaoGestao` para reconciliar status com o
+    // relatório técnico emitido. Sem o mock, a listagem quebra com
+    // `Cannot read properties of undefined (reading 'findMany')`.
+    relatorioTecnicoInstalacao: { findMany: jest.fn() },
     $transaction: jest.fn(),
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
     prismaMock.cobranca.findMany.mockResolvedValue([]);
+    prismaMock.relatorioTecnicoInstalacao.findMany.mockResolvedValue([]);
+    prismaMock.ocorrenciaInstalacao.findMany.mockResolvedValue([]);
     fechamentoMock.reterAposInstalacaoCompleta.mockResolvedValue(undefined);
+    fechamentoMock.reconciliarStatusComRelatorioEmitido.mockResolvedValue(
+      undefined,
+    );
     prismaMock.$transaction.mockImplementation(async (callback) =>
       callback({
         itemOSInstalacao: {
@@ -648,7 +662,7 @@ describe('InstalacaoService', () => {
       expect(resultado.itens[0].link_financeiro).toBeNull();
     });
 
-    it('só inclui OS sem lote quando a produção já foi finalizada', async () => {
+    it('só inclui OS sem lote quando a produção terminou ou a instalação já começou', async () => {
       prismaMock.ordemServico.findMany.mockResolvedValue([]);
 
       await service.listarOsInstalacaoGestao('loja-1');
@@ -656,6 +670,10 @@ describe('InstalacaoService', () => {
       const where = prismaMock.ordemServico.findMany.mock.calls[0][0].where;
       const criteriosEntrada = where.AND[0].OR;
 
+      // O que este caso protege é a porta de entrada do módulo: OS recém-criada
+      // a partir de orçamento aprovado não pode aparecer aqui. As três portas
+      // legítimas são ter lote, ter produção finalizada, ou já estar com a
+      // instalação em andamento — todas exigem `loja_id` no orçamento.
       expect(criteriosEntrada).toEqual([
         {
           itens: {
@@ -666,6 +684,14 @@ describe('InstalacaoService', () => {
         },
         {
           status: 'FINALIZADA',
+          orcamento_id: { not: null },
+          orcamento: {
+            loja_id: 'loja-1',
+            produtos: { some: { instalacao_necessaria: true } },
+          },
+        },
+        {
+          status_instalacao_os: StatusInstalacaoOs.EM_ANDAMENTO,
           orcamento_id: { not: null },
           orcamento: {
             loja_id: 'loja-1',

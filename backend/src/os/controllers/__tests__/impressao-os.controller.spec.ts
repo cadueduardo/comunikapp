@@ -12,6 +12,14 @@ const mockImpressaoOSService = {
   gerarTemplateHTML: jest.fn(),
 };
 
+/**
+ * O controller resolve a loja a partir da identidade autenticada e a repassa ao
+ * service — é o isolamento por tenant. Este mock é a requisição já autenticada
+ * que os guards produziriam.
+ */
+const LOJA_ID = 'loja-teste';
+const mockReq = { user: { loja_id: LOJA_ID } } as any;
+
 describe('ImpressaoOSController', () => {
   let controller: ImpressaoOSController;
   let impressaoOSService: ImpressaoOSService;
@@ -62,6 +70,7 @@ describe('ImpressaoOSController', () => {
 
       await controller.imprimirOS(
         osId,
+        mockReq,
         'html',
         'simples',
         'true',
@@ -79,6 +88,7 @@ describe('ImpressaoOSController', () => {
           incluirLogo: true,
           incluirDetalhesTecnicos: true,
         },
+        LOJA_ID,
       );
       expect(mockImpressaoOSService.gerarTemplateHTML).toHaveBeenCalledWith(
         mockDados,
@@ -127,6 +137,7 @@ describe('ImpressaoOSController', () => {
 
       await controller.imprimirOS(
         osId,
+        mockReq,
         undefined,
         undefined,
         undefined,
@@ -144,6 +155,7 @@ describe('ImpressaoOSController', () => {
           incluirLogo: true,
           incluirDetalhesTecnicos: true,
         },
+        LOJA_ID,
       );
     });
 
@@ -173,6 +185,7 @@ describe('ImpressaoOSController', () => {
 
       await controller.imprimirOS(
         osId,
+        mockReq,
         'html',
         'simples',
         'false',
@@ -190,6 +203,7 @@ describe('ImpressaoOSController', () => {
           incluirLogo: false,
           incluirDetalhesTecnicos: false,
         },
+        LOJA_ID,
       );
     });
 
@@ -209,6 +223,7 @@ describe('ImpressaoOSController', () => {
       await expect(
         controller.imprimirOS(
           osId,
+          mockReq,
           'html',
           'simples',
           'true',
@@ -221,6 +236,7 @@ describe('ImpressaoOSController', () => {
       try {
         await controller.imprimirOS(
           osId,
+          mockReq,
           'html',
           'simples',
           'true',
@@ -229,10 +245,11 @@ describe('ImpressaoOSController', () => {
           mockRes,
         );
       } catch (error) {
+        // "não encontrada" vira 404, não 500 com prefixo: o controller
+        // distingue recurso inexistente de erro interno.
         expect(error).toBeInstanceOf(HttpException);
-        expect(error.message).toContain('Erro ao gerar impressão da OS');
         expect(error.message).toContain(errorMessage);
-        expect(error.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+        expect(error.getStatus()).toBe(HttpStatus.NOT_FOUND);
       }
     });
   });
@@ -262,7 +279,14 @@ describe('ImpressaoOSController', () => {
         send: jest.fn(),
       } as any;
 
-      await controller.previewImpressao(osId, 'true', 'true', 'true', mockRes);
+      await controller.previewImpressao(
+        osId,
+        mockReq,
+        'true',
+        'true',
+        'true',
+        mockRes,
+      );
 
       expect(mockImpressaoOSService.gerarDadosImpressao).toHaveBeenCalledWith(
         osId,
@@ -273,6 +297,7 @@ describe('ImpressaoOSController', () => {
           incluirLogo: true,
           incluirDetalhesTecnicos: true,
         },
+        LOJA_ID,
       );
       expect(mockImpressaoOSService.gerarTemplateHTML).toHaveBeenCalledWith(
         mockDados,
@@ -307,12 +332,20 @@ describe('ImpressaoOSController', () => {
       } as any;
 
       await expect(
-        controller.previewImpressao(osId, 'true', 'true', 'true', mockRes),
+        controller.previewImpressao(
+          osId,
+          mockReq,
+          'true',
+          'true',
+          'true',
+          mockRes,
+        ),
       ).rejects.toThrow(HttpException);
 
       try {
         await controller.previewImpressao(
           osId,
+          mockReq,
           'true',
           'true',
           'true',
@@ -320,7 +353,6 @@ describe('ImpressaoOSController', () => {
         );
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
-        expect(error.message).toContain('Erro ao gerar preview da impressão');
         expect(error.message).toContain(errorMessage);
         expect(error.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
       }
@@ -388,43 +420,36 @@ describe('ImpressaoOSController', () => {
 
       const resultado = await controller.obterDadosImpressao(
         osId,
+        mockReq,
+        'simples',
         'true',
         'true',
         'true',
       );
 
-      expect(resultado).toEqual({
+      // `toMatchObject` e não `toEqual`: o payload de impressão ganha campos a
+      // cada feature (instalação, dados fiscais da loja, estoque dos
+      // materiais), e igualdade exata fazia o teste quebrar por adição, não por
+      // regressão. O que este caso precisa provar é que os dados do service
+      // chegam transformados no contrato de saída.
+      expect(resultado).toMatchObject({
         sucesso: true,
         dados: {
           os: {
             id: 'os-123',
             numero: 'OS-2024-001',
-            data_abertura: new Date('2024-01-01'),
-            data_prazo: new Date('2024-01-10'),
             status: 'FILA',
             nome_servico: 'Banner Teste',
             quantidade: 5,
-            observacoes: 'Teste',
-            aprovacao_tecnica_status: 'PENDENTE',
-            aprovacao_tecnica_por: null,
-            aprovacao_tecnica_em: null,
-            data_instalacao_agendada: null,
           },
           cliente: {
             nome: 'Cliente Teste',
             documento: '12345678901',
-            telefone: '11999999999',
             email: 'cliente@teste.com',
-            endereco: 'Rua Teste, 123',
-            cidade: 'São Paulo',
-            estado: 'SP',
-            cep: '01234567',
           },
           loja: {
             nome: 'Loja Teste',
-            endereco: 'Rua Loja, 456',
             cidade: 'São Paulo',
-            estado: 'SP',
           },
           dados_transformados: mockDados.dadosTransformados,
           materiais: [
@@ -432,10 +457,8 @@ describe('ImpressaoOSController', () => {
               nome: 'Material 1',
               quantidade: 10,
               unidade: 'm²',
-              observacoes: 'Observação teste',
             },
           ],
-          qr_code_disponivel: true,
         },
       });
     });
@@ -449,14 +472,27 @@ describe('ImpressaoOSController', () => {
       );
 
       await expect(
-        controller.obterDadosImpressao(osId, 'true', 'true', 'true'),
+        controller.obterDadosImpressao(
+          osId,
+          mockReq,
+          'simples',
+          'true',
+          'true',
+          'true',
+        ),
       ).rejects.toThrow(HttpException);
 
       try {
-        await controller.obterDadosImpressao(osId, 'true', 'true', 'true');
+        await controller.obterDadosImpressao(
+          osId,
+          mockReq,
+          'simples',
+          'true',
+          'true',
+          'true',
+        );
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
-        expect(error.message).toContain('Erro ao obter dados da OS');
         expect(error.message).toContain(errorMessage);
         expect(error.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
       }

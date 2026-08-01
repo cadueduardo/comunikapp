@@ -212,11 +212,14 @@ describe('OSDiretaInternaController', () => {
         mockRequest,
       );
 
+      // O último argumento é `forcarLiberacaoFinanceira`, ausente quando o
+      // corpo não pede forçamento.
       expect(mockOSService.aprovarOSTecnica).toHaveBeenCalledWith(
         osId,
         'user-001',
         true,
         'Aprovado',
+        undefined,
         undefined,
         undefined,
       );
@@ -244,6 +247,7 @@ describe('OSDiretaInternaController', () => {
         'user-001',
         false,
         'Rejeitado',
+        undefined,
         undefined,
         undefined,
       );

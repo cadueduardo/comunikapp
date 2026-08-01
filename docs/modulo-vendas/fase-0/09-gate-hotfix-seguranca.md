@@ -1062,14 +1062,14 @@ ninguém via.
 | Job | Causa | Situação |
 |---|---|---|
 | Gerar OpenAPI | O bootstrap recusa subir sem `ADMIN_JWT_SECRET`, distinto do JWT de loja; a variável não existia no CI | Corrigido — job verde |
-| Testes Unitários | `exit 134` — heap do Node esgotado, sem chegar a executar | Corrigido o heap; **8 suítes falham** por outra causa, abaixo |
+| Testes Unitários | `exit 134` — heap do Node esgotado, sem chegar a executar | Corrigido o heap; as 8 suítes que restaram vermelhas foram corrigidas, abaixo |
 | Testes E2E | Mesma exaustão de heap | Corrigido o heap; 1 suíte falha |
 
-Antes: **nenhum** teste unitário chegava a rodar. Depois: 621 de 674 passam.
+Antes: **nenhum** teste unitário chegava a rodar. Depois do heap: 621 de 674 passavam.
 
-**As 53 falhas remanescentes têm uma causa só, e não é de comportamento.** Os specs
-montam o módulo de teste com uma lista fixa de providers, e services ganharam
-dependências novas depois que os specs foram escritos:
+**As 53 falhas remanescentes tinham duas causas, nenhuma de segurança.** A primeira,
+majoritária: os specs montam o módulo de teste com uma lista fixa de providers, e
+services ganharam dependências novas depois que os specs foram escritos.
 
 ```
 Nest can't resolve dependencies of the OSService (..., ?, ...).
@@ -1078,14 +1078,27 @@ is available in the RootTestModule module.
 ```
 
 O mesmo padrão em `lojas.controller.spec` e `lojas.service.spec`, faltando
-`CloudflareSaaSService`. São suítes de OS, instalação e lojas — nenhuma delas cobre
-código do Gate 0S, e nenhuma falha por asserção. As três execuções anteriores
-apresentam exatamente as mesmas falhas, inclusive a que antecede qualquer mudança
-desta entrega.
+`CloudflareSaaSService`. A segunda: asserções que descreviam um comportamento anterior
+ao do código atual.
 
-Isto é dívida de manutenção de specs de outros módulos, não achado de segurança.
-Corrigi-la é mecânico (registrar os providers ausentes), mas está fora do escopo do
-gate e depende de decisão sobre prioridade.
+Correções aplicadas nas 8 suítes:
+
+| Suíte | Causa | Correção |
+|---|---|---|
+| `lojas.controller.spec`, `lojas.service.spec` | Falta `CloudflareSaaSService` | Provider registrado |
+| 3 suítes de `os/services` | Falta `ItemOSInstalacaoCriacaoService` | Provider adicionado ao `os-service-test.providers.ts`, compartilhado |
+| `impressao-os.controller.spec` | Métodos ganharam o parâmetro `req`; "não encontrada" virou 404, não 500; payload ganhou campos | Passagem de `req`, status esperado corrigido e `toMatchObject` no lugar de `toEqual` |
+| `os-direta-interna.controller.spec` | `aprovarOSTecnica` ganhou parâmetro opcional | Assinatura da asserção atualizada |
+| `os-direta-interna.service.spec` | Esperava `status: FILA` na criação | OS comercial nasce `AGUARDANDO_APROVACAO_FINANCEIRA` e interna `AGUARDANDO_APROVACAO_ORCAMENTARIA` |
+| `instalacao.service.spec` | Mocks faltando (`relatorioTecnicoInstalacao.findMany`, `ocorrenciaInstalacao.findMany`, `reconciliarStatusComRelatorioEmitido`) e critério de entrada desatualizado | Mocks adicionados; a listagem hoje tem uma terceira porta de entrada (instalação `EM_ANDAMENTO`) |
+
+Resultado local: **8 suítes, 90 testes, todos passando**
+(`npx jest src/lojas src/os/... src/instalacao/services/instalacao.service.spec.ts`).
+
+Nenhuma dessas suítes cobre código do Gate 0S; a correção é de manutenção de specs de
+outros módulos, feita apenas para que o pipeline volte a ser sinal útil. Em nenhum dos
+casos o código de produção foi alterado para o teste passar — onde a asserção divergia,
+foi a asserção que estava descrevendo a versão antiga do comportamento.
 
 ## 5. Gate de conclusão
 
@@ -1109,9 +1122,9 @@ O que mantém o gate aberto:
   ao ambiente e autorização específica.
 - **HS-06**: métricas e alertas dependem de escolher um backend de observabilidade
   ([anexo](./10-observabilidade-e-logs-producao.md) §2, com recomendação).
-- **Suítes de teste de outros módulos**: 8 suítes de OS, instalação e lojas não
-  compilam o módulo de teste por providers ausentes (§4.10). Não cobrem código do
-  gate e não falham por asserção, mas mantêm o pipeline vermelho.
+- **Suíte E2E**: 1 das 5 suítes E2E (`test/*.e2e-spec.ts`) ainda falha depois da
+  correção de heap (§4.10). A causa não foi diagnosticada; as 8 suítes unitárias que
+  estavam vermelhas já foram corrigidas. Confirmar pela execução do CI.
 
 Nenhuma fase funcional de Vendas está liberada.
 
