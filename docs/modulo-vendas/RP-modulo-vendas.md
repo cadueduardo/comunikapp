@@ -1258,6 +1258,7 @@ atual do ComunikApp, considerar o módulo **funcionalmente completo** somente qu
 | DV-14 | Como reconciliar os vocabulários de status? | Novo `status_comercial` canônico; legado derivado durante transição, backfill em lotes e transições centralizadas com concorrência otimista |
 | DV-15 | Qual o destino das tabelas de histórico? | `VersaoOrcamento` como snapshot imutável e `HistoricoOrcamento` como timeline; tabelas órfãs descontinuadas sem drop imediato |
 | DV-16 | Qual a ordem de entrega? | Fase 0 → hotfix de segurança → Fase 1 → Fase 2 → Fase 3; nenhuma vitrine antecipada sobre contratos inseguros |
+| DV-17 | Onde fica a observabilidade de segurança? | Projeto apartado, provavelmente em VPS separada da Oracle com recursos limitados. Nenhuma plataforma de observabilidade (Prometheus, Grafana, Loki, Sentry, OpenTelemetry) é instalada no Gate 0S ou na VPS principal. Métricas centralizadas e alertas automáticos deixam de bloquear o Gate 0S; permanecem obrigatórios evento estruturado e sanitizado, ausência de segredo, baixa cardinalidade, log local consultável, runbook de investigação, critérios de incidente, comprovação dos cinco tipos de evento e rollback fail-closed |
 
 ---
 
@@ -1271,3 +1272,4 @@ atual do ComunikApp, considerar o módulo **funcionalmente completo** somente qu
 | 2026-07-30 | Produto/UX (jornada) | Jornada operacional de vendedor e gestor, home acionável, novo atendimento, ficha 360º, proposta, negociação, acompanhamento e aditivo |
 | 2026-07-31 | Arquitetura (Fase 0) | Auditoria do código real; §4.10 com dez dívidas não previstas; DV-13 a DV-16; unificação da decisão de custo interno (E4-2 promovido para a Fase 2); divergência de sequência registrada em §10 |
 | 2026-07-31 | Produto/arquitetura (decisões) | DV-01 a DV-16 aprovadas e incorporadas ao contrato do RP, com segurança crítica antes das fases funcionais |
+| 2026-08-01 | Arquitetura (observabilidade) | DV-17: observabilidade centralizada vira projeto apartado em VPS separada; HS-06 passa a exigir apenas o escopo local (evento sanitizado, consulta, runbook, critérios de incidente e comprovação), e métricas/alertas deixam de bloquear o Gate 0S |

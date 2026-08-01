@@ -242,12 +242,21 @@ Este gate não cria produto novo. Ele corrige ou contém os riscos já existente
 Orçamentos V2: autorização inerte, IDOR, fronteira pública divergente, segredo
 inseguro, vazamento em logs/erros e aceite sujeito a repetição ou falha parcial.
 
+> **DV-17, 2026-08-01.** A observabilidade centralizada saiu deste gate e virou
+> projeto apartado, provavelmente em VPS separada da Oracle com recursos
+> limitados. Nenhuma plataforma de observabilidade é instalada aqui ou na VPS
+> principal. O HS-06 passa a exigir apenas o escopo local: evento estruturado e
+> sanitizado, ausência de segredo, baixa cardinalidade, log local consultável,
+> runbook de investigação, critérios de incidente, comprovação manual dos cinco
+> tipos de evento e rollback fail-closed. Métricas centralizadas e alertas
+> automáticos deixam de bloquear o Gate 0S.
+
 - [ ] HS-01 — autorização efetiva e negação por padrão.
 - [ ] HS-02 — isolamento multi-tenant e correção de IDOR.
 - [ ] HS-03 — fronteira pública única, DTOs e rate limit.
 - [ ] HS-04 — tokens seguros, revogáveis e sem exposição.
 - [ ] HS-05 — aceite legado atômico/idempotente ou desabilitado de forma segura.
-- [ ] HS-06 — observabilidade sanitizada e rollback fail-closed.
+- [ ] HS-06 — eventos sanitizados, consulta local, runbook e rollback fail-closed.
 - [ ] Testes cross-tenant, persona, rota pública, concorrência e carga aprovados.
 - [ ] **GATE 0S CONCLUÍDO — FASE 1 LIBERADA.**
 
@@ -947,6 +956,11 @@ migrations.
 - [ ] Definir métricas de integridade: duplicidade de OS/cobrança, propostas sem
       versão, clientes sem responsável, atividades órfãs e ocorrências presas.
 - [ ] Criar alertas e dashboards operacionais necessários.
+      *(Depende do projeto apartado de observabilidade — DV-17. Enquanto ele não
+      existir, os sinais de segurança são obtidos por consulta local ao log do PM2,
+      conforme runbook em
+      [`fase-0/10-observabilidade-e-logs-producao.md`](./fase-0/10-observabilidade-e-logs-producao.md) §4.
+      Não instalar plataforma de observabilidade na VPS principal.)*
 - [ ] Preparar rollback por flag e procedimentos de compensação.
 
 ### Rollout

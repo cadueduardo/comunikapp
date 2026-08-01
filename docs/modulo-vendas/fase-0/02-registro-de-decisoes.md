@@ -1,7 +1,9 @@
 # Fase 0 — Registro de decisões de produto e arquitetura
 
-**Documento:** entregável "Registro de decisões DV-01–DV-12" da Fase 0
-**Status:** **DECIDIDO — contrato aprovado para planejamento — 2026-07-31**
+**Documento:** entregável "Registro de decisões DV-01–DV-12" da Fase 0, ampliado por
+DV-13 a DV-17
+**Status:** **DECIDIDO — contrato aprovado para planejamento — 2026-07-31**, com DV-17
+acrescentada em 2026-08-01
 **Origem:** RP §15, ampliado pela auditoria em `01-auditoria-estado-real.md`
 
 > Este é o artefato bloqueador da Fase 0. Enquanto uma decisão estiver como
@@ -33,8 +35,11 @@
 | **DV-14** | **Reconciliação de status (novo)** | **Fases 1, 6** | **DECIDIDO — A** |
 | **DV-15** | **Destino do histórico órfão (novo)** | **Fases 1, 6** | **DECIDIDO — A** |
 | **DV-16** | **Ordem de entrega das fases (novo)** | **Todas** | **DECIDIDO — B (segurança primeiro)** |
+| **DV-17** | **Onde fica a observabilidade de segurança (novo)** | **Gate 0S, Fase 12** | **DECIDIDO — C (projeto apartado)** |
 
-DV-13 a DV-16 não existiam no RP. Surgiram da auditoria e são bloqueadoras.
+DV-13 a DV-16 não existiam no RP. Surgiram da auditoria e são bloqueadoras. DV-17
+surgiu durante o Gate 0S, ao separar o que o hotfix precisa entregar do que depende de
+infraestrutura que ainda não existe.
 
 ---
 
@@ -578,14 +583,58 @@ ao `loja_id` autenticado e paginada no servidor.
 
 ---
 
+## DV-17 — Onde fica a observabilidade de segurança (NOVA)
+
+**Contexto.** O HS-06 do Gate 0S pedia "métricas agregadas e alertas para aumento
+anormal de 401, 403, 404 público, 429, conflitos e falhas parciais". O substrato de
+eventos foi entregue e comprovado, mas o projeto não tem — nem deve ganhar às pressas —
+um destino para essas métricas. A análise em
+[`10-observabilidade-e-logs-producao.md`](./10-observabilidade-e-logs-producao.md) §2
+mostrou que instalar uma stack de observabilidade na VPS principal significa somar
+serviços, memória e superfície de manutenção ao host que roda a aplicação.
+
+**Opções.**
+
+| Opção | O que envolve |
+|---|---|
+| A — Instalar a stack na VPS principal | Resolve mais rápido, mas concorre por recursos com a aplicação e amplia a superfície do host de produção |
+| B — Contratar SaaS de observabilidade | Menos operação, porém envia evento de segurança para fora do perímetro — o oposto do que o HS-06 trata |
+| **C — Projeto apartado em VPS separada** (aprovada) | Coleta centralizada fora do host de produção; o Gate 0S entrega apenas o escopo local |
+
+**Decisão:** **DECIDIDO — opção C — 2026-08-01.**
+
+A observabilidade centralizada é um projeto próprio, provavelmente em VPS separada da
+Oracle com recursos limitados. Nenhuma plataforma de observabilidade — Prometheus,
+Grafana, Loki, Sentry, OpenTelemetry ou equivalente — é instalada no Gate 0S ou na VPS
+principal.
+
+O contrato do HS-06 passa a ser separado em dois:
+
+**Obrigatório no Gate 0S (local):** eventos estruturados e sanitizados; ausência de
+segredo e dado sensível; baixa cardinalidade; logs locais consultáveis; runbook de
+investigação; critérios de incidente; comprovação manual dos cinco tipos de evento;
+rollback fail-closed.
+
+**Projeto futuro:** coleta centralizada em VPS separada; armazenamento e retenção;
+dashboards; alertas automáticos; correlação entre instâncias e reinícios;
+pseudonimização estável, se necessária; segurança de transporte entre as VPS;
+dimensionamento e escolha da stack.
+
+Métricas centralizadas e alertas automáticos deixam de bloquear o Gate 0S. Isso não
+dispensa nada do escopo local — que é o que responde, hoje, à pergunta "está
+acontecendo alguma coisa anormal?", por consulta manual ao log do PM2.
+
+---
+
 ## Bloco de assinatura
 
 | Papel | Nome | Data | Observação |
 |---|---|---|---|
 | Product owner | Aprovação registrada por solicitação do projeto | 2026-07-31 | As 16 decisões passam a compor o contrato funcional do módulo |
 | Arquitetura | Consolidação técnica da Fase 0 | 2026-07-31 | Segurança, desempenho, escalabilidade e compatibilidade incorporados às decisões |
+| Arquitetura | Decisão de observabilidade | 2026-08-01 | DV-17: coleta centralizada vira projeto apartado; HS-06 fica com o escopo local |
 
-As **16 decisões estão em estado `DECIDIDO`**. A Fase 0 pode ser encerrada após a
+As **17 decisões estão em estado `DECIDIDO`**. A Fase 0 pode ser encerrada após a
 replicação deste contrato no RP, no plano de ação e nos artefatos derivados. Esse
 encerramento é documental: **não autoriza iniciar funcionalidade de Vendas antes do
 hotfix de segurança definido em DV-13 e DV-16**.

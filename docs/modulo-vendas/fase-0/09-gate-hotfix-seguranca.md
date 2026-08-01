@@ -5,9 +5,10 @@
 §4.4); HS-04 concluído no código e validado em banco real, restando a revisão dos logs
 históricos de produção; **HS-05 concluído** — a duplicação de OS encontrada na
 reauditoria foi fechada pelo índice único `ordens_servico_orcamento_id_key` (§4.5);
-HS-06 concluído exceto métricas e alertas, bloqueados por ausência de backend de
-observabilidade; HS-03 concluído — a varredura dos pontos que liam `x-forwarded-for`
-diretamente foi fechada (§4.9). Detalhamento em §2.0 a §2.8 e critérios de saída em §5.
+**HS-06 concluído** — o escopo local está comprovado e as métricas centralizadas saíram
+do gate por decisão de arquitetura (DV-17); HS-03 concluído — a varredura dos pontos que
+liam `x-forwarded-for` diretamente foi fechada (§4.9). Detalhamento em §2.0 a §2.8 e
+critérios de saída em §5.
 **Engine de destino:** MySQL 8.0.46 (Ubuntu 24.04), InnoDB, `REPEATABLE-READ` —
 verificada na VPS, e as migrations e validações rodaram na mesma versão no CI (§4.8).
 **Anexos:** [matriz de endpoints](./11-matriz-endpoints-orcamentos-v2.md) ·
@@ -540,6 +541,18 @@ devem ser criados antecipadamente apenas para encerrar este gate.
 
 ### HS-06 — Observabilidade sem vazamento
 
+> **Decisão de arquitetura de 2026-08-01 (DV-17).** A observabilidade
+> centralizada é um projeto apartado, provavelmente em uma VPS separada da
+> Oracle com recursos limitados. Nada de Prometheus, Grafana, Loki, Sentry ou
+> OpenTelemetry entra no Gate 0S ou na VPS principal. Em consequência,
+> **métricas centralizadas e alertas automáticos deixam de bloquear este gate**.
+> O que permanece obrigatório é o escopo local: evento estruturado e sanitizado,
+> ausência de segredo, baixa cardinalidade, log local consultável, runbook de
+> investigação, critérios de incidente, comprovação dos cinco tipos de evento e
+> rollback fail-closed. O recorte completo, com o que fica para o projeto
+> futuro, está em
+> [`10-observabilidade-e-logs-producao.md`](./10-observabilidade-e-logs-producao.md) §2.
+
 - [x] Registrar negações, rate limit, token inválido/expirado, conflito de
       idempotência e falha de handoff com correlação e campos sanitizados.
       *(`common/security/eventos-seguranca.ts`. Todo evento sai com o prefixo
@@ -552,19 +565,31 @@ devem ser criados antecipadamente apenas para encerrar este gate.
       `TOKEN_RECUSADO` usa motivo indiferenciado de propósito: separar "expirado" de
       "errado" no log recriaria o oráculo que a resposta pública evita, e o log é
       lido por mais gente do que a resposta.)*
-- [ ] Definir métricas agregadas e alertas para aumento anormal de `401`, `403`,
-      `404` público, `429`, conflitos e falhas parciais.
-      *(**Bloqueado por decisão de infraestrutura.** A proposta com três opções, custo,
-      operação e recomendação está em
-      [`10-observabilidade-e-logs-producao.md`](./10-observabilidade-e-logs-producao.md) §2.
-      O projeto não tem backend de métricas:
-      nenhum Prometheus, Sentry, OpenTelemetry ou equivalente no backend. Escolher e
-      implantar um é decisão de infraestrutura, fora do recorte do hotfix. O que ficou
-      pronto é o substrato: os eventos acima já saem em formato agregável, então os
-      alertas podem ser montados por log assim que houver destino. Alertas mínimos a
-      configurar: taxa de `RATE_LIMIT` por bucket, `TOKEN_RECUSADO` por orçamento e
-      por origem, `AUTORIZACAO_NEGADA` com motivo `permissao_nao_declarada` — que
-      deveria ser sempre zero — e qualquer `FALHA_HANDOFF`.)*
+- [x] Comprovar empiricamente que os cinco tipos são emitidos pelos pontos reais
+      e que a linha final não carrega dado sensível.
+      *(Três camadas, todas reproduzíveis. `common/security/eventos-seguranca.spec.ts`,
+      9 casos, exercita o limitador e o guard de verdade — não o formatador — e cobre
+      `RATE_LIMIT` nos dois buckets e `AUTORIZACAO_NEGADA` nos dois motivos.
+      `orcamentos-v2-aceite-publico.spec.ts` ganhou 4 casos para `TOKEN_RECUSADO`,
+      `CONFLITO_IDEMPOTENCIA` e `FALHA_HANDOFF` saindo do fluxo de aceite.
+      `backend/scripts/comprovar-eventos-seguranca.ts` escreve as cinco linhas no
+      stdout real — o que o PM2 grava — e relê o texto procurando padrão proibido.
+      A verificação de sanitização é feita pela direção que pega regressão: procura
+      e-mail, IPv4/IPv6, código, token, `authorization`, custo, margem e preço em vez
+      de conferir os campos conhecidos, então um campo novo com dado sensível falha o
+      teste sem que ninguém precise lembrar de atualizar a asserção. Saída registrada
+      em [`10-observabilidade-e-logs-producao.md`](./10-observabilidade-e-logs-producao.md) §4.4.)*
+- [x] Manter os eventos consultáveis localmente, com runbook de investigação e
+      critérios de incidente.
+      *(O backend roda em instância PM2 única com destino de log fixado em
+      `ecosystem.config.js`; os eventos saem em `WARN` e chegam ao arquivo sem
+      configuração adicional. O runbook de consulta — panorama por tipo, recorte do
+      dia, o contador que deveria ser sempre zero, rastreio por orçamento e
+      concentração por origem — está em
+      [`10-observabilidade-e-logs-producao.md`](./10-observabilidade-e-logs-producao.md) §4.2,
+      e os critérios de incidente em §4.3. Diferente do runbook de logs históricos,
+      este pode imprimir a linha: um `SEC_EVT` não contém segredo, e é isso que a
+      varredura automatizada garante a cada execução da suíte.)*
 - [x] Proibir alta cardinalidade por token, e-mail, documento, IP bruto ou payload.
       *(A interface `EventoSeguranca` só aceita os campos declarados: não há caminho
       para passar corpo, cabeçalho, token ou e-mail. IP e ID de usuário entram
@@ -587,6 +612,19 @@ devem ser criados antecipadamente apenas para encerrar este gate.
       de degradar para o código fraco. Reverter a migration desativa o aceite público;
       não o reabre.)*
 
+**Transferido para o projeto apartado, sem checkbox neste gate:** métricas
+agregadas e alertas automáticos para aumento anormal de `401`, `403`, `404`
+público, `429`, conflitos e falhas parciais. O substrato está pronto e
+comprovado — os eventos saem em formato agregável, então os alertas podem ser
+montados assim que houver destino. Alertas mínimos a configurar quando o projeto
+existir: taxa de `RATE_LIMIT` por bucket, `TOKEN_RECUSADO` por orçamento e por
+origem, `AUTORIZACAO_NEGADA` com motivo `permissao_nao_declarada` — que deveria
+ser sempre zero — e qualquer `FALHA_HANDOFF`. Enquanto isso, esses mesmos sinais
+são obtidos por consulta local
+([anexo](./10-observabilidade-e-logs-producao.md) §4.2), manual e sob demanda, o
+que é suficiente para uma instância única. Escopo do projeto futuro no mesmo
+anexo, §2.2.
+
 ## 3. Fora do escopo do hotfix
 
 - Criar navegação, home, cards, KPIs ou telas do novo módulo.
@@ -595,6 +633,9 @@ devem ser criados antecipadamente apenas para encerrar este gate.
 - Corrigir o RBAC global de todos os módulos ou ativar `RolesGuard` global.
 - Fazer drops/renomes destrutivos ou migrations especulativas.
 - Declarar validade jurídica de assinatura eletrônica.
+- Instalar Prometheus, Grafana, Loki, Sentry, OpenTelemetry ou qualquer outra
+  plataforma de observabilidade, aqui ou na VPS principal. Por DV-17, a coleta
+  centralizada é projeto apartado em host separado.
 
 ## 4. Testes e evidências obrigatórias
 
@@ -1117,8 +1158,8 @@ cabeçalho interno presente.
 Fechados até aqui: a validação da migration em banco real (§2.7), o isolamento
 multi-tenant com dois tenants (§4.4), o HS-05 ponta a ponta com garantia estrutural
 (§4.2 e §4.5), a matriz de endpoints, o teste de carga do caminho de autorização
-(§4.6), o build completo (§4.7), a identificação da engine real de destino (§4.8) e a
-maior parte do HS-06.
+(§4.6), o build completo (§4.7), a identificação da engine real de destino (§4.8) e o
+HS-06 no escopo que lhe cabe.
 
 A engine de destino também está fechada: as duas migrations e os três scripts de
 validação rodaram em MySQL 8.0.46 no CI, a mesma versão da produção (§4.8).
@@ -1130,8 +1171,13 @@ O que mantém o gate aberto:
 - **HS-04, logs históricos**: runbook pronto
   ([anexo](./10-observabilidade-e-logs-producao.md) §3); execução bloqueada por acesso
   ao ambiente e autorização específica.
-- **HS-06**: métricas e alertas dependem de escolher um backend de observabilidade
-  ([anexo](./10-observabilidade-e-logs-producao.md) §2, com recomendação).
+
+O HS-06 saiu da lista de bloqueios. A decisão de arquitetura de 2026-08-01 (DV-17)
+separou o que o hotfix precisa entregar — evento sanitizado, baixa cardinalidade,
+consulta local, runbook, critérios de incidente, comprovação dos cinco tipos e rollback
+fail-closed, todos concluídos — do que pertence a um projeto apartado de observabilidade
+em VPS separada. Métricas centralizadas e alertas automáticos deixaram de ser critério
+de saída deste gate.
 
 O pipeline deixou de ser bloqueio: a execução
 [30704139135](https://github.com/cadueduardo/comunikapp/actions/runs/30704139135)

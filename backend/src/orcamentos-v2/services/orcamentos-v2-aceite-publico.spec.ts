@@ -7,6 +7,11 @@ import {
   emitirCodigoAprovacao,
 } from '../../common/security/codigo-aprovacao';
 import { ACAO_PUBLICA_ERRO_GENERICO } from '../dto/acao-cliente-publico.dto';
+import {
+  capturarEventosDeSeguranca,
+  procurarDadoSensivel,
+  type CapturaDeEventos,
+} from '../../common/security/testing/capturar-eventos-seguranca';
 
 /**
  * Gate 0S / HS-04 e HS-05 - aceite público do orçamento.
@@ -677,5 +682,107 @@ describe('OrcamentosV2Service - aceite público', () => {
     await expect(
       service.processarAcaoClientePublico(ORCAMENTO_ID, { acao: 'NEGOCIAR' }),
     ).rejects.toThrow(new BadRequestException(ACAO_PUBLICA_ERRO_GENERICO));
+  });
+
+  /**
+   * Gate 0S / HS-06 — os três tipos de evento que nascem no fluxo de aceite.
+   *
+   * Os outros dois (`RATE_LIMIT` e `AUTORIZACAO_NEGADA`) são comprovados em
+   * `common/security/eventos-seguranca.spec.ts`, junto do contrato do formato.
+   * Aqui interessa que o evento saia do caminho real de recusa, e não que o
+   * formatador saiba formatar.
+   */
+  describe('eventos de segurança (HS-06)', () => {
+    let captura: CapturaDeEventos;
+
+    beforeEach(() => {
+      captura = capturarEventosDeSeguranca();
+    });
+
+    afterEach(() => {
+      captura.restaurar();
+    });
+
+    it('emite TOKEN_RECUSADO sem revelar o código tentado', async () => {
+      emitirCodigoValido();
+      const codigoErrado = emitirCodigoAprovacao().codigo;
+
+      await expect(
+        service.processarAcaoClientePublico(
+          ORCAMENTO_ID,
+          { acao: 'APROVAR', codigo_aprovacao: codigoErrado },
+          { ip: '203.0.113.7', userAgent: 'Mozilla/5.0' },
+        ),
+      ).rejects.toThrow(new BadRequestException(CODIGO_APROVACAO_ERRO_PUBLICO));
+
+      const evento = captura.eventos().find((e) => e.tipo === 'TOKEN_RECUSADO');
+      expect(evento).toBeDefined();
+      expect(evento?.recurso).toBe(ORCAMENTO_ID);
+      expect(evento?.motivo).toBe('codigo_nao_aceito');
+      // O motivo é indiferenciado de propósito: separar "expirado" de "errado"
+      // no log recriaria o oráculo que a resposta pública evita.
+      expect(evento?.linha).not.toContain(codigoErrado);
+      expect(evento?.linha).not.toContain('203.0.113.7');
+      expect(evento?.origem).toMatch(/^[0-9a-f]{12}$/);
+    });
+
+    it('emite CONFLITO_IDEMPOTENCIA quando a ação chega fora do estado', async () => {
+      // Nada é aplicado: a condição do `UPDATE` não casa. Sem o evento, esse
+      // desfecho seria indistinguível de sucesso no log.
+      registro.status = 'aprovado';
+
+      await expect(
+        service.processarAcaoClientePublico(ORCAMENTO_ID, {
+          acao: 'REJEITAR',
+          observacoes: 'chegou tarde',
+        }),
+      ).rejects.toThrow(new BadRequestException(ACAO_PUBLICA_ERRO_GENERICO));
+
+      const evento = captura
+        .eventos()
+        .find((e) => e.tipo === 'CONFLITO_IDEMPOTENCIA');
+      expect(evento).toBeDefined();
+      expect(evento?.motivo).toBe('estado_incompativel');
+      expect(evento?.recurso).toBe(ORCAMENTO_ID);
+    });
+
+    it('emite FALHA_HANDOFF quando a OS não é gerada e o aceite é revertido', async () => {
+      const codigo = emitirCodigoValido();
+      osService.criarOSDeOrcamento.mockRejectedValueOnce(
+        new Error('OS indisponível'),
+      );
+
+      await expect(
+        service.processarAcaoClientePublico(ORCAMENTO_ID, {
+          acao: 'APROVAR',
+          codigo_aprovacao: codigo,
+        }),
+      ).rejects.toBeInstanceOf(InternalServerErrorException);
+
+      const evento = captura.eventos().find((e) => e.tipo === 'FALHA_HANDOFF');
+      expect(evento).toBeDefined();
+      expect(evento?.motivo).toBe('os_nao_gerada');
+      expect(evento?.rota).toBe('orcamentos-v2/aceite');
+      // Este é o evento que não pode passar despercebido: houve aceite do
+      // cliente que não virou trabalho, e a reversão precisa de conferência.
+      expect(evento?.recurso).toBe(ORCAMENTO_ID);
+    });
+
+    it('nenhum evento do fluxo de aceite carrega dado sensível', async () => {
+      emitirCodigoValido();
+
+      await service
+        .processarAcaoClientePublico(
+          ORCAMENTO_ID,
+          {
+            acao: 'APROVAR',
+            codigo_aprovacao: emitirCodigoAprovacao().codigo,
+          },
+          { ip: '203.0.113.7', userAgent: 'Mozilla/5.0' },
+        )
+        .catch(() => undefined);
+
+      expect(procurarDadoSensivel(captura.eventos())).toBeNull();
+    });
   });
 });

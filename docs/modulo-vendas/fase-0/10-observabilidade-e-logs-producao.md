@@ -1,8 +1,9 @@
 # Gate 0S — Observabilidade e revisão de logs de produção
 
 **Documento:** anexo do [`09-gate-hotfix-seguranca.md`](./09-gate-hotfix-seguranca.md), HS-04 e HS-06
-**Status:** análise concluída; execução bloqueada por acesso externo e por decisão de infraestrutura
-**Data:** 2026-07-31
+**Status:** decisão de arquitetura tomada (§2); observabilidade centralizada vira projeto
+apartado; revisão dos logs históricos segue bloqueada por acesso externo (§3)
+**Data:** 2026-07-31, atualizado em 2026-08-01
 
 Este documento existe porque duas afirmações do HS-06 precisavam de escrutínio
 antes de serem aceitas: que os eventos estruturados são "agregáveis" e que a
@@ -21,8 +22,8 @@ ele cumpre de fato:
 | Prefixo estável e campos fixos | Atendida | `PREFIXO_EVENTO_SEGURANCA = 'SEC_EVT'`, cinco campos declarados na interface |
 | Sem IP bruto | Atendida | `origem` só recebe saída de `pseudonimizar`; nos eventos de autorização o pseudonimizado é o `usuarioId`, não o IP |
 | Sem payload, cabeçalho, token ou e-mail | Atendida por construção | A interface `EventoSeguranca` não tem campo que os aceite; adicionar um exige editar o módulo |
-| Cinco tipos de evento emitidos | Atendida | `RATE_LIMIT`, `TOKEN_RECUSADO`, `CONFLITO_IDEMPOTENCIA`, `FALHA_HANDOFF`, `AUTORIZACAO_NEGADA` |
-| Métricas agregadas e alertas | **Não atendida** | Não há backend de métricas no projeto |
+| Cinco tipos de evento emitidos | Atendida, comprovada | `eventos-seguranca.spec.ts` (9 casos) e `orcamentos-v2-aceite-publico.spec.ts` (4 casos de evento), exercitando os pontos reais; linha final conferida por `scripts/comprovar-eventos-seguranca.ts` |
+| Métricas centralizadas e alertas automáticos | Fora do Gate 0S | Decisão de arquitetura de 2026-08-01 (§2): vira projeto apartado |
 
 ### 1.1 A correção da afirmação sobre agregação
 
@@ -78,11 +79,11 @@ por processo por um **HMAC-SHA256 com chave em variável de ambiente**:
   forma explícita — degradar em silêncio para sal aleatório recriaria o problema
   atual sem avisar.
 
-**Recomendação:** não implementar agora. Sem destino de métricas, um pseudônimo
-estável não habilita nenhum alerta — só cria um identificador persistente de
-usuário e de IP sem consumidor, o que piora a postura de privacidade em troca de
-nada. A troca por HMAC deve entrar **junto** com o backend de observabilidade,
-não antes.
+**Recomendação, confirmada pela decisão de §2:** não implementar agora. Sem
+destino de métricas, um pseudônimo estável não habilita nenhum alerta — só cria
+um identificador persistente de usuário e de IP sem consumidor, o que piora a
+postura de privacidade em troca de nada. A troca por HMAC entra **junto** com o
+projeto de observabilidade, não antes.
 
 ### 1.4 Cardinalidade e retenção
 
@@ -104,49 +105,56 @@ final depende do destino escolhido.
 
 ---
 
-## 2. Proposta de infraestrutura de observabilidade
+## 2. Decisão de arquitetura — observabilidade centralizada é projeto apartado
 
-Escopo: apenas o necessário para os alertas do HS-06. Não é uma plataforma de
-APM.
+**Aprovada em 2026-08-01. Registrada como DV-17 no RP.**
 
-### Opção A — Alerta sobre log, sem serviço novo
+A observabilidade centralizada **não** entra no Gate 0S e **não** é instalada na
+VPS principal. Ela será um projeto próprio, provavelmente hospedado em uma VPS
+separada da Oracle com recursos limitados.
 
-Os eventos já saem em formato greppável. Um script agendado no próprio host lê o
-log do PM2, conta ocorrências por tipo na janela e dispara e-mail quando passa
-do limiar.
+Em consequência, dentro desta branch e deste gate:
 
-- **Custo:** zero em licença; algumas horas de implementação.
-- **Operação:** mais um cron para manter; rotação de log já existe via PM2.
-- **Limite:** sem histórico consultável, sem gráfico, sem correlação. Serve para
-  "me avise se explodir", não para investigar.
+- não se instala Prometheus, Grafana, Loki, Sentry, OpenTelemetry ou qualquer
+  outra plataforma de observabilidade;
+- métricas centralizadas e alertas automáticos **deixam de bloquear o Gate 0S**;
+- nada disso dispensa o que o hotfix precisa entregar: evento estruturado,
+  sanitização, baixa cardinalidade, consulta local e runbook.
 
-### Opção B — Sentry (plano gratuito ou Team)
+A análise das opções que precedeu a decisão (§2 da versão anterior deste
+documento) permanece válida como insumo do projeto futuro, com uma ressalva: ela
+assumia hospedagem no próprio host, o que a decisão descarta. A comparação de
+custo e operação precisa ser refeita para o cenário de VPS dedicada.
 
-- **Custo:** gratuito até 5 mil eventos/mês; Team a partir de ~US$ 26/mês.
-- **Operação:** SDK no Nest, DSN em variável de ambiente. Serviço gerenciado.
-- **Limite:** é orientado a erro, não a métrica. Contar `429` por minuto é
-  possível, mas fora do desenho do produto. Envia dado para fora da
-  infraestrutura, o que exige atenção redobrada à sanitização — justamente o que
-  o HS-06 trata.
+### 2.1 O que o Gate 0S entrega (obrigatório, local)
 
-### Opção C — Prometheus + Grafana no próprio host
+| Requisito | Situação | Evidência |
+|---|---|---|
+| Eventos estruturados e sanitizados | Atendido | `common/security/eventos-seguranca.ts`; §1 |
+| Ausência de segredo e dado sensível | Atendido | Varredura por padrão proibido em `testing/capturar-eventos-seguranca.ts`, aplicada nas duas suítes e no script |
+| Baixa cardinalidade | Atendido | §1.4 |
+| Logs locais consultáveis | Atendido | §4.1 |
+| Runbook de investigação | Atendido | §4.2 |
+| Critérios de incidente | Atendido | §4.3 |
+| Comprovação dos cinco tipos de evento | Atendido | §4.4 |
+| Rollback fail-closed | Atendido | §2.7 do gate |
 
-- **Custo:** zero em licença; ~500 MB de RAM e disco para retenção.
-- **Operação:** dois serviços a mais na VPS, com backup e atualização próprios.
-  Endpoint `/metrics` protegido, fora do proxy público.
-- **Limite:** é a opção com mais trabalho operacional, e a única que entrega
-  série temporal com alerta de verdade sem enviar dado para terceiros.
+### 2.2 O que fica para o projeto futuro
 
-### Recomendação
+| Item | Por que não cabe agora |
+|---|---|
+| Coleta centralizada em VPS separada | Exige host, rede e decisão de stack que não existem |
+| Armazenamento e política de retenção do agregado | Depende do destino escolhido |
+| Dashboards | Sem coleta, não há o que desenhar |
+| Alertas automáticos por taxa | Mesmo motivo |
+| Correlação entre instâncias e reinícios | Exige pseudônimo estável, que exige consumidor (§1.3) |
+| Pseudonimização estável (HMAC rotacionável) | Só deve existir junto do consumidor; antes disso é identificador persistente sem uso (§1.3) |
+| Segurança de transporte entre as VPS | Escopo do projeto: autenticação mútua, cifra em trânsito e superfície mínima exposta |
+| Dimensionamento e escolha da stack | A VPS Oracle tem recurso limitado; a escolha precisa partir do orçamento de memória e disco disponível |
 
-**Opção C**, com a Opção A como paliativo imediato se a decisão demorar. A razão
-é o requisito: os alertas pedidos pelo HS-06 são todos de **taxa** (`401`, `403`,
-`404` público, `429`, conflitos, falhas parciais), e taxa é exatamente o que uma
-ferramenta de erro não modela bem. Se a Opção C for aprovada, a troca do sal por
-HMAC (§1.3) entra na mesma entrega.
-
-**Enquanto não houver decisão, o HS-06 permanece bloqueado.** O substrato está
-pronto; o destino não existe.
+Enquanto esse projeto não existe, o que responde "está acontecendo alguma coisa
+anormal?" é a consulta local descrita em §4 — manual, sob demanda, e
+suficiente para o volume atual de uma instância única.
 
 ---
 
@@ -295,11 +303,132 @@ limitada por padrão, e não por acaso.
 
 ---
 
-## 4. O que este documento não resolve
+## 4. Investigação local de eventos de segurança
 
-- Não decide a infraestrutura de observabilidade. Isso é decisão do
-  administrador, e o HS-06 fica bloqueado até ela existir.
-- Não executa a revisão de logs. Fica bloqueada por acesso e por autorização
-  específica.
-- Não implementa HMAC. A recomendação explícita é **não** implementar antes do
-  destino de métricas.
+Esta seção é o substituto operacional dos dashboards enquanto o projeto de §2
+não existe. Diferente da §3, ela **não** é bloqueada: trata dos eventos novos,
+que por construção não contêm dado sensível, e pode ser executada a qualquer
+momento depois do deploy.
+
+### 4.1 Onde os eventos ficam
+
+O backend roda em uma única instância PM2, em modo `fork`, com destino de log
+fixado em `ecosystem.config.js`:
+
+| Item | Valor |
+|---|---|
+| Arquivo principal | `/opt/comunikapp/.pm2/logs/comunikapp-backend-out.log` |
+| Arquivo de erro | `/opt/comunikapp/.pm2/logs/comunikapp-backend-error.log` |
+| Timestamp por linha | Sim (`time: true` no PM2) |
+| Instâncias | 1 (`instances: 1`, `exec_mode: 'fork'`) |
+
+Uma instância única tem uma consequência boa para a investigação: o sal do
+pseudônimo é o mesmo para todas as linhas entre dois deploys, então `origem`
+agrupa de forma confiável dentro dessa janela. Isso deixa de valer no instante
+em que houver réplica (§1.1).
+
+Os eventos saem em nível `WARN`. O `main.ts` não restringe níveis de log, então
+eles chegam ao arquivo sem configuração adicional. Ainda assim, a busca abaixo
+cobre `out` e `error`: o custo é zero e a dúvida sobre qual stream recebe `warn`
+deixa de importar.
+
+### 4.2 Runbook de investigação
+
+Diferente do runbook da §3, aqui **é seguro imprimir a linha**. Um evento
+`SEC_EVT` não contém e-mail, IP, código, token, custo ou margem — é isso que a
+varredura automatizada de §4.4 garante a cada execução da suíte.
+
+```bash
+LOGS=/opt/comunikapp/.pm2/logs
+
+# 1. Panorama: quantos eventos de cada tipo, no total do arquivo.
+grep -h 'SEC_EVT' $LOGS/comunikapp-backend-*.log \
+  | grep -oP 'tipo=\K\w+' | sort | uniq -c | sort -rn
+
+# 2. Recorte de hoje, por tipo e motivo — a dimensão mais útil no dia a dia.
+grep -h "$(date +%d/%m/%Y)" $LOGS/comunikapp-backend-out.log \
+  | grep 'SEC_EVT' \
+  | grep -oP 'tipo=\K\w+|motivo=\K\w+' | paste - - | sort | uniq -c | sort -rn
+
+# 3. O contador que deveria ser sempre zero.
+grep -c 'motivo=permissao_nao_declarada' $LOGS/comunikapp-backend-*.log
+
+# 4. Qualquer falha de handoff, com a linha inteira (são raras e cada uma importa).
+grep -h 'tipo=FALHA_HANDOFF' $LOGS/comunikapp-backend-*.log
+
+# 5. Um orçamento específico, para reconstruir a sequência de tentativas.
+grep -h "recurso=$ORCAMENTO_ID" $LOGS/comunikapp-backend-*.log | grep 'SEC_EVT'
+
+# 6. Concentração por origem dentro da janela do processo atual.
+grep -h 'SEC_EVT' $LOGS/comunikapp-backend-out.log \
+  | grep -oP 'origem=\K[0-9a-f]{12}' | sort | uniq -c | sort -rn | head -20
+```
+
+O passo 6 só faz sentido **depois** de confirmar quando foi o último restart
+(`pm2 list` mostra o uptime). Contagens que atravessam um restart misturam
+pseudônimos de sais diferentes e superestimam o número de origens.
+
+### 4.3 Critérios de incidente
+
+Os limiares abaixo valem para o volume atual — uma loja em operação, instância
+única. Eles não são SLA: são o ponto em que vale a pena olhar. Devem ser
+revisados quando o volume mudar.
+
+| Observação | Interpretação | Ação |
+|---|---|---|
+| Qualquer `motivo=permissao_nao_declarada` | Handler novo entrou sem `@RequerPermissaoVendas`. Não é ataque: é defeito de configuração que o guard conteve | Corrigir a anotação do endpoint no mesmo dia. O guard já negou o acesso, então não há exposição — mas o próximo endpoint pode não estar sob o guard |
+| Qualquer `tipo=FALHA_HANDOFF` | Um cliente aceitou a proposta e a OS não foi gerada. O aceite foi revertido | Conferir o orçamento citado em `recurso=`, confirmar que o código voltou a ser utilizável e apurar a causa da falha da OS |
+| `TOKEN_RECUSADO` acima de 20 no mesmo `recurso=` em 24 h | Tentativa de adivinhação contra uma proposta específica | O contador de tentativas do orçamento já trava o alvo. Revogar o código, avisar o cliente e emitir um novo |
+| `TOKEN_RECUSADO` em mais de 5 `recurso=` distintos vindos da mesma `origem=` | Varredura, não cliente confuso | Bloquear a origem na borda (Cloudflare/Nginx) e registrar o incidente |
+| `RATE_LIMIT` com `motivo=por_ip` recorrente | O limitador de varredura está atuando | Só investigar se persistir por horas: uso legítimo raramente atinge o teto por IP |
+| `RATE_LIMIT` com `motivo=por_orcamento` isolado | Cliente clicando repetidamente | Nenhuma. É o limitador fazendo o trabalho dele |
+| `CONFLITO_IDEMPOTENCIA` em volume | Retry de cliente ou link antigo sendo reaberto | Investigar apenas se concentrado em um orçamento: pode indicar UI devolvendo estado velho |
+| Ausência total de `SEC_EVT` por dias, com tráfego normal | Suspeitar do próprio registro antes de comemorar | Executar `scripts/comprovar-eventos-seguranca.ts` no host e confirmar que a linha chega ao arquivo |
+
+A última linha existe porque um sistema de log silencioso e um sistema de log
+quebrado são indistinguíveis de longe — e o segundo é o mais perigoso dos dois.
+
+### 4.4 Comprovação dos cinco tipos
+
+Três camadas, todas reproduzíveis:
+
+| Camada | O que prova | Onde |
+|---|---|---|
+| `common/security/eventos-seguranca.spec.ts` (9 casos) | `RATE_LIMIT` (dois buckets) e `AUTORIZACAO_NEGADA` (dois motivos) saem do limitador e do guard reais; formato da linha; pseudônimo não contém o valor original | Suíte unitária |
+| `orcamentos-v2/services/orcamentos-v2-aceite-publico.spec.ts` (4 casos de evento) | `TOKEN_RECUSADO`, `CONFLITO_IDEMPOTENCIA` e `FALHA_HANDOFF` saem do fluxo real de aceite | Suíte unitária |
+| `backend/scripts/comprovar-eventos-seguranca.ts` | A linha final, como o PM2 a grava, com varredura de padrão proibido sobre o texto escrito no stdout | Execução manual |
+
+As duas suítes verificam a sanitização pela direção que pega regressão: em vez
+de conferir se os campos esperados estão certos, procuram o que não pode estar
+lá — e-mail, IPv4/IPv6, código, token, `authorization`, custo, margem, preço. Um
+campo novo com dado sensível falha o teste mesmo que ninguém se lembre de
+atualizar as asserções.
+
+Saída da execução manual em 2026-08-01:
+
+```
+WARN [SegurancaVendas] SEC_EVT tipo=RATE_LIMIT rota=orcamentos-v2/acao-publica recurso=orc-exemplo origem=bfc17ef507df motivo=por_ip
+WARN [SegurancaVendas] SEC_EVT tipo=TOKEN_RECUSADO rota=orcamentos-v2/acao-publica recurso=orc-exemplo origem=bfc17ef507df motivo=codigo_nao_aceito
+WARN [SegurancaVendas] SEC_EVT tipo=CONFLITO_IDEMPOTENCIA rota=orcamentos-v2/acao-publica recurso=orc-exemplo origem=bfc17ef507df motivo=estado_incompativel
+WARN [SegurancaVendas] SEC_EVT tipo=FALHA_HANDOFF rota=orcamentos-v2/aceite recurso=orc-exemplo motivo=os_nao_gerada
+WARN [SegurancaVendas] SEC_EVT tipo=AUTORIZACAO_NEGADA rota=OrcamentosV2Controller.remover origem=aa9e6aafab4b motivo=permissao_insuficiente
+
+linhas emitidas: 5 de 5
+varredura de dado sensível: nenhum achado.
+```
+
+Os valores de `recurso` e `origem` acima são de exemplo, gerados pelo próprio
+script. `origem=bfc17ef507df` é o pseudônimo de `203.0.113.42` **naquele
+processo**: rodar o script de novo produz outro valor, o que é a demonstração
+prática da limitação descrita em §1.1.
+
+---
+
+## 5. O que este documento não resolve
+
+- Não implementa a observabilidade centralizada. Por decisão de §2, ela é
+  projeto apartado e não entra nesta branch.
+- Não executa a revisão de logs históricos. Fica bloqueada por acesso e por
+  autorização específica (§3).
+- Não implementa HMAC. A recomendação explícita é **não** implementar antes de
+  existir consumidor para o pseudônimo estável (§1.3).
