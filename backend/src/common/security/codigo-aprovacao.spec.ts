@@ -1,8 +1,10 @@
 import { createHash } from 'node:crypto';
 import {
+  ACEITE_PUBLICO_DESABILITADO_MSG,
   CODIGO_APROVACAO_HASH_TAMANHO,
   CODIGO_APROVACAO_TAMANHO_MAXIMO,
   CODIGO_APROVACAO_VALIDADE_DIAS,
+  aceitePublicoDesabilitado,
   calcularHashCodigoAprovacao,
   emitirCodigoAprovacao,
   formatoCodigoAprovacaoValido,
@@ -106,6 +108,33 @@ describe('Gate 0S / HS-04 - código de aprovação', () => {
           'a'.repeat(CODIGO_APROVACAO_TAMANHO_MAXIMO + 1),
         ),
       ).toBe(false);
+    });
+  });
+
+  describe('aceitePublicoDesabilitado (contingência HS-04)', () => {
+    const chave = 'ORCAMENTOS_ACEITE_PUBLICO_DESABILITADO';
+    const anterior = process.env[chave];
+
+    afterEach(() => {
+      if (anterior === undefined) {
+        delete process.env[chave];
+      } else {
+        process.env[chave] = anterior;
+      }
+    });
+
+    it('fica desligado por padrão', () => {
+      delete process.env[chave];
+      expect(aceitePublicoDesabilitado()).toBe(false);
+    });
+
+    it('liga com true/1/yes e a mensagem pública permanece estável', () => {
+      process.env[chave] = 'true';
+      expect(aceitePublicoDesabilitado()).toBe(true);
+      process.env[chave] = '1';
+      expect(aceitePublicoDesabilitado()).toBe(true);
+      expect(ACEITE_PUBLICO_DESABILITADO_MSG.length).toBeGreaterThan(20);
+      expect(ACEITE_PUBLICO_DESABILITADO_MSG).not.toMatch(/hash|coluna|schema/i);
     });
   });
 });

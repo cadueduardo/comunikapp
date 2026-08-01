@@ -288,13 +288,12 @@ do desenvolvedor fosse alterado.
       nenhuma delas atribuível a esta entrega: zero menções a `codigo_aprovacao` e
       nenhuma alteração na tabela `orcamento`. Essa divergência antiga fica
       registrada em §2.8.
-- [x] **Rollback fail-closed.** O DDL inverso (drop das cinco colunas) aplica sem
-      erro e **não ressuscita segredo**: `COUNT(codigo_aprovacao)` permanece 0 entre
-      os 58 orçamentos. No nível da aplicação o rollback também falha fechado —
-      com as colunas ausentes a emissão aborta
-      (`The column codigo_aprovacao_hash does not exist in the current database`),
-      ou seja, nenhum aceite é concedido; não há degradação silenciosa para o
-      código em texto claro.
+- [x] **Prova de laboratório do DDL inverso (não é o runbook de produção).** O drop
+      das cinco colunas aplica sem erro e não ressuscita segredo
+      (`COUNT(codigo_aprovacao)` permanece 0). Isso demonstra irreversibilidade da
+      invalidação — não autoriza dropar colunas nem voltar ao artefato pré-HS-04
+      em produção. O contrato operacional está no bloco HS-04 (forward-fix +
+      `ORCAMENTOS_ACEITE_PUBLICO_DESABILITADO`).
 - [x] **Emissão, expiração, revogação, uso único, teto e concorrência contra o banco
       real.** `backend/scripts/validar-codigo-aprovacao-mysql.ts` exercita os
       **métodos reais** do service contra o MySQL, não uma reimplementação das
@@ -472,9 +471,37 @@ autoridade.
 **Rollout expand-and-contract.** Etapas 1 a 4 (adicionar campos, emitir tokens novos,
 ler pelo hash, invalidar o legado) estão nesta entrega. A etapa 5 — remover a coluna
 `codigo_aprovacao` e seu índice único — fica para entrega posterior. Não há período de
-leitura dupla: a leitura já nasce apontando só para o hash. O rollback é fail-closed
-por construção, porque a invalidação do texto claro é irreversível; reverter a
-migration desativa o aceite público em vez de reabri-lo com segredo fraco.
+leitura dupla: a leitura já nasce apontando só para o hash.
+
+**Contrato de rollback do HS-04 (fail-closed — obrigatório):**
+
+1. **Não** retornar para código anterior ao HS-04. A coluna legada `codigo_aprovacao`
+   permanece no schema na fase *expand*; a aplicação pré-HS-04 **pode voltar a
+   funcionar** e reintroduzir emissão/aceitação de segredo fraco. Esse risco é o
+   motivo de proibir o rollback para o artefato antigo — não a hipótese de que ela
+   “quebraria” com as colunas novas.
+2. **Não** remover manualmente as cinco colunas do contrato seguro como forma de
+   “desfazer” o deploy.
+3. **Não** restaurar o dump pré-deploy como rollback normal. O dump ainda contém os
+   códigos legados em texto claro; restaurá-lo reabre a vulnerabilidade.
+4. Preferir **forward-fix** no artefato autorizado (mesmo commit / correção
+   adiante).
+5. Em falha não corrigível de imediato: desabilitar emissão, reenvio e aceite
+   públicos de forma fail-closed, mantendo o schema expandido. Flag:
+   `ORCAMENTOS_ACEITE_PUBLICO_DESABILITADO=true` no env do backend + reinício do
+   PM2. A mensagem pública é estável e não confirma existência do orçamento.
+6. A **versão de contingência** é este mesmo artefato com a flag ligada: aceita o
+   schema expandido e nega os fluxos públicos. Não é um checkout pré-HS-04.
+7. Restauração integral do banco a partir do dump pré-deploy **somente** para
+   desastre (perda/corrupção). Depois da restauração e **antes** de reabrir acesso
+   público: invalidar todos os `codigo_aprovacao` não nulos
+   (`UPDATE orcamento SET codigo_aprovacao = NULL WHERE codigo_aprovacao IS NOT NULL`)
+   e só então decidir se sobe o artefato HS-04 de novo ou a contingência com a
+   flag.
+
+A verificação empírica do DDL inverso em §2.7 continua válida como prova de que
+**apagar as colunas novas não ressuscita segredo** — mas **não** é o procedimento
+operacional de rollback em produção.
 
 ### HS-05 — Atomicidade, idempotência e concorrência do aceite existente
 
@@ -607,10 +634,12 @@ devem ser criados antecipadamente apenas para encerrar este gate.
       rotacionável, a cardinalidade por campo e a retenção estão em
       [`10-observabilidade-e-logs-producao.md`](./10-observabilidade-e-logs-producao.md) §1.)*
 - [x] Documentar procedimento de rollback que preserve a negação por padrão.
-      *(Verificado empiricamente em §2.7: o DDL inverso não ressuscita nenhum segredo
-      em texto claro, e a aplicação sobre o schema revertido aborta a emissão em vez
-      de degradar para o código fraco. Reverter a migration desativa o aceite público;
-      não o reabre.)*
+      *(Contrato operacional do HS-04: forward-fix; contingência por
+      `ORCAMENTOS_ACEITE_PUBLICO_DESABILITADO`; proibido voltar ao artefato
+      pré-HS-04, dropar as cinco colunas ou restaurar dump pré-deploy como
+      rollback normal. A prova de laboratório do DDL inverso permanece em §2.7
+      como evidência de que dropar colunas não ressuscita segredo — não como
+      runbook de produção.)*
 
 **Transferido para o projeto apartado, sem checkbox neste gate:** métricas
 agregadas e alertas automáticos para aumento anormal de `401`, `403`, `404`
@@ -1150,6 +1179,34 @@ cabeçalho escolhido pelo próprio chamador não abre rota — o teste estava do
 justamente o desvio que o gate fechou. O caso foi reescrito para afirmar o
 comportamento pretendido: a rota nega sem autenticação, e continua negando com o
 cabeçalho interno presente.
+
+### 4.11 Preflight do deploy do HS-04 (não autorizado — não executado)
+
+Artefato e forma de execução (variáveis **só** via ambiente):
+
+```bash
+sudo env \
+  BRANCH=feat/modulo-vendas \
+  EXPECTED_COMMIT=<sha-do-commit-autorizado> \
+  PRISMA_APPLY=migrate \
+  INSTALL_SYSTEM_PACKAGES=0 \
+  APPLY_NGINX=0 \
+  APPLY_FAIL2BAN=0 \
+  bash /opt/comunikapp/app/scripts/deploy-vps-branch-atual.sh
+```
+
+`EXPECTED_COMMIT` é conferido após o `git pull` e antes de `npm ci`/build/backup/migrate;
+prefixo ambíguo ou HEAD divergente aborta. Escopo operacional do Gate 0S: **não**
+instalar pacotes do sistema nem alterar Nginx/Fail2ban salvo autorização específica.
+`RUN_AUDIT` permanece ativo (padrão `1`). Builds, backup (`tamanho mínimo` + `gzip -t`),
+preflight Prisma, `migrate deploy` e health checks permanecem ativos.
+
+Backup: tamanho mínimo + `gzip -t` = integridade do arquivo, **não** restauração
+completa. Restauração em banco scratch continua obrigatória antes da autorização, se
+houver capacidade segura.
+
+Contingência fail-closed: ver contrato de rollback do HS-04 neste documento
+(`ORCAMENTOS_ACEITE_PUBLICO_DESABILITADO`). Proibido voltar ao artefato pré-HS-04.
 
 ## 5. Gate de conclusão
 

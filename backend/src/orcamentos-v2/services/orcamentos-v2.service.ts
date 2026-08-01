@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   InternalServerErrorException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { IntegracaoMotorService } from './integracao-motor.service';
@@ -46,8 +47,10 @@ import { calcularCustoUnitarioUso } from '../../common/custos/custo-unitario-ins
 import { VendasPermissionsService } from '../../vendas/permissions/vendas-permissions.service';
 import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 import {
+  ACEITE_PUBLICO_DESABILITADO_MSG,
   CODIGO_APROVACAO_ERRO_PUBLICO,
   CODIGO_APROVACAO_MAX_TENTATIVAS,
+  aceitePublicoDesabilitado,
   calcularHashCodigoAprovacao,
   emitirCodigoAprovacao,
   formatoCodigoAprovacaoValido,
@@ -2270,6 +2273,11 @@ export class OrcamentosV2Service {
     orcamentoId: string,
     lojaId: string,
   ): Promise<string> {
+    // Contingência HS-04: schema expandido permanece; só o fluxo público para.
+    if (aceitePublicoDesabilitado()) {
+      throw new ServiceUnavailableException(ACEITE_PUBLICO_DESABILITADO_MSG);
+    }
+
     const emitido = emitirCodigoAprovacao();
 
     const { count } = await this.prisma.orcamento.updateMany({
@@ -2734,6 +2742,10 @@ export class OrcamentosV2Service {
     contexto?: ContextoDaRequisicao,
   ) {
     const agora = new Date();
+
+    if (aceitePublicoDesabilitado()) {
+      throw new ServiceUnavailableException(ACEITE_PUBLICO_DESABILITADO_MSG);
+    }
 
     this.logger.log(
       'Processando acao publica do cliente: ' +
@@ -4144,6 +4156,10 @@ export class OrcamentosV2Service {
    */
   async reenviarCodigoAprovacao(id: string) {
     this.logger.log(`📧 Reenviando código de aprovação para orçamento: ${id}`);
+
+    if (aceitePublicoDesabilitado()) {
+      throw new ServiceUnavailableException(ACEITE_PUBLICO_DESABILITADO_MSG);
+    }
 
     // Verificar se o orçamento existe
     const orcamento = await this.prisma.orcamento.findUnique({

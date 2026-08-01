@@ -1,13 +1,29 @@
 #!/usr/bin/env bash
 # Deploy completo do branch atual do Comunikapp na VPS.
 #
-# Uso recomendado na VPS:
-#   sudo bash /opt/comunikapp/app/scripts/deploy-vps-branch-atual.sh
+# Variaveis via ambiente (nunca como argumentos depois do caminho do script).
+# Forma correta:
 #
-# Variaveis opcionais:
+#   sudo env \
+#     BRANCH=feat/modulo-vendas \
+#     EXPECTED_COMMIT=<hash> \
+#     PRISMA_APPLY=migrate \
+#     INSTALL_SYSTEM_PACKAGES=0 \
+#     APPLY_NGINX=0 \
+#     APPLY_FAIL2BAN=0 \
+#     bash /opt/comunikapp/app/scripts/deploy-vps-branch-atual.sh
+#
+# Gate 0S: INSTALL_SYSTEM_PACKAGES, APPLY_NGINX e APPLY_FAIL2BAN devem ser 0
+# salvo autorizacao especifica e motivo documentado. Builds, backup, preflight,
+# migrate e health checks permanecem ativos.
+#
+# Variaveis:
 #   PROJECT_DIR=/opt/comunikapp/app
 #   APP_USER=comunikapp
 #   BRANCH=nome-do-branch
+#   EXPECTED_COMMIT=<sha1 ou prefixo unico>
+#     Quando informado, apos o git pull e antes de npm ci/build/backup/migrate
+#     o script aborta se HEAD divergir ou se o prefixo for ambiguo.
 #   PRISMA_APPLY=migrate|push|skip
 #   DB_BACKUP_DIR=/srv/apps/comunikapp/shared/backups/database
 #   DB_BACKUP_RETENTION_DAYS=14
@@ -15,19 +31,22 @@
 #   APPLY_NGINX=1|0
 #   APPLY_FAIL2BAN=1|0
 #   INSTALL_SYSTEM_PACKAGES=1|0
-#   RUN_AUDIT=1|0
+#   RUN_AUDIT=1|0   (padrao 1 — manter ativo no Gate 0S)
 #   SKIP_HEALTH_CHECKS=1|0
 #   BUILD_MAX_OLD_SPACE_MB=4096
-#     Heap maximo (MB) do Node durante "npm run build" do backend/frontend.
-#     IMPORTANTE: "sudo VAR=valor bash script.sh" so repassa a variavel se o
-#     sudoers da VPS mantiver VAR (env_keep) ou "sudo -E" for usado; prefira
-#     exportar a variavel ou usar "sudo -E env BUILD_MAX_OLD_SPACE_MB=4096 bash script.sh".
+#     Prefira `sudo env VAR=... bash script.sh` (ou `sudo -E env ...`) para o
+#     sudo nao descartar as variaveis.
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/assert-expected-commit.sh
+source "${SCRIPT_DIR}/lib/assert-expected-commit.sh"
 
 APP_USER="${APP_USER:-comunikapp}"
 PROJECT_DIR="${PROJECT_DIR:-}"
 BRANCH="${BRANCH:-}"
+EXPECTED_COMMIT="${EXPECTED_COMMIT:-}"
 PRISMA_APPLY="${PRISMA_APPLY:-migrate}"
 RUNTIME="${RUNTIME:-auto}"
 APPLY_NGINX="${APPLY_NGINX:-1}"
@@ -248,6 +267,17 @@ update_code() {
   run_as_app "git show-ref --verify --quiet refs/heads/$(quote "$BRANCH") && git checkout $(quote "$BRANCH") || git checkout -b $(quote "$BRANCH") origin/$(quote "$BRANCH")"
   run_as_app "git pull --ff-only origin $(quote "$BRANCH")"
   log "Commit em deploy: $(run_as_app 'git rev-parse --short HEAD')"
+
+  # Artefato fixado: depois do pull e antes de qualquer npm ci, build, backup
+  # ou migration. EXPECTED_COMMIT vazio = checagem desligada (legado); preenchido
+  # = obrigatorio bater com HEAD e ser inequivoco.
+  if [ -n "$EXPECTED_COMMIT" ]; then
+    log "Conferindo EXPECTED_COMMIT=${EXPECTED_COMMIT}..."
+    run_as_app "EXPECTED_COMMIT=$(quote "$EXPECTED_COMMIT") source $(quote "${SCRIPT_DIR}/lib/assert-expected-commit.sh") && assert_expected_commit" \
+      || fail 'EXPECTED_COMMIT nao confere com HEAD (divergencia ou prefixo ambiguo).'
+  else
+    log 'EXPECTED_COMMIT nao informado — deploy segue sem pin de commit.'
+  fi
 }
 
 install_dependencies() {

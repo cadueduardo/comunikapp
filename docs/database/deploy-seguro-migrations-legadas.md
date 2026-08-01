@@ -29,10 +29,48 @@ DB_BACKUP_RETENTION_DAYS=14
 O nome segue o formato `banco-AAAAMMDDTHHMMSSZ.sql.gz`. Se o dump ou a verificacao
 falhar, o deploy e interrompido antes do preflight e das migrations.
 
-O script completo de VPS instala `mariadb-client` e `gzip`. No deploy simplificado,
-esses pacotes devem estar instalados previamente.
+**O que o script comprova automaticamente:** tamanho minimo (`>= 100` bytes) e
+integridade do arquivo gzip (`gzip -t`). Isso e evidencia de que o arquivo nao
+esta truncado/corrupto no nivel do compressão — **nao** substitui um teste
+completo de restauracao.
 
-## Comportamento
+**Teste de restauracao em banco scratch:** continua obrigatorio antes de autorizar
+um deploy critico (Gate 0S), quando houver capacidade segura para executa-lo sem
+tocar no banco de producao. Ver secao "Teste de restauracao" abaixo.
+
+## Artefato fixado (EXPECTED_COMMIT)
+
+`scripts/deploy-vps-branch-atual.sh` aceita `EXPECTED_COMMIT` via ambiente. Quando
+informado, apos o `git pull` e **antes** de `npm ci`, build, backup ou migration:
+
+1. resolve `git rev-parse HEAD`;
+2. resolve o valor informado (hash completo ou prefixo hex);
+3. aborta se nao houver correspondencia, se o prefixo for ambiguo (mais de um
+   objeto) ou se HEAD divergir.
+
+Forma correta de passar variaveis (nunca como argumentos apos o caminho):
+
+```bash
+sudo env \
+  BRANCH=feat/modulo-vendas \
+  EXPECTED_COMMIT=<sha> \
+  PRISMA_APPLY=migrate \
+  INSTALL_SYSTEM_PACKAGES=0 \
+  APPLY_NGINX=0 \
+  APPLY_FAIL2BAN=0 \
+  bash /opt/comunikapp/app/scripts/deploy-vps-branch-atual.sh
+```
+
+`RUN_AUDIT` permanece `1` por padrao e deve ficar ativo no Gate 0S. Builds,
+backup, preflight, migration e health checks nao devem ser desabilitados.
+
+Teste da checagem de commit:
+
+```bash
+bash scripts/lib/assert-expected-commit.test.sh
+```
+
+Padroes:
 
 - Banco novo, sem migrations aplicadas: permite o replay completo.
 - Banco existente com baseline ja registrado: segue normalmente.
@@ -73,12 +111,22 @@ feature hardcoded como fallback.
 
 ## Teste de restauracao
 
-O backup automatico protege a atualizacao, mas deve ser testado periodicamente em
-um banco separado. Exemplo:
+O backup automatico protege a atualizacao e valida o arquivo com tamanho minimo +
+`gzip -t`. Isso **nao** e um teste completo de restauracao.
+
+Antes de autorizar um deploy critico, quando houver capacidade segura:
+
+1. copie o `.sql.gz` para um host ou instancia que **nao** seja o MySQL de
+   producao;
+2. restaure em um banco scratch (outra instancia ou database descartavel);
+3. confira `SELECT COUNT(*)` em tabelas-chave e a ausencia de erro no load;
+4. descarte o scratch.
+
+Exemplo (ajuste host/usuario; nunca aponte para producao):
 
 ```bash
 gzip -dc /srv/apps/comunikapp/shared/backups/database/comunikapp-DATA.sql.gz \
-  | mariadb --host=HOST --user=USUARIO --password
+  | mysql --host=SCRATCH_HOST --user=USUARIO --password
 ```
 
 Como o dump usa `--databases`, ele inclui a selecao/criacao do banco original.

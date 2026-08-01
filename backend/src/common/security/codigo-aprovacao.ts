@@ -138,3 +138,28 @@ export function hashesConferem(
 
   return iguais && referencia !== HASH_INEXISTENTE;
 }
+
+/**
+ * Contingência fail-closed do HS-04.
+ *
+ * Preferir forward-fix. Se o fluxo público seguro falhar de forma não
+ * corrigível de imediato, **não** se volta ao código pré-HS-04 (a coluna
+ * legada ainda existe no schema e a app antiga voltaria a emitir/aceitar
+ * segredo fraco). Em vez disso, mantém-se o schema expandido e desliga-se
+ * emissão, reenvio e aceite públicos via esta flag.
+ *
+ * Em produção: `ORCAMENTOS_ACEITE_PUBLICO_DESABILITADO=true` no env do
+ * backend + reinício do PM2. Remover a variável (ou `=false`) reabre o
+ * fluxo sem migration adicional.
+ */
+export function aceitePublicoDesabilitado(): boolean {
+  const valor = (process.env.ORCAMENTOS_ACEITE_PUBLICO_DESABILITADO || '')
+    .trim()
+    .toLowerCase();
+  return valor === 'true' || valor === '1' || valor === 'yes';
+}
+
+/** Mensagem estável, sem detalhe interno, para os três pontos do kill-switch. */
+export const ACEITE_PUBLICO_DESABILITADO_MSG =
+  'A aprovação pública desta proposta está temporariamente indisponível. Entre em contato com a loja.';
+

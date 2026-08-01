@@ -214,45 +214,117 @@ ls -la --time-style=long-iso /var/log/nginx/ | head -40
 pm2 conf pm2-logrotate 2>/dev/null || echo "logrotate do PM2 não instalado"
 ```
 
-### 3.4 Padrões a procurar
+### 3.4 Fontes cobertas e como contar (ativos × comprimidos)
 
-Buscar **contando**, nunca imprimindo a linha. Este é o ponto central do
-runbook: um `grep` sem `-c` copia o segredo do arquivo para o terminal, de lá
-para o histórico do shell, e possivelmente para o relatório.
+Antes de qualquer busca:
 
 ```bash
-# Contagem por padrão. Nenhuma saída contém o valor encontrado.
-for p in \
-  'codigo_aprovacao' \
-  'Codigo de aprovacao' \
-  'token=' \
-  'acessarLinkPublico' \
-  'custo_total_producao' \
-  'margem_lucro' \
-  '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' \
-; do
-  echo -n "$p: "
-  grep -rEc "$p" ~/.pm2/logs/ 2>/dev/null | awk -F: '{s+=$2} END {print s+0}'
-done
+set +o history
+unset HISTFILE
+# `unset HISTFILE` sozinho nao impede o historico se a sessao ja gravou linhas
+# ou se o shell usa outro arquivo (HISTFILE ja exportado, shared history, etc.).
+# Por isso `set +o history` vem primeiro e a sessao deve ser descartada ao fim.
 ```
 
-Para localizar **onde** ocorreu sem revelar **o quê**, usar nome de arquivo e
-número de linha, jamais o conteúdo:
+Trabalhar **somente** com contagem (`-c`) ou com `arquivo:linha` via `cut`.
+Nunca imprimir o conteúdo da linha.
+
+#### A) Arquivos ativos (texto) — `grep`
 
 ```bash
-grep -rEn 'codigo_aprovacao' ~/.pm2/logs/ | cut -d: -f1,2
+PM2_LOGS=/opt/comunikapp/.pm2/logs
+NGINX_LOGS=/var/log/nginx
+
+contar_ativo() {
+  local padrao="$1"
+  shift
+  echo -n "$padrao: "
+  grep -Ehc "$padrao" "$@" 2>/dev/null | awk '{s+=$1} END {print s+0}'
+}
+
+onde_ativo() {
+  local padrao="$1"
+  shift
+  grep -EHn "$padrao" "$@" 2>/dev/null | cut -d: -f1,2
+}
+
+# PM2 backend (out + error)
+contar_ativo 'codigo_aprovacao' \
+  "$PM2_LOGS/comunikapp-backend-out.log" \
+  "$PM2_LOGS/comunikapp-backend-error.log"
+
+# PM2 frontend
+contar_ativo 'codigo_aprovacao' \
+  "$PM2_LOGS/comunikapp-frontend-out.log" \
+  "$PM2_LOGS/comunikapp-frontend-error.log"
+
+# Nginx access + error (ativos)
+contar_ativo 'token=' \
+  "$NGINX_LOGS/access.log" \
+  "$NGINX_LOGS/error.log"
 ```
+
+#### B) Arquivos rotacionados comprimidos — `zgrep`
+
+```bash
+contar_comprimido() {
+  local padrao="$1"
+  shift
+  echo -n "$padrao: "
+  # zgrep -c emula grep -c por arquivo; some as saidas numericas.
+  zgrep -Ehc "$padrao" "$@" 2>/dev/null | awk '{s+=$1} END {print s+0}'
+}
+
+onde_comprimido() {
+  local padrao="$1"
+  shift
+  zgrep -EHn "$padrao" "$@" 2>/dev/null | cut -d: -f1,2
+}
+
+# Rotacionados PM2 (*.gz) — backend e frontend
+contar_comprimido 'codigo_aprovacao' \
+  "$PM2_LOGS"/comunikapp-backend-*.log.gz \
+  "$PM2_LOGS"/comunikapp-frontend-*.log.gz
+
+# Rotacionados Nginx
+contar_comprimido 'token=' \
+  "$NGINX_LOGS"/access.log.*.gz \
+  "$NGINX_LOGS"/error.log.*.gz
+```
+
+Se `zgrep` não existir, usar `gzip -dc arquivo.gz | grep -c` **por arquivo**,
+ainda sem imprimir a linha (`grep -c` apenas).
+
+#### C) Padrões a aplicar em todas as fontes acima
+
+```text
+codigo_aprovacao
+Codigo de aprovacao
+token=
+acessarLinkPublico
+custo_total_producao
+margem_lucro
+[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}
+```
+
+#### D) Backups externos de log
+
+Se houver cópia fora da VPS (object storage, outra máquina), a mesma disciplina
+vale: só contagem e `arquivo:linha`, sem trazer o arquivo para a estação local
+sem mascaramento. Registrar a fonte na tabela de evidência.
 
 ### 3.5 Como evitar copiar segredo para fora
 
 Regras obrigatórias durante a execução:
 
-1. Nenhum comando que imprima a linha encontrada. Só `-c` (contagem) e
+1. Nenhum comando que imprima a linha encontrada. Só contagem (`-c`) e
    `cut -d: -f1,2` (arquivo e linha).
-2. Nenhum `scp`/`cat` de arquivo de log para a máquina local.
+2. Nenhum `scp`/`cat`/`zcat` de arquivo de log para a máquina local sem
+   mascaramento na origem.
 3. Não colar saída de log no chat, em issue, em commit ou neste repositório.
-4. Desativar o histórico do shell durante a sessão (`unset HISTFILE`) para que
-   nem os padrões de busca fiquem gravados.
+4. Abrir a sessão com `set +o history` e `unset HISTFILE`. Isso reduz o risco;
+   **não** garante sozinho que nada entre no histórico — encerre a sessão SSH
+   ao terminar e não reutilize um terminal que já tenha impresso segredo.
 5. Se for absolutamente necessário inspecionar uma linha para entender o
    formato, fazê-lo com mascaramento na origem, por exemplo
    `sed -E 's/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+/[EMAIL]/g'`.
