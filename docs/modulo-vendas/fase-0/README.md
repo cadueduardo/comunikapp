@@ -14,14 +14,14 @@ Esta pasta é o endereço oficial dos entregáveis da Fase 0 definidos em
 | # | Documento | Entregável do plano | Estado |
 |---|-----------|---------------------|--------|
 | 01 | [Auditoria do estado real](./01-auditoria-estado-real.md) | Inventário atualizado de reuso e dívidas | Concluído |
-| 02 | [Decisões DV-01 a DV-16](./02-registro-de-decisoes.md) | Registro de decisões | **Decidido** |
+| 02 | [Decisões DV-01 a DV-17](./02-registro-de-decisoes.md) | Registro de decisões | **Decidido** |
 | 03 | [Nomenclatura canônica e matriz RBAC](./03-nomenclatura-e-matriz-rbac.md) | Matriz inicial de permissões | Aprovado |
 | 04 | [Máquina de estados comercial](./04-maquina-de-estados-comercial.md) | Máquina de estados proposta | Aprovado |
 | 05 | [Matriz de gates](./05-matriz-de-gates.md) | Matriz de gates por cenário | Aprovado |
 | 06 | [Plano de migrations](./06-plano-de-migrations.md) | Plano de migrations | Aprovado |
 | 07 | [Matriz de rastreabilidade](./07-matriz-de-rastreabilidade.md) | Matriz de testes e rastreabilidade | Aprovado |
 | 08 | [Resumo executivo das decisões](./08-resumo-executivo-decisoes.md) | Síntese do contrato aprovado | Concluído |
-| 09 | [Gate 0S — hotfix de segurança](./09-gate-hotfix-seguranca.md) | Escopo, testes e critérios de liberação | **Não iniciado — bloqueia Fase 1** |
+| 09 | [Gate 0S — hotfix de segurança](./09-gate-hotfix-seguranca.md) | Escopo, testes e critérios de liberação | **Em execução — Gate 0S não concluído — Fase 1 não liberada** |
 
 Os documentos 03 a 07 passam a compor o contrato da implementação. Divergência
 futura deve ser registrada como nova decisão, nunca resolvida silenciosamente no código.
@@ -59,8 +59,8 @@ Os três achados que mais alteram o trabalho:
 
 ## Decisões bloqueadoras resolvidas
 
-O documento 02 contém 16 decisões. As 12 primeiras vêm do RP §15; as quatro últimas
-nasceram desta auditoria e são bloqueadoras:
+O documento 02 contém 17 decisões. As 12 primeiras vêm do RP §15; DV-13 a DV-16
+nasceram da auditoria da Fase 0 e são bloqueadoras; DV-17 nasceu durante o Gate 0S:
 
 | ID | Assunto | Contrato aprovado |
 |----|---------|-------------------------|
@@ -68,6 +68,7 @@ nasceram desta auditoria e são bloqueadoras:
 | DV-14 | Reconciliação de status | `status_comercial` canônico com migração compatível |
 | DV-15 | Destino do histórico órfão | Versão imutável + timeline canônicas; legado sem drop imediato |
 | DV-16 | Ordem de entrega das fases | Segurança → contratos → autorização → navegação |
+| DV-17 | Observabilidade de segurança | Projeto apartado em VPS separada; Gate 0S fica com escopo local |
 
 ---
 
@@ -75,7 +76,7 @@ nasceram desta auditoria e são bloqueadoras:
 
 A fase só está concluída quando:
 
-- [x] As 16 decisões estão em estado `DECIDIDO` no documento 02.
+- [x] As 17 decisões estão em estado `DECIDIDO` no documento 02.
 - [x] As decisões fechadas foram replicadas no RP no mesmo commit.
 - [x] Os documentos 03 a 07 saíram de "Proposto" para "Aprovado".
 - [x] O checkbox **FASE 0 CONCLUÍDA** foi marcado no plano de ação.

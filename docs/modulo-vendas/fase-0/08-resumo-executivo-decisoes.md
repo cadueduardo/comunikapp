@@ -1,8 +1,8 @@
 # Fase 0 — Resumo executivo das decisões aprovadas
 
 **Para:** product owner
-**Documento de referência:** [Registro de decisões DV-01 a DV-16](./02-registro-de-decisoes.md)
-**Data:** 2026-07-31
+**Documento de referência:** [Registro de decisões DV-01 a DV-17](./02-registro-de-decisoes.md)
+**Data:** 2026-07-31 (DV-17 acrescentada em 2026-08-01)
 **Tempo estimado de leitura:** 5 minutos
 
 > Este documento não substitui o registro de decisões. Ele resume o contrato
@@ -12,10 +12,12 @@
 
 ## 1. O essencial em um parágrafo
 
-As dezesseis decisões foram fechadas em 2026-07-31. O contrato prioriza menor
-privilégio, consistência transacional, idempotência, isolamento por loja, migrations
-aditivas, processamento assíncrono e paginação/indexação no servidor. O início do
-desenvolvimento funcional permanece condicionado ao hotfix crítico de DV-13/DV-16.
+DV-01 a DV-16 foram fechadas em 2026-07-31; DV-17 foi acrescentada em 2026-08-01
+(17 decisões no total). O contrato prioriza menor privilégio, consistência
+transacional, idempotência, isolamento por loja, migrations aditivas, processamento
+assíncrono e paginação/indexação no servidor. O início do desenvolvimento funcional
+permanece condicionado ao hotfix crítico de DV-13/DV-16. DV-17 separa a
+observabilidade centralizada (projeto apartado) do escopo local obrigatório do Gate 0S.
 
 ---
 
@@ -23,18 +25,20 @@ desenvolvimento funcional permanece condicionado ao hotfix crítico de DV-13/DV-
 
 A ordem abaixo segue o que destrava mais cedo, não a numeração dos IDs.
 
-### Bloco 1 — fundação e segurança (5 decisões)
+### Bloco 1 — fundação e segurança (6 decisões)
 
 | ID | Pergunta em uma linha | Recomendação | Natureza |
 |----|----------------------|--------------|----------|
 | DV-16 | Começamos pela navegação ou pelos contratos? | F0 → hotfix de segurança → F1 → F2 → F3 | Estratégia de entrega |
 | DV-13 | Como implementar autorização em Vendas? | Seguir o padrão de Compras (`VendasPermissionsService`) | Arquitetura |
+| DV-17 | Onde fica a observabilidade de segurança? | Projeto apartado em VPS separada; Gate 0S só com escopo local | Arquitetura |
 | DV-14 | Como reconciliar os três vocabulários de status? | Criar `status_comercial` novo e manter `status` por compatibilidade | Arquitetura |
 | DV-15 | O que fazer com as tabelas de histórico órfãs? | Eleger `VersaoOrcamento` e `HistoricoOrcamento`; descontinuar as outras três sem drop | Arquitetura |
 | DV-01 | Pedido confirmado é entidade, evento ou projeção? | Evento + tabela leve `pedido_comercial` | Arquitetura |
 
 **Por que primeiro:** DV-16 define a sequência de todo o projeto e DV-13 bloqueia a
-Fase 2 inteira. DV-14, DV-15 e DV-01 definem o modelo de dados da Fase 1 — decidir
+Fase 2 inteira. DV-17 evita que o Gate 0S seja travado por infraestrutura que ainda
+não existe. DV-14, DV-15 e DV-01 definem o modelo de dados da Fase 1 — decidir
 depois significa refazer migrations.
 
 **Se o PO delegar:** as quatro últimas são legitimamente decisões de arquitetura. O

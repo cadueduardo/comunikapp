@@ -308,7 +308,8 @@ qualquer migration ou alteração de fluxo.
 ### Entregáveis
 
 - [x] Registro de decisões — `fase-0/02-registro-de-decisoes.md`
-      (16 decisões registradas e fechadas em 2026-07-31).
+      (DV-01 a DV-16 fechadas em 2026-07-31; DV-17 acrescentada em 2026-08-01;
+      17 decisões no total).
 - [x] Inventário atualizado de reuso e dívidas — `fase-0/01-auditoria-estado-real.md`.
 - [x] Matriz inicial de permissões — `fase-0/03-nomenclatura-e-matriz-rbac.md`,
       31 permissões `vendas.*`.

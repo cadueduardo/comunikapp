@@ -630,7 +630,7 @@ acontecendo alguma coisa anormal?", por consulta manual ao log do PM2.
 
 | Papel | Nome | Data | Observação |
 |---|---|---|---|
-| Product owner | Aprovação registrada por solicitação do projeto | 2026-07-31 | As 16 decisões passam a compor o contrato funcional do módulo |
+| Product owner | Aprovação registrada por solicitação do projeto | 2026-07-31 | DV-01 a DV-16 passam a compor o contrato funcional do módulo; DV-17 foi acrescentada em 2026-08-01 |
 | Arquitetura | Consolidação técnica da Fase 0 | 2026-07-31 | Segurança, desempenho, escalabilidade e compatibilidade incorporados às decisões |
 | Arquitetura | Decisão de observabilidade | 2026-08-01 | DV-17: coleta centralizada vira projeto apartado; HS-06 fica com o escopo local |
 

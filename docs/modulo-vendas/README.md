@@ -1,8 +1,8 @@
 # Módulo de Vendas
 
-**Status:** Fase 0 **concluída documentalmente**; as 16 decisões estão aprovadas.
-Implementação de código **não iniciada** e condicionada ao hotfix de segurança de
-DV-13/DV-16.
+**Status:** Fase 0 **concluída documentalmente**; as 17 decisões (DV-01 a DV-17)
+estão aprovadas. Implementação funcional permanece condicionada ao Gate 0S
+(DV-13/DV-16); DV-17 define o recorte local da observabilidade nesse hotfix.
 
 | Documento | Conteúdo |
 |-----------|----------|
