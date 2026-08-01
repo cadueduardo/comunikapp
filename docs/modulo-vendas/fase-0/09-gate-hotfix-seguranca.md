@@ -1112,7 +1112,7 @@ cabeçalho interno presente.
 
 ## 5. Gate de conclusão
 
-**Situação em 2026-07-31: Gate 0S não concluído — Fase 1 não liberada.**
+**Situação em 2026-08-01: Gate 0S não concluído — Fase 1 não liberada.**
 
 Fechados até aqui: a validação da migration em banco real (§2.7), o isolamento
 multi-tenant com dois tenants (§4.4), o HS-05 ponta a ponta com garantia estrutural
@@ -1132,10 +1132,11 @@ O que mantém o gate aberto:
   ao ambiente e autorização específica.
 - **HS-06**: métricas e alertas dependem de escolher um backend de observabilidade
   ([anexo](./10-observabilidade-e-logs-producao.md) §2, com recomendação).
-- **Pipeline**: os testes unitários passaram na execução
-  [30703992513](https://github.com/cadueduardo/comunikapp/actions/runs/30703992513) —
-  as 8 suítes vermelhas foram corrigidas. Resta confirmar no CI a correção do
-  `app.e2e-spec.ts` (§4.10).
+
+O pipeline deixou de ser bloqueio: a execução
+[30704139135](https://github.com/cadueduardo/comunikapp/actions/runs/30704139135)
+fechou verde em todos os jobs obrigatórios — Prisma, lint, OpenAPI, unitários, E2E e o
+job do Gate 0S em MySQL 8 (§4.10).
 
 Nenhuma fase funcional de Vendas está liberada.
 
