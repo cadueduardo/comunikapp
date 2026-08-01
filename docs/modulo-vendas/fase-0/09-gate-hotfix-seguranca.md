@@ -1053,6 +1053,40 @@ Verificação de fechamento: a única leitura direta de `x-forwarded-for` que re
 código é a de `frontend/src/lib/client-ip.ts`, que é o ponto único autorizado a
 interpretá-lo.
 
+### 4.10 O que apareceu quando o CI voltou a rodar
+
+Corrigir o gatilho (§4.8) teve um efeito colateral informativo: o pipeline não rodava
+nas branches de trabalho havia meses, e três jobs estavam vermelhos por motivos que
+ninguém via.
+
+| Job | Causa | Situação |
+|---|---|---|
+| Gerar OpenAPI | O bootstrap recusa subir sem `ADMIN_JWT_SECRET`, distinto do JWT de loja; a variável não existia no CI | Corrigido — job verde |
+| Testes Unitários | `exit 134` — heap do Node esgotado, sem chegar a executar | Corrigido o heap; **8 suítes falham** por outra causa, abaixo |
+| Testes E2E | Mesma exaustão de heap | Corrigido o heap; 1 suíte falha |
+
+Antes: **nenhum** teste unitário chegava a rodar. Depois: 621 de 674 passam.
+
+**As 53 falhas remanescentes têm uma causa só, e não é de comportamento.** Os specs
+montam o módulo de teste com uma lista fixa de providers, e services ganharam
+dependências novas depois que os specs foram escritos:
+
+```
+Nest can't resolve dependencies of the OSService (..., ?, ...).
+Please make sure that the argument ItemOSInstalacaoCriacaoService at index [9]
+is available in the RootTestModule module.
+```
+
+O mesmo padrão em `lojas.controller.spec` e `lojas.service.spec`, faltando
+`CloudflareSaaSService`. São suítes de OS, instalação e lojas — nenhuma delas cobre
+código do Gate 0S, e nenhuma falha por asserção. As três execuções anteriores
+apresentam exatamente as mesmas falhas, inclusive a que antecede qualquer mudança
+desta entrega.
+
+Isto é dívida de manutenção de specs de outros módulos, não achado de segurança.
+Corrigi-la é mecânico (registrar os providers ausentes), mas está fora do escopo do
+gate e depende de decisão sobre prioridade.
+
 ## 5. Gate de conclusão
 
 **Situação em 2026-07-31: Gate 0S não concluído — Fase 1 não liberada.**
@@ -1075,6 +1109,9 @@ O que mantém o gate aberto:
   ao ambiente e autorização específica.
 - **HS-06**: métricas e alertas dependem de escolher um backend de observabilidade
   ([anexo](./10-observabilidade-e-logs-producao.md) §2, com recomendação).
+- **Suítes de teste de outros módulos**: 8 suítes de OS, instalação e lojas não
+  compilam o módulo de teste por providers ausentes (§4.10). Não cobrem código do
+  gate e não falham por asserção, mas mantêm o pipeline vermelho.
 
 Nenhuma fase funcional de Vendas está liberada.
 
