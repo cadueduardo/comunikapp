@@ -431,17 +431,24 @@ async function principal() {
     // ------------- corrida no caminho de recuperação (proposta aprovada sem OS)
     //
     // Este é o único caminho do aceite que **não** passa por uma transição de
-    // status: a proposta já está `aprovado` e só falta a OS. Sem transição, não
-    // há `UPDATE ... WHERE` para serializar, e a única defesa é o `findFirst`
-    // de `criarOSAutomaticaParaOrcamento`. Consulta prévia não é idempotência.
-    // A corrida é intermitente: depende de duas requisições passarem pelo
-    // `findFirst` antes de qualquer uma inserir. Uma rodada única pode passar
-    // por acaso e produzir um "OK" enganoso, então são várias rodadas e o
-    // resultado reportado é o pior caso observado.
+    // status: a proposta já está `aprovado` e só falta a OS. Sem transição não
+    // há `UPDATE ... WHERE` para serializar, e o `findFirst` de
+    // `criarOSAutomaticaParaOrcamento` é consulta prévia, não idempotência —
+    // duas requisições o atravessam juntas. Até a migration
+    // `20260731220000_os_orcamento_id_unico`, as 8 rodadas duplicavam, com pior
+    // caso de 4 OS para o mesmo orçamento.
+    //
+    // Agora quem garante é o índice único, e o perdedor da corrida recebe
+    // `P2002` e o trata como efeito já produzido. Duas coisas são verificadas
+    // ao mesmo tempo: que ninguém duplica **e** que a OS continua sendo criada
+    // — uma proteção que impedisse a criação também zeraria a duplicação.
+    // Várias rodadas porque uma só pode passar por acaso.
     const RODADAS = 8;
     const SIMULTANEAS = 8;
     let piorCaso = 0;
+    let melhorCaso = Number.POSITIVE_INFINITY;
     let rodadasComDuplicata = 0;
+    let rodadasSemOS = 0;
     for (let rodada = 0; rodada < RODADAS; rodada++) {
       await reiniciar(c);
       await prisma.orcamento.update({
@@ -459,15 +466,17 @@ async function principal() {
         where: { orcamento_id: c.orcamentoId },
       });
       piorCaso = Math.max(piorCaso, criadas);
+      melhorCaso = Math.min(melhorCaso, criadas);
       if (criadas > 1) rodadasComDuplicata += 1;
+      if (criadas === 0) rodadasSemOS += 1;
     }
     verificar(
       `recuperação concorrente: ${RODADAS} rodadas de ${SIMULTANEAS} retries em proposta aprovada sem OS`,
-      piorCaso === 1,
-      piorCaso === 1
-        ? 'nenhuma rodada duplicou'
-        : `${rodadasComDuplicata}/${RODADAS} rodadas duplicaram, pior caso ${piorCaso} OS — ` +
-          'consulta prévia não serializa (ver §4.2)',
+      piorCaso === 1 && melhorCaso === 1,
+      piorCaso === 1 && melhorCaso === 1
+        ? `exatamente 1 OS em todas as ${RODADAS} rodadas`
+        : `${rodadasComDuplicata}/${RODADAS} duplicaram (pior caso ${piorCaso} OS), ` +
+          `${rodadasSemOS}/${RODADAS} não geraram OS alguma (ver §4.5)`,
     );
 
     // ------------------- idempotência estrutural: o que o banco garante mesmo
@@ -492,11 +501,11 @@ async function principal() {
         : 'AUSENTE',
     );
     verificar(
-      'idempotência estrutural: OS ainda NÃO tem índice único por orçamento',
-      !temUnicoOS,
-      !temUnicoOS
-        ? 'confirmado: a unicidade da OS depende da transição, não do banco (§4.2)'
-        : 'passou a existir — atualizar §4.2',
+      'idempotência estrutural: OS tem índice único por orçamento',
+      temUnicoOS,
+      temUnicoOS
+        ? 'ordens_servico.orcamento_id é UNIQUE — a unicidade não depende mais da transição'
+        : 'AUSENTE — a migration 20260731220000_os_orcamento_id_unico não foi aplicada neste banco',
     );
 
   } finally {

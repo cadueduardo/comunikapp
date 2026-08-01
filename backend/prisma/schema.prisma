@@ -2642,7 +2642,12 @@ model OrdemServico {
   numero         String // Autonumeração sequencial
   loja_id        String
   cliente_id     String
-  orcamento_id   String? // Opcional - vínculo com orçamento aprovado
+  // Opcional (OS avulsa não tem orçamento) e único quando presente: um
+  // orçamento gera no máximo uma OS, do mesmo modo que já vale para Cobranca.
+  // `NULL` não conflita em índice único no MySQL, então OS avulsa continua
+  // permitida sem limite. Gate 0S / HS-05: é esta restrição que impede a
+  // duplicação sob concorrência no caminho de recuperação.
+  orcamento_id   String?   @unique
   data_abertura  DateTime  @default(now())
   data_prazo     DateTime?
   status         StatusOS  @default(FILA)
@@ -2753,7 +2758,7 @@ model OrdemServico {
   @@index([loja_id, ativo])
   @@index([loja_id, retrabalho])
   @@index([cliente_id])
-  @@index([orcamento_id])
+  // Sem @@index([orcamento_id]): o @unique do campo já cria o índice.
   @@index([responsavel_id])
   @@index([data_abertura])
   @@index([aprovacao_tecnica_status])

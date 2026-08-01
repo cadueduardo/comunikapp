@@ -3,10 +3,13 @@
 **Status:** [x] em execução — **Gate 0S não concluído — Fase 1 não liberada**
 **Situação por item:** HS-01 concluído; HS-02 concluído (dois tenants em banco real,
 §4.4); HS-04 concluído no código e validado em banco real, restando a revisão dos logs
-históricos de produção; **HS-05 reaberto** — a reauditoria encontrou duplicação de OS
-no caminho de recuperação sob concorrência (§4.5); HS-06 concluído exceto métricas e
-alertas, bloqueados por ausência de backend de observabilidade; HS-03 parcialmente
-entregue. Detalhamento em §2.0 a §2.8 e critérios de saída em §5.
+históricos de produção; **HS-05 concluído** — a duplicação de OS encontrada na
+reauditoria foi fechada pelo índice único `ordens_servico_orcamento_id_key` (§4.5);
+HS-06 concluído exceto métricas e alertas, bloqueados por ausência de backend de
+observabilidade; HS-03 parcialmente entregue. Detalhamento em §2.0 a §2.8 e critérios
+de saída em §5.
+**Engine de destino:** MySQL 8.0.46 (Ubuntu 24.04), InnoDB, `REPEATABLE-READ` —
+verificada na VPS, não inferida (§4.7).
 **Anexos:** [matriz de endpoints](./11-matriz-endpoints-orcamentos-v2.md) ·
 [observabilidade e logs de produção](./10-observabilidade-e-logs-producao.md)
 **Natureza:** correção obrigatória do legado existente; não é fase funcional de Vendas
@@ -686,28 +689,50 @@ Este número é o baseline a ser comparado nas próximas entregas. Não deve ser
 "typecheck do projeto aprovado": a dívida de tipagem do frontend continua aberta e é
 anterior ao Gate 0S.
 
-### 4.2 Pendência estrutural registrada, não resolvida
+### 4.2 Pendência estrutural — resolvida
 
-`OrdemServico.orcamento_id` é anulável e **não** tem índice único. Hoje a unicidade da
-OS por orçamento é garantida pela condição de transição do aceite, não pelo banco. O
-índice único seria a garantia estrutural que o HS-05 pede, e é viável — `NULL` não
-conflita em `UNIQUE` no MySQL, então OS avulsa continua permitida.
+`OrdemServico.orcamento_id` é anulável e, até esta entrega, **não** tinha índice único:
+a unicidade da OS por orçamento dependia da condição de transição do aceite, não do
+banco. A reauditoria mostrou que isso não era pendência teórica — sem o índice, o
+caminho de recuperação duplicava OS de forma determinística sob concorrência (§4.5).
 
-A reauditoria do HS-05 mostrou que isto deixou de ser uma pendência teórica: sem o
-índice, o caminho de recuperação duplica OS de forma determinística sob concorrência
-(§4.5).
-
-O que impede aplicá-lo agora: uma migration com `UNIQUE` **falha no deploy** se houver
-duplicata pré-existente. O clone de desenvolvimento não tem nenhuma, mas a produção não
-foi verificada. Checagem obrigatória antes de criar a migration:
+O que impedia aplicá-lo era o risco de a migration falhar no deploy por duplicata
+pré-existente. Com o acesso à VPS restabelecido, a checagem foi feita **no banco de
+produção**, não no clone:
 
 ```sql
-SELECT orcamento_id, COUNT(*) AS qtd
-FROM ordens_servico
-WHERE orcamento_id IS NOT NULL
-GROUP BY orcamento_id
-HAVING qtd > 1;
+SELECT COUNT(*) FROM (
+  SELECT orcamento_id FROM ordens_servico
+   WHERE orcamento_id IS NOT NULL
+   GROUP BY orcamento_id HAVING COUNT(*) > 1
+) d;
+-- 0
 ```
+
+| Medida em produção | Valor |
+|---|---:|
+| Orçamentos com mais de uma OS | 0 |
+| OS totais | 22 |
+| OS vinculadas a orçamento | 22 |
+| OS avulsas (`orcamento_id IS NULL`) | 0 |
+| Orçamentos | 40 |
+
+Com a pré-condição satisfeita, a migration
+`20260731220000_os_orcamento_id_unico` cria
+`ordens_servico_orcamento_id_key` e remove o índice não único redundante. Três detalhes
+que não são acidentais:
+
+- **`NULL` não conflita em `UNIQUE` no MySQL**, então OS avulsa continua permitida sem
+  limite — hoje não existe nenhuma, mas o modelo prevê.
+- **A criação vem antes da remoção.** `orcamento_id` é coluna de foreign key e o MySQL
+  exige que ela permaneça indexada; dropar o índice antigo primeiro deixaria a FK
+  descoberta e o comando falharia.
+- **Há precedente no mesmo domínio.** `Cobranca.orcamento_id` já era `@unique`, com o
+  comentário `1:1 com orcamento` no schema. A OS apenas passa a ter a mesma garantia.
+
+O CI recria o estado anterior de propósito antes de aplicar essa migration, para que o
+`DROP INDEX` sobre coluna de FK seja exercitado em MySQL 8 de verdade, e não apenas
+materializado pelo `db push`.
 
 ### 4.3 Fluxo real do IP: navegador → Nginx → Next/BFF → Nest
 
@@ -778,7 +803,7 @@ Dois defeitos foram encontrados **por** este teste e corrigidos: o payload públ
 expunha custo e margem por produto, e `acessarLinkPublico` resolvia o link só pelo
 token. Detalhes na [matriz](./11-matriz-endpoints-orcamentos-v2.md) §4.
 
-### 4.5 Reauditoria do HS-05 — 12/13, com uma falha material
+### 4.5 Reauditoria do HS-05 — 13/13 após corrigir a falha encontrada
 
 `backend/scripts/validar-aceite-hs05-mysql.ts`, contra banco real:
 
@@ -793,36 +818,40 @@ token. Detalhes na [matriz](./11-matriz-endpoints-orcamentos-v2.md) §4.
 | Falha da auditoria reverte mutação e queima do código juntas | Passa |
 | Após a reversão, o mesmo código ainda conclui o aceite | Passa |
 | Retry sequencial em proposta já aprovada não cria segunda OS | Passa |
-| **8 rodadas de 8 retries simultâneos em proposta aprovada sem OS** | **Falha: 8/8 rodadas duplicaram, pior caso 4 OS** |
-| Cobrança tem índice único por orçamento | Passa — duplicata é impossível no banco |
-| OS **não** tem índice único por orçamento | Confirmado |
+| **8 rodadas de 8 retries simultâneos em proposta aprovada sem OS** | Passa — exatamente 1 OS em todas as rodadas *(antes: 8/8 duplicavam, pior caso 4 OS)* |
+| Cobrança tem índice único por orçamento | Passa |
+| OS tem índice único por orçamento | Passa — era a falha; ver §4.2 |
 
-**A falha.** O caminho de recuperação de `fecharPedidoInterno` — proposta já
-`aprovado` mas sem OS — decide criar a OS com base em um `findFirst` anterior. Isso é
-exatamente a "consulta prévia" que o próprio HS-05 declara insuficiente. O caminho
-principal do aceite está serializado pelo `UPDATE ... WHERE` condicional e resiste a
-12 requisições simultâneas; o caminho de recuperação não tem transição de estado para
-serializar, porque o estado já é o final.
+**A falha que a reauditoria encontrou.** O caminho de recuperação de
+`fecharPedidoInterno` — proposta já `aprovado` mas sem OS — decidia criar a OS com base
+em um `findFirst` anterior. Isso é exatamente a "consulta prévia" que o próprio HS-05
+declara insuficiente. O caminho principal está serializado pelo `UPDATE ... WHERE`
+condicional e resiste a 12 requisições simultâneas; o de recuperação não tem transição
+de estado para serializar, porque o estado já é o final. Não era corrida rara: as 8
+rodadas duplicaram, com pior caso de 4 OS para o mesmo orçamento.
 
-É determinístico: as 8 rodadas duplicaram, com pior caso de 4 OS para o mesmo
-orçamento. Não é uma corrida rara.
+**A correção.** Índice único `ordens_servico_orcamento_id_key` (§4.2), mais o
+tratamento de `P2002` em `criarOSAutomaticaParaOrcamento`: quem perde a corrida
+interpreta a violação como "outra requisição já produziu o efeito" e responde sucesso
+com a OS existente. Sem esse tratamento, o índice apenas trocaria a duplicação por um
+`500` em retry legítimo.
 
-**O que isso significa para o gate.** O item "retry recupera efeitos pendentes sem
-duplicação" está reaberto. As três saídas possíveis estão em §4.5.1; nenhuma foi
-aplicada porque todas envolvem decisão que não cabe ao agente.
+O teste passou a exigir **exatamente uma** OS por rodada, e não apenas "no máximo uma".
+A distinção não é acadêmica: a tentativa descrita em §4.5.2 zerava a duplicação
+justamente por impedir a criação, e teria passado no critério antigo.
 
-#### 4.5.1 Saídas possíveis para a duplicação na recuperação
+#### 4.5.1 As saídas consideradas e a escolhida
 
-| Opção | O que garante | O que custa |
-|---|---|---|
-| Índice único em `ordens_servico.orcamento_id` | Garantia estrutural, a que o HS-05 pede | A migration **falha no deploy** se a produção tiver duplicata. Exige a consulta de §4.2 antes, e não temos acesso ao banco de produção |
-| Criar a OS dentro da transação do aceite | Serializa pelo mesmo mecanismo do caminho principal | Exige `OsService.criarOSDeOrcamento` aceitar um `TransactionClient`; é refactor de um service fora do escopo do gate |
-| Desabilitar o caminho de recuperação concorrente | Nega por padrão, como o gate manda | Proposta aprovada que ficou sem OS passa a exigir intervenção manual |
-| ~~Lock de linha no orçamento (`SELECT … FOR UPDATE`)~~ | — | **Descartada por experimento — ver §4.5.2** |
+| Opção | O que garante | O que custa | Desfecho |
+|---|---|---|---|
+| Índice único em `ordens_servico.orcamento_id` | Garantia estrutural, a que o HS-05 pede | A migration falha no deploy se a produção tiver duplicata | **Escolhida.** A produção foi consultada e não tem duplicata (§4.2) |
+| Criar a OS dentro da transação do aceite | Serializa pelo mesmo mecanismo do caminho principal | Exige `OsService.criarOSDeOrcamento` aceitar um `TransactionClient`; é refactor de um service fora do escopo do gate | Descartada |
+| Desabilitar o caminho de recuperação concorrente | Nega por padrão, como o gate manda | Proposta aprovada que ficou sem OS passaria a exigir intervenção manual | Desnecessária |
+| Lock de linha no orçamento (`SELECT … FOR UPDATE`) | — | — | Descartada por experimento — §4.5.2 |
 
 #### 4.5.2 A saída que parecia óbvia e não funciona
 
-Antes de escolher entre as três opções acima, uma quarta foi tentada, porque
+Antes de recorrer à migration, uma quarta opção foi tentada, porque
 dispensaria migration e refactor: envolver o trecho de recuperação em uma
 transação `READ COMMITTED` que trava a linha do orçamento com
 `SELECT id FROM orcamento WHERE id = ? FOR UPDATE`. O perdedor da corrida
@@ -852,9 +881,13 @@ isolamento.
 
 **Conclusão:** enquanto a criação da OS ocorrer fora da transação, qualquer lock
 exclusivo sobre a linha do orçamento bloqueia justamente a operação que se quer
-proteger. Isso elimina a família inteira de soluções por lock de linha e reduz o
-problema às três opções da tabela acima. Nenhum código desta tentativa foi
-mantido.
+proteger. Isso elimina a família inteira de soluções por lock de linha. Nenhum
+código desta tentativa foi mantido.
+
+O episódio deixou uma lição que vale além deste item: o critério "não duplicou"
+é insuficiente para julgar uma proteção contra duplicação, porque impedir a
+operação também não duplica. O teste foi endurecido para exigir exatamente um
+efeito.
 
 ### 4.6 Carga e desempenho do caminho de autorização
 
@@ -911,18 +944,39 @@ argumentos.
 nas próximas vezes. Com o arquivo livre, `npm run build` completo passou, `prisma
 generate` incluído. O build só foi declarado aprovado depois disso.
 
-### 4.8 Engine do banco: MariaDB local, MySQL 8 no destino
+### 4.8 Engine do banco: MariaDB local, MySQL 8.0.46 no destino
 
 A validação de §2.7 rodou em **MariaDB 10.4.32** (XAMPP local), que é o único banco
 disponível na máquina de desenvolvimento. Isso é evidência válida, mas não equivale a
 MySQL 8.
 
-**Destino real.** As evidências disponíveis apontam MySQL 8 em produção: a
-documentação de pilha diz "MySQL", o CI usa a imagem `mysql:8.0` e
-`deploy-vps-branch-atual.sh` avisa que instalar `mariadb-client` "pode remover
-mysql-server e derrubar o banco de produção". A confirmação direta por SSH não foi
-possível — a sessão do Cloudflare Access expirou e a autenticação exige interação no
-navegador.
+**Destino real — confirmado na VPS, não inferido.** Com a sessão do Cloudflare Access
+restabelecida, a consulta foi feita direto no servidor:
+
+| Propriedade | Valor em produção |
+|---|---|
+| Versão | `8.0.46-0ubuntu0.24.04.3` |
+| Distribuição | `(Ubuntu)` |
+| Engine padrão | `InnoDB` |
+| Isolamento padrão | `REPEATABLE-READ` |
+| Serviço `mysql` | ativo |
+| Serviço `mariadb` | inativo |
+| Banco | `comunikapp` |
+
+Isso encerra a ambiguidade: **produção é MySQL 8**, e a evidência local em MariaDB 10.4
+não a substitui. O isolamento `REPEATABLE-READ` também é o que torna o experimento de
+§4.5.2 diretamente aplicável ao ambiente real.
+
+**Estado do HS-04 em produção.** A mesma consulta revelou algo que a documentação não
+registrava: a migration `20260731143000_orcamento_codigo_aprovacao_seguro` **não está
+aplicada**. A última migration em `_prisma_migrations` é
+`20260730123600_os_status_enum_unificado`, a coluna `codigo_aprovacao` continua como
+`varchar(191)` e **2 orçamentos ainda têm código em texto claro no banco**. Isso é
+esperado — o Gate 0S vive em branch e não foi implantado —, mas invalida qualquer
+afirmação de que os códigos antigos "já foram invalidados". Enquanto o deploy não
+ocorrer, eles continuam válidos, e o runbook de logs
+([anexo](./10-observabilidade-e-logs-producao.md) §3.8) precisa tratá-los como segredo
+vivo.
 
 **Lacuna encontrada no CI.** Nenhum job existente exercitava a migration: todos usam
 `prisma db push --accept-data-loss`, que sincroniza o schema sem nunca executar um
@@ -941,7 +995,11 @@ arquivo de migration. O SQL do HS-04 portanto **nunca** havia rodado em MySQL 8.
 4. aplica o SQL de `20260731143000_orcamento_codigo_aprovacao_seguro` diretamente;
 5. roda `scripts/verificar-migration-hs04.ts` — tipos, nulabilidade, `DEFAULT`,
    ausência de índice no hash e invalidação dos códigos legados;
-6. roda os três scripts de validação: código de aprovação, cross-tenant e aceite.
+6. recria o índice não único de `ordens_servico.orcamento_id` e remove o único, para
+   então aplicar `20260731220000_os_orcamento_id_unico` de verdade — sem isso o `db
+   push` do passo 2 já teria materializado o resultado e o `DROP INDEX` sobre coluna de
+   foreign key nunca seria exercitado;
+7. roda os três scripts de validação: código de aprovação, cross-tenant e aceite.
 
 Enquanto o job não tiver executado ao menos uma vez, **HS-04 não pode ser declarado
 compatível com MySQL 8**. Inspeção da DDL não substitui execução.
@@ -951,15 +1009,17 @@ compatível com MySQL 8**. Inspeção da DDL não substitui execução.
 **Situação em 2026-07-31: Gate 0S não concluído — Fase 1 não liberada.**
 
 Fechados até aqui: a validação da migration em banco real (§2.7), o isolamento
-multi-tenant com dois tenants (§4.4), a matriz de endpoints, o teste de carga do
-caminho de autorização (§4.6), o build completo (§4.7) e a maior parte do HS-06.
+multi-tenant com dois tenants (§4.4), o HS-05 ponta a ponta com garantia estrutural
+(§4.2 e §4.5), a matriz de endpoints, o teste de carga do caminho de autorização
+(§4.6), o build completo (§4.7), a identificação da engine real de destino (§4.8) e a
+maior parte do HS-06.
 
 O que mantém o gate aberto:
 
-- **HS-05, reaberto**: o caminho de recuperação duplica OS sob concorrência (§4.5).
-  Exige decisão entre índice único, transação estendida ou desativação do caminho.
-- **HS-04, engine**: a migration nunca rodou em MySQL 8. O job de CI existe (§4.8),
-  mas ainda não executou.
+- **HS-04, engine**: nem a migration do HS-04 nem a do índice único rodaram em MySQL 8.
+  O job de CI existe (§4.8), mas ainda não executou.
+- **HS-04, produção defasada**: a migration do HS-04 não está aplicada na VPS e há 2
+  códigos de aprovação em texto claro no banco (§4.8). Só o deploy fecha isso.
 - **HS-04, logs históricos**: runbook pronto
   ([anexo](./10-observabilidade-e-logs-producao.md) §3); execução bloqueada por acesso
   ao ambiente e autorização específica.

@@ -4005,7 +4005,30 @@ export class OrcamentosV2Service {
     const orcamentoCompleto = await this.buscarOrcamento(orcamentoId, lojaId);
     const dadosOS = this.montarDadosOSAPartirDoOrcamento(orcamentoCompleto);
 
-    await this.osService.criarOSDeOrcamento(lojaId, dadosOS, usuarioId);
+    try {
+      await this.osService.criarOSDeOrcamento(lojaId, dadosOS, usuarioId);
+    } catch (erro) {
+      // Gate 0S / HS-05: quem perde a corrida chega aqui. O `findFirst` acima
+      // é otimização, não garantia — duas requisições o atravessam juntas. A
+      // garantia é o índice único `ordens_servico_orcamento_id_key`, e violá-lo
+      // significa que outra requisição já criou a OS. Isso é o resultado
+      // desejado, não uma falha: propagar o erro transformaria um retry
+      // legítimo em 500 depois de o efeito já ter sido produzido.
+      if (
+        erro instanceof Prisma.PrismaClientKnownRequestError &&
+        erro.code === 'P2002'
+      ) {
+        this.logger.warn(
+          '[OS_AUTO] OS ja criada por requisicao concorrente para o orcamento ' +
+            orcamentoId +
+            '. Origem: ' +
+            origem,
+        );
+        return;
+      }
+      throw erro;
+    }
+
     this.logger.log(
       '[OS_AUTO] OS criada automaticamente para o orcamento ' +
         orcamentoCompleto.numero +

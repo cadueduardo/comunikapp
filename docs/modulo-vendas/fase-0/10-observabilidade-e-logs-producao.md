@@ -167,9 +167,18 @@ gravavam dado sensível, e o que eles escreveram continua nos arquivos de log:
 | E-mail do cliente | Dois `logger.log` em `enviarOrcamento` e `atualizarOrcamento` | Origem do fluxo |
 | Custo de produção, margem e impostos por produto | Dois dos cinco `console.log` de `orcamentos-v2`, disparados por rota **anônima** | Origem do fluxo |
 
-Os códigos de aprovação em si já foram invalidados pela migration do HS-04, então
-um código antigo encontrado em log **não é mais utilizável**. O que permanece
-sensível é o restante: e-mail, custo e margem.
+**Atenção — correção de uma afirmação anterior deste documento.** A versão inicial
+dizia que os códigos de aprovação já estavam invalidados pela migration do HS-04 e
+que um código encontrado em log não seria mais utilizável. A consulta ao banco de
+produção mostrou que **a migration do HS-04 não está aplicada lá** (§4.8 do gate): a
+coluna `codigo_aprovacao` continua em texto claro e 2 orçamentos ainda a preenchem.
+
+Portanto, até o deploy do Gate 0S, **um código de aprovação encontrado em log é
+segredo vivo** e permite aprovar a proposta correspondente. Isso muda a ordem do
+runbook: se a varredura for executada antes do deploy, o achado de código exige ação
+imediata (§3.8), não apenas contagem.
+
+E-mail, custo e margem permanecem sensíveis independentemente do deploy.
 
 ### 3.2 Fontes a examinar
 
@@ -267,7 +276,8 @@ Sem trechos, sem exemplos, sem "amostra do formato encontrado".
 
 | Achado | Ação |
 |---|---|
-| Código de aprovação | Nenhuma ação sobre o código em si — a migration do HS-04 já invalidou todos. Registrar a contagem e expurgar o arquivo. |
+| Código de aprovação, **antes** do deploy do Gate 0S | O código ainda é válido. Revogar o código do orçamento afetado, registrar a contagem e expurgar o arquivo. |
+| Código de aprovação, **depois** do deploy do Gate 0S | A migration do HS-04 invalida todos os códigos legados. Registrar a contagem e expurgar o arquivo. |
 | Token de link público | Revogar os links públicos ativos da janela afetada e expurgar o arquivo. |
 | E-mail de cliente | Expurgar. Avaliar, com o administrador, se o volume caracteriza incidente de dado pessoal sob a LGPD. |
 | Custo, margem ou preço interno | Expurgar. Avaliar quem teve acesso ao host no período. |
