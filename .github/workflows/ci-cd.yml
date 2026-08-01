@@ -2,9 +2,12 @@ name: CI/CD Pipeline - Orçamento → OS → PCP
 
 on:
   push:
-    branches: [main, develop, feature/*]
+    # `feat/*` além de `feature/*`: a convenção usada no repositório é `feat/`,
+    # então as branches de trabalho nunca disparavam o pipeline.
+    branches: [main, develop, feature/*, feat/*]
   pull_request:
     branches: [main, develop]
+  workflow_dispatch:
 
 env:
   NODE_VERSION: '22'
