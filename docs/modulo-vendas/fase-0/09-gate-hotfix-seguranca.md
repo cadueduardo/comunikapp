@@ -1182,28 +1182,75 @@ cabeçalho interno presente.
 
 ### 4.11 Preflight do deploy do HS-04 (não autorizado — não executado)
 
-Artefato e forma de execução (variáveis **só** via ambiente):
+**Bootstrap obrigatório:** o operador **não** executa o script do working tree da VPS.
+Extrai o entrypoint e os helpers do `EXPECTED_COMMIT` com `git archive` para um
+diretório temporário e só então chama o deploy. O código que corre já pertence ao
+commit pinado.
+
+Pré-condições (o entrypoint aborta antes de build/backup/migration se falharem):
+
+1. working tree da VPS limpo (`git status --porcelain` vazio);
+2. `git fetch` + `origin/feat/modulo-vendas` aponta exatamente para o commit autorizado;
+3. `git cat-file -t` confirma que o objeto é `commit`;
+4. o diretório temporário contém apenas os três arquivos extraídos do archive.
 
 ```bash
+PROJECT_DIR=/opt/comunikapp/app
+BRANCH=feat/modulo-vendas
+EXPECTED_COMMIT=<sha-do-commit-autorizado>
+
+sudo -u comunikapp git -C "$PROJECT_DIR" fetch origin --prune
+# Confira tree limpo e tip remoto == EXPECTED_COMMIT antes de seguir.
+
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+git -C "$PROJECT_DIR" archive "$EXPECTED_COMMIT" \
+  scripts/run-deploy-from-expected-commit.sh \
+  scripts/deploy-vps-branch-atual.sh \
+  scripts/lib/assert-expected-commit.sh \
+  | tar -x -C "$TMP"
+
 sudo env \
-  BRANCH=feat/modulo-vendas \
-  EXPECTED_COMMIT=<sha-do-commit-autorizado> \
+  PROJECT_DIR="$PROJECT_DIR" \
+  BRANCH="$BRANCH" \
+  EXPECTED_COMMIT="$EXPECTED_COMMIT" \
   PRISMA_APPLY=migrate \
   INSTALL_SYSTEM_PACKAGES=0 \
   APPLY_NGINX=0 \
   APPLY_FAIL2BAN=0 \
-  bash /opt/comunikapp/app/scripts/deploy-vps-branch-atual.sh
+  bash "$TMP/scripts/run-deploy-from-expected-commit.sh"
 ```
 
-`EXPECTED_COMMIT` é conferido após o `git pull` e antes de `npm ci`/build/backup/migrate;
-prefixo ambíguo ou HEAD divergente aborta. Escopo operacional do Gate 0S: **não**
-instalar pacotes do sistema nem alterar Nginx/Fail2ban salvo autorização específica.
-`RUN_AUDIT` permanece ativo (padrão `1`). Builds, backup (`tamanho mínimo` + `gzip -t`),
-preflight Prisma, `migrate deploy` e health checks permanecem ativos.
+Após o `git pull` interno do deploy, `EXPECTED_COMMIT` é conferido de novo contra
+`HEAD` antes de `npm ci`/build/backup/migrate; prefixo ambíguo ou divergência
+aborta. Escopo operacional do Gate 0S: **não** instalar pacotes do sistema nem
+alterar Nginx/Fail2ban salvo autorização específica. `RUN_AUDIT` permanece ativo
+(padrão `1`). Builds, backup (tamanho mínimo + `gzip -t` = só integridade do
+arquivo), preflight Prisma, `migrate deploy` e health checks permanecem ativos.
 
-Backup: tamanho mínimo + `gzip -t` = integridade do arquivo, **não** restauração
-completa. Restauração em banco scratch continua obrigatória antes da autorização, se
-houver capacidade segura.
+**Backup vs restauração:** tamanho mínimo + `gzip -t` comprovam que o arquivo não
+está truncado/corrupto no nível do compressão — **não** são teste de restauração.
+Ensaio scratch (fora de produção, mesmo mecanismo `mysql-backup-before-deploy.js`)
+em 2026-08-01 no MySQL/MariaDB local de desenvolvimento:
+
+| Campo | Valor |
+|---|---|
+| arquivo | `comunikapp-20260801T211148Z.sql.gz` |
+| horário (UTC) | `2026-08-01T21:11:51.369Z` |
+| tamanho | `154788` bytes |
+| engine/versão scratch | `10.4.32-MariaDB` |
+| restauração | concluída |
+| tabelas essenciais | `orcamento`, `ordens_servico`, `_prisma_migrations`, `loja`, `usuario` |
+| contagem agregada (essenciais) | `224` |
+| descarte scratch | ok |
+
+Script: `backend/scripts/ensaio-restauracao-scratch-gate0s.js`. Sem exposição de
+dados do dump. Produção **não** foi tocada.
+
+**Kill-switch (não produtivo):** com `ORCAMENTOS_ACEITE_PUBLICO_DESABILITADO=true`,
+emissão, reenvio e aceite público retornam `503` estável sem e-mail, sem alteração
+de orçamento e sem efeito colateral — comprovado em
+`orcamentos-v2-aceite-publico.spec.ts` (bloco dedicado, 3 casos).
 
 Contingência fail-closed: ver contrato de rollback do HS-04 neste documento
 (`ORCAMENTOS_ACEITE_PUBLICO_DESABILITADO`). Proibido voltar ao artefato pré-HS-04.

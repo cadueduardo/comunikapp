@@ -1,6 +1,7 @@
-import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, InternalServerErrorException, ServiceUnavailableException } from '@nestjs/common';
 import { OrcamentosV2Service } from './orcamentos-v2.service';
 import {
+  ACEITE_PUBLICO_DESABILITADO_MSG,
   CODIGO_APROVACAO_ERRO_PUBLICO,
   CODIGO_APROVACAO_MAX_TENTATIVAS,
   calcularHashCodigoAprovacao,
@@ -56,6 +57,7 @@ describe('OrcamentosV2Service - aceite público', () => {
   let ordensServico: Array<{ id: string; numero: string; ativo: boolean }>;
   let service: OrcamentosV2Service;
   let osService: { criarOSDeOrcamento: jest.Mock };
+  let mailService: { enviarOrcamentoCliente: jest.Mock };
   let prisma: any;
 
   /** Aplica os filtros do `where` sobre o registro único simulado. */
@@ -176,6 +178,7 @@ describe('OrcamentosV2Service - aceite público', () => {
     ordensServico = [];
     prisma = criarPrismaSimulado();
     osService = { criarOSDeOrcamento: jest.fn(async () => undefined) };
+    mailService = { enviarOrcamentoCliente: jest.fn(async () => undefined) };
 
     const naoUsado = {} as any;
 
@@ -191,7 +194,7 @@ describe('OrcamentosV2Service - aceite público', () => {
       osService as any,
       naoUsado, // osInativacaoService
       naoUsado, // documentCodeService
-      naoUsado, // mailService
+      mailService as any,
       { criarCobrancaParaOrcamento: jest.fn() } as any,
       { parsePrazoEntrega: jest.fn(() => 10) } as any,
       naoUsado, // parcelasBuilder
@@ -682,6 +685,76 @@ describe('OrcamentosV2Service - aceite público', () => {
     await expect(
       service.processarAcaoClientePublico(ORCAMENTO_ID, { acao: 'NEGOCIAR' }),
     ).rejects.toThrow(new BadRequestException(ACAO_PUBLICA_ERRO_GENERICO));
+  });
+
+  /**
+   * Contingência fail-closed do HS-04 — mesmo artefato, schema expandido,
+   * fluxos públicos desligados. Sem e-mail, sem mutação, sem OS.
+   */
+  describe('ORCAMENTOS_ACEITE_PUBLICO_DESABILITADO', () => {
+    const chave = 'ORCAMENTOS_ACEITE_PUBLICO_DESABILITADO';
+    const anterior = process.env[chave];
+    let statusAntes: string;
+    let hashAntes: string | null;
+
+    beforeEach(() => {
+      process.env[chave] = 'true';
+      statusAntes = registro.status;
+      hashAntes = registro.codigo_aprovacao_hash;
+      mailService.enviarOrcamentoCliente.mockClear();
+      osService.criarOSDeOrcamento.mockClear();
+      prisma.orcamento.updateMany.mockClear();
+    });
+
+    afterEach(() => {
+      if (anterior === undefined) {
+        delete process.env[chave];
+      } else {
+        process.env[chave] = anterior;
+      }
+    });
+
+    it('recusa o aceite público com 503 estável e sem efeitos', async () => {
+      const codigo = emitirCodigoValido();
+
+      await expect(
+        service.processarAcaoClientePublico(ORCAMENTO_ID, {
+          acao: 'APROVAR',
+          codigo_aprovacao: codigo,
+        }),
+      ).rejects.toEqual(
+        new ServiceUnavailableException(ACEITE_PUBLICO_DESABILITADO_MSG),
+      );
+
+      expect(registro.status).toBe(statusAntes);
+      expect(osService.criarOSDeOrcamento).not.toHaveBeenCalled();
+      expect(mailService.enviarOrcamentoCliente).not.toHaveBeenCalled();
+      expect(prisma.orcamento.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('recusa o reenvio com 503 e não envia e-mail nem altera o orçamento', async () => {
+      emitirCodigoValido();
+      hashAntes = registro.codigo_aprovacao_hash;
+
+      await expect(service.reenviarCodigoAprovacao(ORCAMENTO_ID)).rejects.toEqual(
+        new ServiceUnavailableException(ACEITE_PUBLICO_DESABILITADO_MSG),
+      );
+
+      expect(mailService.enviarOrcamentoCliente).not.toHaveBeenCalled();
+      expect(registro.codigo_aprovacao_hash).toBe(hashAntes);
+      expect(prisma.orcamento.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('bloqueia a emissão direta do código (caminho autenticado de envio)', async () => {
+      await expect(
+        (service as any).emitirCodigoAprovacaoDoOrcamento(ORCAMENTO_ID, LOJA_ID),
+      ).rejects.toEqual(
+        new ServiceUnavailableException(ACEITE_PUBLICO_DESABILITADO_MSG),
+      );
+
+      expect(prisma.orcamento.updateMany).not.toHaveBeenCalled();
+      expect(mailService.enviarOrcamentoCliente).not.toHaveBeenCalled();
+    });
   });
 
   /**

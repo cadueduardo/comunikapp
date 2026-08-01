@@ -40,34 +40,59 @@ tocar no banco de producao. Ver secao "Teste de restauracao" abaixo.
 
 ## Artefato fixado (EXPECTED_COMMIT)
 
-`scripts/deploy-vps-branch-atual.sh` aceita `EXPECTED_COMMIT` via ambiente. Quando
-informado, apos o `git pull` e **antes** de `npm ci`, build, backup ou migration:
+Para deploys criticos (Gate 0S), o operador **nao** chama o script do working tree
+da VPS. Extrai o entrypoint e os helpers do commit autorizado com `git archive`
+para um diretorio temporario:
+
+```bash
+PROJECT_DIR=/opt/comunikapp/app
+BRANCH=feat/modulo-vendas
+EXPECTED_COMMIT=<sha>
+
+sudo -u comunikapp git -C "$PROJECT_DIR" fetch origin --prune
+
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+git -C "$PROJECT_DIR" archive "$EXPECTED_COMMIT" \
+  scripts/run-deploy-from-expected-commit.sh \
+  scripts/deploy-vps-branch-atual.sh \
+  scripts/lib/assert-expected-commit.sh \
+  | tar -x -C "$TMP"
+
+sudo env \
+  PROJECT_DIR="$PROJECT_DIR" \
+  BRANCH="$BRANCH" \
+  EXPECTED_COMMIT="$EXPECTED_COMMIT" \
+  PRISMA_APPLY=migrate \
+  INSTALL_SYSTEM_PACKAGES=0 \
+  APPLY_NGINX=0 \
+  APPLY_FAIL2BAN=0 \
+  bash "$TMP/scripts/run-deploy-from-expected-commit.sh"
+```
+
+O entrypoint `run-deploy-from-expected-commit.sh` exige working tree limpo,
+confirma com `git cat-file` que o objeto e `commit`, exige
+`origin/$BRANCH == EXPECTED_COMMIT` e aborta **antes** de build/backup/migration
+se houver divergencia. Recusa executar fora de `/tmp` ou `/var/tmp` (exceto ensaio
+com `ALLOW_NON_TMP_DEPLOY_EXTRACT=1`).
+
+`scripts/deploy-vps-branch-atual.sh` tambem aceita `EXPECTED_COMMIT` via ambiente.
+Quando informado, apos o `git pull` e **antes** de `npm ci`, build, backup ou
+migration:
 
 1. resolve `git rev-parse HEAD`;
 2. resolve o valor informado (hash completo ou prefixo hex);
 3. aborta se nao houver correspondencia, se o prefixo for ambiguo (mais de um
    objeto) ou se HEAD divergir.
 
-Forma correta de passar variaveis (nunca como argumentos apos o caminho):
-
-```bash
-sudo env \
-  BRANCH=feat/modulo-vendas \
-  EXPECTED_COMMIT=<sha> \
-  PRISMA_APPLY=migrate \
-  INSTALL_SYSTEM_PACKAGES=0 \
-  APPLY_NGINX=0 \
-  APPLY_FAIL2BAN=0 \
-  bash /opt/comunikapp/app/scripts/deploy-vps-branch-atual.sh
-```
-
 `RUN_AUDIT` permanece `1` por padrao e deve ficar ativo no Gate 0S. Builds,
 backup, preflight, migration e health checks nao devem ser desabilitados.
 
-Teste da checagem de commit:
+Testes:
 
 ```bash
 bash scripts/lib/assert-expected-commit.test.sh
+bash scripts/run-deploy-from-expected-commit.test.sh
 ```
 
 Padroes:
@@ -112,26 +137,29 @@ feature hardcoded como fallback.
 ## Teste de restauracao
 
 O backup automatico protege a atualizacao e valida o arquivo com tamanho minimo +
-`gzip -t`. Isso **nao** e um teste completo de restauracao.
+`gzip -t`. Isso comprova integridade do arquivo comprimido — **nao** e teste de
+restauracao.
 
 Antes de autorizar um deploy critico, quando houver capacidade segura:
 
-1. copie o `.sql.gz` para um host ou instancia que **nao** seja o MySQL de
-   producao;
-2. restaure em um banco scratch (outra instancia ou database descartavel);
-3. confira `SELECT COUNT(*)` em tabelas-chave e a ausencia de erro no load;
-4. descarte o scratch.
+1. gere o backup com o mesmo mecanismo do deploy
+   (`backend/scripts/mysql-backup-before-deploy.js`);
+2. restaure em um banco scratch (outra instancia ou database descartavel — nunca
+   producao);
+3. registre somente: arquivo/horario, tamanho, engine/versao do scratch,
+   restauracao concluida ou falhou, tabelas essenciais encontradas, contagem
+   agregada de registros, descarte do scratch;
+4. descarte o scratch. Nao exponha dados do dump.
 
-Exemplo (ajuste host/usuario; nunca aponte para producao):
+Ensaio automatizado (dev local, fora de producao):
 
 ```bash
-gzip -dc /srv/apps/comunikapp/shared/backups/database/comunikapp-DATA.sql.gz \
-  | mysql --host=SCRATCH_HOST --user=USUARIO --password
+cd backend
+node scripts/ensaio-restauracao-scratch-gate0s.js
 ```
 
-Como o dump usa `--databases`, ele inclui a selecao/criacao do banco original.
-Para um ensaio isolado, restaure em outra instancia ou ajuste o SQL de destino de
-forma controlada. Nunca teste a restauracao sobre o banco de producao ativo.
+Se nao houver ambiente seguro para o ensaio, trate como bloqueio e solicite
+decisao explicita de aceite de risco antes de autorizar o deploy.
 
 Backups mantidos apenas na mesma VPS nao protegem contra perda total do servidor.
 Copie-os tambem para armazenamento externo criptografado e monitore a idade do
@@ -139,8 +167,10 @@ ultimo arquivo valido.
 
 ## Scripts protegidos
 
+- `scripts/run-deploy-from-expected-commit.sh` (entrypoint Gate 0S via `git archive`)
 - `scripts/deploy-vps.sh`
 - `scripts/deploy-vps-branch-atual.sh`
+- `backend/scripts/ensaio-restauracao-scratch-gate0s.js`
 
 O antigo `scripts/fix-migration-history-vps.sh` foi desativado porque marcava varias
 migrations como aplicadas sem comprovar que suas estruturas existiam.

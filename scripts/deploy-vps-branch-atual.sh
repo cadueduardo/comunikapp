@@ -1,41 +1,19 @@
 #!/usr/bin/env bash
 # Deploy completo do branch atual do Comunikapp na VPS.
 #
+# Gate 0S — NAO invoque este arquivo a partir do working tree da VPS.
+# Extraia este script + o helper do EXPECTED_COMMIT com `git archive` e use
+# `scripts/run-deploy-from-expected-commit.sh` como entrypoint. Ver cabecalho
+# daquele arquivo e §4.11 do gate de hotfix.
+#
 # Variaveis via ambiente (nunca como argumentos depois do caminho do script).
-# Forma correta:
 #
-#   sudo env \
-#     BRANCH=feat/modulo-vendas \
-#     EXPECTED_COMMIT=<hash> \
-#     PRISMA_APPLY=migrate \
-#     INSTALL_SYSTEM_PACKAGES=0 \
-#     APPLY_NGINX=0 \
-#     APPLY_FAIL2BAN=0 \
-#     bash /opt/comunikapp/app/scripts/deploy-vps-branch-atual.sh
-#
-# Gate 0S: INSTALL_SYSTEM_PACKAGES, APPLY_NGINX e APPLY_FAIL2BAN devem ser 0
-# salvo autorizacao especifica e motivo documentado. Builds, backup, preflight,
-# migrate e health checks permanecem ativos.
-#
-# Variaveis:
-#   PROJECT_DIR=/opt/comunikapp/app
-#   APP_USER=comunikapp
-#   BRANCH=nome-do-branch
-#   EXPECTED_COMMIT=<sha1 ou prefixo unico>
-#     Quando informado, apos o git pull e antes de npm ci/build/backup/migrate
-#     o script aborta se HEAD divergir ou se o prefixo for ambiguo.
+#   EXPECTED_COMMIT   obrigatorio no fluxo Gate 0S (pin apos pull)
+#   BRANCH            branch remoto a atualizar
 #   PRISMA_APPLY=migrate|push|skip
-#   DB_BACKUP_DIR=/srv/apps/comunikapp/shared/backups/database
-#   DB_BACKUP_RETENTION_DAYS=14
-#   RUNTIME=auto|pm2|systemd
-#   APPLY_NGINX=1|0
-#   APPLY_FAIL2BAN=1|0
-#   INSTALL_SYSTEM_PACKAGES=1|0
-#   RUN_AUDIT=1|0   (padrao 1 — manter ativo no Gate 0S)
-#   SKIP_HEALTH_CHECKS=1|0
-#   BUILD_MAX_OLD_SPACE_MB=4096
-#     Prefira `sudo env VAR=... bash script.sh` (ou `sudo -E env ...`) para o
-#     sudo nao descartar as variaveis.
+#   INSTALL_SYSTEM_PACKAGES / APPLY_NGINX / APPLY_FAIL2BAN = 0 no Gate 0S
+#   RUN_AUDIT=1 (manter ativo)
+#
 
 set -euo pipefail
 
