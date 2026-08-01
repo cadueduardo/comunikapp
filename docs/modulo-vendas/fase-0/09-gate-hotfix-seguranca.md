@@ -1063,7 +1063,7 @@ ninguém via.
 |---|---|---|
 | Gerar OpenAPI | O bootstrap recusa subir sem `ADMIN_JWT_SECRET`, distinto do JWT de loja; a variável não existia no CI | Corrigido — job verde |
 | Testes Unitários | `exit 134` — heap do Node esgotado, sem chegar a executar | Corrigido o heap; as 8 suítes que restaram vermelhas foram corrigidas, abaixo |
-| Testes E2E | Mesma exaustão de heap | Corrigido o heap; 1 suíte falha |
+| Testes E2E | Mesma exaustão de heap | Corrigido o heap; `app.e2e-spec.ts` falhava por testar um desvio que o próprio gate fechou, abaixo |
 
 Antes: **nenhum** teste unitário chegava a rodar. Depois do heap: 621 de 674 passavam.
 
@@ -1100,6 +1100,16 @@ outros módulos, feita apenas para que o pipeline volte a ser sinal útil. Em ne
 casos o código de produção foi alterado para o teste passar — onde a asserção divergia,
 foi a asserção que estava descrevendo a versão antiga do comportamento.
 
+**A falha do E2E, essa sim, era sobre o gate.** `test/app.e2e-spec.ts` chamava
+`GET /api/estoque/health` com o cabeçalho `x-internal-token` e esperava 200; o CI
+devolvia 401. O 401 é o comportamento correto: desde o HS-01, quem decide se uma rota é
+pública é exclusivamente o catálogo em `src/common/security/rotas-publicas.ts`, e o
+health do estoque está no bloco "nega por padrão" de `rotas-publicas.spec.ts`. Um
+cabeçalho escolhido pelo próprio chamador não abre rota — o teste estava documentando
+justamente o desvio que o gate fechou. O caso foi reescrito para afirmar o
+comportamento pretendido: a rota nega sem autenticação, e continua negando com o
+cabeçalho interno presente.
+
 ## 5. Gate de conclusão
 
 **Situação em 2026-07-31: Gate 0S não concluído — Fase 1 não liberada.**
@@ -1122,9 +1132,10 @@ O que mantém o gate aberto:
   ao ambiente e autorização específica.
 - **HS-06**: métricas e alertas dependem de escolher um backend de observabilidade
   ([anexo](./10-observabilidade-e-logs-producao.md) §2, com recomendação).
-- **Suíte E2E**: 1 das 5 suítes E2E (`test/*.e2e-spec.ts`) ainda falha depois da
-  correção de heap (§4.10). A causa não foi diagnosticada; as 8 suítes unitárias que
-  estavam vermelhas já foram corrigidas. Confirmar pela execução do CI.
+- **Pipeline**: os testes unitários passaram na execução
+  [30703992513](https://github.com/cadueduardo/comunikapp/actions/runs/30703992513) —
+  as 8 suítes vermelhas foram corrigidas. Resta confirmar no CI a correção do
+  `app.e2e-spec.ts` (§4.10).
 
 Nenhuma fase funcional de Vendas está liberada.
 

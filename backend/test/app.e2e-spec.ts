@@ -4,7 +4,19 @@ import * as request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 
-// O app principal não expõe a rota '/'. Validar uma rota existente do módulo estoque com bypass controlado.
+/**
+ * Gate 0S / HS-01 — fronteira pública da aplicação.
+ *
+ * A versão anterior deste arquivo chamava `/api/estoque/health` com
+ * `x-internal-token` e esperava 200. Isso deixou de valer: quem decide se uma
+ * rota é pública é exclusivamente o catálogo em
+ * `src/common/security/rotas-publicas.ts`, e o health do estoque não está nele
+ * (ver `rotas-publicas.spec.ts`, bloco "nega por padrão"). Um cabeçalho enviado
+ * pelo próprio chamador não abre rota — era exatamente esse o tipo de desvio
+ * que o gate fechou.
+ *
+ * O caso agora afirma o comportamento pretendido, não o antigo.
+ */
 describe('App (e2e)', () => {
   let app: INestApplication<App>;
 
@@ -17,7 +29,15 @@ describe('App (e2e)', () => {
     await app.init();
   });
 
-  it('/api/estoque/health (GET)', async () => {
+  afterEach(async () => {
+    await app?.close();
+  });
+
+  it('nega /api/estoque/health sem autenticação', async () => {
+    await request(app.getHttpServer()).get('/api/estoque/health').expect(401);
+  });
+
+  it('não aceita cabeçalho do chamador como autorização', async () => {
     await request(app.getHttpServer())
       .get('/api/estoque/health')
       .set(
@@ -27,6 +47,6 @@ describe('App (e2e)', () => {
       )
       .set('x-loja-id', 'loja-root-e2e')
       .set('x-usuario-id', 'user-root-e2e')
-      .expect(200);
+      .expect(401);
   });
 });
