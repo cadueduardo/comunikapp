@@ -58,6 +58,7 @@ git -C "$PROJECT_DIR" archive "$EXPECTED_COMMIT" \
   scripts/deploy-vps-branch-atual.sh \
   scripts/lib/assert-expected-commit.sh \
   | tar -x -C "$TMP"
+chmod -R a+rX "$TMP"
 
 sudo env \
   PROJECT_DIR="$PROJECT_DIR" \
@@ -67,6 +68,7 @@ sudo env \
   INSTALL_SYSTEM_PACKAGES=0 \
   APPLY_NGINX=0 \
   APPLY_FAIL2BAN=0 \
+  RUN_AUDIT=1 \
   bash "$TMP/scripts/run-deploy-from-expected-commit.sh"
 ```
 
@@ -85,14 +87,20 @@ migration:
 3. aborta se nao houver correspondencia, se o prefixo for ambiguo (mais de um
    objeto) ou se HEAD divergir.
 
-`RUN_AUDIT` permanece `1` por padrao e deve ficar ativo no Gate 0S. Builds,
-backup, preflight, migration e health checks nao devem ser desabilitados.
+`RUN_AUDIT` permanece `1` por padrao no Gate 0S. O deploy roda
+`npm audit --omit=dev --json` e compara com
+`scripts/security/npm-audit-baseline.json` (comparador
+`scripts/security/compare-npm-audit-baseline.js`). Excecoes sao temporarias
+(`expiresAt`); `critical` nunca passa; finding novo, severidade maior, cadeia/faixa
+alterada, excecao expirada ou JSON invalido falham o deploy. Builds, backup,
+preflight, migration e health checks nao devem ser desabilitados.
 
 Testes:
 
 ```bash
 bash scripts/lib/assert-expected-commit.test.sh
 bash scripts/run-deploy-from-expected-commit.test.sh
+node scripts/security/compare-npm-audit-baseline.test.js
 ```
 
 Padroes:
@@ -170,7 +178,10 @@ ultimo arquivo valido.
 - `scripts/run-deploy-from-expected-commit.sh` (entrypoint Gate 0S via `git archive`)
 - `scripts/deploy-vps.sh`
 - `scripts/deploy-vps-branch-atual.sh`
+- `scripts/security/compare-npm-audit-baseline.js`
+- `scripts/security/npm-audit-baseline.json`
 - `backend/scripts/ensaio-restauracao-scratch-gate0s.js`
+- `backend/scripts/smoke-sharp-upload.mjs`
 
 O antigo `scripts/fix-migration-history-vps.sh` foi desativado porque marcava varias
 migrations como aplicadas sem comprovar que suas estruturas existiam.

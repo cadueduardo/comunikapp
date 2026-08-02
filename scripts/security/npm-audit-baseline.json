@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "updatedAt": "2026-08-02",
+  "notes": "Baseline vazio após correção de sharp, brace-expansion, next e overrides de axios/js-yaml/linkify-it/postcss. Exceções futuras devem listar advisory, nodes, range, justificativa, approvedAt e expiresAt. Critical nunca é aceitável.",
+  "scopes": {
+    "backend": {
+      "exceptions": []
+    },
+    "frontend": {
+      "exceptions": []
+    }
+  }
+}

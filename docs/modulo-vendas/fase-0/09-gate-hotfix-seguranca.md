@@ -1180,7 +1180,14 @@ justamente o desvio que o gate fechou. O caso foi reescrito para afirmar o
 comportamento pretendido: a rota nega sem autenticação, e continua negando com o
 cabeçalho interno presente.
 
-### 4.11 Preflight do deploy do HS-04 (não autorizado — não executado)
+### 4.11 Preflight do deploy do HS-04
+
+**Situação:** tentativa de deploy do commit `175f44f2…` em 2026-08-02 foi
+**interrompida corretamente** por `RUN_AUDIT=1` (findings high em `npm audit
+--omit=dev`) **antes** de build, backup e migration. A aplicação em execução na
+VPS **não** foi reiniciada; migrations HS-04/HS-05 e códigos legados **não** foram
+alterados. Novo artefato (este commit) corrige as dependências e introduz baseline
+determinístico — **deploy ainda não autorizado**.
 
 **Bootstrap obrigatório:** o operador **não** executa o script do working tree da VPS.
 Extrai o entrypoint e os helpers do `EXPECTED_COMMIT` com `git archive` para um
@@ -1192,7 +1199,8 @@ Pré-condições (o entrypoint aborta antes de build/backup/migration se falhare
 1. working tree da VPS limpo (`git status --porcelain` vazio);
 2. `git fetch` + `origin/feat/modulo-vendas` aponta exatamente para o commit autorizado;
 3. `git cat-file -t` confirma que o objeto é `commit`;
-4. o diretório temporário contém apenas os três arquivos extraídos do archive.
+4. o diretório temporário contém apenas os três arquivos extraídos do archive;
+5. `chmod -R a+rX` no diretório temporário (mktemp é `700`; `run_as_app` precisa ler).
 
 ```bash
 PROJECT_DIR=/opt/comunikapp/app
@@ -1209,6 +1217,7 @@ git -C "$PROJECT_DIR" archive "$EXPECTED_COMMIT" \
   scripts/deploy-vps-branch-atual.sh \
   scripts/lib/assert-expected-commit.sh \
   | tar -x -C "$TMP"
+chmod -R a+rX "$TMP"
 
 sudo env \
   PROJECT_DIR="$PROJECT_DIR" \
@@ -1218,15 +1227,25 @@ sudo env \
   INSTALL_SYSTEM_PACKAGES=0 \
   APPLY_NGINX=0 \
   APPLY_FAIL2BAN=0 \
+  RUN_AUDIT=1 \
   bash "$TMP/scripts/run-deploy-from-expected-commit.sh"
 ```
+
+`RUN_AUDIT` permanece `1`. O deploy executa `npm audit --omit=dev --json` e compara
+com `scripts/security/npm-audit-baseline.json` via
+`scripts/security/compare-npm-audit-baseline.js`. Exceções são **temporárias**
+(com `expiresAt`); critical nunca é aceito; finding novo, severidade maior, cadeia
+ou faixa alterada, exceção expirada ou JSON inválido **falham** o deploy. Correção
+das exceções (quando houver) é tarefa separada com prazo — o Gate 0S **não**
+dispensa vulnerabilidades alcançáveis no fluxo público. Relatório sanitizado:
+[`12-relatorio-npm-audit-gate0s.md`](./12-relatorio-npm-audit-gate0s.md).
 
 Após o `git pull` interno do deploy, `EXPECTED_COMMIT` é conferido de novo contra
 `HEAD` antes de `npm ci`/build/backup/migrate; prefixo ambíguo ou divergência
 aborta. Escopo operacional do Gate 0S: **não** instalar pacotes do sistema nem
-alterar Nginx/Fail2ban salvo autorização específica. `RUN_AUDIT` permanece ativo
-(padrão `1`). Builds, backup (tamanho mínimo + `gzip -t` = só integridade do
-arquivo), preflight Prisma, `migrate deploy` e health checks permanecem ativos.
+alterar Nginx/Fail2ban salvo autorização específica. Builds, backup (tamanho
+mínimo + `gzip -t` = só integridade do arquivo), preflight Prisma, `migrate deploy`
+e health checks permanecem ativos.
 
 **Backup vs restauração:** tamanho mínimo + `gzip -t` comprovam que o arquivo não
 está truncado/corrupto no nível do compressão — **não** são teste de restauração.
@@ -1245,7 +1264,7 @@ em 2026-08-01 no MySQL/MariaDB local de desenvolvimento:
 | descarte scratch | ok |
 
 Script: `backend/scripts/ensaio-restauracao-scratch-gate0s.js`. Sem exposição de
-dados do dump. Produção **não** foi tocada.
+dados do dump. Produção **não** foi tocada nesta correção de audit.
 
 **Kill-switch (não produtivo):** com `ORCAMENTOS_ACEITE_PUBLICO_DESABILITADO=true`,
 emissão, reenvio e aceite público retornam `503` estável sem e-mail, sem alteração

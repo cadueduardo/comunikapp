@@ -22,6 +22,8 @@
 #     scripts/deploy-vps-branch-atual.sh \
 #     scripts/lib/assert-expected-commit.sh \
 #     | tar -x -C "$TMP"
+#   # mktemp e 700: o deploy consulta helpers via run_as_app (usuario comunikapp).
+#   chmod -R a+rX "$TMP"
 #
 #   sudo env \
 #     PROJECT_DIR="$PROJECT_DIR" \

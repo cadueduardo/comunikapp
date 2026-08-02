@@ -300,9 +300,25 @@ audit_dependencies() {
     return
   }
 
-  log 'Rodando npm audit --omit=dev...'
-  run_as_app 'cd backend && npm audit --omit=dev'
-  run_as_app 'cd frontend && npm audit --omit=dev'
+  local baseline="${PROJECT_DIR}/scripts/security/npm-audit-baseline.json"
+  local comparator="${PROJECT_DIR}/scripts/security/compare-npm-audit-baseline.js"
+  [ -f "$baseline" ] || fail "baseline de audit ausente: ${baseline}"
+  [ -f "$comparator" ] || fail "comparador de audit ausente: ${comparator}"
+
+  log 'Rodando npm audit --omit=dev --json e comparando com baseline...'
+
+  # npm audit exit 1 apenas por findings nao e falha estrutural; o comparador decide.
+  run_as_app "cd backend && npm audit --omit=dev --json > /tmp/comunikapp-audit-backend.json" \
+    || true
+  run_as_app "node $(quote "$comparator") --scope backend --audit /tmp/comunikapp-audit-backend.json --baseline $(quote "$baseline")" \
+    || fail 'baseline de npm audit (backend) rejeitou o resultado.'
+
+  run_as_app "cd frontend && npm audit --omit=dev --json > /tmp/comunikapp-audit-frontend.json" \
+    || true
+  run_as_app "node $(quote "$comparator") --scope frontend --audit /tmp/comunikapp-audit-frontend.json --baseline $(quote "$baseline")" \
+    || fail 'baseline de npm audit (frontend) rejeitou o resultado.'
+
+  log 'npm audit --omit=dev dentro do baseline aprovado.'
 }
 
 prune_dependencies() {

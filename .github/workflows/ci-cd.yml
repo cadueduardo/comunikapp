@@ -29,6 +29,60 @@ env:
   NODE_OPTIONS: --max-old-space-size=6144
 
 jobs:
+  npm-audit-baseline:
+    name: npm audit vs baseline
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Testes do comparador de baseline
+        run: node scripts/security/compare-npm-audit-baseline.test.js
+
+      - name: Instalar dependências (backend)
+        working-directory: backend
+        run: npm ci
+
+      - name: Instalar dependências (frontend)
+        working-directory: frontend
+        run: npm ci
+
+      - name: Smoke sharp (backend)
+        working-directory: backend
+        run: node scripts/smoke-sharp-upload.mjs
+
+      - name: npm audit backend (--omit=dev) vs baseline
+        working-directory: backend
+        run: |
+          set +e
+          npm audit --omit=dev --json > /tmp/audit-backend.json
+          set -e
+          node ../scripts/security/compare-npm-audit-baseline.js \
+            --scope backend \
+            --audit /tmp/audit-backend.json \
+            --baseline ../scripts/security/npm-audit-baseline.json
+
+      - name: npm audit frontend (--omit=dev) vs baseline
+        working-directory: frontend
+        run: |
+          set +e
+          npm audit --omit=dev --json > /tmp/audit-frontend.json
+          set -e
+          node ../scripts/security/compare-npm-audit-baseline.js \
+            --scope frontend \
+            --audit /tmp/audit-frontend.json \
+            --baseline ../scripts/security/npm-audit-baseline.json
+
   lint-and-format:
     name: Lint e Formatação
     runs-on: ubuntu-latest
@@ -400,6 +454,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       [
+        npm-audit-baseline,
         lint-and-format,
         unit-tests,
         e2e-tests,
@@ -412,6 +467,7 @@ jobs:
     steps:
       - name: Resumo do pipeline
         run: |
+          echo "npm-audit-baseline: ${{ needs.npm-audit-baseline.result }}"
           echo "lint-and-format: ${{ needs.lint-and-format.result }}"
           echo "unit-tests: ${{ needs.unit-tests.result }}"
           echo "e2e-tests: ${{ needs.e2e-tests.result }}"
@@ -421,6 +477,7 @@ jobs:
 
       - name: Falhar se algum job obrigatório quebrou
         if: >-
+          needs.npm-audit-baseline.result == 'failure' ||
           needs.lint-and-format.result == 'failure' ||
           needs.unit-tests.result == 'failure' ||
           needs.e2e-tests.result == 'failure' ||
