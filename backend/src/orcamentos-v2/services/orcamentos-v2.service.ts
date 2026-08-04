@@ -4827,7 +4827,14 @@ export class OrcamentosV2Service {
     orcamentoId: string,
     mensagemId: string,
     lojaId: string,
+    usuarioId: string,
   ) {
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_VER,
+    );
+
     this.logger.log(`👁️ Marcando mensagem como visualizada: ${mensagemId}`);
 
     try {

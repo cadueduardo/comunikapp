@@ -1,7 +1,8 @@
 # Evidência — seed M2.1 duas vezes (MySQL real)
 
-**Gerado:** 2026-08-04T21:38:55.668Z  
-**Script:** `backend/scripts/seed-vendas-rbac-duas-vezes.ts`  
+**Gerado:** 2026-08-04T21:38:55.668Z
+
+**Script:** `backend/scripts/seed-vendas-rbac-duas-vezes.ts`
 **Ambiente:** XAMPP MariaDB / `comunikapp`
 
 ```json

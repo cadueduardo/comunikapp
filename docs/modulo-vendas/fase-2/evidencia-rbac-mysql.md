@@ -1,7 +1,8 @@
 # Evidência — integração MySQL VendasPermissionsService
 
-**Gerado:** 2026-08-04  
-**Script:** `backend/scripts/validar-rbac-vendas-mysql.ts`  
+**Gerado:** 2026-08-04
+
+**Script:** `backend/scripts/validar-rbac-vendas-mysql.ts`
 **Ambiente:** XAMPP MariaDB / `comunikapp`
 
 ```json

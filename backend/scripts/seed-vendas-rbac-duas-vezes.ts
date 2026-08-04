@@ -7,6 +7,7 @@ import {
   SeedVendasColisaoError,
   seedVendasPerfisEPermissoes,
 } from '../prisma/seed-vendas-rbac';
+import { validarAmbienteTesteMutavel } from './validar-ambiente-teste-mutavel';
 
 const prisma = new PrismaClient();
 
@@ -19,6 +20,7 @@ function sanitizar(relatorio: unknown) {
 }
 
 async function main() {
+  validarAmbienteTesteMutavel();
   const r1 = await seedVendasPerfisEPermissoes(prisma);
   const r2 = await seedVendasPerfisEPermissoes(prisma);
 

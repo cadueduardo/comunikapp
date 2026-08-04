@@ -412,11 +412,12 @@ export class OrcamentosV2Controller {
     @Param('mensagemId') mensagemId: string,
     @Request() req: any,
   ) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
     return await this.orcamentosService.marcarMensagemVisualizadaPublica(
       id,
       mensagemId,
       lojaId,
+      usuarioId,
     );
   }
 
