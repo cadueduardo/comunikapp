@@ -2,7 +2,7 @@
 
 **Status:** **FASE 1 CONCLUÍDA** (2026-08-04)
 **Base:** checkpoint Gate 0S `ab79e8ef` / `gate0s-tecnico-2026-08-04`
-**HEAD de fechamento:** ver commit desta entrega em `feat/modulo-vendas`
+**HEAD de fechamento:** `397fe96a` (`feat/modulo-vendas`)
 **Plano:** [`../PLANO-ACAO-MODULO-VENDAS.md`](../PLANO-ACAO-MODULO-VENDAS.md) §5
 **Migrations:** M1.1–M1.4 em [`../fase-0/06-plano-de-migrations.md`](../fase-0/06-plano-de-migrations.md)
 **Contratos diferidos (sem schema):** [`contratos-diferidos.md`](./contratos-diferidos.md)
