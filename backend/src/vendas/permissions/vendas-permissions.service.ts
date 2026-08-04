@@ -3,28 +3,74 @@ import { usuario_funcao } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { funcaoConcede, separarModuloEAcao } from './vendas-permissoes';
 
+type ChaveCache = string;
+
 /**
- * Autorização do domínio comercial, no padrão de
- * `ComprasPermissionsService` — o único mecanismo de permissão granular que
- * funciona no projeto. O decorator `@Roles` é metadata inerte e não pode ser
- * usado como autorização (DV-13).
+ * Autorização do domínio comercial (padrão ComprasPermissionsService).
+ * `@Roles` é metadata inerte (DV-13). Autenticação = JwtGlobalMiddleware.
  *
- * A autenticação já é responsabilidade do `JwtGlobalMiddleware`. Aqui só se
- * decide **o que** a identidade autenticada pode fazer.
+ * Cache em memória por (usuario, loja, permissão) com invalidação explícita —
+ * mudança de perfil/permissão deve chamar `invalidarCacheUsuario` /
+ * `invalidarCacheLoja` (seed e mutações administrativas).
  */
 @Injectable()
 export class VendasPermissionsService {
+  private readonly cache = new Map<ChaveCache, boolean>();
+
   constructor(private readonly prisma: PrismaService) {}
+
+  private chave(
+    usuarioId: string,
+    lojaId: string,
+    permissao: string,
+  ): ChaveCache {
+    return `${lojaId}:${usuarioId}:${permissao}`;
+  }
+
+  invalidarCacheUsuario(usuarioId: string, lojaId?: string): void {
+    const prefixo = lojaId ? `${lojaId}:${usuarioId}:` : null;
+    for (const chave of this.cache.keys()) {
+      if (prefixo ? chave.startsWith(prefixo) : chave.includes(`:${usuarioId}:`)) {
+        this.cache.delete(chave);
+      }
+    }
+  }
+
+  invalidarCacheLoja(lojaId: string): void {
+    const prefixo = `${lojaId}:`;
+    for (const chave of this.cache.keys()) {
+      if (chave.startsWith(prefixo)) {
+        this.cache.delete(chave);
+      }
+    }
+  }
+
+  invalidarCacheTudo(): void {
+    this.cache.clear();
+  }
 
   async pode(
     usuarioId: string,
     lojaId: string,
     permissao: string,
   ): Promise<boolean> {
+    const chave = this.chave(usuarioId, lojaId, permissao);
+    if (this.cache.has(chave)) {
+      return this.cache.get(chave) as boolean;
+    }
+
+    const resultado = await this.avaliar(usuarioId, lojaId, permissao);
+    this.cache.set(chave, resultado);
+    return resultado;
+  }
+
+  private async avaliar(
+    usuarioId: string,
+    lojaId: string,
+    permissao: string,
+  ): Promise<boolean> {
     const { modulo, acao } = separarModuloEAcao(permissao);
 
-    // A função e os perfis vêm do banco, nunca do token, para que bloqueio de
-    // usuário e alteração de perfil tenham efeito imediato.
     const usuario = await this.prisma.usuario.findFirst({
       where: {
         id: usuarioId,
@@ -55,6 +101,7 @@ export class VendasPermissionsService {
       return false;
     }
 
+    // Função fora do enum / nula: negar por padrão (só perfil explícito).
     if (usuario.funcao === usuario_funcao.ADMINISTRADOR) {
       return true;
     }
@@ -90,7 +137,6 @@ export class VendasPermissionsService {
     }
   }
 
-  /** Exige pelo menos uma das permissões informadas. */
   async assertPodeQualquer(
     usuarioId: string,
     lojaId: string,

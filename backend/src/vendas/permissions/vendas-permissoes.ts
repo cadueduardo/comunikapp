@@ -1,68 +1,151 @@
 import { usuario_funcao } from '@prisma/client';
 
 /**
- * Catálogo mínimo exigido pelo Gate 0S para proteger os endpoints já existentes
- * de Orçamentos V2.
+ * Catálogo canônico de permissões de Vendas (31 + excluir ratificada).
+ * Fonte: docs/modulo-vendas/fase-0/03-nomenclatura-e-matriz-rbac.md §3
+ * + `proposta.excluir` (Gate 0S / Fase 2).
  *
- * É um recorte do catálogo aprovado em
- * `docs/modulo-vendas/fase-0/03-nomenclatura-e-matriz-rbac.md` §3.2. As
- * permissões de carteira, contato, alçada e pipeline pertencem à Fase 2 e não
- * podem ser antecipadas aqui.
+ * Defaults concedidos nesta fase (comportamento já autorizado nos endpoints):
+ * apenas o recorte `DEFAULTS_CONCEDIDOS_FASE_2`. As demais constam no catálogo
+ * para contrato futuro (carteira, pipeline, etc.) e **não** são semeadas como
+ * permitido=true até a fase correspondente.
  */
 export const VENDAS_PERMISSOES = {
+  // Carteira / cliente (Fase 4+)
+  CARTEIRA_VER_PROPRIA: 'vendas.carteira.ver.propria',
+  CARTEIRA_VER_EQUIPE: 'vendas.carteira.ver.equipe',
+  CARTEIRA_VER_TODOS: 'vendas.carteira.ver.todos',
+  CARTEIRA_VER_SEM_RESPONSAVEL: 'vendas.carteira.ver.sem_responsavel',
+  CARTEIRA_TRANSFERIR: 'vendas.carteira.transferir',
+  CLIENTE_CRIAR: 'vendas.cliente.criar',
+  CLIENTE_EDITAR: 'vendas.cliente.editar',
+  CLIENTE_MESCLAR: 'vendas.cliente.mesclar',
+  CLIENTE_INATIVAR: 'vendas.cliente.inativar',
+  CONTATO_GERENCIAR: 'vendas.contato.gerenciar',
+
+  // Proposta (autorizada nesta fase)
   PROPOSTA_VER: 'vendas.proposta.ver',
   PROPOSTA_CRIAR: 'vendas.proposta.criar',
   PROPOSTA_EDITAR: 'vendas.proposta.editar',
   PROPOSTA_ENVIAR: 'vendas.proposta.enviar',
+  PROPOSTA_REVISAR: 'vendas.proposta.revisar',
+  PROPOSTA_MARCAR_PERDIDA: 'vendas.proposta.marcar_perdida',
+  PROPOSTA_REABRIR: 'vendas.proposta.reabrir',
   PROPOSTA_ACEITE_REGISTRAR: 'vendas.proposta.aceite.registrar',
-  /**
-   * Acréscimo do Gate 0S: o endpoint de exclusão de orçamento já existe e
-   * precisa de permissão própria, mas a matriz do artefato 03 não previa uma
-   * ação destrutiva de proposta. Deve ser ratificada na Fase 2.
-   */
   PROPOSTA_EXCLUIR: 'vendas.proposta.excluir',
+
+  // Preço / alçada (Fases posteriores)
+  PRECO_DESCONTO_APLICAR: 'vendas.preco.desconto.aplicar',
+  PRECO_CUSTO_VER: 'vendas.preco.custo.ver',
+  PRECO_MARGEM_VER: 'vendas.preco.margem.ver',
+  ALCADA_SOLICITAR: 'vendas.alcada.solicitar',
+  ALCADA_APROVAR: 'vendas.alcada.aprovar',
+
+  // Pedido / aditivo / atividade (Fases 5–6+)
+  PEDIDO_VER: 'vendas.pedido.ver',
+  PEDIDO_CANCELAR: 'vendas.pedido.cancelar',
+  PEDIDO_COBRANCA_VER: 'vendas.pedido.cobranca.ver',
+  ADITIVO_VER: 'vendas.aditivo.ver',
+  ADITIVO_PRECIFICAR: 'vendas.aditivo.precificar',
+  ADITIVO_ENVIAR: 'vendas.aditivo.enviar',
+  ADITIVO_GERAR_OS: 'vendas.aditivo.gerar_os',
+  ATIVIDADE_VER_PROPRIA: 'vendas.atividade.ver.propria',
+  ATIVIDADE_VER_EQUIPE: 'vendas.atividade.ver.equipe',
+  ATIVIDADE_GERENCIAR: 'vendas.atividade.gerenciar',
 } as const;
 
 export type VendasPermissao =
   (typeof VENDAS_PERMISSOES)[keyof typeof VENDAS_PERMISSOES];
 
-/**
- * Piso de autorização por função, aplicado enquanto `perfil_permissao` não é
- * semeada (o seed pertence à Fase 2 e a tela de perfis ainda não persiste
- * permissões).
- *
- * Sem este piso, negar por padrão deixaria apenas administradores operando
- * Orçamentos V2. Com ele, a autorização é a união entre o que a função concede
- * e o que houver explicitamente cadastrado em `perfil_permissao`.
- *
- * Espelha a matriz de perfis do artefato 03 §4: Vendedor opera a proposta,
- * Financeiro apenas lê, e funções operacionais não têm acesso comercial.
- */
-const PISO_POR_FUNCAO: Readonly<Record<usuario_funcao, readonly string[]>> = {
-  [usuario_funcao.ADMINISTRADOR]: Object.values(VENDAS_PERMISSOES),
-  [usuario_funcao.VENDAS]: [
+/** Recorte efetivamente enforced pelos endpoints Orçamentos V2 nesta fase. */
+export const DEFAULTS_CONCEDIDOS_FASE_2 = {
+  VENDEDOR: [
     VENDAS_PERMISSOES.PROPOSTA_VER,
     VENDAS_PERMISSOES.PROPOSTA_CRIAR,
     VENDAS_PERMISSOES.PROPOSTA_EDITAR,
     VENDAS_PERMISSOES.PROPOSTA_ENVIAR,
     VENDAS_PERMISSOES.PROPOSTA_ACEITE_REGISTRAR,
   ],
-  [usuario_funcao.FINANCEIRO]: [VENDAS_PERMISSOES.PROPOSTA_VER],
+  GESTOR: [
+    VENDAS_PERMISSOES.PROPOSTA_VER,
+    VENDAS_PERMISSOES.PROPOSTA_CRIAR,
+    VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    VENDAS_PERMISSOES.PROPOSTA_ENVIAR,
+    VENDAS_PERMISSOES.PROPOSTA_ACEITE_REGISTRAR,
+    VENDAS_PERMISSOES.PROPOSTA_EXCLUIR,
+    VENDAS_PERMISSOES.PROPOSTA_REVISAR,
+    VENDAS_PERMISSOES.PROPOSTA_MARCAR_PERDIDA,
+    VENDAS_PERMISSOES.PROPOSTA_REABRIR,
+  ],
+  FINANCEIRO: [VENDAS_PERMISSOES.PROPOSTA_VER],
+  ADMIN: [
+    VENDAS_PERMISSOES.PROPOSTA_VER,
+    VENDAS_PERMISSOES.PROPOSTA_CRIAR,
+    VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    VENDAS_PERMISSOES.PROPOSTA_ENVIAR,
+    VENDAS_PERMISSOES.PROPOSTA_ACEITE_REGISTRAR,
+    VENDAS_PERMISSOES.PROPOSTA_EXCLUIR,
+    VENDAS_PERMISSOES.PROPOSTA_REVISAR,
+    VENDAS_PERMISSOES.PROPOSTA_MARCAR_PERDIDA,
+    VENDAS_PERMISSOES.PROPOSTA_REABRIR,
+  ],
+} as const;
+
+/**
+ * Piso por `usuario_funcao` enquanto perfil não concede explicitamente.
+ * Função desconhecida / operacional → [].
+ * Admin → todas as permissões do catálogo (bypass também no service).
+ */
+const PISO_POR_FUNCAO: Readonly<
+  Record<usuario_funcao, readonly string[]>
+> = {
+  [usuario_funcao.ADMINISTRADOR]: Object.values(VENDAS_PERMISSOES),
+  [usuario_funcao.VENDAS]: DEFAULTS_CONCEDIDOS_FASE_2.VENDEDOR,
+  [usuario_funcao.FINANCEIRO]: DEFAULTS_CONCEDIDOS_FASE_2.FINANCEIRO,
   [usuario_funcao.PRODUCAO]: [],
   [usuario_funcao.ESTOQUE]: [],
 };
 
 export function funcaoConcede(
-  funcao: usuario_funcao,
+  funcao: usuario_funcao | string | null | undefined,
   permissao: string,
 ): boolean {
-  return (PISO_POR_FUNCAO[funcao] ?? []).includes(permissao);
+  if (!funcao || !(funcao in PISO_POR_FUNCAO)) {
+    return false;
+  }
+  return (PISO_POR_FUNCAO[funcao as usuario_funcao] ?? []).includes(permissao);
 }
 
 /**
- * Quebra `vendas.proposta.aceite.registrar` no par `(modulo, acao)` gravado em
- * `perfil_permissao`: o primeiro segmento é o módulo e o restante é a ação.
+ * Compatibilidade UserRole (legado / frontend) → usuario_funcao.
+ * UserRole NÃO autoriza; só documenta tradução para quem ainda o envia.
  */
+export const MAPA_USER_ROLE_PARA_FUNCAO: Readonly<
+  Record<string, usuario_funcao | null>
+> = {
+  admin: usuario_funcao.ADMINISTRADOR,
+  ADMIN: usuario_funcao.ADMINISTRADOR,
+  gerente: usuario_funcao.VENDAS,
+  GERENTE: usuario_funcao.VENDAS,
+  manager: usuario_funcao.VENDAS,
+  MANAGER: usuario_funcao.VENDAS,
+  vendedor: usuario_funcao.VENDAS,
+  VENDEDOR: usuario_funcao.VENDAS,
+  user: null,
+  USER: null,
+  viewer: null,
+  VIEWER: null,
+  operador: usuario_funcao.PRODUCAO,
+  OPERADOR: usuario_funcao.PRODUCAO,
+};
+
+export const NOMES_PERFIL_SISTEMA = {
+  VENDEDOR: 'Vendedor',
+  GESTOR: 'Gestor de Vendas',
+  FINANCEIRO: 'Financeiro Comercial',
+  ADMIN: 'Administrador',
+} as const;
+
 export function separarModuloEAcao(permissao: string): {
   modulo: string;
   acao: string;
@@ -76,4 +159,8 @@ export function separarModuloEAcao(permissao: string): {
   }
 
   return { modulo, acao };
+}
+
+export function listarCatalogoVendas(): readonly string[] {
+  return Object.values(VENDAS_PERMISSOES);
 }

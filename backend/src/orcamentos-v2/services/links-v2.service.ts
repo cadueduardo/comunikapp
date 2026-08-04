@@ -12,6 +12,8 @@ import {
 } from '../interfaces/orcamento.interface';
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
+import { VendasPermissionsService } from '../../vendas/permissions/vendas-permissions.service';
+import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 
 /**
  * Serviço de Links V2 para Orçamentos
@@ -25,7 +27,10 @@ import * as bcrypt from 'bcrypt';
 export class LinksV2Service {
   private readonly logger = new Logger(LinksV2Service.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly vendasPermissions: VendasPermissionsService,
+  ) {}
 
   /**
    * Cria link público para orçamento
@@ -39,6 +44,12 @@ export class LinksV2Service {
     maxVisualizacoes?: number,
     senha?: string,
   ): Promise<LinkPublico> {
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_ENVIAR,
+    );
+
     this.logger.log(`🔗 Criando link público para orçamento ${orcamentoId}`);
 
     try {
@@ -460,8 +471,8 @@ export class LinksV2Service {
 
   /**
    * Confirma que o orçamento pertence à loja autenticada e que o usuário está
-   * ativo nessa mesma loja. A permissão funcional é verificada pelo
-   * `VendasPermissionsGuard` na entrada HTTP.
+   * ativo nessa mesma loja. Mutações também passam por `assertPode` no service;
+   * o guard HTTP é defesa adicional.
    *
    * Não distingue "não existe" de "existe em outra loja", para não permitir
    * enumeração de identificadores.

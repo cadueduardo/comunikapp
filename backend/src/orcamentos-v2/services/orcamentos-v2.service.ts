@@ -442,6 +442,12 @@ export class OrcamentosV2Service {
     lojaId: string,
     usuarioId: string,
   ): Promise<OrcamentoCompleto> {
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_CRIAR,
+    );
+
     // Fase 11 - diagnostico de profundidade (guardrail 3). Log explicito do que
     // o frontend mandou para cada produto. Ajuda a investigar divergencias
     // silenciosas no round-trip preview/grid/detalhe.
@@ -1121,6 +1127,12 @@ export class OrcamentosV2Service {
     lojaId: string,
     usuarioId: string,
   ): Promise<OrcamentoCompleto> {
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    );
+
     this.logger.log(`✏️ Atualizando orçamento ${id} na loja ${lojaId}`);
 
     try {
@@ -3902,6 +3914,12 @@ export class OrcamentosV2Service {
    * Enviar orçamento para o cliente
    */
   async enviarOrcamento(id: string, lojaId: string, userId: string) {
+    await this.vendasPermissions.assertPode(
+      userId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_ENVIAR,
+    );
+
     this.logger.log(`Enviando orçamento ${id} para o cliente`);
 
     const orcamento = await this.prisma.orcamento.findFirst({

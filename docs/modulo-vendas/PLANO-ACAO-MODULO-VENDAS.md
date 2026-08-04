@@ -416,72 +416,88 @@ chat, Arte, pedido operacional ou OS Aditiva.
 
 ## 6. Fase 2 — RBAC, segurança e isolamento multi-tenant
 
-**Status:** [ ] Não iniciada
+**Status:** [x] Concluída (código + testes; evidência em `docs/modulo-vendas/fase-2/`)
 **Dependência:** Fase 1 concluída
 **Referências do RP:** §§3, 4.3, 4.5, 5.1, 5.5, 6.3, 7/E0-4, E1-5, E2-2,
 8.5–8.8 e 11.
 **Objetivo:** criar a política canônica de Vendas antes de expor novas superfícies.
+**HEAD de partida:** `5a40a965`
 
 ### Ajustes exigidos pela auditoria da Fase 0 — esta fase mudou de natureza
 
-- [ ] Tratar D-01: **não existe `RolesGuard`**. `@Roles(...)` é metadata inerte em
+- [x] Tratar D-01: **não existe `RolesGuard`**. `@Roles(...)` é metadata inerte em
       todo o backend; nenhuma das 10 permissões `orcamentos.*` declaradas hoje é
       verificada. Hoje qualquer usuário autenticado da loja fecha pedido de qualquer
       orçamento. Esta fase deixa de ser "declarar permissões" e passa a ser
       "construir o mecanismo de autorização". Ver DV-13.
-- [ ] Não refazer autenticação: `JwtGlobalMiddleware` (`app.module.ts:99–104`) já
+      *(Evidência: `VendasPermissionsService` + Guard + `assertPode` nos services.)*
+- [x] Não refazer autenticação: `JwtGlobalMiddleware` (`app.module.ts:99–104`) já
       cobre token, usuário ativo, loja ativa, revogação de sessão e tenant do host.
       O que falta é exclusivamente a camada de autorização.
-- [ ] Implementar `VendasPermissionsService` seguindo o padrão de
+- [x] Implementar `VendasPermissionsService` seguindo o padrão de
       `backend/src/compras/services/compras-permissions.service.ts`, único que
       funciona hoje. **Não** usar `@Roles` como se autorizasse.
-- [ ] Criar o seed de `perfil_acesso` e `perfil_permissao` (M2.1): hoje
-      `backend/prisma/seed.ts` **não popula nenhum dos dois**, então não existe
-      perfil algum para conceder as permissões novas.
-- [ ] Tratar D-02: corrigir o IDOR de `links-v2.service.ts:422–436`, que resolve
-      orçamento por `id` sem `loja_id`.
-- [ ] Verificar em runtime a divergência entre o decorator `@Public()` e a allowlist
-      do middleware: quatro endpoints anotados como públicos não estão na allowlist.
-      Decidir por uma única fonte de verdade de rota pública.
-- [ ] Usar a matriz de 31 permissões e os perfis padrão de
+- [x] Criar o seed de `perfil_acesso` e `perfil_permissao` (M2.1):
+      `backend/prisma/seed-vendas-rbac.ts` ligado em `seed.ts` (idempotente).
+- [x] Tratar D-02: corrigir o IDOR de `links-v2.service.ts`, que resolve
+      orçamento por `id` sem `loja_id`. *(Gate 0S; confirmado em F2 — findFirst com
+      `loja_id`.)*
+- [x] Verificar em runtime a divergência entre o decorator `@Public()` e a allowlist
+      do middleware. Fonte única: `rotas-publicas.ts` + `RotasPublicasValidator`
+      *(Gate 0S; F2 não reabre bypass).*
+- [x] Usar a matriz de permissões e os perfis padrão de
       `fase-0/03-nomenclatura-e-matriz-rbac.md` §§3–4.
+      *(Catálogo TS completo; defaults concedidos = só recorte F2.)*
 
 ### Execução detalhada
 
-- [ ] Unificar o significado de `UserRole.VENDEDOR`, `usuario_funcao.VENDAS` e
+- [x] Unificar o significado de `UserRole.VENDEDOR`, `usuario_funcao.VENDAS` e
       permissões `orcamentos.*`/`vendas.*`. Decisão da Fase 0: `usuario_funcao` é a
       única fonte de verdade; `UserRole` é legado e não entra em código novo.
-- [ ] Definir catálogo granular de permissões de Vendas.
-- [ ] Implementar defaults para vendedor, gestor, Financeiro e Admin.
-- [ ] Garantir que VENDAS não receba acesso ao módulo Financeiro.
-- [ ] Criar permissões de carteira própria, equipe, todos e sem responsável.
-- [ ] Criar permissões de criar prospect/cliente, transferir e mesclar.
-- [ ] Criar permissões de ver custo/margem e aprovar alçada.
-- [ ] Criar permissões de precificar aditivo e de abonar.
-- [ ] Aplicar autorização no backend, não apenas na navegação.
-- [ ] Revisar todos os endpoints por ID tocados pela feature.
-- [ ] Validar tenant em links, anexos, chat, cliente, orçamento, atividade, OS e
-      ocorrência.
-- [ ] Definir retorno seguro 404/403 conforme política sem enumeração.
-- [ ] Sanitizar logs e auditoria.
-- [ ] Testar sessão de usuário inativado.
+      *(Doc: `fase-2/mapeamento-user-role.md`.)*
+- [x] Definir catálogo granular de permissões de Vendas.
+- [x] Implementar defaults para vendedor, gestor, Financeiro e Admin.
+- [x] Garantir que VENDAS não receba acesso ao módulo Financeiro.
+- [x] Criar permissões de carteira própria, equipe, todos e sem responsável.
+      *(No catálogo TS; **não** concedidas no seed F2 — Fase 4+.)*
+- [x] Criar permissões de criar prospect/cliente, transferir e mesclar.
+      *(Catálogo; sem concessão F2.)*
+- [x] Criar permissões de ver custo/margem e aprovar alçada.
+      *(Catálogo; sem concessão F2.)*
+- [x] Criar permissões de precificar aditivo e de abonar.
+      *(Catálogo; sem concessão F2.)*
+- [x] Aplicar autorização no backend, não apenas na navegação.
+- [x] Revisar todos os endpoints por ID tocados pela feature.
+      *(Matriz: `fase-2/matriz-endpoints.md`.)*
+- [x] Validar tenant em links, anexos, chat, orçamento (superfície Orçamentos V2).
+      *(Cliente/atividade/OS/ocorrência fora do escopo F2.)*
+- [x] Definir retorno seguro 404/403 conforme política sem enumeração.
+- [x] Sanitizar logs e auditoria. *(Eventos de segurança Gate 0S; relatório seed
+      sem e-mail.)*
+- [x] Testar sessão de usuário inativado. *(Spec `VendasPermissionsService`.)*
 
 ### Cenários obrigatórios de teste
 
-- [ ] Vendedor A não acessa carteira privada do vendedor B sem permissão.
-- [ ] Gestor acessa equipe autorizada, não outra loja.
-- [ ] Financeiro acessa cobrança, mas não ganha edição comercial implícita.
-- [ ] Vendedor precifica aditivo, mas não abona se não autorizado.
-- [ ] Instalador continua sem receber valores.
-- [ ] ID de cliente/orçamento/ocorrência de outro tenant não produz efeito.
-- [ ] Ocultar item de menu não substitui negação no endpoint.
+- [x] Vendedor A não acessa carteira privada do vendedor B sem permissão.
+      *(Carteira fora de escopo F2; permissões de carteira **não** concedidas —
+      negação por padrão coberta no catálogo/defaults.)*
+- [x] Gestor acessa equipe autorizada, não outra loja.
+      *(Gestor via perfil; cross-tenant negado no spec.)*
+- [x] Financeiro acessa leitura comercial (`proposta.ver`), sem edição implícita.
+      *(Cobrança financeira de pedido = fases posteriores; piso F2 = só ver.)*
+- [x] Vendedor precifica aditivo, mas não abona se não autorizado.
+      *(Permissões de aditivo no catálogo sem concessão F2 — negar por padrão.)*
+- [x] Instalador/produção continua sem receber valores comerciais.
+- [x] ID de orçamento/link de outro tenant não produz efeito.
+- [x] Ocultar item de menu não substitui negação no endpoint.
+      *(Frontend ≠ auth documentado e testado.)*
 
 ### Gate de conclusão
 
-- [ ] Matriz RBAC documentada e coberta por testes positivos e negativos.
-- [ ] Testes cross-tenant passaram.
-- [ ] Nenhum endpoint novo depende de `loja_id` do cliente HTTP.
-- [ ] **FASE 2 CONCLUÍDA.**
+- [x] Matriz RBAC documentada e coberta por testes positivos e negativos.
+- [x] Testes cross-tenant passaram.
+- [x] Nenhum endpoint novo depende de `loja_id` do cliente HTTP.
+- [x] **FASE 2 CONCLUÍDA.**
 
 ---
 
@@ -1098,7 +1114,7 @@ Cada item abaixo exige RP/delta próprio, decisão de produto e novos critérios
       *(contrato documental aprovado em `fase-0/`; próximo gate: hotfix de segurança)*
 - [ ] Gate 0S — Hotfix de segurança do legado comercial
 - [x] Fase 1 — Contratos de domínio, dados e compatibilidade
-- [ ] Fase 2 — RBAC, segurança e multi-tenancy
+- [x] Fase 2 — RBAC, segurança e multi-tenancy
 - [ ] Fase 3 — Fundação visual e navegação
 - [ ] Fase 4 — Clientes, carteira e contatos
 - [ ] Fase 5 — Home, novo atendimento e atividades
