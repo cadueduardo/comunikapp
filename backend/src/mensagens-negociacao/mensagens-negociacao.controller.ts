@@ -8,6 +8,7 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  GoneException,
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
@@ -19,20 +20,27 @@ import { CreateMensagemNegociacaoDto } from './dto/create-mensagem-negociacao.dt
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentLojaId } from '../auth/decorators';
 
+const MSG_CHAT_DESCONTINUADO =
+  'Este endpoint de mensagens foi descontinuado. Use o chat canônico MensagemChat em /orcamentos-v2/.../chat/.';
+
 /**
- * Chat de negociação do orçamento legado.
+ * Chat de negociação do orçamento legado — DESCONTINUADO (Fase 1).
  *
- * Os três endpoints com sufixo `publico` declaravam `@Public()`, mas nunca
- * constaram da allowlist do `JwtGlobalMiddleware`: já respondiam `401`. O
- * Gate 0S (HS-03) alinhou a declaração ao comportamento efetivo em vez de
- * abrir a rota. Reabri-los depende de token vinculado, DTO tipado e rate
- * limit, que pertencem às fases funcionais do Módulo de Vendas.
+ * Contrato canônico: `MensagemChat` via orcamentos-v2 / ChatV2Service.
+ * Leituras autenticadas permanecem por compatibilidade transitória; escritas
+ * respondem 410 Gone. Ver AGENTS.md neste diretório.
+ *
+ * Gate 0S (HS-03): rotas `publico` já não são `@Public()`.
  */
 @Controller('orcamentos/:orcamentoId/mensagens')
 export class MensagensNegociacaoController {
   constructor(
     private readonly mensagensNegociacaoService: MensagensNegociacaoService,
   ) {}
+
+  private rejeitarEscritaDescontinuada(): never {
+    throw new GoneException(MSG_CHAT_DESCONTINUADO);
+  }
 
   @Get('publico')
   @UseGuards(JwtAuthGuard)
@@ -112,7 +120,7 @@ export class MensagensNegociacaoController {
     }),
   )
   async createPublico(
-    @Param('orcamentoId') orcamentoId: string,
+    @Param('orcamentoId') _orcamentoId: string,
     @Body(
       new ValidationPipe({
         skipMissingProperties: true,
@@ -120,30 +128,19 @@ export class MensagensNegociacaoController {
         forbidNonWhitelisted: false,
       }),
     )
-    body: any, // Desabilitar validação para este endpoint
-    @UploadedFile() file?: Express.Multer.File,
+    _body: CreateMensagemNegociacaoDto,
+    @UploadedFile() _file?: Express.Multer.File,
   ) {
-    const dto: CreateMensagemNegociacaoDto = {
-      mensagem: body.mensagem || '',
-      tipo: body.tipo || 'CLIENTE',
-      autor_nome: body.autor_nome || 'Cliente',
-      autor_email: body.autor_email || '',
-    };
-
-    return this.mensagensNegociacaoService.createPublicoComAnexo(
-      orcamentoId,
-      dto,
-      file,
-    );
+    this.rejeitarEscritaDescontinuada();
   }
 
   /**
-   * Enviar uma nova mensagem (autenticado)
+   * Enviar uma nova mensagem (autenticado) — descontinuado.
    */
   @Post()
   @UseGuards(JwtAuthGuard)
   async create(
-    @Param('orcamentoId') orcamentoId: string,
+    @Param('orcamentoId') _orcamentoId: string,
     @Body(
       new ValidationPipe({
         skipMissingProperties: true,
@@ -151,10 +148,10 @@ export class MensagensNegociacaoController {
         forbidNonWhitelisted: false,
       }),
     )
-    dto: CreateMensagemNegociacaoDto,
-    @CurrentLojaId() lojaId: string,
+    _dto: CreateMensagemNegociacaoDto,
+    @CurrentLojaId() _lojaId: string,
   ) {
-    return this.mensagensNegociacaoService.create(orcamentoId, dto, lojaId);
+    this.rejeitarEscritaDescontinuada();
   }
 
   @Post('publico/:mensagemId/visualizar')
@@ -187,14 +184,13 @@ export class MensagensNegociacaoController {
   }
 
   /**
-   * Upload de anexo para uma mensagem existente
+   * Upload de anexo — descontinuado.
    */
   @Post(':mensagemId/anexo')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('arquivo', {
       fileFilter: (req, file, callback) => {
-        // Validar tipo de arquivo
         const tiposPermitidos = [
           'image/jpeg',
           'image/png',
@@ -218,23 +214,19 @@ export class MensagensNegociacaoController {
     }),
   )
   async uploadAnexo(
-    @Param('orcamentoId') orcamentoId: string,
-    @Param('mensagemId') mensagemId: string,
+    @Param('orcamentoId') _orcamentoId: string,
+    @Param('mensagemId') _mensagemId: string,
     @UploadedFile(
       new ParseFilePipe({
         validators: [
-          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
         ],
+        fileIsRequired: false,
       }),
     )
-    file: Express.Multer.File,
-    @CurrentLojaId() lojaId: string,
+    _file: Express.Multer.File,
+    @CurrentLojaId() _lojaId: string,
   ) {
-    return this.mensagensNegociacaoService.uploadAnexo(
-      orcamentoId,
-      mensagemId,
-      file,
-      lojaId,
-    );
+    this.rejeitarEscritaDescontinuada();
   }
 }

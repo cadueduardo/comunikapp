@@ -38,6 +38,17 @@ import { extrairContextoDaRequisicao } from '../../common/security/contexto-requ
 import { SimularChapaDto } from '../../common/calculo-chapa/simular-chapa.dto';
 import { OrcamentoOrigemSobraService } from '../services/orcamento-origem-sobra.service';
 import { AcaoClientePublicoDto } from '../dto/acao-cliente-publico.dto';
+import {
+  AtualizarOrcamentoBodyDto,
+  CriarOrcamentoBodyDto,
+} from '../dto/orcamento-body.dto';
+
+/** Pipe local: tipa o body sem descartar campos ainda fora do DTO canônico. */
+const BODY_PIPE_EXPANSIVO = new ValidationPipe({
+  transform: true,
+  whitelist: false,
+  forbidNonWhitelisted: false,
+});
 
 /**
  * Controller Principal de Orçamentos V2
@@ -91,7 +102,10 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 201, description: 'Orçamento criado com sucesso' })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
-  async criarOrcamento(@Body() dados: any, @Request() req: any) {
+  async criarOrcamento(
+    @Body(BODY_PIPE_EXPANSIVO) dados: CriarOrcamentoBodyDto,
+    @Request() req: any,
+  ) {
     const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
     return await this.orcamentosService.criarOrcamento(
       dados,
@@ -520,7 +534,7 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async atualizarOrcamento(
     @Param('id') id: string,
-    @Body() dados: any,
+    @Body(BODY_PIPE_EXPANSIVO) dados: AtualizarOrcamentoBodyDto,
     @Request() req: any,
   ) {
     const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);

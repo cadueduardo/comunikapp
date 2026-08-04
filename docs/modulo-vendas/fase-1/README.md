@@ -24,9 +24,10 @@
 - [x] M1.3 `vendas_add_validade_proposta_estruturada`
 - [x] M1.4 `vendas_add_evento_comercial`
 - [x] Serviços/helpers de transição e derivação (M1.1 dual-write)
-- [ ] DTOs tipados nos endpoints tocados
+- [x] DTOs tipados nos endpoints tocados (`CriarOrcamentoBodyDto` / `AtualizarOrcamentoBodyDto`)
 - [x] Testes de invariantes (status, hash material, validade, eventos)
-- [ ] Chat canônico = MensagemChat / descontinuar mensagens-negociacao
+- [x] Chat canônico = MensagemChat / descontinuar escritas de mensagens-negociacao
+- [ ] Contratos restantes da execução detalhada (carteira, atividades, contatos, etc.)
 - [ ] **FASE 1 CONCLUÍDA**
 
 ## Regras

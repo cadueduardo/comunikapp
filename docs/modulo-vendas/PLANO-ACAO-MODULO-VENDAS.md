@@ -366,11 +366,12 @@ chat, Arte, pedido operacional ou OS Aditiva.
 - [x] Tratar D-07: `validade_proposta` é texto livre; não existem `enviado_em`,
       `expira_em` nem `aceito_em`. Migration obrigatória (M1.3).
       → M1.2/M1.3: `enviado_em`/`aceito_em`/`validade_dias`/`expira_em`.
-- [ ] Eleger `MensagemChat` como contrato canônico de chat e registrar a
-      descontinuação de `mensagens-negociacao`, cujos endpoints `@Public()` de
-      escrita continuam expostos sem consumidor.
-- [ ] Substituir os dois `@Body() dados: any` de
-      `orcamentos-v2.controller.ts:81` e `:487` por DTO tipado.
+- [x] Eleger `MensagemChat` como contrato canônico de chat e registrar a
+      descontinuação de `mensagens-negociacao`. Escritas respondem 410 Gone;
+      ver `backend/src/mensagens-negociacao/AGENTS.md`.
+- [x] Substituir os dois `@Body() dados: any` de
+      `orcamentos-v2.controller.ts` por DTO tipado (`CriarOrcamentoBodyDto` /
+      `AtualizarOrcamentoBodyDto`).
 - [x] Aplicar as migrations M1.1 a M1.4 de `fase-0/06-plano-de-migrations.md`.
 
 ### Execução detalhada
