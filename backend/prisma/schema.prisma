@@ -1445,6 +1445,13 @@ model orcamento {
   prazo_entrega          String?  @default("10 a 15 dias úteis")
   validade_proposta      String?  @default("30 dias")
 
+  // Fase 1 / M1.2 — versão em circulação, aceite e evidência (DV-15 / DV-06).
+  versao_enviada_id String?
+  versao_aceita_id  String?
+  enviado_em        DateTime?
+  aceito_em         DateTime?
+  aceite_evidencia  Json?
+
   // Fase 6 - Financeiro minimo: campos estruturados de condicao de pagamento.
   // Tipos: A_VISTA, ENTRADA_SALDO, FATURADO_30, FATURADO_60, FATURADO_90, PARCELADO, PERSONALIZADO.
   condicao_pagamento_tipo        String?  @db.VarChar(32)
@@ -1521,6 +1528,8 @@ model orcamento {
   entrega_modalidade           ModalidadeEntrega?          @relation(fields: [entrega_modalidade_id], references: [id], map: "Orcamento_entrega_modalidade_id_fkey")
   loja                         loja                        @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Orcamento_loja_id_fkey")
   responsavel                  usuario?                    @relation(fields: [responsavel_id], references: [id])
+  versao_enviada               VersaoOrcamento?            @relation("OrcamentoVersaoEnviada", fields: [versao_enviada_id], references: [id], onDelete: Restrict)
+  versao_aceita                VersaoOrcamento?            @relation("OrcamentoVersaoAceita", fields: [versao_aceita_id], references: [id], onDelete: Restrict)
   historico                    OrcamentoHistorico[]
   logs                         OrcamentoLog[]
   produtos                     ProdutoOrcamento[]
@@ -1548,6 +1557,8 @@ model orcamento {
   @@index([entrega_modalidade_id])
   @@index([status])
   @@index([loja_id, status_comercial])
+  @@index([versao_enviada_id])
+  @@index([versao_aceita_id])
   @@index([tipo_orcamento])
   @@index([ativo])
 }
@@ -1830,7 +1841,13 @@ model VersaoOrcamento {
   id               String   @id @default(cuid())
   orcamento_id     String
   versao           Int
+  // DEPRECATED (Fase 1 / M1.2): serialização textual legada. Novos writers
+  // gravam `snapshot` (Json nativo). Mantido na etapa expand; remoção em
+  // migration posterior após backfill completo.
   dados_completos  String   @db.LongText // JSON com todos os dados da versão
+  // Fase 1 / M1.2: snapshot canônico em Json + hash material (DV-02 / DV-15).
+  snapshot         Json?
+  hash_material    String?  @db.Char(64)
   motivo_alteracao String?  @db.Text
   usuario_id       String?
   numero           Int? // Campo para V2
@@ -1838,7 +1855,9 @@ model VersaoOrcamento {
   criado_em        DateTime @default(now())
 
   // Relacionamentos
-  orcamento orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  orcamento              orcamento   @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  orcamentos_como_enviada orcamento[] @relation("OrcamentoVersaoEnviada")
+  orcamentos_como_aceita  orcamento[] @relation("OrcamentoVersaoAceita")
 
   @@unique([orcamento_id, versao])
   @@index([orcamento_id])

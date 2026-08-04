@@ -47,6 +47,10 @@ import { calcularCustoUnitarioUso } from '../../common/custos/custo-unitario-ins
 import { VendasPermissionsService } from '../../vendas/permissions/vendas-permissions.service';
 import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 import {
+  calcularHashMaterial,
+  montarSnapshotVersao,
+} from '../domain/versao-orcamento';
+import {
   mapearStatusLegadoParaComercial,
   montarAtualizacaoStatusDual,
   OrcamentoStatusComercial,
@@ -1511,11 +1515,10 @@ export class OrcamentosV2Service {
         }
       }
 
-      // 6. Criar versão se mudanças significativas
-      // TEMPORARIAMENTE DESABILITADO - Tabela VersaoOrcamento não migrada
-      // if (this.mudancasSignificativas(orcamentoExistente, dados)) {
-      //   await this.criarNovaVersao(id, orcamentoExistente, dados, usuarioId);
-      // }
+      // 6. Criar versão se mudanças significativas (Fase 1 / M1.2 — writer religado)
+      if (this.mudancasSignificativas(orcamentoExistente, dados)) {
+        await this.criarNovaVersao(id, orcamentoExistente, dados, usuarioId);
+      }
 
       // 7. Criar histórico
       // TEMPORARIAMENTE DESABILITADO - Tabela HistoricoOrcamento não migrada
@@ -1873,6 +1876,12 @@ export class OrcamentosV2Service {
     });
 
     const numeroVersao = (ultimaVersao?.numero || 0) + 1;
+    const snapshot = montarSnapshotVersao({
+      anterior: versaoAnterior,
+      mudancas,
+    });
+    const hashMaterial = calcularHashMaterial(snapshot);
+    const dadosCompletosLegado = JSON.stringify(snapshot);
 
     await this.prisma.versaoOrcamento.create({
       data: {
@@ -1881,11 +1890,57 @@ export class OrcamentosV2Service {
         numero: numeroVersao,
         responsavel_id: usuarioId,
         usuario_id: usuarioId,
-        dados_completos: JSON.stringify({
-          anterior: versaoAnterior,
-          mudancas,
-        }),
+        // Dual-write expand: legado textual + snapshot Json canônico.
+        dados_completos: dadosCompletosLegado,
+        snapshot: snapshot as Prisma.InputJsonValue,
+        hash_material: hashMaterial,
         motivo_alteracao: 'Atualização de orçamento',
+      },
+    });
+  }
+
+  /**
+   * Congela a versão em circulação no envio (Fase 1 / M1.2).
+   * Se ainda não houver VersaoOrcamento, cria a v1 a partir do estado atual.
+   */
+  private async marcarEnvioDaProposta(
+    orcamentoId: string,
+    lojaId: string,
+    usuarioId: string,
+  ): Promise<void> {
+    let versao = await this.prisma.versaoOrcamento.findFirst({
+      where: { orcamento_id: orcamentoId },
+      orderBy: [{ numero: 'desc' }, { versao: 'desc' }],
+    });
+
+    if (!versao) {
+      const atual = await this.prisma.orcamento.findFirst({
+        where: { id: orcamentoId, loja_id: lojaId },
+      });
+      if (!atual) {
+        throw new NotFoundException('Orçamento não encontrado');
+      }
+      const snapshot = montarSnapshotVersao({ atual });
+      versao = await this.prisma.versaoOrcamento.create({
+        data: {
+          orcamento: { connect: { id: orcamentoId } },
+          versao: 1,
+          numero: 1,
+          usuario_id: usuarioId,
+          responsavel_id: usuarioId,
+          dados_completos: JSON.stringify(snapshot),
+          snapshot: snapshot as Prisma.InputJsonValue,
+          hash_material: calcularHashMaterial(snapshot),
+          motivo_alteracao: 'Versão congelada no envio da proposta',
+        },
+      });
+    }
+
+    await this.prisma.orcamento.updateMany({
+      where: { id: orcamentoId, loja_id: lojaId },
+      data: {
+        versao_enviada_id: versao.id,
+        enviado_em: new Date(),
       },
     });
   }
@@ -2568,6 +2623,10 @@ export class OrcamentosV2Service {
       statusAprovacao: string | null;
       observacoesCliente: string | null;
       statusComercial?: string | null;
+      versaoEnviadaId?: string | null;
+      aceitoEm?: Date | null;
+      aceiteEvidencia?: unknown;
+      versaoAceitaId?: string | null;
     };
     hashDoCodigo?: string | null;
     observacoes: string;
@@ -2613,6 +2672,17 @@ export class OrcamentosV2Service {
             status_comercial: OrcamentoStatusComercial.ACEITA,
             status_aprovacao: 'APROVADO' as any,
             observacoes_cliente: observacoes,
+            aceito_em: agora,
+            aceite_evidencia: {
+              canal: origem,
+              autor,
+              ip: entrada.contexto?.ip ?? null,
+              user_agent: entrada.contexto?.userAgent ?? null,
+              em: agora.toISOString(),
+            },
+            ...(estadoAnterior.versaoEnviadaId
+              ? { versao_aceita_id: estadoAnterior.versaoEnviadaId }
+              : {}),
             data_atualizacao: agora,
           },
         });
@@ -2697,6 +2767,10 @@ export class OrcamentosV2Service {
               )) as OrcamentoStatusComercial,
             status_aprovacao: estadoAnterior.statusAprovacao ?? 'PENDENTE',
             observacoes_cliente: estadoAnterior.observacoesCliente,
+            aceito_em: estadoAnterior.aceitoEm ?? null,
+            aceite_evidencia:
+              (estadoAnterior.aceiteEvidencia as any) ?? Prisma.JsonNull,
+            versao_aceita_id: estadoAnterior.versaoAceitaId ?? null,
             data_atualizacao: new Date(),
           },
         });
@@ -2784,7 +2858,12 @@ export class OrcamentosV2Service {
         status: true,
         loja_id: true,
         status_aprovacao: true,
+        status_comercial: true,
         observacoes_cliente: true,
+        versao_enviada_id: true,
+        versao_aceita_id: true,
+        aceito_em: true,
+        aceite_evidencia: true,
       },
     });
 
@@ -2864,6 +2943,10 @@ export class OrcamentosV2Service {
       statusComercial:
         (orcamento as any).status_comercial ??
         mapearStatusLegadoParaComercial(orcamento.status, false),
+      versaoEnviadaId: (orcamento as any).versao_enviada_id ?? null,
+      aceitoEm: (orcamento as any).aceito_em ?? null,
+      aceiteEvidencia: (orcamento as any).aceite_evidencia ?? null,
+      versaoAceitaId: (orcamento as any).versao_aceita_id ?? null,
     };
 
     // Gate 0S / HS-05: APROVAR entra no caso de uso único, o mesmo que a
@@ -3649,6 +3732,8 @@ export class OrcamentosV2Service {
       userId,
     );
 
+    await this.marcarEnvioDaProposta(id, lojaId, userId);
+
     // Enviar email para o cliente (se tiver email)
     let emailEnviado = false;
     let emailDestinatario: string | null = null;
@@ -3900,6 +3985,10 @@ export class OrcamentosV2Service {
         statusComercial:
           (orcamento as any).status_comercial ??
           mapearStatusLegadoParaComercial(orcamento.status, false),
+        versaoEnviadaId: (orcamento as any).versao_enviada_id ?? null,
+        aceitoEm: (orcamento as any).aceito_em ?? null,
+        aceiteEvidencia: (orcamento as any).aceite_evidencia ?? null,
+        versaoAceitaId: (orcamento as any).versao_aceita_id ?? null,
       },
       observacoes: observacaoRegistro,
       tipoAcaoAuditoria: 'APROVADO_INTERNAMENTE_E_OS_GERADA',
