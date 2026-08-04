@@ -3,65 +3,31 @@ import { usuario_funcao } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { funcaoConcede, separarModuloEAcao } from './vendas-permissoes';
 
-type ChaveCache = string;
-
 /**
  * Autorização do domínio comercial (padrão ComprasPermissionsService).
  * `@Roles` é metadata inerte (DV-13). Autenticação = JwtGlobalMiddleware.
  *
- * Cache em memória por (usuario, loja, permissão) com invalidação explícita —
- * mudança de perfil/permissão deve chamar `invalidarCacheUsuario` /
- * `invalidarCacheLoja` (seed e mutações administrativas).
+ * Precedência (Fase 2 — revisão):
+ * 1. Usuário inexistente / outra loja / inativo → nega (tenant + sessão).
+ * 2. `usuario_funcao.ADMINISTRADOR` → bypass (mantém tenant/ativo).
+ * 3. Negação explícita `perfil_permissao.permitido=false` em perfil ativo → nega
+ *    (prevalece sobre piso funcional).
+ * 4. Concessão explícita `permitido=true` em perfil ativo → concede.
+ * 5. Sem decisão explícita → piso por `usuario_funcao` (função desconhecida → []).
+ *
+ * Sem cache em memória nesta fase: toda avaliação consulta o banco.
+ * Bypass por nome textual de perfil foi removido — só `usuario_funcao.ADMINISTRADOR`.
  */
 @Injectable()
 export class VendasPermissionsService {
-  private readonly cache = new Map<ChaveCache, boolean>();
-
   constructor(private readonly prisma: PrismaService) {}
-
-  private chave(
-    usuarioId: string,
-    lojaId: string,
-    permissao: string,
-  ): ChaveCache {
-    return `${lojaId}:${usuarioId}:${permissao}`;
-  }
-
-  invalidarCacheUsuario(usuarioId: string, lojaId?: string): void {
-    const prefixo = lojaId ? `${lojaId}:${usuarioId}:` : null;
-    for (const chave of this.cache.keys()) {
-      if (prefixo ? chave.startsWith(prefixo) : chave.includes(`:${usuarioId}:`)) {
-        this.cache.delete(chave);
-      }
-    }
-  }
-
-  invalidarCacheLoja(lojaId: string): void {
-    const prefixo = `${lojaId}:`;
-    for (const chave of this.cache.keys()) {
-      if (chave.startsWith(prefixo)) {
-        this.cache.delete(chave);
-      }
-    }
-  }
-
-  invalidarCacheTudo(): void {
-    this.cache.clear();
-  }
 
   async pode(
     usuarioId: string,
     lojaId: string,
     permissao: string,
   ): Promise<boolean> {
-    const chave = this.chave(usuarioId, lojaId, permissao);
-    if (this.cache.has(chave)) {
-      return this.cache.get(chave) as boolean;
-    }
-
-    const resultado = await this.avaliar(usuarioId, lojaId, permissao);
-    this.cache.set(chave, resultado);
-    return resultado;
+    return this.avaliar(usuarioId, lojaId, permissao);
   }
 
   private async avaliar(
@@ -84,11 +50,10 @@ export class VendasPermissionsService {
           select: {
             perfil: {
               select: {
-                nome: true,
                 ativo: true,
                 permissoes: {
-                  where: { modulo, acao, permitido: true },
-                  select: { id: true },
+                  where: { modulo, acao },
+                  select: { permitido: true },
                 },
               },
             },
@@ -101,27 +66,27 @@ export class VendasPermissionsService {
       return false;
     }
 
-    // Função fora do enum / nula: negar por padrão (só perfil explícito).
+    // Bypass só por função canônica; tenant e ativo já filtrados acima.
     if (usuario.funcao === usuario_funcao.ADMINISTRADOR) {
       return true;
     }
 
-    const temPerfilAdministrador = usuario.perfis.some(
-      (vinculo) =>
-        vinculo.perfil.ativo &&
-        vinculo.perfil.nome.trim().toUpperCase() === 'ADMINISTRADOR',
-    );
-    if (temPerfilAdministrador) {
+    const decisoes = usuario.perfis
+      .filter((vinculo) => vinculo.perfil.ativo)
+      .flatMap((vinculo) => vinculo.perfil.permissoes);
+
+    // Negação explícita prevalece sobre piso funcional.
+    if (decisoes.some((d) => d.permitido === false)) {
+      return false;
+    }
+
+    // Perfil ativo pode conceder.
+    if (decisoes.some((d) => d.permitido === true)) {
       return true;
     }
 
-    if (funcaoConcede(usuario.funcao, permissao)) {
-      return true;
-    }
-
-    return usuario.perfis.some(
-      (vinculo) => vinculo.perfil.ativo && vinculo.perfil.permissoes.length > 0,
-    );
+    // Sem decisão explícita: default da função (desconhecida → nega).
+    return funcaoConcede(usuario.funcao, permissao);
   }
 
   async assertPode(

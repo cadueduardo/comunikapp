@@ -1,32 +1,37 @@
-# Evidência — auditoria RBAC pré-M2.1
+# Evidência — auditoria RBAC pré-M2.1 (MySQL real)
 
-**Gerado:** 2026-08-04  
+**Gerado:** 2026-08-04T21:38:29.203Z
 **Script:** `backend/scripts/auditar-rbac-vendas.ts`  
-**Ambiente:** desenvolvimento local Windows
+**Ambiente:** XAMPP MariaDB 10.4.32 (`127.0.0.1:3306` / `comunikapp`)
 
-## Resultado
+## Resultado sanitizado
 
-```text
-MySQL 127.0.0.1:3306 — indisponível (TcpClient connect falhou).
-Relatório quantitativo de usuários/perfis/colisões NÃO coletado nesta sessão.
+```json
+{
+  "usuarios": {
+    "total": 1,
+    "ativos": 1,
+    "ativos_sem_perfil": 1,
+    "por_funcao": { "ADMINISTRADOR": 1 },
+    "funcoes_fora_do_enum": 0
+  },
+  "perfis": [],
+  "permissoes_vendas": { "total": 0, "por_acao": {} },
+  "colisoes_perfil_modulo_acao": [],
+  "colisoes_nome_perfil_sistema": [],
+  "lojas": [
+    {
+      "loja_id": "tisruw9j7",
+      "slug": "cortetotal",
+      "usuarios": 1,
+      "perfis": 0
+    }
+  ]
+}
 ```
 
-## O que o script cobre (quando o DB estiver up)
+## Interpretação
 
-- Usuários ativos sem perfil
-- Contagem por `usuario_funcao`
-- Funções fora do enum (SQL defensivo)
-- Perfis e contagem de permissões/usuários
-- Permissões `modulo=vendas`
-- Colisões `(perfil_id, modulo, acao)`
-- Lojas e efeito (contagens)
-
-Saída sanitizada: sem e-mail, CPF, tokens.
-
-## Decisão para M2.1
-
-Seed idempotente e seguro (não remove, não reabre `permitido=false`, não
-associa produção/estoque, não concede financeiro ao vendedor) foi implementado
-e coberto por teste unitário com Prisma fake. **Reexecutar a auditoria no
-ambiente com DB** antes de promover seed em produção; não bloqueia o
-fechamento técnico da Fase 2 no código.
+- 1 loja ativa; 1 administrador sem perfil → seed deve criar perfis sistema e vincular Admin.
+- Sem colisões de nome nem duplicatas `(perfil, modulo, acao)`.
+- Sem funções fora do enum.

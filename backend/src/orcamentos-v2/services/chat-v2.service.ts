@@ -10,6 +10,8 @@ import {
   TipoMensagem,
   OrcamentoCompleto,
 } from '../interfaces/orcamento.interface';
+import { VendasPermissionsService } from '../../vendas/permissions/vendas-permissions.service';
+import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 
 /**
  * Serviço de Chat V2 para Orçamentos
@@ -23,7 +25,10 @@ import {
 export class ChatV2Service {
   private readonly logger = new Logger(ChatV2Service.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly vendasPermissions: VendasPermissionsService,
+  ) {}
 
   /**
    * Envia mensagem no chat do orçamento
@@ -36,6 +41,12 @@ export class ChatV2Service {
     tipo: TipoMensagem = TipoMensagem.TEXTO,
     anexos?: string[],
   ): Promise<MensagemChat> {
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    );
+
     this.logger.log(`💬 Enviando mensagem no orçamento ${orcamentoId}`);
 
     try {
@@ -149,6 +160,12 @@ export class ChatV2Service {
     usuarioId: string,
     lojaId: string,
   ): Promise<void> {
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_VER,
+    );
+
     try {
       // O filtro por loja fica no próprio `updateMany`: sem ele, um usuário
       // poderia marcar como lidas as mensagens de outro tenant.
@@ -268,6 +285,12 @@ export class ChatV2Service {
     tamanho: number,
     tipoArquivo: string,
   ): Promise<MensagemChat> {
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    );
+
     this.logger.log(
       `📎 Enviando arquivo no orçamento ${orcamentoId}: ${nomeArquivo}`,
     );

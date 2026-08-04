@@ -17,6 +17,8 @@ test-output.txt
 # Runtime/user data
 backend/uploads/
 uploads/
+backend/.mysql-data/
+backend/.mysql-dev-data/
 tmp/
 *.sql
 !backend/prisma/migrations/**/*.sql

@@ -158,6 +158,10 @@ export class AnexoGeometriaController {
     @Param('token') token: string,
     @Identidade() identidade: IdentidadeAutenticada,
   ): Promise<void> {
-    await this.anexoService.remover({ token, lojaId: identidade.lojaId });
+    await this.anexoService.remover({
+      token,
+      lojaId: identidade.lojaId,
+      usuarioId: identidade.usuarioId,
+    });
   }
 }

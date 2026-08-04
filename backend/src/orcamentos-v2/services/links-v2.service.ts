@@ -217,6 +217,12 @@ export class LinksV2Service {
       ativo?: boolean;
     },
   ): Promise<LinkPublico> {
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_ENVIAR,
+    );
+
     this.logger.log(`✏️ Atualizando link público ${linkId}`);
 
     try {
@@ -276,6 +282,12 @@ export class LinksV2Service {
     usuarioId: string,
     lojaId: string,
   ): Promise<void> {
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_ENVIAR,
+    );
+
     this.logger.log(`🗑️ Removendo link público ${linkId}`);
 
     try {

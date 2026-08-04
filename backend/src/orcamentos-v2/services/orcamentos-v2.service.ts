@@ -5,6 +5,7 @@ import {
   BadRequestException,
   InternalServerErrorException,
   ServiceUnavailableException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { IntegracaoMotorService } from './integracao-motor.service';
@@ -676,6 +677,7 @@ export class OrcamentosV2Service {
             await this.integracaoMotor.calcularOrcamentoCompleto(
               orcamentoParaMotor,
               lojaId,
+              usuarioId,
             );
 
           await this.atualizarCustosCalculados(
@@ -1350,6 +1352,7 @@ export class OrcamentosV2Service {
             await this.integracaoMotor.calcularOrcamentoCompleto(
               orcamentoAtualizado,
               lojaId,
+              usuarioId,
             );
 
           const custos = (resultadoCalculo?.custos || {}) as Record<
@@ -1500,6 +1503,7 @@ export class OrcamentosV2Service {
             await this.integracaoMotor.calcularOrcamentoCompleto(
               orcamentoParaCalculo,
               lojaId,
+              usuarioId,
             );
 
           const custos = (resultadoCalculo?.custos || {}) as Record<
@@ -1711,7 +1715,14 @@ export class OrcamentosV2Service {
     itemId: string,
     dto: SimularChapaDto,
     lojaId: string,
+    usuarioId: string,
   ) {
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    );
+
     const item = await this.buscarItemInsumoDoOrcamento(
       orcamentoId,
       itemId,
@@ -1728,6 +1739,17 @@ export class OrcamentosV2Service {
     lojaId: string,
     usuarioId?: string,
   ) {
+    if (!usuarioId) {
+      throw new ForbiddenException(
+        'Você não tem permissão para executar esta ação.',
+      );
+    }
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    );
+
     const item = await this.buscarItemInsumoDoOrcamento(
       orcamentoId,
       itemId,
@@ -3504,8 +3526,15 @@ export class OrcamentosV2Service {
     orcamentoId: string,
     dados: { mensagem: string; tipo?: string; anexos?: string[] },
     lojaId: string,
+    usuarioId: string,
     file?: Express.Multer.File,
   ) {
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    );
+
     this.logger.log(
       `💬 Enviando mensagem no chat V2 para orçamento: ${orcamentoId}`,
     );
@@ -3630,12 +3659,14 @@ export class OrcamentosV2Service {
       autor_nome?: string;
       autor_email?: string;
     },
+    usuarioId: string,
   ) {
     return this.enviarMensagemPublicaLegadoComAnexo(
       orcamentoId,
       lojaId,
       dados,
       undefined,
+      usuarioId,
     );
   }
 
@@ -3652,7 +3683,19 @@ export class OrcamentosV2Service {
       autor_email?: string;
     },
     file?: Express.Multer.File,
+    usuarioId?: string,
   ) {
+    if (!usuarioId) {
+      throw new ForbiddenException(
+        'Você não tem permissão para executar esta ação.',
+      );
+    }
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    );
+
     this.logger.log(
       `💬 Enviando mensagem no chat do orçamento: ${orcamentoId}`,
     );

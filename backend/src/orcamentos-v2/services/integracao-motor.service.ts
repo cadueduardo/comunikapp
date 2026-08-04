@@ -9,6 +9,8 @@ import {
   CustosOrcamento,
   ConfiguracaoCalculo,
 } from '../interfaces/orcamento.interface';
+import { VendasPermissionsService } from '../../vendas/permissions/vendas-permissions.service';
+import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 
 /**
  * Serviço de integração com o Motor de Cálculo V2
@@ -26,6 +28,7 @@ export class IntegracaoMotorService {
     private readonly motorCalculoV2Service: MotorCalculoV2Service,
     private readonly prisma: PrismaService,
     private readonly arteOrcamentoInjecaoService: ArteOrcamentoInjecaoService,
+    private readonly vendasPermissions: VendasPermissionsService,
   ) {}
 
   /**
@@ -35,12 +38,19 @@ export class IntegracaoMotorService {
   async calcularOrcamentoCompleto(
     dadosOrcamento: any,
     lojaId: string,
+    usuarioId: string,
   ): Promise<{
     orcamento: OrcamentoCompleto;
     custos: CustosOrcamento;
     detalhamento: any;
     alertas: string[];
   }> {
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    );
+
     this.logger.log(`🚀 Calculando orçamento completo para loja ${lojaId}`);
 
     try {
@@ -151,11 +161,18 @@ export class IntegracaoMotorService {
   async calcularProduto(
     produto: any,
     lojaId: string,
+    usuarioId: string,
   ): Promise<{
     produto: ProdutoOrcamento;
     custos: any;
     alertas: string[];
   }> {
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    );
+
     this.logger.log(`🔧 Calculando produto individual via motor V2`);
 
     try {
@@ -289,11 +306,18 @@ export class IntegracaoMotorService {
   async calcularOrcamentosEmLote(
     orcamentos: any[],
     lojaId: string,
+    usuarioId: string,
   ): Promise<{
     resultados: any[];
     estatisticas: any;
     erros: any[];
   }> {
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    );
+
     this.logger.log(
       `📦 Calculando ${orcamentos.length} orçamentos em lote via motor V2`,
     );

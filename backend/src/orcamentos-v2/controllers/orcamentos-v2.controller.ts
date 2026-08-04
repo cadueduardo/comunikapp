@@ -257,7 +257,7 @@ export class OrcamentosV2Controller {
     body: any,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
 
     // Criar DTO manualmente a partir do body
     const dados = {
@@ -270,6 +270,7 @@ export class OrcamentosV2Controller {
       id,
       dados,
       lojaId,
+      usuarioId,
       file,
     );
   }
@@ -382,7 +383,7 @@ export class OrcamentosV2Controller {
     @Request() req: any,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
     // Criar DTO manualmente a partir do body
     const dados = {
       mensagem: body.mensagem || '',
@@ -396,6 +397,7 @@ export class OrcamentosV2Controller {
       lojaId,
       dados,
       file,
+      usuarioId,
     );
   }
 
@@ -428,8 +430,14 @@ export class OrcamentosV2Controller {
     @Body() dados: SimularChapaDto,
     @Request() req: any,
   ) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
-    return this.orcamentosService.simularChapaItem(id, itemId, dados, lojaId);
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
+    return this.orcamentosService.simularChapaItem(
+      id,
+      itemId,
+      dados,
+      lojaId,
+      usuarioId,
+    );
   }
 
   @Put(':id/itens/:itemId/calculo-chapa')
@@ -606,12 +614,13 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async calcularOrcamento(@Param('id') id: string, @Request() req: any) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
     const orcamento = await this.orcamentosService.buscarOrcamento(id, lojaId);
 
     return await this.integracaoMotor.calcularOrcamentoCompleto(
       orcamento,
       lojaId,
+      usuarioId,
     );
   }
 

@@ -337,19 +337,34 @@ async function main() {
   console.log('');
 
   // M2.1 — perfis e permissões de Vendas (idempotente; não remove customizações)
-  const { seedVendasPerfisEPermissoes } = await import('./seed-vendas-rbac');
-  const relatorioVendas = await seedVendasPerfisEPermissoes(prisma);
-  console.log(
-    'Vendas RBAC seed:',
-    JSON.stringify({
-      lojas: relatorioVendas.lojas_processadas,
-      perfis_criados: relatorioVendas.perfis_criados,
-      perfis_atualizados: relatorioVendas.perfis_atualizados,
-      permissoes_upsert: relatorioVendas.permissoes_upsert,
-      vinculos_criados: relatorioVendas.vinculos_criados,
-      sem_associacao: relatorioVendas.usuarios_sem_associacao.length,
-    }),
-  );
+  const {
+    seedVendasPerfisEPermissoes,
+    SeedVendasColisaoError,
+  } = await import('./seed-vendas-rbac');
+  try {
+    const relatorioVendas = await seedVendasPerfisEPermissoes(prisma);
+    console.log(
+      'Vendas RBAC seed:',
+      JSON.stringify({
+        lojas: relatorioVendas.lojas_processadas,
+        perfis_criados: relatorioVendas.perfis_criados,
+        perfis_atualizados: relatorioVendas.perfis_atualizados,
+        permissoes_upsert: relatorioVendas.permissoes_upsert,
+        vinculos_criados: relatorioVendas.vinculos_criados,
+        sem_associacao: relatorioVendas.usuarios_sem_associacao.length,
+        inativos_preservados: relatorioVendas.perfis_inalterados_inativos,
+      }),
+    );
+  } catch (erro) {
+    if (erro instanceof SeedVendasColisaoError) {
+      console.error(
+        'Vendas RBAC seed ABORTADO (colisões):',
+        JSON.stringify(erro.relatorio.colisoes),
+      );
+      throw erro;
+    }
+    throw erro;
+  }
 
   console.log('ðŸ“‹ Dados de acesso:');
   console.log('Email: usuario@teste.com');

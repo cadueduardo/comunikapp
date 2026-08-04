@@ -119,6 +119,7 @@ export class CalculoV2Controller {
         await this.integracaoMotorService.calcularOrcamentoCompleto(
           orcamento,
           identidade.lojaId,
+          identidade.usuarioId,
         );
 
       return {
@@ -201,6 +202,7 @@ export class CalculoV2Controller {
       const resultado = await this.integracaoMotorService.calcularProduto(
         produto,
         identidade.lojaId,
+        identidade.usuarioId,
       );
 
       return {
@@ -377,6 +379,7 @@ export class CalculoV2Controller {
         await this.integracaoMotorService.calcularOrcamentosEmLote(
           orcamentos,
           identidade.lojaId,
+          identidade.usuarioId,
         );
 
       return {

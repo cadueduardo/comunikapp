@@ -71,6 +71,11 @@ async function main() {
     }),
   ]);
 
+  const { detectarColisoesPerfisSistema } = await import(
+    '../prisma/seed-vendas-rbac'
+  );
+  const colisoesNomeSistema = await detectarColisoesPerfisSistema(prisma);
+
   const relatorio = {
     gerado_em: new Date().toISOString(),
     usuarios: {
@@ -103,6 +108,7 @@ async function main() {
       chave: `${c.modulo}.${c.acao}`,
       n: Number(c.n),
     })),
+    colisoes_nome_perfil_sistema: colisoesNomeSistema,
     lojas: lojas.map((l) => ({
       loja_id: l.id,
       slug: l.slug,

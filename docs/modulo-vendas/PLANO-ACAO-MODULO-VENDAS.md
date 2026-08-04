@@ -416,12 +416,15 @@ chat, Arte, pedido operacional ou OS Aditiva.
 
 ## 6. Fase 2 — RBAC, segurança e isolamento multi-tenant
 
-**Status:** [x] Concluída (código + testes; evidência em `docs/modulo-vendas/fase-2/`)
+**Status:** [x] Concluída (revisão `5a40a965..f16a7dd8` corrigida — evidência em `docs/modulo-vendas/fase-2/`)
 **Dependência:** Fase 1 concluída
 **Referências do RP:** §§3, 4.3, 4.5, 5.1, 5.5, 6.3, 7/E0-4, E1-5, E2-2,
 8.5–8.8 e 11.
 **Objetivo:** criar a política canônica de Vendas antes de expor novas superfícies.
 **HEAD de partida:** `5a40a965`
+**Reabertura resolvida:** precedência `permitido=false` > piso; sem cache;
+bypass só por `usuario_funcao.ADMINISTRADOR`; `assertPode` em mutações sensíveis;
+seed com auditoria MySQL, colisões abortivas e idempotência real.
 
 ### Ajustes exigidos pela auditoria da Fase 0 — esta fase mudou de natureza
 
@@ -478,15 +481,14 @@ chat, Arte, pedido operacional ou OS Aditiva.
 
 ### Cenários obrigatórios de teste
 
-- [x] Vendedor A não acessa carteira privada do vendedor B sem permissão.
-      *(Carteira fora de escopo F2; permissões de carteira **não** concedidas —
-      negação por padrão coberta no catálogo/defaults.)*
-- [x] Gestor acessa equipe autorizada, não outra loja.
-      *(Gestor via perfil; cross-tenant negado no spec.)*
+- [ ] Vendedor A não acessa carteira privada do vendedor B sem permissão.
+      **Diferido (Fase 4+):** recurso de carteira ainda não existe nesta fase.
+- [ ] Gestor acessa equipe autorizada, não outra loja.
+      **Parcial:** cross-tenant coberto em F2; escopo equipe diferido (Fase 4+).
 - [x] Financeiro acessa leitura comercial (`proposta.ver`), sem edição implícita.
-      *(Cobrança financeira de pedido = fases posteriores; piso F2 = só ver.)*
-- [x] Vendedor precifica aditivo, mas não abona se não autorizado.
-      *(Permissões de aditivo no catálogo sem concessão F2 — negar por padrão.)*
+      *(Cobrança de pedido / módulo Financeiro = fases posteriores.)*
+- [ ] Vendedor precifica aditivo, mas não abona se não autorizado.
+      **Diferido (Fase 5–6+):** aditivo ainda não exposto nesta fase.
 - [x] Instalador/produção continua sem receber valores comerciais.
 - [x] ID de orçamento/link de outro tenant não produz efeito.
 - [x] Ocultar item de menu não substitui negação no endpoint.
@@ -498,7 +500,7 @@ chat, Arte, pedido operacional ou OS Aditiva.
 - [x] Testes cross-tenant passaram.
 - [x] Nenhum endpoint novo depende de `loja_id` do cliente HTTP.
 - [x] **FASE 2 CONCLUÍDA.**
-
+      *(Revisão corrigida; evidências MySQL + Jest em `docs/modulo-vendas/fase-2/`.)*
 ---
 
 ## 7. Fase 3 — Fundação visual, navegação e compatibilidade de rotas

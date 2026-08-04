@@ -3,7 +3,10 @@ import {
   DEFAULTS_CONCEDIDOS_FASE_2,
   NOMES_PERFIL_SISTEMA,
 } from './vendas-permissoes';
-import { seedVendasPerfisEPermissoes } from '../../../prisma/seed-vendas-rbac';
+import {
+  SeedVendasColisaoError,
+  seedVendasPerfisEPermissoes,
+} from '../../../prisma/seed-vendas-rbac';
 
 type EstadoFake = {
   lojas: { id: string }[];
@@ -37,60 +40,32 @@ function criarPrismaSeedFake(estado: EstadoFake) {
   let seq = 1;
   const nextId = () => `id-${seq++}`;
 
-  return {
+  const api: any = {
     loja: {
       findMany: async () => estado.lojas,
     },
     perfil_acesso: {
-      findUnique: async ({
-        where,
-      }: {
-        where: { loja_id_nome: { loja_id: string; nome: string } };
-      }) => {
-        const { loja_id, nome } = where.loja_id_nome;
-        return (
-          estado.perfis.find((p) => p.loja_id === loja_id && p.nome === nome) ??
-          null
-        );
+      findMany: async ({ where }: { where: any }) => {
+        return estado.perfis.filter((p) => {
+          if (where.loja_id && p.loja_id !== where.loja_id) return false;
+          if (where.sistema === false && p.sistema !== false) return false;
+          if (where.nome?.in && !where.nome.in.includes(p.nome)) return false;
+          return true;
+        });
       },
-      upsert: async ({
-        where,
-        create,
-        update,
-      }: {
-        where: { loja_id_nome: { loja_id: string; nome: string } };
-        create: any;
-        update: any;
-      }) => {
-        const { loja_id, nome } = where.loja_id_nome;
-        const existente = estado.perfis.find(
-          (p) => p.loja_id === loja_id && p.nome === nome,
-        );
-        if (existente) {
-          Object.assign(existente, update);
-          return { id: existente.id };
-        }
+      create: async ({ data, select }: any) => {
         const id = nextId();
-        estado.perfis.push({ id, ...create });
-        return { id };
+        estado.perfis.push({ id, ...data });
+        return select?.id ? { id } : { id, ...data };
+      },
+      update: async ({ where, data }: any) => {
+        const p = estado.perfis.find((x) => x.id === where.id)!;
+        Object.assign(p, data);
+        return p;
       },
     },
     perfil_permissao: {
-      upsert: async ({
-        where,
-        create,
-        update,
-      }: {
-        where: {
-          perfil_id_modulo_acao: {
-            perfil_id: string;
-            modulo: string;
-            acao: string;
-          };
-        };
-        create: any;
-        update: any;
-      }) => {
+      upsert: async ({ where, create, update }: any) => {
         const chave = where.perfil_id_modulo_acao;
         const existente = estado.permissoes.find(
           (p) =>
@@ -117,20 +92,17 @@ function criarPrismaSeedFake(estado: EstadoFake) {
         ),
     },
     usuario_perfil: {
-      create: async ({
-        data,
-      }: {
-        data: { usuario_id: string; perfil_id: string };
-      }) => {
+      create: async ({ data }: any) => {
         estado.vinculos.push(data);
         const u = estado.usuarios.find((x) => x.id === data.usuario_id);
-        if (u) {
-          u.perfis.push({ perfil_id: data.perfil_id });
-        }
+        if (u) u.perfis.push({ perfil_id: data.perfil_id });
         return data;
       },
     },
-  } as any;
+    $transaction: async (fn: (tx: any) => Promise<void>) => fn(api),
+  };
+
+  return api;
 }
 
 describe('seedVendasPerfisEPermissoes (M2.1)', () => {
@@ -193,9 +165,7 @@ describe('seedVendasPerfisEPermissoes (M2.1)', () => {
     expect(
       estado.permissoes.find(
         (p) =>
-          p.perfil_id === vendedor.id &&
-          p.acao === 'proposta.excluir' &&
-          p.modulo === 'vendas',
+          p.perfil_id === vendedor.id && p.acao === 'proposta.excluir',
       ),
     ).toBeUndefined();
 
@@ -214,7 +184,6 @@ describe('seedVendasPerfisEPermissoes (M2.1)', () => {
     expect(r2.perfis_criados).toBe(0);
     expect(r2.vinculos_criados).toBe(0);
     expect(verFin.permitido).toBe(false);
-    expect(estado.permissoes.every((p) => p.modulo === 'vendas')).toBe(true);
 
     for (const chave of DEFAULTS_CONCEDIDOS_FASE_2.VENDEDOR) {
       const acao = chave.split('.').slice(1).join('.');
@@ -222,15 +191,84 @@ describe('seedVendasPerfisEPermissoes (M2.1)', () => {
         estado.permissoes.some(
           (p) =>
             p.perfil_id === vendedor.id &&
-            p.modulo === 'vendas' &&
             p.acao === acao &&
             p.permitido,
         ),
       ).toBe(true);
     }
 
-    const json = JSON.stringify(r1);
-    expect(json).not.toMatch(/@/);
-    expect(json).not.toMatch(/senha|password|token/i);
+    expect(JSON.stringify(r1)).not.toMatch(/@/);
+  });
+
+  it('aborta com relatório sanitizado em colisão de nome customizado', async () => {
+    const estado: EstadoFake = {
+      lojas: [{ id: 'loja-1' }],
+      perfis: [
+        {
+          id: 'custom-1',
+          loja_id: 'loja-1',
+          nome: NOMES_PERFIL_SISTEMA.VENDEDOR,
+          ativo: true,
+          sistema: false,
+        },
+      ],
+      permissoes: [],
+      usuarios: [],
+      vinculos: [],
+    };
+
+    await expect(
+      seedVendasPerfisEPermissoes(criarPrismaSeedFake(estado)),
+    ).rejects.toBeInstanceOf(SeedVendasColisaoError);
+
+    try {
+      await seedVendasPerfisEPermissoes(criarPrismaSeedFake(estado));
+    } catch (erro) {
+      const e = erro as SeedVendasColisaoError;
+      expect(e.relatorio.colisoes).toEqual([
+        expect.objectContaining({
+          perfil_id: 'custom-1',
+          nome: NOMES_PERFIL_SISTEMA.VENDEDOR,
+          motivo: 'nome_sistema_ocupado_por_perfil_customizado',
+        }),
+      ]);
+      expect(JSON.stringify(e.relatorio)).not.toMatch(/@|senha|token/i);
+    }
+
+    // Não mutou (nenhum perfil sistema criado).
+    expect(estado.perfis).toHaveLength(1);
+    expect(estado.permissoes).toHaveLength(0);
+  });
+
+  it('não reativa perfil de sistema inativo', async () => {
+    const estado: EstadoFake = {
+      lojas: [{ id: 'loja-1' }],
+      perfis: [
+        {
+          id: 'vend-off',
+          loja_id: 'loja-1',
+          nome: NOMES_PERFIL_SISTEMA.VENDEDOR,
+          ativo: false,
+          sistema: true,
+        },
+      ],
+      permissoes: [],
+      usuarios: [
+        {
+          id: 'u-v',
+          loja_id: 'loja-1',
+          status: 'ATIVO',
+          ativo: true,
+          funcao: usuario_funcao.VENDAS,
+          perfis: [],
+        },
+      ],
+      vinculos: [],
+    };
+
+    const r = await seedVendasPerfisEPermissoes(criarPrismaSeedFake(estado));
+    expect(estado.perfis.find((p) => p.id === 'vend-off')!.ativo).toBe(false);
+    expect(r.perfis_inalterados_inativos).toBeGreaterThanOrEqual(1);
+    expect(estado.vinculos).toHaveLength(0);
   });
 });

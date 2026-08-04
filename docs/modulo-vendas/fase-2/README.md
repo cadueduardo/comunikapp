@@ -1,69 +1,37 @@
-# Fase 2 — RBAC canônico de Vendas
+# Fase 2 — RBAC canônico de Vendas (reabertura / revisão)
 
-**Status:** concluída (evidência abaixo)  
-**HEAD de partida:** `5a40a965`  
-**Fora de escopo:** UI, carteira, pipeline, contatos, Gate 0S, deploy.
+**Status:** concluída (revisão corrigida; evidências MySQL + Jest abaixo)
+**HEAD de partida:** `5a40a965`
+**Fora de escopo:** UI, carteira, pipeline, contatos, Gate 0S, deploy, Fase 3.
 
-## Inventário reutilizado (não refeito)
+## Correções da revisão
 
-| Peça | Caminho |
+| Achado | Correção |
 |---|---|
-| Service + cache | `backend/src/vendas/permissions/vendas-permissions.service.ts` |
-| Catálogo + defaults F2 | `backend/src/vendas/permissions/vendas-permissoes.ts` |
-| Guard HTTP (defesa adicional) | `vendas-permissions.guard.ts` + `@RequerPermissaoVendas` |
-| Módulo | `backend/src/vendas/vendas-security.module.ts` |
-| Rotas públicas (única fonte) | `backend/src/common/security/rotas-publicas.ts` + `RotasPublicasValidator` |
-| IDOR links | `links-v2.service.ts` filtra `loja_id` |
+| Precedência | `permitido=false` > concessão explícita > piso funcional; função desconhecida nega |
+| Cache | **sem cache** nesta fase (consulta ao banco a cada `pode`) |
+| Bypass admin | só `usuario_funcao.ADMINISTRADOR`; removido bypass por nome de perfil |
+| Seed | colisão `sistema=false` aborta; não reativa inativo; transação por loja |
+| Enforcement | `assertPode` em links (criar/atualizar/remover), chat, cálculo, anexos, mutações orçamento |
 
-**Proibido mantido:** RolesGuard global; `@Roles` como autorização.
+## Política de precedência
 
-## Fonte canônica de papel
+1. Usuário inexistente / outra loja / inativo → nega (tenant).
+2. `usuario_funcao.ADMINISTRADOR` → bypass (tenant/ativo já aplicados).
+3. Negação explícita em perfil ativo → nega (vence o piso).
+4. Concessão explícita em perfil ativo → concede.
+5. Sem decisão explícita → piso por função (`VENDAS`/`FINANCEIRO`/…); desconhecida → [].
 
-- `usuario_funcao` autoriza (piso + perfil).
-- `UserRole` é legado — ver [mapeamento-user-role.md](./mapeamento-user-role.md).
-- Gestor = `usuario_funcao.VENDAS` + perfil sistema `Gestor de Vendas` (sem terceiro enum).
+## Diferidos (não testados nesta fase)
 
-## Auditoria pré-seed (M2.0)
+- Carteira própria/equipe/todos → Fase 4+
+- Escopo equipe do gestor → Fase 4+
+- Aditivo precificar/abonar → Fase 5–6+
 
-Script: `backend/scripts/auditar-rbac-vendas.ts`.
+## Evidências
 
-| Ambiente | Resultado |
-|---|---|
-| Local (2026-08-04) | MySQL `127.0.0.1:3306` indisponível — relatório real **pendente de execução** no ambiente com DB. Script pronto e sanitizado (sem e-mail/segredo). |
-
-Ao subir o DB: `npx ts-node scripts/auditar-rbac-vendas.ts` a partir de `backend/`.
-
-## Seed M2.1
-
-- `backend/prisma/seed-vendas-rbac.ts` ligado em `seed.ts`.
-- Idempotente; não remove customizações; `update: {}` não reabre `permitido=false`.
-- Defaults = só `DEFAULTS_CONCEDIDOS_FASE_2` (catálogo completo no TS; carteira/etc. sem concessão nesta fase).
-- Vendedor sem financeiro; produção/estoque/função desconhecida sem vínculo comercial.
-- Relatório sanitizado (ids + motivos).
-
-## Enforcement
-
-Mutações sensíveis com `assertPode` no service:
-
-- `OrcamentosV2Service`: criar, editar, excluir, alterar status, enviar, aceite interno.
-- `LinksV2Service.criarLinkPublico`: `proposta.enviar`.
-- Controllers: guard + `@RequerPermissaoVendas` (nunca única prova).
-- Leituras/listagens: guard HTTP + filtro `loja_id` (tenant).
-
-Matriz endpoint × permissão: [matriz-endpoints.md](./matriz-endpoints.md).
-
-## Regressão Gate 0S
-
-- IDOR links: permanece com `loja_id` em findFirst.
-- Fonte única de rota pública: inalterada; validator na boot.
-- Sem alteração em scripts de deploy, observabilidade ou aceite público.
-
-## Testes (Jest filtrado)
-
-```text
-npx jest src/vendas/permissions/vendas-permissions.service.spec.ts --runInBand --forceExit --no-coverage
-npx jest src/vendas/permissions/seed-vendas-rbac.spec.ts --runInBand --forceExit --no-coverage
-npx jest src/common/security/rotas-publicas.validator.spec.ts --runInBand --forceExit --no-coverage
-```
-
-Cobertura: vendedor/gestor/financeiro/admin; sem perfil; inativo; função desconhecida; dois tenants; concede/revoga; cache; ID outra loja; frontend ≠ auth; seed idempotente.
+- [auditoria-pre-seed.md](./auditoria-pre-seed.md)
+- [evidencia-seed-mysql.md](./evidencia-seed-mysql.md)
+- [evidencia-rbac-mysql.md](./evidencia-rbac-mysql.md)
+- [mapeamento-user-role.md](./mapeamento-user-role.md)
+- [matriz-endpoints.md](./matriz-endpoints.md)

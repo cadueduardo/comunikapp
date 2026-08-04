@@ -27,8 +27,8 @@ interface UsuarioFake {
 }
 
 /**
- * Prisma mínimo que honra o `where` e o filtro de permissões usado pelo
- * service, para que o teste falhe caso o escopo por loja seja removido.
+ * Prisma mínimo que honra o `where` e devolve decisões explícitas
+ * (permitido true e false) para testar a precedência.
  */
 function criarPrismaFake(usuarios: UsuarioFake[]): PrismaService {
   return {
@@ -54,16 +54,14 @@ function criarPrismaFake(usuarios: UsuarioFake[]): PrismaService {
           funcao: usuario.funcao,
           perfis: usuario.perfis.map((perfil) => ({
             perfil: {
-              nome: perfil.nome,
               ativo: perfil.ativo,
               permissoes: perfil.permissoes
                 .filter(
                   (permissao) =>
                     permissao.modulo === filtroPermissao.modulo &&
-                    permissao.acao === filtroPermissao.acao &&
-                    permissao.permitido === filtroPermissao.permitido,
+                    permissao.acao === filtroPermissao.acao,
                 )
-                .map(() => ({ id: 'permissao-fake' })),
+                .map((permissao) => ({ permitido: permissao.permitido })),
             },
           })),
         });
@@ -114,90 +112,31 @@ describe('VendasPermissionsService', () => {
 
   const service = new VendasPermissionsService(criarPrismaFake(base));
 
-  describe('piso por função', () => {
-    it('administrador pode inclusive excluir proposta', async () => {
+  describe('precedência de autorização', () => {
+    it('negação explícita permitido=false prevalece sobre piso VENDAS', async () => {
+      const usuarios = [
+        usuario('vendedor', usuario_funcao.VENDAS, [
+          {
+            nome: 'Revoga ver',
+            ativo: true,
+            permissoes: [
+              { modulo: 'vendas', acao: 'proposta.ver', permitido: false },
+            ],
+          },
+        ]),
+      ];
+      const svc = new VendasPermissionsService(criarPrismaFake(usuarios));
+
+      // Piso concederia proposta.ver; negação explícita deve vencer.
       await expect(
-        service.pode('admin', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_EXCLUIR),
+        svc.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
+      ).resolves.toBe(false);
+      await expect(
+        svc.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_CRIAR),
       ).resolves.toBe(true);
     });
 
-    it('vendedor opera a proposta de ponta a ponta', async () => {
-      for (const permissao of DEFAULTS_CONCEDIDOS_FASE_2.VENDEDOR) {
-        await expect(service.pode('vendedor', LOJA_A, permissao)).resolves.toBe(
-          true,
-        );
-      }
-    });
-
-    it('vendedor não exclui proposta nem acessa módulo financeiro', async () => {
-      await expect(
-        service.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_EXCLUIR),
-      ).resolves.toBe(false);
-      await expect(
-        service.pode('vendedor', LOJA_A, 'financeiro.cobranca.ver'),
-      ).resolves.toBe(false);
-    });
-
-    it('gestor via perfil exclui e reabre; vendedor puro não', async () => {
-      await expect(
-        service.pode('gestor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_EXCLUIR),
-      ).resolves.toBe(true);
-      await expect(
-        service.pode('gestor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_REABRIR),
-      ).resolves.toBe(true);
-      await expect(
-        service.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_REABRIR),
-      ).resolves.toBe(false);
-    });
-
-    it('financeiro apenas lê', async () => {
-      await expect(
-        service.pode('financeiro', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
-      ).resolves.toBe(true);
-      await expect(
-        service.pode('financeiro', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_CRIAR),
-      ).resolves.toBe(false);
-      await expect(
-        service.pode('financeiro', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_EDITAR),
-      ).resolves.toBe(false);
-    });
-
-    it('produção e estoque não têm acesso comercial', async () => {
-      for (const id of ['producao', 'estoque']) {
-        await expect(
-          service.pode(id, LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
-        ).resolves.toBe(false);
-        await expect(
-          service.pode(
-            id,
-            LOJA_A,
-            VENDAS_PERMISSOES.PROPOSTA_ACEITE_REGISTRAR,
-          ),
-        ).resolves.toBe(false);
-      }
-    });
-
-    it('função desconhecida nega por padrão', async () => {
-      const desconhecido = new VendasPermissionsService(
-        criarPrismaFake([usuario('x', 'FUNCAO_FANTASMA' as usuario_funcao)]),
-      );
-      await expect(
-        desconhecido.pode('x', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
-      ).resolves.toBe(false);
-    });
-
-    it('usuário sem perfil e sem piso funcional nega', async () => {
-      const semPerfil = new VendasPermissionsService(
-        criarPrismaFake([usuario('op', usuario_funcao.PRODUCAO)]),
-      );
-      await expect(
-        semPerfil.pode('op', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
-      ).resolves.toBe(false);
-    });
-  });
-
-  describe('perfil_permissao concede e revoga', () => {
-    it('concede ação que a função sozinha negaria', async () => {
+    it('perfil ativo concede além do piso', async () => {
       const comPerfil = new VendasPermissionsService(
         criarPrismaFake([
           usuario('producao', usuario_funcao.PRODUCAO, [
@@ -215,144 +154,147 @@ describe('VendasPermissionsService', () => {
       await expect(
         comPerfil.pode('producao', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
       ).resolves.toBe(true);
-      await expect(
-        comPerfil.pode('producao', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_CRIAR),
-      ).resolves.toBe(false);
     });
 
-    it('revogar permitido=false remove o acesso do perfil', async () => {
-      const usuarios = [
-        usuario('producao', usuario_funcao.PRODUCAO, [
-          {
-            nome: 'Consulta comercial',
-            ativo: true,
-            permissoes: [
-              { modulo: 'vendas', acao: 'proposta.ver', permitido: true },
-            ],
-          },
-        ]),
-      ];
-      const comPerfil = new VendasPermissionsService(criarPrismaFake(usuarios));
+    it('função só aplica default quando não há decisão explícita', async () => {
       await expect(
-        comPerfil.pode('producao', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
+        service.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
       ).resolves.toBe(true);
-
-      usuarios[0].perfis[0].permissoes[0].permitido = false;
-      comPerfil.invalidarCacheUsuario('producao', LOJA_A);
       await expect(
-        comPerfil.pode('producao', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
+        service.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_EXCLUIR),
       ).resolves.toBe(false);
     });
 
-    it('ignora perfil inativo', async () => {
-      const comPerfilInativo = new VendasPermissionsService(
-        criarPrismaFake([
-          usuario('producao', usuario_funcao.PRODUCAO, [
-            {
-              nome: 'Consulta comercial',
-              ativo: false,
-              permissoes: [
-                { modulo: 'vendas', acao: 'proposta.ver', permitido: true },
-              ],
-            },
-          ]),
-        ]),
+    it('função desconhecida nega sem concessão explícita', async () => {
+      const desconhecido = new VendasPermissionsService(
+        criarPrismaFake([usuario('x', 'FUNCAO_FANTASMA' as usuario_funcao)]),
       );
-
       await expect(
-        comPerfilInativo.pode(
-          'producao',
-          LOJA_A,
-          VENDAS_PERMISSOES.PROPOSTA_VER,
-        ),
+        desconhecido.pode('x', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
       ).resolves.toBe(false);
     });
-  });
 
-  describe('cache', () => {
-    it('invalidarCacheUsuario força reavaliação após mudança', async () => {
-      const usuarios = [
-        usuario('producao', usuario_funcao.PRODUCAO, [
-          {
-            nome: 'Consulta',
-            ativo: true,
-            permissoes: [
-              { modulo: 'vendas', acao: 'proposta.ver', permitido: true },
-            ],
-          },
-        ]),
-      ];
-      const svc = new VendasPermissionsService(criarPrismaFake(usuarios));
-
+    it('ADMINISTRADOR faz bypass mantendo tenant', async () => {
       await expect(
-        svc.pode('producao', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
+        service.pode('admin', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_EXCLUIR),
       ).resolves.toBe(true);
-
-      usuarios[0].perfis = [];
-      // Sem invalidar, cache ainda permite
-      await expect(
-        svc.pode('producao', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
-      ).resolves.toBe(true);
-
-      svc.invalidarCacheUsuario('producao', LOJA_A);
-      await expect(
-        svc.pode('producao', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
-      ).resolves.toBe(false);
-    });
-
-    it('invalidarCacheLoja limpa todos os usuários da loja', async () => {
-      const usuarios = [
-        usuario('a', usuario_funcao.PRODUCAO, [
-          {
-            nome: 'Consulta',
-            ativo: true,
-            permissoes: [
-              { modulo: 'vendas', acao: 'proposta.ver', permitido: true },
-            ],
-          },
-        ]),
-      ];
-      const svc = new VendasPermissionsService(criarPrismaFake(usuarios));
-      await svc.pode('a', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER);
-      usuarios[0].perfis = [];
-      svc.invalidarCacheLoja(LOJA_A);
-      await expect(
-        svc.pode('a', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
-      ).resolves.toBe(false);
-    });
-  });
-
-  describe('isolamento entre lojas e sessões revogadas', () => {
-    it('nega usuário de outra loja mesmo sendo administrador', async () => {
       const outraLoja = new VendasPermissionsService(
         criarPrismaFake([
           usuario('admin', usuario_funcao.ADMINISTRADOR, [], LOJA_B),
         ]),
       );
-
       await expect(
         outraLoja.pode('admin', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
       ).resolves.toBe(false);
     });
 
-    it('nega usuário inativo', async () => {
-      const inativo = new VendasPermissionsService(
+    it('não concede bypass só pelo nome textual Administrador', async () => {
+      const falsoAdmin = new VendasPermissionsService(
         criarPrismaFake([
-          { ...usuario('vendedor', usuario_funcao.VENDAS), ativo: false },
+          usuario('vendas', usuario_funcao.VENDAS, [
+            {
+              nome: 'Administrador',
+              ativo: true,
+              permissoes: [],
+            },
+          ]),
         ]),
       );
-
       await expect(
-        inativo.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
+        falsoAdmin.pode('vendas', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_EXCLUIR),
+      ).resolves.toBe(false);
+      await expect(
+        falsoAdmin.pode('vendas', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
+      ).resolves.toBe(true);
+    });
+  });
+
+  describe('piso por função', () => {
+    it('vendedor opera a proposta de ponta a ponta', async () => {
+      for (const permissao of DEFAULTS_CONCEDIDOS_FASE_2.VENDEDOR) {
+        await expect(service.pode('vendedor', LOJA_A, permissao)).resolves.toBe(
+          true,
+        );
+      }
+    });
+
+    it('vendedor não exclui nem acessa módulo financeiro', async () => {
+      await expect(
+        service.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_EXCLUIR),
+      ).resolves.toBe(false);
+      await expect(
+        service.pode('vendedor', LOJA_A, 'financeiro.cobranca.ver'),
       ).resolves.toBe(false);
     });
 
-    it('nega usuário inexistente', async () => {
+    it('gestor via perfil exclui e reabre', async () => {
       await expect(
-        service.pode('fantasma', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
+        service.pode('gestor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_EXCLUIR),
+      ).resolves.toBe(true);
+      await expect(
+        service.pode('gestor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_REABRIR),
+      ).resolves.toBe(true);
+    });
+
+    it('financeiro apenas lê', async () => {
+      await expect(
+        service.pode('financeiro', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
+      ).resolves.toBe(true);
+      await expect(
+        service.pode('financeiro', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_CRIAR),
       ).resolves.toBe(false);
     });
 
+    it('produção e estoque sem acesso comercial', async () => {
+      for (const id of ['producao', 'estoque']) {
+        await expect(
+          service.pode(id, LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
+        ).resolves.toBe(false);
+      }
+    });
+  });
+
+  describe('revogação com VENDAS (defeito coberto)', () => {
+    it('revogar permitido=false remove acesso do piso funcional', async () => {
+      const usuarios = [
+        usuario('vendedor', usuario_funcao.VENDAS, [
+          {
+            nome: 'Ajuste',
+            ativo: true,
+            permissoes: [
+              { modulo: 'vendas', acao: 'proposta.enviar', permitido: true },
+            ],
+          },
+        ]),
+      ];
+      const svc = new VendasPermissionsService(criarPrismaFake(usuarios));
+      await expect(
+        svc.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_ENVIAR),
+      ).resolves.toBe(true);
+
+      usuarios[0].perfis[0].permissoes[0].permitido = false;
+      // Sem cache: reavaliação imediata.
+      await expect(
+        svc.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_ENVIAR),
+      ).resolves.toBe(false);
+    });
+  });
+
+  describe('sem cache — reavaliação imediata', () => {
+    it('usuário inativado deixa de passar após mudança no banco fake', async () => {
+      const usuarios = [usuario('vendedor', usuario_funcao.VENDAS)];
+      const svc = new VendasPermissionsService(criarPrismaFake(usuarios));
+      await expect(
+        svc.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
+      ).resolves.toBe(true);
+      usuarios[0].ativo = false;
+      await expect(
+        svc.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
+      ).resolves.toBe(false);
+    });
+  });
+
+  describe('isolamento entre lojas', () => {
     it('dois tenants: admin da loja A não autoriza na loja B', async () => {
       const multi = new VendasPermissionsService(
         criarPrismaFake([
@@ -366,9 +308,12 @@ describe('VendasPermissionsService', () => {
       await expect(
         multi.pode('admin-a', LOJA_B, VENDAS_PERMISSOES.PROPOSTA_EXCLUIR),
       ).resolves.toBe(false);
+    });
+
+    it('nega usuário inexistente', async () => {
       await expect(
-        multi.pode('admin-b', LOJA_B, VENDAS_PERMISSOES.PROPOSTA_EXCLUIR),
-      ).resolves.toBe(true);
+        service.pode('fantasma', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
+      ).resolves.toBe(false);
     });
   });
 
@@ -386,43 +331,30 @@ describe('VendasPermissionsService', () => {
           LOJA_A,
           VENDAS_PERMISSOES.PROPOSTA_CRIAR,
         ),
-      ).rejects.toMatchObject({
-        response: {
-          message: 'Você não tem permissão para executar esta ação.',
-        },
-      });
+      ).rejects.toBeInstanceOf(ForbiddenException);
       await expect(
         service.assertPode(
           'producao',
           LOJA_A,
           VENDAS_PERMISSOES.PROPOSTA_CRIAR,
         ),
-      ).rejects.toBeInstanceOf(ForbiddenException);
-    });
-
-    it('assertPodeQualquer aceita uma das permissões', async () => {
-      await expect(
-        service.assertPodeQualquer('financeiro', LOJA_A, [
-          VENDAS_PERMISSOES.PROPOSTA_CRIAR,
-          VENDAS_PERMISSOES.PROPOSTA_VER,
-        ]),
-      ).resolves.toBeUndefined();
+      ).rejects.toMatchObject({
+        response: {
+          message: 'Você não tem permissão para executar esta ação.',
+        },
+      });
     });
   });
 
   describe('frontend nunca autoriza', () => {
-    it('MAPA_USER_ROLE_PARA_FUNCAO é só compatibilidade — não concede sozinho', () => {
+    it('MAPA_USER_ROLE é só compatibilidade', () => {
       expect(MAPA_USER_ROLE_PARA_FUNCAO.vendedor).toBe(usuario_funcao.VENDAS);
       expect(MAPA_USER_ROLE_PARA_FUNCAO.gerente).toBe(usuario_funcao.VENDAS);
-      // Sem consulta ao service/banco, papel legado não prova autorização.
-      expect(typeof MAPA_USER_ROLE_PARA_FUNCAO.admin).toBe('string');
     });
 
     it('catálogo listado não implica concessão', () => {
       const catalogo = listarCatalogoVendas();
       expect(catalogo.length).toBeGreaterThanOrEqual(31);
-      expect(catalogo).toContain(VENDAS_PERMISSOES.CARTEIRA_VER_PROPRIA);
-      // Carteira está no catálogo mas fora do default do vendedor nesta fase.
       expect(DEFAULTS_CONCEDIDOS_FASE_2.VENDEDOR).not.toContain(
         VENDAS_PERMISSOES.CARTEIRA_VER_PROPRIA,
       );

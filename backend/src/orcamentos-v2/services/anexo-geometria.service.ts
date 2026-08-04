@@ -22,6 +22,8 @@ import {
   DxfSugestaoInsumoService,
   SugestoesPorCamada,
 } from './dxf-sugestao-insumo.service';
+import { VendasPermissionsService } from '../../vendas/permissions/vendas-permissions.service';
+import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 
 /**
  * Service responsável pela persistência física dos anexos de geometria
@@ -62,6 +64,7 @@ export class AnexoGeometriaService {
   constructor(
     private readonly dxfParser: DxfParserService,
     private readonly dxfSugestao: DxfSugestaoInsumoService,
+    private readonly vendasPermissions: VendasPermissionsService,
   ) {
     if (!existsSync(this.baseDir)) {
       mkdirSync(this.baseDir, { recursive: true });
@@ -86,6 +89,12 @@ export class AnexoGeometriaService {
     sugestoes_insumo: SugestoesPorCamada[];
   }> {
     const { arquivo, lojaId, usuarioId } = args;
+
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    );
 
     if (!arquivo) {
       throw new BadRequestException('Nenhum arquivo recebido');
@@ -263,8 +272,19 @@ export class AnexoGeometriaService {
    * Remove fisicamente o arquivo + metadados. Idempotente: se não existir,
    * apenas loga.
    */
-  async remover(args: { token: string; lojaId: string }): Promise<void> {
-    const { token, lojaId } = args;
+  async remover(args: {
+    token: string;
+    lojaId: string;
+    usuarioId: string;
+  }): Promise<void> {
+    const { token, lojaId, usuarioId } = args;
+
+    await this.vendasPermissions.assertPode(
+      usuarioId,
+      lojaId,
+      VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    );
+
     this.validarToken(token);
 
     const meta = await this.lerMetadadosOpt(token, lojaId);

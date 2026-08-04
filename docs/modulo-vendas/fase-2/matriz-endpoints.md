@@ -1,45 +1,54 @@
-# Matriz endpoint × permissão (Fase 2)
+# Matriz endpoint × permissão (Fase 2 — pós-revisão)
 
-Escopo de dados nesta fase: **loja (tenant)** — carteira própria/equipe/todos
-fica para Fase 4+. Resposta de negação: `403` com mensagem genérica
-(“Você não tem permissão…”); recurso de outra loja: `404` onde aplicável
-(sem enumeração).
+Escopo de dados: **loja (tenant)**. Carteira/equipe/aditivo = diferidos.
+Negação: `403` genérico; recurso de outra loja: `404` sem enumeração.
 
-`assertPode` no service = mutação sensível. Leituras cobertas pelo
-`VendasPermissionsGuard` + filtro `loja_id`.
+`assertPode` no service = obrigatório em mutação sensível. Guard = defesa adicional.
+**Sem cache** de autorização nesta fase.
 
-## Orçamentos V2 (`OrcamentosV2Service` / controller)
+## Orçamentos V2
 
-| Método / rota (resumo) | Permissão | Escopo | Tenant | assertPode no service | +/- testes |
-|---|---|---|---|---|---|
-| POST criar | `proposta.criar` | loja | `loja_id` JWT | sim | service permissions |
-| GET listar / buscar / histórico | `proposta.ver` | loja | `loja_id` | guard | service + IDOR loja |
-| PUT/PATCH atualizar | `proposta.editar` | loja | `loja_id` | sim | service |
-| DELETE remover | `proposta.excluir` | loja | `loja_id` | sim | vendedor− gestor+ |
-| POST alterar status | `proposta.editar` | loja | `loja_id` | sim | service |
-| POST enviar | `proposta.enviar` | loja | `loja_id` | sim | service |
-| POST aceite interno / fechar pedido | `proposta.aceite.registrar` | loja | `loja_id` | sim | aceite-publico mocks |
-| Rotas `@Public` aceite/cliente | — (catálogo público) | token link | n/a JWT | n/a | Gate 0S / rotas-publicas |
+| Operação | Permissão | assertPode service |
+|---|---|---|
+| Criar / duplicar | `proposta.criar` | sim (`criarOrcamento`) |
+| Atualizar / status | `proposta.editar` | sim |
+| Excluir | `proposta.excluir` | sim |
+| Enviar | `proposta.enviar` | sim |
+| Aceite interno | `proposta.aceite.registrar` | sim |
+| Chat autenticado (enviar) | `proposta.editar` | sim |
+| Simular/salvar chapa | `proposta.editar` | sim |
+| Listar/buscar | `proposta.ver` | guard + `loja_id` |
+| Públicos catálogo | — | rotas-publicas (Gate 0S) |
 
 ## Links V2
 
-| Operação | Permissão | Escopo | Tenant | assertPode | +/- |
-|---|---|---|---|---|---|
-| Criar link | `proposta.enviar` | loja | `orcamento.loja_id` | sim (`LinksV2Service`) | permissions + IDOR |
-| Listar / ver / métricas | `proposta.ver` | loja | `loja_id` | guard | IDOR findFirst |
-| Revogar / renovar | `proposta.enviar` | loja | `loja_id` | guard | — |
+| Operação | Permissão | assertPode |
+|---|---|---|
+| Criar | `proposta.enviar` | sim |
+| Atualizar / renovar | `proposta.enviar` | sim |
+| Remover / revogar | `proposta.enviar` | sim |
+| Listar / métricas | `proposta.ver` | guard + tenant |
 
-## Chat / cálculo / impressão / anexo geometria / produto detalhes
+## Chat V2
 
-| Superfície | Ver | Editar | Tenant | assertPode service | Guard |
-|---|---|---|---|---|---|
-| Chat V2 | `proposta.ver` | `proposta.editar` | `loja_id` | guard | sim |
-| Cálculo V2 | `proposta.ver` | `proposta.editar` | `loja_id` | guard | sim |
-| Impressão V2 | `proposta.ver` | — | `loja_id` | guard | sim |
-| Anexo geometria | `proposta.ver` | `proposta.editar` | `loja_id` | guard | sim |
-| Produto detalhes | `proposta.ver` | — | `loja_id` | guard | sim |
+| Operação | Permissão | assertPode |
+|---|---|---|
+| Enviar mensagem / arquivo | `proposta.editar` | sim |
+| Marcar lidas | `proposta.ver` | sim |
 
-## Defaults concedidos (seed)
+## Cálculo V2 / motor
 
-Ver `DEFAULTS_CONCEDIDOS_FASE_2`. Catálogo TS inclui carteira/pipeline/etc. **sem**
-concessão nesta fase.
+| Operação | Permissão | assertPode |
+|---|---|---|
+| Calcular orçamento / produto / lote | `proposta.editar` | sim (`IntegracaoMotorService`) |
+
+## Anexos geometria
+
+| Operação | Permissão | assertPode |
+|---|---|---|
+| Upload / remover | `proposta.editar` | sim |
+| Download | `proposta.ver` | guard + tenant no metadado |
+
+## Defaults seed
+
+Só `DEFAULTS_CONCEDIDOS_FASE_2`. Catálogo TS completo sem concessão de carteira/aditivo.
