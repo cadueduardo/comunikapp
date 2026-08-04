@@ -27,7 +27,7 @@
 | `/vendas` + `ModuleLayoutShell` | `app/(main)/vendas/layout.tsx` + `page.tsx` |
 | Sidebar Vendas por permissão | `(main)/layout.tsx` → `useVendasAcesso` → `podeVerVendas` |
 | Orçamentos/Clientes fora do global | `buildSidebarNavItems` sem esses ids; só `vendas` |
-| Aliases seguros | layouts de `orcamentos-v2` e `clientes` usam nav Vendas |
+| Aliases seguros | layouts de `orcamentos-v2` e `clientes` envolvem shell e conteúdo em `VendasAccessGate` |
 | Bookmarks/links | auditoria em `auditoria-rotas-antigas.md` |
 | Cards Orçamentos/Clientes/Simulador | hub + `getModuleHubCardItems` |
 | Aditivos só se config permitir | `filtrarVendasNavPorConfig` / `useVendasNavFiltrado` |
@@ -62,3 +62,12 @@ Ver saída em `evidencia-testes-fase-3.md` (preenchida após a bateria).
 - Flash breve da sidebar até `/vendas/acesso` (deny-by-default).
 - Config de aditivos indisponível → Aditivos ocultos (fail-closed).
 - Validação visual a11y/dark-light depende de inspeção manual no browser local.
+
+## Correções do code review posterior
+
+- Os layouts de `/vendas`, `/orcamentos-v2` e `/clientes` agora aplicam
+  `VendasAccessGate` **antes** do `ModuleLayoutShell`. Assim, falha, carregamento ou
+  negação de `GET /vendas/acesso` não renderizam conteúdo nem navegação inferior.
+- O script `test:vendas-nav` deixou de copiar a implementação para dentro do teste.
+  Ele lê e valida diretamente os arquivos consumidos pela aplicação, evitando um
+  falso positivo quando produção e teste divergem.

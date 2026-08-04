@@ -33,14 +33,15 @@ cd frontend
 npm run test:vendas-nav
 ```
 
-Resultado: **ok:true** nos cenários:
+Resultado: **ok:true** nos contratos verificados diretamente no código da aplicação:
 
-- `vendedor_ve_vendas_sem_financeiro`
-- `sem_acesso_nao_ve_vendas`
-- `financeiro_ve_financeiro`
-- `migracao_ordem_sidebar`
-- `cards_e_aliases`
+- `sidebar_condicionada_ao_backend`
+- `orcamentos_e_clientes_fora_do_global`
+- `migracao_da_ordem_legada`
+- `financeiro_oculto_para_vendas`
+- `cards_e_aliases_canonicos`
 - `aditivos_filtrados`
+- `rotas_vendas_e_aliases_protegidos`
 
 ## Typecheck / lint
 

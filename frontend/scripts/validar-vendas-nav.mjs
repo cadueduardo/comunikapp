@@ -1,161 +1,66 @@
-// Validação da navegação Vendas (Fase 3) sem Jest no frontend.
-// Rodar: node frontend/scripts/validar-vendas-nav.mjs
+// Verifica os contratos diretamente nos arquivos usados pela aplicação.
+// Rodar: npm run test:vendas-nav
 
 import { strict as assert } from 'node:assert';
+import { readFile } from 'node:fs/promises';
 
-function migrateSidebarOrderIds(savedOrder) {
-  const out = [];
-  let vendasInserido = false;
-  for (const id of savedOrder) {
-    if (id === 'orcamentos' || id === 'clientes') {
-      if (!vendasInserido) {
-        out.push('vendas');
-        vendasInserido = true;
-      }
-      continue;
-    }
-    if (id === 'vendas') {
-      if (!vendasInserido) {
-        out.push('vendas');
-        vendasInserido = true;
-      }
-      continue;
-    }
-    out.push(id);
-  }
-  return out;
+async function ler(relativo) {
+  return readFile(new URL(`../${relativo}`, import.meta.url), 'utf8');
 }
 
-function mergeSidebarOrder(savedOrder, availableIds) {
-  const migrated = migrateSidebarOrderIds(savedOrder);
-  const validSaved = migrated.filter((id) => availableIds.includes(id));
-  const missing = availableIds.filter((id) => !validSaved.includes(id));
-  return [...validSaved, ...missing];
-}
+const [sidebar, layoutPrincipal, vendasNav, vendasPage, ...layoutsProtegidos] =
+  await Promise.all([
+    ler('src/lib/sidebar-menu.tsx'),
+    ler('src/app/(main)/layout.tsx'),
+    ler('src/lib/module-nav/vendas.ts'),
+    ler('src/app/(main)/vendas/page.tsx'),
+    ler('src/app/(main)/vendas/layout.tsx'),
+    ler('src/app/(main)/orcamentos-v2/layout.tsx'),
+    ler('src/app/(main)/clientes/layout.tsx'),
+  ]);
 
-function buildSidebarIds(permissions) {
-  const ids = ['dashboard'];
-  if (permissions.podeVerVendas) ids.push('vendas');
-  ids.push(
-    'insumos',
-    'fornecedores',
-    'compras',
-    'estoque',
-    'modelos',
-    'catalogo',
-    'os',
-    'arte',
+assert.match(sidebar, /if \(permissions\.podeVerVendas\)/);
+assert.match(sidebar, /id: 'vendas'[\s\S]*?href: '\/vendas'/);
+assert.doesNotMatch(sidebar, /items\.push\([\s\S]*?id: 'orcamentos'/);
+assert.doesNotMatch(sidebar, /items\.push\([\s\S]*?id: 'clientes'/);
+assert.match(sidebar, /migrateSidebarOrderIds\(savedOrder/);
+assert.match(sidebar, /id === 'orcamentos' \|\| id === 'clientes'/);
+
+assert.match(layoutPrincipal, /podeVerVendas: vendasAcesso\.pode_acessar_modulo === true/);
+assert.match(
+  layoutPrincipal,
+  /podeVerFinanceiro: \['ADMINISTRADOR', 'FINANCEIRO'\]\.includes\(funcao\)/,
+);
+
+for (const [id, href] of [
+  ['orcamentos', '/orcamentos-v2'],
+  ['clientes', '/clientes'],
+  ['simulador', '/orcamentos-v2/simulador'],
+]) {
+  assert.match(vendasNav, new RegExp(`id: '${id}'[\\s\\S]*?href: '${href}'`));
+}
+assert.match(vendasNav, /item\.id === 'aditivos'/);
+assert.match(vendasPage, /<ModuleHubCards nav=\{navFiltrado\}/);
+
+for (const layout of layoutsProtegidos) {
+  assert.match(layout, /<VendasAccessGate>/);
+  assert.match(
+    layout,
+    /<VendasAccessGate>[\s\S]*?<ModuleLayoutShell[\s\S]*?<\/ModuleLayoutShell>[\s\S]*?<\/VendasAccessGate>/,
   );
-  if (permissions.podeVerFinanceiro) ids.push('financeiro');
-  ids.push('pcp');
-  if (permissions.podeVerExpedicao) ids.push('expedicao');
-  if (permissions.podeVerInstalacaoGestao) ids.push('instalacao');
-  ids.push('centros-trabalho');
-  return ids;
 }
-
-const vendasItems = [
-  { id: 'visao-geral', href: '/vendas' },
-  { id: 'orcamentos', href: '/orcamentos-v2' },
-  { id: 'clientes', href: '/clientes' },
-  { id: 'simulador', href: '/orcamentos-v2/simulador' },
-  { id: 'aditivos', href: '/vendas/aditivos' },
-];
-
-function filtrarAditivos(items, habilitados) {
-  return items.filter((i) => (i.id === 'aditivos' ? habilitados : true));
-}
-
-// --- cenários ---
-
-assert.deepEqual(
-  buildSidebarIds({
-    podeVerVendas: true,
-    podeVerFinanceiro: false,
-    podeVerExpedicao: false,
-    podeVerInstalacaoGestao: true,
-  }).includes('vendas'),
-  true,
-);
-assert.equal(
-  buildSidebarIds({
-    podeVerVendas: true,
-    podeVerFinanceiro: false,
-    podeVerExpedicao: false,
-    podeVerInstalacaoGestao: true,
-  }).includes('orcamentos'),
-  false,
-);
-assert.equal(
-  buildSidebarIds({
-    podeVerVendas: true,
-    podeVerFinanceiro: false,
-    podeVerExpedicao: false,
-    podeVerInstalacaoGestao: true,
-  }).includes('financeiro'),
-  false,
-  'vendedor não vê Financeiro',
-);
-
-assert.equal(
-  buildSidebarIds({
-    podeVerVendas: false,
-    podeVerFinanceiro: false,
-    podeVerExpedicao: false,
-    podeVerInstalacaoGestao: false,
-  }).includes('vendas'),
-  false,
-  'sem acesso não vê Vendas',
-);
-
-assert.ok(
-  buildSidebarIds({
-    podeVerVendas: true,
-    podeVerFinanceiro: true,
-    podeVerExpedicao: false,
-    podeVerInstalacaoGestao: true,
-  }).includes('financeiro'),
-  'gestor/financeiro vê Financeiro',
-);
-
-assert.deepEqual(
-  migrateSidebarOrderIds(['dashboard', 'orcamentos', 'clientes', 'estoque']),
-  ['dashboard', 'vendas', 'estoque'],
-);
-
-assert.deepEqual(
-  mergeSidebarOrder(
-    ['dashboard', 'orcamentos', 'clientes'],
-    ['dashboard', 'vendas', 'estoque'],
-  ),
-  ['dashboard', 'vendas', 'estoque'],
-);
-
-const cards = filtrarAditivos(vendasItems, true).filter(
-  (i) => i.id !== 'visao-geral',
-);
-assert.ok(cards.some((c) => c.id === 'orcamentos'));
-assert.ok(cards.some((c) => c.id === 'clientes'));
-assert.ok(cards.some((c) => c.id === 'simulador'));
-
-const semAditivos = filtrarAditivos(vendasItems, false).map((i) => i.id);
-assert.equal(semAditivos.includes('aditivos'), false);
-
-const aliases = Object.fromEntries(vendasItems.map((i) => [i.id, i.href]));
-assert.equal(aliases.orcamentos, '/orcamentos-v2');
-assert.equal(aliases.clientes, '/clientes');
-assert.equal(aliases.simulador, '/orcamentos-v2/simulador');
 
 console.log(
   JSON.stringify({
     ok: true,
-    cenarios: [
-      'vendedor_ve_vendas_sem_financeiro',
-      'sem_acesso_nao_ve_vendas',
-      'financeiro_ve_financeiro',
-      'migracao_ordem_sidebar',
-      'cards_e_aliases',
+    contratos: [
+      'sidebar_condicionada_ao_backend',
+      'orcamentos_e_clientes_fora_do_global',
+      'migracao_da_ordem_legada',
+      'financeiro_oculto_para_vendas',
+      'cards_e_aliases_canonicos',
       'aditivos_filtrados',
+      'rotas_vendas_e_aliases_protegidos',
     ],
   }),
 );
