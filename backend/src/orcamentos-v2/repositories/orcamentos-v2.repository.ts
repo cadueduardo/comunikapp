@@ -7,6 +7,10 @@ import {
   OrcamentoTipo,
   PrioridadeOrcamento,
 } from '../interfaces/orcamento.interface';
+import {
+  mapearStatusLegadoParaComercial,
+  montarAtualizacaoStatusDual,
+} from '../domain/status-comercial';
 
 /**
  * Repositório de Orçamentos V2
@@ -32,9 +36,14 @@ export class OrcamentosV2Repository {
 
     try {
       const { loja_id, ...resto } = dados as any;
+      const statusComercial = mapearStatusLegadoParaComercial(
+        resto.status ?? OrcamentoStatus.RASCUNHO,
+        false,
+      );
       const orcamento = await this.prisma.orcamento.create({
         data: {
           ...resto,
+          status_comercial: statusComercial,
           data_criacao: new Date(),
           data_atualizacao: new Date(),
           ...(loja_id ? { loja: { connect: { id: loja_id } } } : {}),
@@ -332,10 +341,18 @@ export class OrcamentosV2Repository {
     );
 
     try {
+      const possuiOs =
+        (await this.prisma.ordemServico.count({
+          where: { orcamento_id: id },
+        })) > 0;
+      const dual = montarAtualizacaoStatusDual(novoStatus, possuiOs);
+
       const orcamento = await this.prisma.orcamento.update({
         where: { id },
         data: {
-          status: novoStatus,
+          status: dual.status,
+          status_comercial: dual.status_comercial,
+          status_aprovacao: dual.status_aprovacao,
           data_atualizacao: new Date(),
         },
         include: {
@@ -375,7 +392,8 @@ export class OrcamentosV2Repository {
       if (observacao) {
         await this.criarRegistroHistorico(id, 'mudanca_status', {
           status_anterior: orcamento.status,
-          status_novo: novoStatus,
+          status_novo: dual.status,
+          status_comercial: dual.status_comercial,
           observacao,
         });
       }

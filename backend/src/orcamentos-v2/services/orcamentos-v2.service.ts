@@ -47,6 +47,11 @@ import { calcularCustoUnitarioUso } from '../../common/custos/custo-unitario-ins
 import { VendasPermissionsService } from '../../vendas/permissions/vendas-permissions.service';
 import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 import {
+  mapearStatusLegadoParaComercial,
+  montarAtualizacaoStatusDual,
+  OrcamentoStatusComercial,
+} from '../domain/status-comercial';
+import {
   ACEITE_PUBLICO_DESABILITADO_MSG,
   CODIGO_APROVACAO_ERRO_PUBLICO,
   CODIGO_APROVACAO_MAX_TENTATIVAS,
@@ -2562,6 +2567,7 @@ export class OrcamentosV2Service {
       status: string | null;
       statusAprovacao: string | null;
       observacoesCliente: string | null;
+      statusComercial?: string | null;
     };
     hashDoCodigo?: string | null;
     observacoes: string;
@@ -2604,6 +2610,7 @@ export class OrcamentosV2Service {
           },
           data: {
             status: 'aprovado',
+            status_comercial: OrcamentoStatusComercial.ACEITA,
             status_aprovacao: 'APROVADO' as any,
             observacoes_cliente: observacoes,
             data_atualizacao: agora,
@@ -2648,6 +2655,17 @@ export class OrcamentosV2Service {
         autor,
         origem === 'PUBLICO' ? 'PROCESSAR_ACAO_PUBLICA' : 'APROVACAO_INTERNA',
       );
+
+      // Handoff concluído: promove aceita → pedido_confirmado (DV-14).
+      // O `status` legado permanece `aprovado`.
+      await this.prisma.orcamento.updateMany({
+        where: { id: orcamentoId },
+        data: {
+          status_comercial: OrcamentoStatusComercial.PEDIDO_CONFIRMADO,
+          status_aprovacao: 'APROVADO',
+          data_atualizacao: new Date(),
+        },
+      });
     } catch (error) {
       this.logger.error(
         '[ACEITE] Falha ao gerar OS para o orcamento ' +
@@ -2672,6 +2690,11 @@ export class OrcamentosV2Service {
           where: { id: orcamentoId },
           data: {
             status: estadoAnterior.status,
+            status_comercial: (estadoAnterior.statusComercial ??
+              mapearStatusLegadoParaComercial(
+                estadoAnterior.status,
+                false,
+              )) as OrcamentoStatusComercial,
             status_aprovacao: estadoAnterior.statusAprovacao ?? 'PENDENTE',
             observacoes_cliente: estadoAnterior.observacoesCliente,
             data_atualizacao: new Date(),
@@ -2838,6 +2861,9 @@ export class OrcamentosV2Service {
       status: orcamento.status,
       statusAprovacao: orcamento.status_aprovacao,
       observacoesCliente: (orcamento as any).observacoes_cliente ?? null,
+      statusComercial:
+        (orcamento as any).status_comercial ??
+        mapearStatusLegadoParaComercial(orcamento.status, false),
     };
 
     // Gate 0S / HS-05: APROVAR entra no caso de uso único, o mesmo que a
@@ -2925,6 +2951,7 @@ export class OrcamentosV2Service {
     contexto?: ContextoDaRequisicao;
   }): Promise<ResultadoDoAceite> {
     const agora = new Date();
+    const dual = montarAtualizacaoStatusDual(entrada.novoStatus, false);
 
     return await this.prisma
       .$transaction(async (tx) => {
@@ -2934,8 +2961,9 @@ export class OrcamentosV2Service {
             status: { in: STATUS_QUE_ACEITAM_ACAO_PUBLICA },
           },
           data: {
-            status: entrada.novoStatus,
-            status_aprovacao: entrada.statusAprovacao,
+            status: dual.status,
+            status_comercial: dual.status_comercial,
+            status_aprovacao: dual.status_aprovacao,
             observacoes_cliente: entrada.observacoes,
             data_atualizacao: agora,
             ...(entrada.acao === 'REJEITAR'
@@ -3486,8 +3514,16 @@ export class OrcamentosV2Service {
     const statusAprovacaoAnterior = orcamento.status_aprovacao;
     const observacoesClienteAnterior = (orcamento as any).observacoes_cliente;
 
-    const dadosAtualizacao: any = {
-      status: novoStatus,
+    const possuiOs =
+      (await this.prisma.ordemServico.count({
+        where: { orcamento_id: id },
+      })) > 0;
+    const dual = montarAtualizacaoStatusDual(novoStatus, possuiOs);
+
+    const dadosAtualizacao: Record<string, unknown> = {
+      status: dual.status,
+      status_comercial: dual.status_comercial,
+      status_aprovacao: dual.status_aprovacao,
       data_atualizacao: new Date(),
     };
 
@@ -3751,10 +3787,22 @@ export class OrcamentosV2Service {
           where: { id },
           data: {
             status: 'aprovado',
+            status_comercial: OrcamentoStatusComercial.PEDIDO_CONFIRMADO,
             status_aprovacao: 'APROVADO' as any,
             observacoes_cliente:
               observacoes?.trim() ||
               'Orçamento aprovado internamente pelo usuário ' + userId,
+            data_atualizacao: new Date(),
+          },
+        });
+      } else if (
+        (orcamento as any).status_comercial !==
+        OrcamentoStatusComercial.PEDIDO_CONFIRMADO
+      ) {
+        await this.prisma.orcamento.update({
+          where: { id },
+          data: {
+            status_comercial: OrcamentoStatusComercial.PEDIDO_CONFIRMADO,
             data_atualizacao: new Date(),
           },
         });
@@ -3849,6 +3897,9 @@ export class OrcamentosV2Service {
         status: orcamento.status,
         statusAprovacao: orcamento.status_aprovacao,
         observacoesCliente: (orcamento as any).observacoes_cliente ?? null,
+        statusComercial:
+          (orcamento as any).status_comercial ??
+          mapearStatusLegadoParaComercial(orcamento.status, false),
       },
       observacoes: observacaoRegistro,
       tipoAcaoAuditoria: 'APROVADO_INTERNAMENTE_E_OS_GERADA',

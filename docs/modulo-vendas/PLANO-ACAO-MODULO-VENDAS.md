@@ -341,7 +341,7 @@ qualquer migration ou alteração de fluxo.
 
 ## 5. Fase 1 — Contratos de domínio, dados e compatibilidade
 
-**Status:** [ ] Em andamento (desenvolvimento local liberado a partir do checkpoint Gate 0S)  
+**Status:** Em andamento (desenvolvimento local liberado a partir do checkpoint Gate 0S)  
 **Dependência:** Fase 0 concluída; Gate 0S **tecnicamente congelado** (`ab79e8ef` /
 `gate0s-tecnico-2026-08-04`). Publicação continua bloqueada até promoção/fechamento
 formal do Gate 0S.  
@@ -351,11 +351,12 @@ chat, Arte, pedido operacional ou OS Aditiva.
 
 ### Ajustes exigidos pela auditoria da Fase 0
 
-- [ ] Tratar D-04: **três vocabulários de status coexistem** (enum `OrcamentoStatus`,
+- [x] Tratar D-04: **três vocabulários de status coexistem** (enum `OrcamentoStatus`,
       strings `pendente`/`enviado`/`negociando` gravadas de fato, e o eixo paralelo
       `status_aprovacao`). A tarefa não é "definir a fonte canônica" e sim
       reconciliar os três com backfill. Ver DV-14 e
       `fase-0/04-maquina-de-estados-comercial.md` §7.
+      → M1.1 aplicada no schema + dual-write; backfill na migration.
 - [ ] Tratar D-05: **quatro tabelas de histórico/versão, três nunca escritas**
       (`VersaoOrcamento` com writer comentado, `OrcamentoHistorico` sem writer,
       `OrcamentoLog` cujo writer só faz `console.log`, `aprovacaoOrcamento` órfã).
@@ -371,9 +372,9 @@ chat, Arte, pedido operacional ou OS Aditiva.
 
 ### Execução detalhada
 
-- [ ] Mapear entidades existentes e seus campos legados/estruturados.
-- [ ] Definir fonte canônica de status comercial.
-- [ ] Separar status comercial de status de execução.
+- [x] Mapear entidades existentes e seus campos legados/estruturados.
+- [x] Definir fonte canônica de status comercial.
+- [x] Separar status comercial de status de execução.
 - [ ] Definir eventos: proposta enviada, visualizada, revisão solicitada, aceita,
       expirada, perdida, reaberta, pedido confirmado e cancelado.
 - [ ] Definir versão vigente, versão enviada e versão aceita.

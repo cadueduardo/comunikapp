@@ -32,6 +32,7 @@ describe('OrcamentosV2Service - aceite público', () => {
     numero: string;
     status: string;
     status_aprovacao: string | null;
+    status_comercial?: string | null;
     observacoes_cliente: string | null;
     titulo: string;
     descricao: string | null;
@@ -159,6 +160,7 @@ describe('OrcamentosV2Service - aceite público', () => {
           ? ordensServico[ordensServico.length - 1]
           : null,
       ),
+      count: jest.fn(async () => ordensServico.length),
     },
     usuario: { findMany: jest.fn(async () => []) },
     // Gate 0S / HS-05: a auditoria vai para a mesma transação da mutação, então
@@ -222,6 +224,7 @@ describe('OrcamentosV2Service - aceite público', () => {
       numero: '2026-001',
       status: 'enviado',
       status_aprovacao: 'PENDENTE',
+      status_comercial: 'enviada',
       observacoes_cliente: null,
       titulo: 'Fachada em ACM',
       descricao: null,

@@ -1433,6 +1433,9 @@ model orcamento {
   // e sera removido em entrega posterior, junto com o indice unico.
   codigo_aprovacao       String?  @unique(map: "Orcamento_codigo_aprovacao_key")
   status                 String?  @default("rascunho")
+  // Fase 1 / DV-14: eixo comercial canônico. `status` legado permanece
+  // derivado para compatibilidade (ver `04-maquina-de-estados-comercial.md` §7).
+  status_comercial       OrcamentoStatusComercial @default(rascunho)
   atendente              String?  @default("Equipe Comercial")
   // DEPRECATED (Fase 6 - 2026-05-25): campo de texto livre substituido pelos campos estruturados
   // condicao_pagamento_tipo / percentual_entrada / valor_entrada / valor_saldo / vencimento_*.
@@ -1544,8 +1547,25 @@ model orcamento {
   @@index([responsavel_id])
   @@index([entrega_modalidade_id])
   @@index([status])
+  @@index([loja_id, status_comercial])
   @@index([tipo_orcamento])
   @@index([ativo])
+}
+
+/// Eixo comercial canônico (Fase 1 / DV-14). Fonte de verdade das transições
+/// de proposta; o campo `orcamento.status` permanece derivado para
+/// compatibilidade com consumidores legados.
+enum OrcamentoStatusComercial {
+  rascunho
+  aguardando_alcada
+  enviada
+  em_negociacao
+  revisao_solicitada
+  expirada
+  aceita
+  pedido_confirmado
+  perdida
+  cancelada
 }
 
 // Tabelas V2 para múltiplos produtos
