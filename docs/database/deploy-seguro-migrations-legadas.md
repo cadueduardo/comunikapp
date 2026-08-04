@@ -7,6 +7,11 @@ executa `backend/scripts/prisma-deploy-preflight.js` e chama
 quanto a execucao de baselines sobre tabelas que ja existem ou sobre um schema
 parcialmente divergente.
 
+Para o Gate 0S, build e instalação não ocorrem mais no tree ativo da VPS. Consulte
+[`release-immutavel-gate0s.md`](../deploy/release-immutavel-gate0s.md): o tarball
+verificado é extraído em `releases/<sha>` e `promote-release.sh` executa este backup,
+preflight e `migrate deploy` antes da troca atômica de `current`.
+
 ## Backup automatico
 
 Antes de cada `migrate deploy`, `backend/scripts/mysql-backup-before-deploy.js`:

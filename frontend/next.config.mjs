@@ -5,6 +5,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    // O artefato de release executa `server.js` sem instalar dependências na VPS.
+    output: 'standalone',
     poweredByHeader: false,
     outputFileTracingRoot: __dirname,
     eslint: {

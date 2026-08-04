@@ -1183,74 +1183,38 @@ cabeçalho interno presente.
 ### 4.11 Preflight do deploy do HS-04
 
 **Situação:** tentativa de deploy do commit `175f44f2…` em 2026-08-02 foi
-**interrompida corretamente** por `RUN_AUDIT=1` (findings high em `npm audit
---omit=dev`) **antes** de build, backup e migration. A aplicação em execução na
-VPS **não** foi reiniciada; migrations HS-04/HS-05 e códigos legados **não** foram
-alterados. Novo artefato (este commit) corrige as dependências e introduz baseline
-determinístico — **deploy ainda não autorizado**.
+**interrompida corretamente** por `RUN_AUDIT=1` **antes** de build/backup/migration.
+A app em execução **não** reiniciou depois do `npm ci`. Em 2026-08-04 a auditoria
+PM2 confirmou `restarts=0`, `dist`/`.next` de 30/07 e HEAD `175f44f2…` — **não**
+reiniciar essa mistura. **Deploy ainda não autorizado.**
 
-**Bootstrap obrigatório:** o operador **não** executa o script do working tree da VPS.
-Extrai o entrypoint e os helpers do `EXPECTED_COMMIT` com `git archive` para um
-diretório temporário e só então chama o deploy. O código que corre já pertence ao
-commit pinado.
-
-Pré-condições (o entrypoint aborta antes de build/backup/migration se falharem):
-
-1. working tree da VPS limpo (`git status --porcelain` vazio);
-2. `git fetch` + `origin/feat/modulo-vendas` aponta exatamente para o commit autorizado;
-3. `git cat-file -t` confirma que o objeto é `commit`;
-4. o diretório temporário contém apenas os três arquivos extraídos do archive;
-5. `chmod -R a+rX` no diretório temporário (mktemp é `700`; `run_as_app` precisa ler).
+**Modelo obrigatório daqui em diante:** release imutável via artefato CI +
+`scripts/release/promote-release.sh`. `deploy-vps-branch-atual.sh` com `npm ci`/build
+no tree ativo está **aposentado** para o Gate 0S. Runbook:
+[`release-immutavel-gate0s.md`](../../deploy/release-immutavel-gate0s.md).
 
 ```bash
-PROJECT_DIR=/opt/comunikapp/app
-BRANCH=feat/modulo-vendas
-EXPECTED_COMMIT=<sha-do-commit-autorizado>
+EXPECTED_COMMIT=<sha-40-do-commit-autorizado>
+# Baixar do Actions o artifact comunikapp-release-$EXPECTED_COMMIT
+# (tarball + SHA256SUMS + MANIFEST) para a VPS.
 
-sudo -u comunikapp git -C "$PROJECT_DIR" fetch origin --prune
-# Confira tree limpo e tip remoto == EXPECTED_COMMIT antes de seguir.
-
-TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
-git -C "$PROJECT_DIR" archive "$EXPECTED_COMMIT" \
-  scripts/run-deploy-from-expected-commit.sh \
-  scripts/deploy-vps-branch-atual.sh \
-  scripts/lib/assert-expected-commit.sh \
-  | tar -x -C "$TMP"
-chmod -R a+rX "$TMP"
-
-sudo env \
-  PROJECT_DIR="$PROJECT_DIR" \
-  BRANCH="$BRANCH" \
-  EXPECTED_COMMIT="$EXPECTED_COMMIT" \
-  PRISMA_APPLY=migrate \
-  INSTALL_SYSTEM_PACKAGES=0 \
-  APPLY_NGINX=0 \
-  APPLY_FAIL2BAN=0 \
-  RUN_AUDIT=1 \
-  bash "$TMP/scripts/run-deploy-from-expected-commit.sh"
+bash scripts/release/promote-release.sh \
+  --artifact /var/tmp/comunikapp-release-${EXPECTED_COMMIT}.tar.gz \
+  --expected-sha "$EXPECTED_COMMIT" \
+  --root /srv/apps/comunikapp
 ```
 
-`RUN_AUDIT` permanece `1`. O deploy executa `npm audit --omit=dev --json` e compara
-com `scripts/security/npm-audit-baseline.json` via
-`scripts/security/compare-npm-audit-baseline.js`. Exceções são **temporárias**
-(com `expiresAt`); critical nunca é aceito; finding novo, severidade maior, cadeia
-ou faixa alterada, exceção expirada ou JSON inválido **falham** o deploy. Correção
-das exceções (quando houver) é tarefa separada com prazo — o Gate 0S **não**
-dispensa vulnerabilidades alcançáveis no fluxo público. Relatório sanitizado:
-[`12-relatorio-npm-audit-gate0s.md`](./12-relatorio-npm-audit-gate0s.md).
+Pré-condições do promote: artefato do SHA autorizado, checksums ok, `shared/env`
+sincronizado, uploads compartilhados presentes, `current` inexistente ou symlink
+(não o diretório legado `releases/current`). O promote **nunca** executa `npm ci`,
+`npm prune` ou build no diretório ativo.
 
-Após o `git pull` interno do deploy, `EXPECTED_COMMIT` é conferido de novo contra
-`HEAD` antes de `npm ci`/build/backup/migrate; prefixo ambíguo ou divergência
-aborta. Escopo operacional do Gate 0S: **não** instalar pacotes do sistema nem
-alterar Nginx/Fail2ban salvo autorização específica. Builds, backup (tamanho
-mínimo + `gzip -t` = só integridade do arquivo), preflight Prisma, `migrate deploy`
-e health checks permanecem ativos.
+`RUN_AUDIT` permanece `1` no job de artefato (baseline). Contingência fail-closed:
+`--contingency-killswitch` / `ORCAMENTOS_ACEITE_PUBLICO_DESABILITADO=true`. Proibido
+voltar ao artefato pré-HS-04.
 
-**Backup vs restauração:** tamanho mínimo + `gzip -t` comprovam que o arquivo não
-está truncado/corrupto no nível do compressão — **não** são teste de restauração.
-Ensaio scratch (fora de produção, mesmo mecanismo `mysql-backup-before-deploy.js`)
-em 2026-08-01 no MySQL/MariaDB local de desenvolvimento:
+**Backup vs restauração:** tamanho mínimo + `gzip -t` = integridade do arquivo, **não**
+restauração. Ensaio scratch local documentado abaixo permanece válido.
 
 | Campo | Valor |
 |---|---|
