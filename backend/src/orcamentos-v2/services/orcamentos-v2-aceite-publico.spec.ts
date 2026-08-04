@@ -172,6 +172,12 @@ describe('OrcamentosV2Service - aceite público', () => {
         return { id: 'log-' + auditoria.length, ...data };
       }),
     },
+    historicoOrcamento: {
+      create: jest.fn(async ({ data }: any) => ({
+        id: 'hist-1',
+        ...data,
+      })),
+    },
     $transaction: jest.fn(async (callback: any) => callback(prisma)),
   });
 

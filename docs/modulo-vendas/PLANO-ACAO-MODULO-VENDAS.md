@@ -357,18 +357,21 @@ chat, Arte, pedido operacional ou OS Aditiva.
       reconciliar os três com backfill. Ver DV-14 e
       `fase-0/04-maquina-de-estados-comercial.md` §7.
       → M1.1 aplicada no schema + dual-write; backfill na migration.
-- [ ] Tratar D-05: **quatro tabelas de histórico/versão, três nunca escritas**
+- [x] Tratar D-05: **quatro tabelas de histórico/versão, três nunca escritas**
       (`VersaoOrcamento` com writer comentado, `OrcamentoHistorico` sem writer,
       `OrcamentoLog` cujo writer só faz `console.log`, `aprovacaoOrcamento` órfã).
       Ver DV-15.
-- [ ] Tratar D-07: `validade_proposta` é texto livre; não existem `enviado_em`,
+      → M1.2/M1.4: writer de VersaoOrcamento religado; HistoricoOrcamento com
+      `loja_id`/`evento`/`payload`; demais marcadas deprecated sem drop.
+- [x] Tratar D-07: `validade_proposta` é texto livre; não existem `enviado_em`,
       `expira_em` nem `aceito_em`. Migration obrigatória (M1.3).
+      → M1.2/M1.3: `enviado_em`/`aceito_em`/`validade_dias`/`expira_em`.
 - [ ] Eleger `MensagemChat` como contrato canônico de chat e registrar a
       descontinuação de `mensagens-negociacao`, cujos endpoints `@Public()` de
       escrita continuam expostos sem consumidor.
 - [ ] Substituir os dois `@Body() dados: any` de
       `orcamentos-v2.controller.ts:81` e `:487` por DTO tipado.
-- [ ] Aplicar as migrations M1.1 a M1.4 de `fase-0/06-plano-de-migrations.md`.
+- [x] Aplicar as migrations M1.1 a M1.4 de `fase-0/06-plano-de-migrations.md`.
 
 ### Execução detalhada
 

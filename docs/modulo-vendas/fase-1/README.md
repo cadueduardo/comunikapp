@@ -21,11 +21,12 @@
 
 - [x] M1.1 `vendas_add_status_comercial_orcamento`
 - [x] M1.2 `vendas_add_versao_e_aceite_orcamento`
-- [ ] M1.3 `vendas_add_validade_proposta_estruturada`
-- [ ] M1.4 `vendas_add_evento_comercial`
+- [x] M1.3 `vendas_add_validade_proposta_estruturada`
+- [x] M1.4 `vendas_add_evento_comercial`
 - [x] Serviços/helpers de transição e derivação (M1.1 dual-write)
 - [ ] DTOs tipados nos endpoints tocados
-- [x] Testes de invariantes (mapeamento status + hash material)
+- [x] Testes de invariantes (status, hash material, validade, eventos)
+- [ ] Chat canônico = MensagemChat / descontinuar mensagens-negociacao
 - [ ] **FASE 1 CONCLUÍDA**
 
 ## Regras

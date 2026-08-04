@@ -681,10 +681,23 @@ export class OrcamentosV2Repository {
     dados: any,
   ): Promise<void> {
     try {
+      const orc = await this.prisma.orcamento.findUnique({
+        where: { id: orcamentoId },
+        select: { loja_id: true },
+      });
+      if (!orc?.loja_id) {
+        this.logger.warn(
+          `HistoricoOrcamento omitido: loja_id ausente para ${orcamentoId}`,
+        );
+        return;
+      }
+
       await this.prisma.historicoOrcamento.create({
         data: {
           orcamento: { connect: { id: orcamentoId } },
+          loja: { connect: { id: orc.loja_id } },
           acao: dados?.acao || tipo || 'ATUALIZACAO',
+          evento: dados?.evento ?? null,
           tipo,
           descricao: dados?.descricao,
           dados_anteriores: dados?.dados_anteriores
@@ -693,6 +706,7 @@ export class OrcamentosV2Repository {
           dados_novos: dados?.dados_novos
             ? JSON.stringify(dados.dados_novos)
             : undefined,
+          payload: dados ? (dados as object) : undefined,
         },
       });
     } catch (error) {

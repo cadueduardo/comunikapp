@@ -80,6 +80,8 @@ model Categoria {
   @@map("categorias")
 }
 
+// DEPRECATED (Fase 1 / DV-15): writer legado; trilha canônica é HistoricoOrcamento.
+// Sem drop nesta fase — remoção após SELECT COUNT(*) em produção.
 model OrcamentoLog {
   id           String    @id @default(cuid())
   orcamento_id String
@@ -111,6 +113,8 @@ model HistoricoPrecoInsumo {
   @@map("historico_preco_insumos")
 }
 
+// DEPRECATED (Fase 1 / DV-15): sem writer ativo; trilha canônica é
+// HistoricoOrcamento. Sem drop nesta fase.
 model OrcamentoHistorico {
   id               String    @id @default(cuid())
   orcamento_id     String
@@ -728,6 +732,7 @@ model loja {
   workflow_instancias_setor          WorkflowInstanciaSetor[]
   admin_audit_logs                   admin_audit_log[]
   store_user_invitations             store_user_invitation[]
+  historicos_orcamento               HistoricoOrcamento[]
 }
 
 model InsumoFornecedor {
@@ -1445,6 +1450,10 @@ model orcamento {
   prazo_entrega          String?  @default("10 a 15 dias úteis")
   validade_proposta      String?  @default("30 dias")
 
+  // Fase 1 / M1.3 — validade estruturada (DV-07). Texto legado permanece.
+  validade_dias Int?
+  expira_em     DateTime?
+
   // Fase 1 / M1.2 — versão em circulação, aceite e evidência (DV-15 / DV-06).
   versao_enviada_id String?
   versao_aceita_id  String?
@@ -1559,6 +1568,7 @@ model orcamento {
   @@index([loja_id, status_comercial])
   @@index([versao_enviada_id])
   @@index([versao_aceita_id])
+  @@index([loja_id, expira_em])
   @@index([tipo_orcamento])
   @@index([ativo])
 }
@@ -1816,12 +1826,20 @@ model ItemCustoIndireto {
 }
 
 // Tabelas de histórico e versão para V2
+// Fase 1 / DV-15: trilha canônica de eventos comerciais = HistoricoOrcamento.
+// OrcamentoHistorico, OrcamentoLog e aprovacaoOrcamento ficam descontinuados
+// (sem drop nesta fase).
 model HistoricoOrcamento {
   id               String   @id @default(cuid())
   orcamento_id     String
-  acao             String // CRIADO, ATUALIZADO, APROVADO, etc.
-  dados_anteriores String?  @db.LongText // JSON
-  dados_novos      String?  @db.LongText // JSON
+  loja_id          String
+  acao             String // CRIADO, ATUALIZADO, APROVADO, etc. (legado)
+  // Fase 1 / M1.4: nome canônico do evento comercial.
+  evento           String?
+  dados_anteriores String?  @db.LongText // JSON (legado)
+  dados_novos      String?  @db.LongText // JSON (legado)
+  // Fase 1 / M1.4: payload Json canônico para registros novos.
+  payload          Json?
   usuario_id       String?
   observacoes      String?  @db.Text
   data             DateTime @default(now())
@@ -1832,9 +1850,12 @@ model HistoricoOrcamento {
 
   // Relacionamentos
   orcamento orcamento @relation(fields: [orcamento_id], references: [id], onDelete: Cascade)
+  loja      loja      @relation(fields: [loja_id], references: [id], onDelete: Cascade)
 
   @@index([orcamento_id])
   @@index([data])
+  @@index([loja_id, evento, data])
+  @@index([loja_id])
 }
 
 model VersaoOrcamento {
@@ -1950,6 +1971,8 @@ model estoque {
   @@index([criado_em])
 }
 
+// DEPRECATED (Fase 1 / DV-15): tabela órfã sem writer útil; trilha canônica é
+// HistoricoOrcamento. Sem drop nesta fase.
 model aprovacaoOrcamento {
   id            String   @id @default(cuid())
   orcamento_id  String

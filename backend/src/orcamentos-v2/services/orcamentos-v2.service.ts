@@ -50,6 +50,8 @@ import {
   calcularHashMaterial,
   montarSnapshotVersao,
 } from '../domain/versao-orcamento';
+import { montarCamposValidadeNoEnvio } from '../domain/validade-proposta';
+import { EVENTOS_COMERCIAIS } from '../domain/eventos-comerciais';
 import {
   mapearStatusLegadoParaComercial,
   montarAtualizacaoStatusDual,
@@ -716,6 +718,9 @@ export class OrcamentosV2Service {
         'criacao',
         'Orçamento criado',
         usuarioId,
+        undefined,
+        lojaId,
+        EVENTOS_COMERCIAIS.PROPOSTA_CRIADA,
       );
 
       // 7. Notificar criação
@@ -1654,6 +1659,7 @@ export class OrcamentosV2Service {
         `Orçamento removido${motivo ? `: ${motivo}` : ''}`,
         usuarioId,
         { motivo_exclusao: motivo },
+        lojaId,
       );
 
       // 4. Soft delete - marcar como excluído
@@ -1844,11 +1850,35 @@ export class OrcamentosV2Service {
     descricao: string,
     usuarioId: string,
     dadosAdicionais?: any,
+    lojaId?: string,
+    evento?: string,
   ): Promise<void> {
+    let lojaResolvida = lojaId;
+    if (!lojaResolvida) {
+      const orc = await this.prisma.orcamento.findUnique({
+        where: { id: orcamentoId },
+        select: { loja_id: true },
+      });
+      lojaResolvida = orc?.loja_id;
+    }
+    if (!lojaResolvida) {
+      this.logger.warn(
+        `HistoricoOrcamento omitido: loja_id ausente para orçamento ${orcamentoId}`,
+      );
+      return;
+    }
+
+    const payload =
+      dadosAdicionais != null
+        ? (dadosAdicionais as Prisma.InputJsonValue)
+        : undefined;
+
     await this.prisma.historicoOrcamento.create({
       data: {
         orcamento: { connect: { id: orcamentoId } },
+        loja: { connect: { id: lojaResolvida } },
         acao: tipo,
+        evento: evento ?? null,
         descricao,
         usuario_id: usuarioId,
         dados_anteriores:
@@ -1859,6 +1889,7 @@ export class OrcamentosV2Service {
           dadosAdicionais?.dados_novos != null
             ? JSON.stringify(dadosAdicionais.dados_novos)
             : undefined,
+        payload,
         observacoes: dadosAdicionais?.observacoes,
       },
     });
@@ -1936,13 +1967,47 @@ export class OrcamentosV2Service {
       });
     }
 
+    const orcamentoAtual = await this.prisma.orcamento.findFirst({
+      where: { id: orcamentoId, loja_id: lojaId },
+      select: {
+        validade_proposta: true,
+        validade_dias: true,
+      },
+    });
+    if (!orcamentoAtual) {
+      throw new NotFoundException('Orçamento não encontrado');
+    }
+
+    const enviadoEm = new Date();
+    const validade = montarCamposValidadeNoEnvio({
+      validadeProposta: orcamentoAtual.validade_proposta,
+      validadeDias: orcamentoAtual.validade_dias,
+      enviadoEm,
+    });
+
     await this.prisma.orcamento.updateMany({
       where: { id: orcamentoId, loja_id: lojaId },
       data: {
         versao_enviada_id: versao.id,
-        enviado_em: new Date(),
+        enviado_em: enviadoEm,
+        validade_dias: validade.validade_dias,
+        expira_em: validade.expira_em,
       },
     });
+
+    await this.criarHistorico(
+      orcamentoId,
+      'envio',
+      'Proposta enviada ao cliente',
+      usuarioId,
+      {
+        versao_enviada_id: versao.id,
+        validade_dias: validade.validade_dias,
+        expira_em: validade.expira_em.toISOString(),
+      },
+      lojaId,
+      EVENTOS_COMERCIAIS.PROPOSTA_ENVIADA,
+    );
   }
 
   private construirFiltros(filtros: any, lojaId: string): any {
@@ -2701,6 +2766,22 @@ export class OrcamentosV2Service {
           statusAnterior: estadoAnterior.status,
           statusNovo: 'aprovado',
           contexto: entrada.contexto,
+        });
+
+        await tx.historicoOrcamento.create({
+          data: {
+            orcamento: { connect: { id: orcamentoId } },
+            loja: { connect: { id: lojaId } },
+            acao: 'aceite',
+            evento: EVENTOS_COMERCIAIS.PROPOSTA_ACEITA,
+            descricao: observacoes,
+            usuario_id: origem === 'INTERNO' ? autor : null,
+            payload: {
+              canal: origem,
+              autor,
+              versao_aceita_id: estadoAnterior.versaoEnviadaId ?? null,
+            },
+          },
         });
 
         return 'APLICADO' as const;
