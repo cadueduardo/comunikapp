@@ -319,6 +319,35 @@ jobs:
           mysql -h 127.0.0.1 -uroot -proot comunikapp_gate0s \
             < backend/prisma/migrations/20260731220000_os_orcamento_id_unico/migration.sql
 
+      - name: Fase 1 — banco dedicado para SQL M1.x
+        run: |
+          mysql -h 127.0.0.1 -uroot -proot -e "DROP DATABASE IF EXISTS comunikapp_m1; CREATE DATABASE comunikapp_m1;"
+          mysql -h 127.0.0.1 -uroot -proot comunikapp_m1 \
+            < backend/scripts/fixtures/pre-m1-minimal.sql
+          mysql -h 127.0.0.1 -uroot -proot comunikapp_m1 \
+            < backend/prisma/migrations/20260804180000_vendas_add_status_comercial_orcamento/migration.sql
+          mysql -h 127.0.0.1 -uroot -proot comunikapp_m1 \
+            < backend/prisma/migrations/20260804183000_vendas_add_versao_e_aceite_orcamento/migration.sql
+          mysql -h 127.0.0.1 -uroot -proot comunikapp_m1 \
+            < backend/prisma/migrations/20260804190000_vendas_add_validade_proposta_estruturada/migration.sql
+          mysql -h 127.0.0.1 -uroot -proot comunikapp_m1 \
+            < backend/prisma/migrations/20260804193000_vendas_add_evento_comercial/migration.sql
+          mysql -h 127.0.0.1 -uroot -proot comunikapp_m1 -e "
+            SELECT id, status, status_comercial FROM orcamento ORDER BY numero;
+            SELECT id, loja_id, evento FROM historicoorcamento;
+            SELECT id, snapshot IS NOT NULL AS tem_snapshot FROM versaoorcamento;
+            SELECT COUNT(*) AS cols_ok FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA='comunikapp_m1'
+              AND (
+                (TABLE_NAME='orcamento' AND COLUMN_NAME IN (
+                  'status_comercial','versao_enviada_id','versao_aceita_id',
+                  'enviado_em','aceito_em','aceite_evidencia','validade_dias','expira_em'
+                ))
+                OR (TABLE_NAME='historicoorcamento' AND COLUMN_NAME IN ('loja_id','evento','payload'))
+                OR (TABLE_NAME='versaoorcamento' AND COLUMN_NAME IN ('snapshot','hash_material'))
+              );
+          "
+
       - name: HS-04 — código de aprovação em banco real
         working-directory: backend
         run: npx ts-node scripts/validar-codigo-aprovacao-mysql.ts

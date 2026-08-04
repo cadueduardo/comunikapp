@@ -2080,6 +2080,9 @@ paths:
       tags: *ref_26
     post:
       operationId: MensagensNegociacaoController_createPublico
+      deprecated: true
+      summary: Descontinuado — use MensagemChat em /orcamentos-v2
+      description: Fase 1 — escrita órfã; responde 410 Gone.
       parameters:
         - name: orcamentoId
           required: true
@@ -2087,8 +2090,8 @@ paths:
           schema:
             type: string
       responses:
-        '201':
-          description: ''
+        '410':
+          description: Gone — chat legado descontinuado
       tags: *ref_26
   /orcamentos/{orcamentoId}/mensagens/nao-visualizadas:
     get:
@@ -2131,6 +2134,11 @@ paths:
       tags: *ref_26
     post:
       operationId: MensagensNegociacaoController_create
+      deprecated: true
+      summary: Descontinuado — use MensagemChat em /orcamentos-v2
+      description: >
+        Fase 1: superfície órfã. Escritas respondem 410 Gone.
+        Contrato canônico: MensagemChat via orcamentos-v2.
       parameters:
         - name: orcamentoId
           required: true
@@ -2144,8 +2152,8 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateMensagemNegociacaoDto'
       responses:
-        '201':
-          description: ''
+        '410':
+          description: Gone — chat legado descontinuado; use MensagemChat
       tags: *ref_26
   /orcamentos/{orcamentoId}/mensagens/publico/{mensagemId}/visualizar:
     post:
@@ -2168,6 +2176,9 @@ paths:
   /orcamentos/{orcamentoId}/mensagens/{mensagemId}/anexo:
     post:
       operationId: MensagensNegociacaoController_uploadAnexo
+      deprecated: true
+      summary: Descontinuado — use MensagemChat em /orcamentos-v2
+      description: Fase 1 — escrita órfã; responde 410 Gone.
       parameters:
         - name: orcamentoId
           required: true
@@ -2180,8 +2191,8 @@ paths:
           schema:
             type: string
       responses:
-        '201':
-          description: ''
+        '410':
+          description: Gone — chat legado descontinuado
       tags: *ref_26
   /usuarios:
     get:

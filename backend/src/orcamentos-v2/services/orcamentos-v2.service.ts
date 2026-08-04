@@ -48,11 +48,14 @@ import { VendasPermissionsService } from '../../vendas/permissions/vendas-permis
 import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 import {
   calcularHashMaterial,
+  houveAlteracaoMaterial,
   montarSnapshotVersao,
 } from '../domain/versao-orcamento';
 import { montarCamposValidadeNoEnvio } from '../domain/validade-proposta';
 import { EVENTOS_COMERCIAIS } from '../domain/eventos-comerciais';
 import {
+  mapearStatusComercialParaAprovacao,
+  mapearStatusComercialParaLegado,
   mapearStatusLegadoParaComercial,
   montarAtualizacaoStatusDual,
   OrcamentoStatusComercial,
@@ -1523,17 +1526,25 @@ export class OrcamentosV2Service {
       // 6. Criar versão se mudanças significativas (Fase 1 / M1.2 — writer religado)
       if (this.mudancasSignificativas(orcamentoExistente, dados)) {
         await this.criarNovaVersao(id, orcamentoExistente, dados, usuarioId);
+        await this.invalidarAceitePorAlteracaoMaterial(
+          id,
+          lojaId,
+          orcamentoExistente,
+          dados,
+          usuarioId,
+        );
       }
 
-      // 7. Criar histórico
-      // TEMPORARIAMENTE DESABILITADO - Tabela HistoricoOrcamento não migrada
-      // await this.criarHistorico(
-      //   id,
-      //   'edicao',
-      //   'Orçamento atualizado',
-      //   usuarioId,
-      //   { dados_anteriores: orcamentoExistente, dados_novos: dados },
-      // );
+      // 7. Histórico canônico (M1.4)
+      await this.criarHistorico(
+        id,
+        'edicao',
+        'Orçamento atualizado',
+        usuarioId,
+        { dados_anteriores: orcamentoExistente, dados_novos: dados },
+        lojaId,
+        EVENTOS_COMERCIAIS.PROPOSTA_REVISADA,
+      );
 
       // 8. Notificar atualização
       await this.notificacaoService.notificarAtualizacao(
@@ -1893,6 +1904,105 @@ export class OrcamentosV2Service {
         observacoes: dadosAdicionais?.observacoes,
       },
     });
+  }
+
+  /**
+   * DV-02: se já houver versão aceita e a edição for material, invalida o aceite.
+   * Após `pedido_confirmado` não edita silenciosamente (aditivo/cancelamento = Fase 6).
+   */
+  private async invalidarAceitePorAlteracaoMaterial(
+    orcamentoId: string,
+    lojaId: string,
+    versaoAnterior: unknown,
+    mudancas: unknown,
+    usuarioId: string,
+  ): Promise<void> {
+    const atual = await this.prisma.orcamento.findFirst({
+      where: { id: orcamentoId, loja_id: lojaId },
+      select: {
+        versao_aceita_id: true,
+        status_comercial: true,
+        status: true,
+      },
+    });
+
+    if (!atual?.versao_aceita_id) {
+      return;
+    }
+
+    if (
+      atual.status_comercial === OrcamentoStatusComercial.PEDIDO_CONFIRMADO
+    ) {
+      this.logger.warn(
+        `[DV-02] Alteração material ignorada no orçamento ${orcamentoId}: pedido já confirmado.`,
+      );
+      return;
+    }
+
+    const versaoAceita = await this.prisma.versaoOrcamento.findUnique({
+      where: { id: atual.versao_aceita_id },
+      select: { snapshot: true, dados_completos: true, hash_material: true },
+    });
+
+    const snapshotAnterior =
+      versaoAceita?.snapshot ??
+      (versaoAceita?.dados_completos
+        ? (() => {
+            try {
+              return JSON.parse(versaoAceita.dados_completos);
+            } catch {
+              return null;
+            }
+          })()
+        : null);
+
+    const snapshotNovo = montarSnapshotVersao({
+      anterior: versaoAnterior,
+      mudancas,
+    });
+
+    const material =
+      versaoAceita?.hash_material != null
+        ? versaoAceita.hash_material !== calcularHashMaterial(snapshotNovo)
+        : snapshotAnterior != null
+          ? houveAlteracaoMaterial(snapshotAnterior, snapshotNovo)
+          : true;
+
+    if (!material) {
+      return;
+    }
+
+    const dualStatus = mapearStatusComercialParaLegado(
+      OrcamentoStatusComercial.REVISAO_SOLICITADA,
+    );
+
+    await this.prisma.orcamento.updateMany({
+      where: { id: orcamentoId, loja_id: lojaId },
+      data: {
+        versao_aceita_id: null,
+        aceito_em: null,
+        aceite_evidencia: Prisma.JsonNull,
+        status: dualStatus,
+        status_comercial: OrcamentoStatusComercial.REVISAO_SOLICITADA,
+        status_aprovacao: mapearStatusComercialParaAprovacao(
+          OrcamentoStatusComercial.REVISAO_SOLICITADA,
+        ),
+        data_atualizacao: new Date(),
+      },
+    });
+
+    await this.criarHistorico(
+      orcamentoId,
+      'aceite_invalidado',
+      'Aceite invalidado por alteração material (DV-02)',
+      usuarioId,
+      {
+        versao_aceita_id_anterior: atual.versao_aceita_id,
+        status_anterior: atual.status,
+      },
+      lojaId,
+      EVENTOS_COMERCIAIS.PROPOSTA_REVISAO_SOLICITADA,
+    );
   }
 
   private async criarNovaVersao(

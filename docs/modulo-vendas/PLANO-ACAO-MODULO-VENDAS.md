@@ -1,10 +1,10 @@
 # Plano de Ação — Implementação do Módulo de Vendas
 
 **Status geral:** Fase 0 concluída documentalmente; hotfix de segurança é o próximo gate
-**Documento de produto obrigatório:** [`RP-modulo-vendas.md`](./RP-modulo-vendas.md)  
-**Entregáveis da Fase 0:** [`fase-0/`](./fase-0/README.md)  
-**Auditoria do código real:** [`fase-0/01-auditoria-estado-real.md`](./fase-0/01-auditoria-estado-real.md) — prevalece sobre o RP §4 em caso de divergência  
-**Última revisão:** 2026-07-31  
+**Documento de produto obrigatório:** [`RP-modulo-vendas.md`](./RP-modulo-vendas.md)
+**Entregáveis da Fase 0:** [`fase-0/`](./fase-0/README.md)
+**Auditoria do código real:** [`fase-0/01-auditoria-estado-real.md`](./fase-0/01-auditoria-estado-real.md) — prevalece sobre o RP §4 em caso de divergência
+**Última revisão:** 2026-07-31
 **Objetivo:** transformar o RP em uma sequência executável, verificável e
 auditável de entregas, sem perder as fronteiras entre Vendas, Financeiro, OS,
 Arte, PCP, Expedição e Instalação.
@@ -232,11 +232,11 @@ flowchart TD
 
 ## 3.1 Gate 0S — Hotfix de segurança do legado comercial
 
-**Status:** [x] Tecnicamente congelado — promoção/produção pendentes  
-**Checkpoint:** `ab79e8ef76b2411f8928f1db60dcec6d81865411` (`gate0s-tecnico-2026-08-04`)  
-**Dependência:** Fase 0 concluída  
-**Bloqueia:** publicação do Módulo de Vendas  
-**Não bloqueia:** desenvolvimento local das fases (a partir do checkpoint)  
+**Status:** [x] Tecnicamente congelado — promoção/produção pendentes
+**Checkpoint:** `ab79e8ef76b2411f8928f1db60dcec6d81865411` (`gate0s-tecnico-2026-08-04`)
+**Dependência:** Fase 0 concluída
+**Bloqueia:** publicação do Módulo de Vendas
+**Não bloqueia:** desenvolvimento local das fases (a partir do checkpoint)
 **Contrato obrigatório:**
 [`fase-0/09-gate-hotfix-seguranca.md`](./fase-0/09-gate-hotfix-seguranca.md) ·
 [`fase-0/13-backlog-operacional-gate0s.md`](./fase-0/13-backlog-operacional-gate0s.md)
@@ -274,10 +274,10 @@ inseguro, vazamento em logs/erros e aceite sujeito a repetição ou falha parcia
 ## 4. Fase 0 — Governança, auditoria e decisões bloqueadoras
 
 **Status:** [x] Concluída documentalmente — 2026-07-31
-**Dependência:** nenhuma  
-**Referências do RP:** Veredito; §§0, 3, 4, 9, 11 e 15; DV-01–DV-12.  
+**Dependência:** nenhuma
+**Referências do RP:** Veredito; §§0, 3, 4, 9, 11 e 15; DV-01–DV-12.
 **Objetivo:** congelar o contrato de produto e confirmar o estado real antes de
-qualquer migration ou alteração de fluxo.  
+qualquer migration ou alteração de fluxo.
 **Entregáveis:** [`fase-0/`](./fase-0/README.md)
 
 ### Execução detalhada
@@ -341,90 +341,85 @@ qualquer migration ou alteração de fluxo.
 
 ## 5. Fase 1 — Contratos de domínio, dados e compatibilidade
 
-**Status:** Em andamento (desenvolvimento local liberado a partir do checkpoint Gate 0S)  
+**Status:** **FASE 1 CONCLUÍDA** (2026-08-04)
 **Dependência:** Fase 0 concluída; Gate 0S **tecnicamente congelado** (`ab79e8ef` /
 `gate0s-tecnico-2026-08-04`). Publicação continua bloqueada até promoção/fechamento
-formal do Gate 0S.  
-**Referências do RP:** §§3, 4.8, 4.9, 5.2, 5.3, 7/E1-4–E1-7 e 14.1.  
+formal do Gate 0S.
+**Referências do RP:** §§3, 4.8, 4.9, 5.2, 5.3, 7/E1-4–E1-7 e 14.1.
 **Objetivo:** definir contratos canônicos sem criar um segundo Orçamento, Cliente,
 chat, Arte, pedido operacional ou OS Aditiva.
+**Contratos diferidos (F4/F5/F6/F8):** [`fase-1/contratos-diferidos.md`](./fase-1/contratos-diferidos.md)
+**README da fase:** [`fase-1/README.md`](./fase-1/README.md)
 
 ### Ajustes exigidos pela auditoria da Fase 0
 
-- [x] Tratar D-04: **três vocabulários de status coexistem** (enum `OrcamentoStatus`,
-      strings `pendente`/`enviado`/`negociando` gravadas de fato, e o eixo paralelo
-      `status_aprovacao`). A tarefa não é "definir a fonte canônica" e sim
-      reconciliar os três com backfill. Ver DV-14 e
-      `fase-0/04-maquina-de-estados-comercial.md` §7.
-      → M1.1 aplicada no schema + dual-write; backfill na migration.
-- [x] Tratar D-05: **quatro tabelas de histórico/versão, três nunca escritas**
-      (`VersaoOrcamento` com writer comentado, `OrcamentoHistorico` sem writer,
-      `OrcamentoLog` cujo writer só faz `console.log`, `aprovacaoOrcamento` órfã).
-      Ver DV-15.
-      → M1.2/M1.4: writer de VersaoOrcamento religado; HistoricoOrcamento com
-      `loja_id`/`evento`/`payload`; demais marcadas deprecated sem drop.
-- [x] Tratar D-07: `validade_proposta` é texto livre; não existem `enviado_em`,
-      `expira_em` nem `aceito_em`. Migration obrigatória (M1.3).
-      → M1.2/M1.3: `enviado_em`/`aceito_em`/`validade_dias`/`expira_em`.
-- [x] Eleger `MensagemChat` como contrato canônico de chat e registrar a
-      descontinuação de `mensagens-negociacao`. Escritas respondem 410 Gone;
-      ver `backend/src/mensagens-negociacao/AGENTS.md`.
-- [x] Substituir os dois `@Body() dados: any` de
-      `orcamentos-v2.controller.ts` por DTO tipado (`CriarOrcamentoBodyDto` /
-      `AtualizarOrcamentoBodyDto`).
-- [x] Aplicar as migrations M1.1 a M1.4 de `fase-0/06-plano-de-migrations.md`.
+- [x] Tratar D-04: três vocabulários reconciliados com `status_comercial` (M1.1)
+      + dual-write + backfill (`04-maquina-de-estados-comercial.md` §7).
+- [x] Tratar D-05: writer de `VersaoOrcamento` religado (M1.2);
+      `HistoricoOrcamento` canônico com `loja_id`/`evento`/`payload` (M1.4);
+      demais tabelas deprecated sem drop.
+- [x] Tratar D-07: validade estruturada (M1.3) + `enviado_em`/`aceito_em` (M1.2).
+- [x] Eleger `MensagemChat` como canônico; escritas de `mensagens-negociacao`
+      → 410 Gone (órfã auditada em `backend/src/mensagens-negociacao/AGENTS.md`);
+      leituras preservadas.
+- [x] Substituir `@Body() dados: any` por `CriarOrcamentoBodyDto` /
+      `AtualizarOrcamentoBodyDto`.
+- [x] Aplicar as migrations M1.1 a M1.4.
 
 ### Execução detalhada
 
 - [x] Mapear entidades existentes e seus campos legados/estruturados.
 - [x] Definir fonte canônica de status comercial.
 - [x] Separar status comercial de status de execução.
-- [ ] Definir eventos: proposta enviada, visualizada, revisão solicitada, aceita,
-      expirada, perdida, reaberta, pedido confirmado e cancelado.
-- [ ] Definir versão vigente, versão enviada e versão aceita.
-- [ ] Definir regra de invalidação de aceite por alteração material.
-- [ ] Eleger contrato canônico de chat/negociação.
-- [ ] Planejar convivência/migração de `MensagemChat` e `mensagemnegociacao`.
-- [ ] Definir projeção de pedido confirmado sem duplicar OS.
-- [ ] Definir contrato de atividades comerciais e próxima ação.
-- [ ] Definir contrato de carteira, participantes e histórico de transferência.
-- [ ] Definir contatos e papéis: solicitante, aprovador, financeiro, entrega e local.
-- [ ] Definir payload comercial resumido de cobrança e execução.
-- [ ] Definir chaves de idempotência/uniqueness dos handoffs.
-- [ ] Definir política de soft delete/inativação e retenção histórica.
-- [ ] Modelar índices pelas consultas reais de carteira, pipeline e atividades.
+- [x] Definir eventos comerciais canônicos (`eventos-comerciais.ts` + M1.4).
+- [x] Definir versão vigente/enviada/aceita (`versao_enviada_id` /
+      `versao_aceita_id` + writer).
+- [x] Definir e aplicar invalidação de aceite por alteração material (DV-02).
+- [x] Eleger contrato canônico de chat/negociação (`MensagemChat`).
+- [x] Planejar convivência `MensagemChat` × `mensagemnegociacao`
+      (leitura + 410; AGENTS.md e `contratos-diferidos.md` §9).
+- [x] Definir projeção de pedido confirmado — contrato §1 (implementação Fase 6).
+- [x] Definir atividades comerciais — contrato §2 (Fase 5).
+- [x] Definir carteira/participantes — contrato §3 (Fase 4).
+- [x] Definir contatos e papéis — contrato §4 (Fase 4).
+- [x] Definir payload comercial resumido — contrato §5 (Fases 6/8).
+- [x] Definir idempotência dos handoffs — contrato §6 (Fase 6).
+- [x] Definir soft delete/retenção — contrato §7.
+- [x] Modelar índices futuros de carteira/pipeline/atividades — previsão §8
+      (sem `CREATE INDEX` especulativo nesta fase).
 
 ### Banco e migrations
 
-- [ ] Ler novamente as boas práticas de schema antes de editar Prisma.
-- [ ] Demonstrar uso de cada tabela/campo novo na mesma entrega.
-- [ ] Garantir `loja_id`, índices de FK, `onDelete`, `Decimal`, `Json` e versão.
-- [ ] Preparar backfill seguro para status/versões quando necessário.
-- [ ] Revisar SQL gerado antes de aplicar.
-- [ ] Não editar migrations já aplicadas.
+- [x] Boas práticas aplicadas (enum, `loja_id`, índices FK, `onDelete`, Json,
+      sem drop destrutivo).
+- [x] Cada campo novo usado na mesma entrega.
+- [x] Backfill set-based documentado (lote se volume > 500k).
+- [x] SQL revisado e exercitado em MySQL 8 no CI (`comunikapp_m1`).
+- [x] Migrations aditivas posteriores a HS-04/HS-05; sem edição pós-apply em prod.
 
 ### Backend
 
-- [ ] Remover/amarrar `@Body() dados: any` no escopo tocado usando DTO tipado.
-- [ ] Criar facades/serviços menores em vez de ampliar o service monolítico.
-- [ ] Documentar contratos em OpenAPI.
-- [ ] Criar testes unitários dos estados e invariantes antes das telas.
+- [x] `@Body() any` removido nos create/update tocados.
+- [x] Facades de domínio: `status-comercial`, `versao-orcamento`,
+      `validade-proposta`, `eventos-comerciais`.
+- [x] OpenAPI: POSTs legados de mensagens deprecated/410.
+- [x] Testes de estados, invariantes, aceite, validade, eventos e chat 410.
 
 ### Gate de conclusão
 
-- [ ] Schema/contratos aprovados e sem entidade duplicada.
-- [ ] Estratégia de compatibilidade e backfill documentada.
-- [ ] Testes de invariantes principais verdes.
-- [ ] **FASE 1 CONCLUÍDA.**
+- [x] Schema/contratos aprovados e sem entidade duplicada.
+- [x] Estratégia de compatibilidade e backfill documentada.
+- [x] Testes de invariantes principais verdes.
+- [x] **FASE 1 CONCLUÍDA.**
 
 ---
 
 ## 6. Fase 2 — RBAC, segurança e isolamento multi-tenant
 
-**Status:** [ ] Não iniciada  
-**Dependência:** Fase 1 concluída  
+**Status:** [ ] Não iniciada
+**Dependência:** Fase 1 concluída
 **Referências do RP:** §§3, 4.3, 4.5, 5.1, 5.5, 6.3, 7/E0-4, E1-5, E2-2,
-8.5–8.8 e 11.  
+8.5–8.8 e 11.
 **Objetivo:** criar a política canônica de Vendas antes de expor novas superfícies.
 
 ### Ajustes exigidos pela auditoria da Fase 0 — esta fase mudou de natureza
@@ -492,9 +487,9 @@ chat, Arte, pedido operacional ou OS Aditiva.
 
 ## 7. Fase 3 — Fundação visual, navegação e compatibilidade de rotas
 
-**Status:** [ ] Não iniciada  
-**Dependência:** Fase 2 concluída  
-**Referências do RP:** §§4.6, 6.1–6.4, 7/E0 e 8.1.  
+**Status:** [ ] Não iniciada
+**Dependência:** Fase 2 concluída
+**Referências do RP:** §§4.6, 6.1–6.4, 7/E0 e 8.1.
 **Objetivo:** criar a casa do módulo sem reescrever recursos existentes.
 
 ### Execução detalhada
@@ -524,10 +519,10 @@ chat, Arte, pedido operacional ou OS Aditiva.
 
 ## 8. Fase 4 — Clientes, carteira e contatos
 
-**Status:** [ ] Não iniciada  
-**Dependência:** Fase 2 concluída  
+**Status:** [ ] Não iniciada
+**Dependência:** Fase 2 concluída
 **Referências do RP:** §§4.5, 5.2.1–5.2.4, 6.2, 7/E3B-3 e E3B-6–E3B-10,
-8.8 e DV-11–DV-12.  
+8.8 e DV-11–DV-12.
 **Objetivo:** transformar Clientes na base comercial de Vendas, preservando-o como
 cadastro mestre da loja.
 
@@ -597,10 +592,10 @@ cadastro mestre da loja.
 
 ## 9. Fase 5 — Home acionável, novo atendimento e atividades
 
-**Status:** [ ] Não iniciada  
-**Dependências:** Fases 3 e 4 concluídas  
+**Status:** [ ] Não iniciada
+**Dependências:** Fases 3 e 4 concluídas
 **Referências do RP:** §§6.4, 6.5.1–6.5.4, 7/E3B-1–E3B-2, E3C-1–E3C-3 e
-8.9 (35–37).  
+8.9 (35–37).
 **Objetivo:** entregar a mesa de trabalho diária do vendedor e impedir perda de
 demanda/follow-up.
 
@@ -643,10 +638,10 @@ demanda/follow-up.
 
 ## 10. Fase 6 — Pipeline, proposta, versão e negociação
 
-**Status:** [ ] Não iniciada  
-**Dependência:** Fase 5 concluída  
+**Status:** [ ] Não iniciada
+**Dependência:** Fase 5 concluída
 **Referências do RP:** §§4.1, 4.9, 5.3, 6.5.5–6.5.6, 7/E1, 8.2, 8.6 e
-8.9 (38–39).  
+8.9 (38–39).
 **Objetivo:** tornar Orçamentos V2 o coração de um pipeline comercial coerente.
 
 ### Ajustes exigidos pela auditoria da Fase 0
@@ -710,9 +705,9 @@ demanda/follow-up.
 
 ## 11. Fase 7 — Governança de preço, desconto, margem e alçadas
 
-**Status:** [ ] Não iniciada  
-**Dependências:** Fases 2 e 6 concluídas  
-**Referências do RP:** §§6.3, 6.5.5, 7/E3A, 8.6 (20), 9, DV-04–DV-05.  
+**Status:** [ ] Não iniciada
+**Dependências:** Fases 2 e 6 concluídas
+**Referências do RP:** §§6.3, 6.5.5, 7/E3A, 8.6 (20), 9, DV-04–DV-05.
 **Objetivo:** impedir erosão de margem e decisões comerciais fora da autoridade.
 
 ### Ajustes exigidos pela auditoria da Fase 0
@@ -754,10 +749,10 @@ demanda/follow-up.
 
 ## 12. Fase 8 — Aceite, pedido confirmado, gates e handoffs
 
-**Status:** [ ] Não iniciada  
-**Dependências:** Fases 6 e 7 concluídas  
+**Status:** [ ] Não iniciada
+**Dependências:** Fases 6 e 7 concluídas
 **Referências do RP:** §§3.11–3.13, 5.3, 6.5.7, 7/E1A, 8.6, 9 e
-DV-01–DV-03/DV-06.  
+DV-01–DV-03/DV-06.
 **Objetivo:** transformar aceite válido em compromisso comercial e handoffs
 idempotentes, sem usar OS como sinônimo de pedido.
 
@@ -827,10 +822,10 @@ idempotentes, sem usar OS como sinônimo de pedido.
 
 ## 13. Fase 9 — Aditivos comerciais e OS Aditiva
 
-**Status:** [ ] Não iniciada  
-**Dependências:** Fases 2 e 8 concluídas  
+**Status:** [ ] Não iniciada
+**Dependências:** Fases 2 e 8 concluídas
 **Referências do RP:** §§4.2–4.3, 5.3.1–5.3.3, 6.5.8, 7/E2, 8.3 e
-8.9 (42); documentos de Instalação 12–14.  
+8.9 (42); documentos de Instalação 12–14.
 **Objetivo:** colocar a decisão comercial de ocorrências em Vendas, reutilizando
 integralmente o split existente.
 
@@ -876,9 +871,9 @@ integralmente o split existente.
 
 ## 14. Fase 10 — Acompanhamento comercial e pontes de leitura
 
-**Status:** [ ] Não iniciada  
-**Dependências:** Fases 8 e 9 concluídas  
-**Referências do RP:** §§4.4, 5.3.2, 6.3, 6.5.7–6.5.8, 7/E3 e E3C-6–E3C-7.  
+**Status:** [ ] Não iniciada
+**Dependências:** Fases 8 e 9 concluídas
+**Referências do RP:** §§4.4, 5.3.2, 6.3, 6.5.7–6.5.8, 7/E3 e E3C-6–E3C-7.
 **Objetivo:** permitir que o vendedor informe o cliente sem operar Financeiro ou PCP.
 
 ### Execução detalhada
@@ -908,9 +903,9 @@ integralmente o split existente.
 
 ## 15. Fase 11 — Qualidade transversal, UX e segurança de lançamento
 
-**Status:** [ ] Não iniciada  
-**Dependências:** Fases 0–10 concluídas  
-**Referências do RP:** §§6.5.9–6.5.10, 7/E3C-8–E3C-10, 8.5–8.9, 9 e 11.  
+**Status:** [ ] Não iniciada
+**Dependências:** Fases 0–10 concluídas
+**Referências do RP:** §§6.5.9–6.5.10, 7/E3C-8–E3C-10, 8.5–8.9, 9 e 11.
 **Objetivo:** validar o Mínimo Operacional Seguro como sistema integrado.
 
 ### Testes e validações
@@ -958,10 +953,10 @@ integralmente o split existente.
 
 ## 16. Fase 12 — Migração, observabilidade, rollout e aceite do Mínimo Seguro
 
-**Status:** [ ] Não iniciada  
-**Dependência:** Fase 11 concluída  
+**Status:** [ ] Não iniciada
+**Dependência:** Fase 11 concluída
 **Referências do RP:** §§9, 10, 14.1 e 14.4; documentação de deploy seguro de
-migrations.  
+migrations.
 **Objetivo:** disponibilizar gradualmente o módulo, com rollback e evidências.
 
 ### Preparação
@@ -1012,10 +1007,10 @@ migrations.
 
 ## 17. Fase 13 — Núcleo Competitivo
 
-**Status:** [ ] Não iniciada  
-**Dependência:** Fase 12 concluída e estabilizada  
+**Status:** [ ] Não iniciada
+**Dependência:** Fase 12 concluída e estabilizada
 **Referências do RP:** §§7/E1-3–E1-9 P1, E2-3–E2-5, E3, E3A-3, E3B,
-E3C-8–E3C-10 e 14.2.  
+E3C-8–E3C-10 e 14.2.
 **Objetivo:** eliminar planilhas paralelas e tornar o módulo competitivo para equipes
 do segmento.
 
@@ -1045,9 +1040,9 @@ do segmento.
 
 ## 18. Fase 14 — Maturidade e expansões futuras
 
-**Status:** [ ] Não iniciada  
-**Dependência:** Fase 13 concluída; novo RP/delta aprovado para cada pacote  
-**Referências do RP:** §§7/E4 e 14.3.  
+**Status:** [ ] Não iniciada
+**Dependência:** Fase 13 concluída; novo RP/delta aprovado para cada pacote
+**Referências do RP:** §§7/E4 e 14.3.
 **Objetivo:** evoluir o produto sem contaminar o escopo do lançamento inicial.
 
 Cada item abaixo exige RP/delta próprio, decisão de produto e novos critérios:
@@ -1102,7 +1097,7 @@ Cada item abaixo exige RP/delta próprio, decisão de produto e novos critérios
 - [x] Fase 0 — Governança, auditoria e decisões
       *(contrato documental aprovado em `fase-0/`; próximo gate: hotfix de segurança)*
 - [ ] Gate 0S — Hotfix de segurança do legado comercial
-- [ ] Fase 1 — Contratos de domínio, dados e compatibilidade
+- [x] Fase 1 — Contratos de domínio, dados e compatibilidade
 - [ ] Fase 2 — RBAC, segurança e multi-tenancy
 - [ ] Fase 3 — Fundação visual e navegação
 - [ ] Fase 4 — Clientes, carteira e contatos

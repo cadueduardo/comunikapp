@@ -15,6 +15,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { MensagensNegociacaoService } from './mensagens-negociacao.service';
 import { CreateMensagemNegociacaoDto } from './dto/create-mensagem-negociacao.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -25,13 +26,9 @@ const MSG_CHAT_DESCONTINUADO =
 
 /**
  * Chat de negociação do orçamento legado — DESCONTINUADO (Fase 1).
- *
- * Contrato canônico: `MensagemChat` via orcamentos-v2 / ChatV2Service.
- * Leituras autenticadas permanecem por compatibilidade transitória; escritas
- * respondem 410 Gone. Ver AGENTS.md neste diretório.
- *
- * Gate 0S (HS-03): rotas `publico` já não são `@Public()`.
+ * Ver AGENTS.md neste diretório (auditoria de consumidores 2026-08-04).
  */
+@ApiTags('mensagens-negociacao')
 @Controller('orcamentos/:orcamentoId/mensagens')
 export class MensagensNegociacaoController {
   constructor(
@@ -139,6 +136,11 @@ export class MensagensNegociacaoController {
    */
   @Post()
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    deprecated: true,
+    summary: 'Descontinuado — use MensagemChat em /orcamentos-v2',
+  })
+  @ApiResponse({ status: 410, description: 'Gone — chat legado descontinuado' })
   async create(
     @Param('orcamentoId') _orcamentoId: string,
     @Body(

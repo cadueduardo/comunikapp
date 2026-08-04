@@ -3,8 +3,11 @@
 -- Aditiva e posterior a HS-04/HS-05. Não remove `status` nem `status_aprovacao`.
 -- Backfill conforme `docs/modulo-vendas/fase-0/04-maquina-de-estados-comercial.md` §7.
 -- `EXCLUIDO` não é status comercial: permanece no default `rascunho`.
+--
+-- Estratégia de volume: UPDATE set-based (MySQL 8). Adequado ao volume atual.
+-- Se COUNT(*) > 500k em produção, aplicar em lotes por `criado_em` via script —
+-- não editar este arquivo após apply.
 
--- CreateEnum
 ALTER TABLE `orcamento`
   ADD COLUMN `status_comercial` ENUM(
     'rascunho',
@@ -19,7 +22,6 @@ ALTER TABLE `orcamento`
     'cancelada'
   ) NOT NULL DEFAULT 'rascunho';
 
--- Backfill a partir do `status` legado (case-insensitive).
 UPDATE `orcamento` o
 SET `status_comercial` = CASE
   WHEN LOWER(COALESCE(o.`status`, '')) IN ('rascunho', 'pendente') THEN 'rascunho'
@@ -39,6 +41,5 @@ SET `status_comercial` = CASE
 END
 WHERE LOWER(COALESCE(o.`status`, '')) <> 'excluido';
 
--- CreateIndex
 CREATE INDEX `orcamento_loja_id_status_comercial_idx`
   ON `orcamento`(`loja_id`, `status_comercial`);
