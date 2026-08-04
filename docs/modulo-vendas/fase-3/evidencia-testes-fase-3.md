@@ -2,7 +2,7 @@
 
 **Data:** 2026-08-04
 **HEAD inicial:** `a06a22181838e8076d6d37a5c08c46241e3394c4`
-**HEAD final:** `fbb76595fe9b9acbeca0d36aa24a3e7a395bc4ab`
+**HEAD final:** `5cc64b1d0962af0c99d6a784a0b53f43e29074ce` (implementação `fbb76595`)
 
 ## Backend — `vendas-acesso.controller.spec.ts`
 
