@@ -8,6 +8,7 @@ import { configuracoesModuleNav } from './configuracoes';
 import { usuariosModuleNav } from './usuarios';
 import { pcpModuleNav } from './pcp';
 import { expedicaoModuleNav } from './expedicao';
+import { vendasModuleNav } from './vendas';
 import {
   arteModuleNav,
   clientesModuleNav,
@@ -24,6 +25,7 @@ import {
  * Fonte de verdade para ModuleHeader / ModuleBottomNav / cards de hub.
  */
 export const MODULE_NAV_REGISTRY: Record<string, ModuleNavConfig> = {
+  [vendasModuleNav.id]: vendasModuleNav,
   [financeiroModuleNav.id]: financeiroModuleNav,
   [estoqueModuleNav.id]: estoqueModuleNav,
   [comprasModuleNav.id]: comprasModuleNav,
@@ -38,6 +40,7 @@ export const MODULE_NAV_REGISTRY: Record<string, ModuleNavConfig> = {
   [instalacaoModuleNav.id]: instalacaoModuleNav,
   [fornecedoresModuleNav.id]: fornecedoresModuleNav,
   [insumosModuleNav.id]: insumosModuleNav,
+  // Mantidos para compatibilidade de headers legados; a casa canônica é `vendas`.
   [orcamentosModuleNav.id]: orcamentosModuleNav,
   [modelosModuleNav.id]: modelosModuleNav,
   [clientesModuleNav.id]: clientesModuleNav,

@@ -20,6 +20,7 @@ import { SidebarBadgeSync } from '@/components/layout/SidebarBadgeSync';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { useSidebarContadores } from '@/hooks/use-sidebar-contadores';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { useVendasAcesso } from '@/hooks/use-vendas-acesso';
 
 export default function DashboardLayout({
   children,
@@ -33,10 +34,14 @@ export default function DashboardLayout({
     Boolean(user) && !loading,
     user?.id,
   );
+  // Deny-by-default enquanto `/vendas/acesso` não responder.
+  const { acesso: vendasAcesso } = useVendasAcesso(Boolean(user) && !loading);
 
   const permissions = useMemo(() => {
     const funcao = String(user?.funcao ?? '').toUpperCase();
     return {
+      // Backend é a fonte de verdade; role sozinha não libera Vendas.
+      podeVerVendas: vendasAcesso.pode_acessar_modulo === true,
       podeVerFinanceiro: ['ADMINISTRADOR', 'FINANCEIRO'].includes(funcao),
       podeVerExpedicao: ['ADMINISTRADOR', 'PRODUCAO', 'ESTOQUE'].includes(
         funcao,
@@ -45,7 +50,7 @@ export default function DashboardLayout({
         funcao,
       ),
     };
-  }, [user?.funcao]);
+  }, [user?.funcao, vendasAcesso.pode_acessar_modulo]);
 
   useEffect(() => {
     if (!loading && !user) {

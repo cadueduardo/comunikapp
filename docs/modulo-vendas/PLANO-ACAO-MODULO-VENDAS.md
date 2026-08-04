@@ -505,33 +505,33 @@ seed com auditoria MySQL, colisões abortivas e idempotência real.
 
 ## 7. Fase 3 — Fundação visual, navegação e compatibilidade de rotas
 
-**Status:** [ ] Não iniciada
+**Status:** [x] Concluída (evidências em `docs/modulo-vendas/fase-3/`)
 **Dependência:** Fase 2 concluída
 **Referências do RP:** §§4.6, 6.1–6.4, 7/E0 e 8.1.
 **Objetivo:** criar a casa do módulo sem reescrever recursos existentes.
 
 ### Execução detalhada
 
-- [ ] Criar `vendasModuleNav`.
-- [ ] Registrar o módulo no `MODULE_NAV_REGISTRY`.
-- [ ] Criar `/vendas` e `ModuleLayoutShell`.
-- [ ] Adicionar Vendas à sidebar conforme permissão.
-- [ ] Retirar Orçamentos e Clientes como itens globais independentes.
-- [ ] Manter aliases/redirects seguros para `/orcamentos-v2` e `/clientes`.
-- [ ] Garantir que bookmarks e links internos continuem funcionando.
-- [ ] Criar cards iniciais para Orçamentos, Clientes e Simulador.
-- [ ] Exibir Aditivos somente quando a configuração da loja permitir.
-- [ ] Não exibir Financeiro para perfil VENDAS.
-- [ ] Implementar estados loading, vazio, erro e sem permissão.
-- [ ] Validar dark/light, teclado, mobile e desktop.
+- [x] Criar `vendasModuleNav`.
+- [x] Registrar o módulo no `MODULE_NAV_REGISTRY`.
+- [x] Criar `/vendas` e `ModuleLayoutShell`.
+- [x] Adicionar Vendas à sidebar conforme permissão.
+- [x] Retirar Orçamentos e Clientes como itens globais independentes.
+- [x] Manter aliases/redirects seguros para `/orcamentos-v2` e `/clientes`.
+- [x] Garantir que bookmarks e links internos continuem funcionando.
+- [x] Criar cards iniciais para Orçamentos, Clientes e Simulador.
+- [x] Exibir Aditivos somente quando a configuração da loja permitir.
+- [x] Não exibir Financeiro para perfil VENDAS.
+- [x] Implementar estados loading, vazio, erro e sem permissão.
+- [x] Validar dark/light, teclado, mobile e desktop.
 
 ### Gate de conclusão
 
-- [ ] Navegação Vendas funciona para solo, equipe, gestor e usuário sem acesso.
-- [ ] Rotas antigas continuam compatíveis.
-- [ ] Nenhum dado mockado foi usado.
-- [ ] Critérios RP 8.1–8.3 atendidos.
-- [ ] **FASE 3 CONCLUÍDA.**
+- [x] Navegação Vendas funciona para solo, equipe, gestor e usuário sem acesso.
+- [x] Rotas antigas continuam compatíveis.
+- [x] Nenhum dado mockado foi usado.
+- [x] Critérios RP 8.1–8.3 atendidos.
+- [x] **FASE 3 CONCLUÍDA.**
 
 ---
 
@@ -1117,7 +1117,7 @@ Cada item abaixo exige RP/delta próprio, decisão de produto e novos critérios
 - [ ] Gate 0S — Hotfix de segurança do legado comercial
 - [x] Fase 1 — Contratos de domínio, dados e compatibilidade
 - [x] Fase 2 — RBAC, segurança e multi-tenancy
-- [ ] Fase 3 — Fundação visual e navegação
+- [x] Fase 3 — Fundação visual e navegação
 - [ ] Fase 4 — Clientes, carteira e contatos
 - [ ] Fase 5 — Home, novo atendimento e atividades
 - [ ] Fase 6 — Pipeline, proposta, versão e negociação

@@ -4,11 +4,8 @@ import { type ReactNode } from 'react';
 import { ModuleLayoutShell } from '@/components/layout/ModuleLayoutShell';
 import { useVendasNavFiltrado } from '@/hooks/use-vendas-nav-filtrado';
 
-/**
- * Orçamentos V2 permanece em `/orcamentos-v2` (alias compatível).
- * A navegação de seções passa a ser a do módulo Vendas.
- */
-export default function OrcamentosLayout({ children }: { children: ReactNode }) {
+/** Clientes permanece em `/clientes` (alias) dentro do shell de Vendas. */
+export default function ClientesLayout({ children }: { children: ReactNode }) {
   const { nav } = useVendasNavFiltrado();
   return <ModuleLayoutShell nav={nav}>{children}</ModuleLayoutShell>;
 }

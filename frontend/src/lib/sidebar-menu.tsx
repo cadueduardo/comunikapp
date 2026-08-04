@@ -14,12 +14,14 @@ import {
   IconShoppingCart,
   IconTools,
   IconTruckDelivery,
-  IconUsers,
 } from '@tabler/icons-react';
 
 export type SidebarMenuItemId =
   | 'dashboard'
+  | 'vendas'
+  /** @deprecated Preferir `vendas` — mantido só para migrar ordem salva. */
   | 'orcamentos'
+  /** @deprecated Preferir `vendas` — mantido só para migrar ordem salva. */
   | 'clientes'
   | 'insumos'
   | 'fornecedores'
@@ -37,8 +39,7 @@ export type SidebarMenuItemId =
 
 export const SIDEBAR_MENU_DEFAULT_ORDER: SidebarMenuItemId[] = [
   'dashboard',
-  'orcamentos',
-  'clientes',
+  'vendas',
   'insumos',
   'fornecedores',
   'compras',
@@ -55,6 +56,8 @@ export const SIDEBAR_MENU_DEFAULT_ORDER: SidebarMenuItemId[] = [
 ];
 
 export interface SidebarMenuPermissions {
+  /** Fonte: backend `GET /vendas/acesso` (não confiar só em role no cliente). */
+  podeVerVendas: boolean;
   podeVerFinanceiro: boolean;
   podeVerExpedicao: boolean;
   podeVerInstalacaoGestao: boolean;
@@ -91,18 +94,18 @@ export function buildSidebarNavItems(
       href: '/dashboard',
       icon: <IconLayoutDashboard className={iconClass} />,
     },
-    {
-      id: 'orcamentos',
-      label: 'Orçamentos',
-      href: '/orcamentos-v2',
+  ];
+
+  if (permissions.podeVerVendas) {
+    items.push({
+      id: 'vendas',
+      label: 'Vendas',
+      href: '/vendas',
       icon: <IconFileText className={iconClass} />,
-    },
-    {
-      id: 'clientes',
-      label: 'Clientes',
-      href: '/clientes',
-      icon: <IconUsers className={iconClass} />,
-    },
+    });
+  }
+
+  items.push(
     {
       id: 'insumos',
       label: 'Insumos',
@@ -153,8 +156,9 @@ export function buildSidebarNavItems(
       badgeCount: contadores.arte,
       icon: <IconPalette className={iconClass} />,
     },
-  ];
+  );
 
+  // VENDAS não recebe Financeiro (critério RP 8.1 / Fase 3).
   if (permissions.podeVerFinanceiro) {
     items.push({
       id: 'financeiro',
@@ -203,11 +207,41 @@ export function buildSidebarNavItems(
   return items;
 }
 
+/**
+ * Migra ordem persistida: `orcamentos`/`clientes` → `vendas` na primeira
+ * ocorrência, sem duplicar.
+ */
+export function migrateSidebarOrderIds(savedOrder: string[]): string[] {
+  const out: string[] = [];
+  let vendasInserido = false;
+
+  for (const id of savedOrder) {
+    if (id === 'orcamentos' || id === 'clientes') {
+      if (!vendasInserido) {
+        out.push('vendas');
+        vendasInserido = true;
+      }
+      continue;
+    }
+    if (id === 'vendas') {
+      if (!vendasInserido) {
+        out.push('vendas');
+        vendasInserido = true;
+      }
+      continue;
+    }
+    out.push(id);
+  }
+
+  return out;
+}
+
 export function mergeSidebarOrder(
   savedOrder: string[],
   availableIds: string[],
 ): string[] {
-  const validSaved = savedOrder.filter((id) => availableIds.includes(id));
+  const migrated = migrateSidebarOrderIds(savedOrder);
+  const validSaved = migrated.filter((id) => availableIds.includes(id));
   const missing = availableIds.filter((id) => !validSaved.includes(id));
   return [...validSaved, ...missing];
 }

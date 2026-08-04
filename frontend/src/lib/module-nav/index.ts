@@ -17,6 +17,10 @@ export { usuariosModuleNav } from './usuarios';
 export { pcpModuleNav } from './pcp';
 export { expedicaoModuleNav } from './expedicao';
 export {
+  filtrarVendasNavPorConfig,
+  vendasModuleNav,
+} from './vendas';
+export {
   arteModuleNav,
   clientesModuleNav,
   fornecedoresModuleNav,

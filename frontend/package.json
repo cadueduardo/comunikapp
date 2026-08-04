@@ -7,7 +7,8 @@
     "build": "node scripts/build-production.mjs",
     "start": "next start",
     "lint": "next lint",
-    "test:pcp": "node scripts/validar-pcp.mjs"
+    "test:pcp": "node scripts/validar-pcp.mjs",
+    "test:vendas-nav": "node scripts/validar-vendas-nav.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
