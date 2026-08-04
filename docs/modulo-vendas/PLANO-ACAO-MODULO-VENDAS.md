@@ -232,11 +232,18 @@ flowchart TD
 
 ## 3.1 Gate 0S — Hotfix de segurança do legado comercial
 
-**Status:** [ ] Não iniciado
-**Dependência:** Fase 0 concluída
-**Bloqueia:** Fase 1 e qualquer publicação de navegação/rota de Vendas
+**Status:** [x] Tecnicamente congelado — promoção/produção pendentes  
+**Checkpoint:** `ab79e8ef76b2411f8928f1db60dcec6d81865411` (`gate0s-tecnico-2026-08-04`)  
+**Dependência:** Fase 0 concluída  
+**Bloqueia:** publicação do Módulo de Vendas  
+**Não bloqueia:** desenvolvimento local das fases (a partir do checkpoint)  
 **Contrato obrigatório:**
-[`fase-0/09-gate-hotfix-seguranca.md`](./fase-0/09-gate-hotfix-seguranca.md)
+[`fase-0/09-gate-hotfix-seguranca.md`](./fase-0/09-gate-hotfix-seguranca.md) ·
+[`fase-0/13-backlog-operacional-gate0s.md`](./fase-0/13-backlog-operacional-gate0s.md)
+
+> **Gate 0S tecnicamente congelado no SHA `ab79e8ef`. Promoção e validação em
+> produção pendentes. Bloqueia publicação do Módulo de Vendas, mas não bloqueia
+> desenvolvimento local.**
 
 Este gate não cria produto novo. Ele corrige ou contém os riscos já existentes em
 Orçamentos V2: autorização inerte, IDOR, fronteira pública divergente, segredo
@@ -251,14 +258,16 @@ inseguro, vazamento em logs/erros e aceite sujeito a repetição ou falha parcia
 > tipos de evento e rollback fail-closed. Métricas centralizadas e alertas
 > automáticos deixam de bloquear o Gate 0S.
 
-- [ ] HS-01 — autorização efetiva e negação por padrão.
-- [ ] HS-02 — isolamento multi-tenant e correção de IDOR.
-- [ ] HS-03 — fronteira pública única, DTOs e rate limit.
-- [ ] HS-04 — tokens seguros, revogáveis e sem exposição.
-- [ ] HS-05 — aceite legado atômico/idempotente ou desabilitado de forma segura.
-- [ ] HS-06 — eventos sanitizados, consulta local, runbook e rollback fail-closed.
-- [ ] Testes cross-tenant, persona, rota pública, concorrência e carga aprovados.
-- [ ] **GATE 0S CONCLUÍDO — FASE 1 LIBERADA.**
+- [x] HS-01 — autorização efetiva e negação por padrão (código/CI).
+- [x] HS-02 — isolamento multi-tenant e correção de IDOR (código/CI).
+- [x] HS-03 — fronteira pública única, DTOs e rate limit (código/CI).
+- [x] HS-04 — tokens seguros, revogáveis e sem exposição (código/CI; **produção pendente**).
+- [x] HS-05 — aceite legado atômico/idempotente (código/CI; **produção pendente**).
+- [x] HS-06 — eventos sanitizados, consulta local, runbook e rollback fail-closed.
+- [x] Testes cross-tenant, persona, rota pública, concorrência e carga no CI.
+- [ ] Promoção + migrate + smoke + varredura + reenvios + fechamento formal
+      ([backlog operacional](./fase-0/13-backlog-operacional-gate0s.md)).
+- [ ] **GATE 0S CONCLUÍDO — PUBLICAÇÃO DE VENDAS LIBERADA.**
 
 ---
 
@@ -325,14 +334,17 @@ qualquer migration ou alteração de fluxo.
 ### Gate de conclusão
 
 - [x] **FASE 0 CONCLUÍDA:** não há decisão P0 de produto/arquitetura pendente.
-      **Próximo gate obrigatório:** hotfix de segurança de DV-13/DV-16 antes da Fase 1.
+      Checkpoint Gate 0S: `ab79e8ef` / `gate0s-tecnico-2026-08-04` (promoção
+      pendente). Desenvolvimento local da Fase 1 liberado; publicação bloqueada.
 
 ---
 
 ## 5. Fase 1 — Contratos de domínio, dados e compatibilidade
 
-**Status:** [ ] Não iniciada  
-**Dependência:** Fase 0 concluída **e hotfix de segurança DV-13/DV-16 validado**
+**Status:** [ ] Em andamento (desenvolvimento local liberado a partir do checkpoint Gate 0S)  
+**Dependência:** Fase 0 concluída; Gate 0S **tecnicamente congelado** (`ab79e8ef` /
+`gate0s-tecnico-2026-08-04`). Publicação continua bloqueada até promoção/fechamento
+formal do Gate 0S.  
 **Referências do RP:** §§3, 4.8, 4.9, 5.2, 5.3, 7/E1-4–E1-7 e 14.1.  
 **Objetivo:** definir contratos canônicos sem criar um segundo Orçamento, Cliente,
 chat, Arte, pedido operacional ou OS Aditiva.

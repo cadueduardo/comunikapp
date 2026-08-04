@@ -21,7 +21,11 @@ Esta pasta é o endereço oficial dos entregáveis da Fase 0 definidos em
 | 06 | [Plano de migrations](./06-plano-de-migrations.md) | Plano de migrations | Aprovado |
 | 07 | [Matriz de rastreabilidade](./07-matriz-de-rastreabilidade.md) | Matriz de testes e rastreabilidade | Aprovado |
 | 08 | [Resumo executivo das decisões](./08-resumo-executivo-decisoes.md) | Síntese do contrato aprovado | Concluído |
-| 09 | [Gate 0S — hotfix de segurança](./09-gate-hotfix-seguranca.md) | Escopo, testes e critérios de liberação | **Em execução — Gate 0S não concluído — Fase 1 não liberada** |
+| 09 | [Gate 0S — hotfix de segurança](./09-gate-hotfix-seguranca.md) | Escopo, testes e critérios de liberação | **Tecnicamente congelado** (`ab79e8ef` / `gate0s-tecnico-2026-08-04`); promoção pendente |
+| 10 | [Observabilidade e logs](./10-observabilidade-e-logs-producao.md) | Anexo HS-04/HS-06 | Runbook pronto; execução operacional pendente |
+| 11 | [Matriz de endpoints](./11-matriz-endpoints-orcamentos-v2.md) | Anexo HS-01/HS-03 | Concluído |
+| 12 | [Relatório npm audit](./12-relatorio-npm-audit-gate0s.md) | Baseline de dependências | Concluído no checkpoint |
+| 13 | [Backlog operacional Gate 0S](./13-backlog-operacional-gate0s.md) | Promoção/produção | Pendente — fora das fases de desenvolvimento |
 
 Os documentos 03 a 07 passam a compor o contrato da implementação. Divergência
 futura deve ser registrada como nova decisão, nunca resolvida silenciosamente no código.

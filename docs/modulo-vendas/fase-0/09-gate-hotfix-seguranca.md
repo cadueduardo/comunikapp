@@ -1,20 +1,26 @@
 # Gate 0S — Hotfix de segurança anterior ao Módulo de Vendas
 
-**Status:** [x] em execução — **Gate 0S não concluído — Fase 1 não liberada**
-**Situação por item:** HS-01 concluído; HS-02 concluído (dois tenants em banco real,
-§4.4); HS-04 concluído no código e validado em banco real, restando a revisão dos logs
-históricos de produção; **HS-05 concluído** — a duplicação de OS encontrada na
-reauditoria foi fechada pelo índice único `ordens_servico_orcamento_id_key` (§4.5);
-**HS-06 concluído** — o escopo local está comprovado e as métricas centralizadas saíram
-do gate por decisão de arquitetura (DV-17); HS-03 concluído — a varredura dos pontos que
-liam `x-forwarded-for` diretamente foi fechada (§4.9). Detalhamento em §2.0 a §2.8 e
-critérios de saída em §5.
+**Status:** [x] **tecnicamente congelado** no SHA `ab79e8ef76b2411f8928f1db60dcec6d81865411`
+**Estado operacional:** Gate 0S tecnicamente congelado no SHA `ab79e8ef`.
+Promoção e validação em produção pendentes. Bloqueia publicação do Módulo de
+Vendas, mas não bloqueia desenvolvimento local.
+**Tag:** `gate0s-tecnico-2026-08-04` (anotada, imutável)
+**Pipeline do checkpoint:**
+[30926414113](https://github.com/cadueduardo/comunikapp/actions/runs/30926414113)
+**Artefato de release:** `comunikapp-release-ab79e8ef76b2411f8928f1db60dcec6d81865411`
+(job `release-artifact` verde; retenção Actions 14 dias)
+**Promoção em produção:** **não concluída** — ver backlog operacional
+[`13-backlog-operacional-gate0s.md`](./13-backlog-operacional-gate0s.md)
+**Situação por item:** HS-01–HS-06 concluídos no código e no CI; HS-04/HS-05 ainda
+pendentes de promoção à VPS; varredura de logs históricos e reenvios pendentes de
+autorização. Detalhamento em §2.0 a §2.8, preflight §4.11, critérios de saída em §5.
 **Engine de destino:** MySQL 8.0.46 (Ubuntu 24.04), InnoDB, `REPEATABLE-READ` —
 verificada na VPS, e as migrations e validações rodaram na mesma versão no CI (§4.8).
 **Anexos:** [matriz de endpoints](./11-matriz-endpoints-orcamentos-v2.md) ·
-[observabilidade e logs de produção](./10-observabilidade-e-logs-producao.md)
+[observabilidade e logs de produção](./10-observabilidade-e-logs-producao.md) ·
+[release imutável](../../deploy/release-immutavel-gate0s.md)
 **Natureza:** correção obrigatória do legado existente; não é fase funcional de Vendas
-**Bloqueia:** Fases 1 a 14 e qualquer nova rota, card ou navegação de Vendas
+**Bloqueia:** publicação do Módulo de Vendas (não o desenvolvimento local das fases)
 **Origem:** DV-13, DV-16 e achados D-01, D-02 e D-08 da auditoria
 **Referências:** RP §§4.10, 9, 10 e 15; artefatos 01–05 da Fase 0
 
@@ -1240,44 +1246,52 @@ Contingência fail-closed: ver contrato de rollback do HS-04 neste documento
 
 ## 5. Gate de conclusão
 
-**Situação em 2026-08-01: Gate 0S não concluído — Fase 1 não liberada.**
+**Situação em 2026-08-04: Gate 0S tecnicamente congelado no SHA `ab79e8ef`.
+Promoção e validação em produção pendentes. Bloqueia publicação do Módulo de
+Vendas, mas não bloqueia desenvolvimento local.**
 
-Fechados até aqui: a validação da migration em banco real (§2.7), o isolamento
-multi-tenant com dois tenants (§4.4), o HS-05 ponta a ponta com garantia estrutural
-(§4.2 e §4.5), a matriz de endpoints, o teste de carga do caminho de autorização
-(§4.6), o build completo (§4.7), a identificação da engine real de destino (§4.8) e o
-HS-06 no escopo que lhe cabe.
+### Checkpoint técnico (imutável)
 
-A engine de destino também está fechada: as duas migrations e os três scripts de
-validação rodaram em MySQL 8.0.46 no CI, a mesma versão da produção (§4.8).
+| Item | Valor |
+|---|---|
+| SHA | `ab79e8ef76b2411f8928f1db60dcec6d81865411` |
+| Tag anotada | `gate0s-tecnico-2026-08-04` |
+| Pipeline | [30926414113](https://github.com/cadueduardo/comunikapp/actions/runs/30926414113) |
+| Artefato | `comunikapp-release-ab79e8ef76b2411f8928f1db60dcec6d81865411` |
+| Promoção produção | **pendente** (não concluída) |
 
-O que mantém o gate aberto:
+Não rebasear, force-push ou remover esse histórico. O desenvolvimento do Módulo de
+Vendas continua a partir desse SHA; as correções do Gate 0S permanecem na base.
 
-- **HS-04, produção defasada**: a migration do HS-04 não está aplicada na VPS e há 2
-  códigos de aprovação em texto claro no banco (§4.8). Só o deploy fecha isso.
-- **HS-04, logs históricos**: runbook pronto
-  ([anexo](./10-observabilidade-e-logs-producao.md) §3); execução bloqueada por acesso
-  ao ambiente e autorização específica.
+### Backlog operacional (fora das fases de desenvolvimento)
 
-O HS-06 saiu da lista de bloqueios. A decisão de arquitetura de 2026-08-01 (DV-17)
-separou o que o hotfix precisa entregar — evento sanitizado, baixa cardinalidade,
-consulta local, runbook, critérios de incidente, comprovação dos cinco tipos e rollback
-fail-closed, todos concluídos — do que pertence a um projeto apartado de observabilidade
-em VPS separada. Métricas centralizadas e alertas automáticos deixaram de ser critério
-de saída deste gate.
+Ver [`13-backlog-operacional-gate0s.md`](./13-backlog-operacional-gate0s.md). Não
+trabalhar esses itens durante as fases funcionais de Vendas.
 
-O pipeline deixou de ser bloqueio: a execução
-[30704139135](https://github.com/cadueduardo/comunikapp/actions/runs/30704139135)
-fechou verde em todos os jobs obrigatórios — Prisma, lint, OpenAPI, unitários, E2E e o
-job do Gate 0S em MySQL 8 (§4.10).
+Ordem antes da publicação final de Vendas:
 
-Nenhuma fase funcional de Vendas está liberada.
+1. promover e validar o checkpoint do Gate 0S;
+2. concluir a varredura histórica e os reenvios autorizados;
+3. fechar formalmente o Gate 0S;
+4. promover a release do Módulo de Vendas.
 
-- [ ] HS-01 a HS-06 concluídos com evidência vinculada no PR.
-- [ ] Nenhuma vulnerabilidade P0/P1 do escopo permanece aberta sem contenção que
-      negue o comportamento vulnerável.
+Fechados no código/CI até o checkpoint: HS-01–HS-06 (escopo local), migrations
+HS-04/HS-05 no repositório e no job MySQL 8, baseline de audit, artefato imutável.
+
+O que mantém o gate **formalmente** aberto:
+
+- promoção do artefato + migrate HS-04/HS-05 na VPS;
+- smoke tests de produção;
+- varredura de logs históricos;
+- reenvio das propostas com código legado (após migrate);
+- fechamento formal (checkbox abaixo).
+
+- [x] HS-01 a HS-06 no código com evidência no CI / docs (checkpoint `ab79e8ef`).
+- [ ] Promoção e validação em produção do checkpoint.
+- [ ] Varredura histórica + reenvios autorizados.
+- [ ] Nenhuma vulnerabilidade P0/P1 do escopo permanece aberta sem contenção em produção.
 - [ ] Revisão de segurança independente confirma OWASP, tenant e menor privilégio.
-- [ ] Rollback testado e incapaz de reabrir acesso fail-open.
+- [ ] Rollback fail-closed confirmado no artefato promovido.
 - [ ] RP, plano, OpenAPI e matriz de rastreabilidade refletem o comportamento final.
-- [ ] **GATE 0S CONCLUÍDO — FASE 1 LIBERADA.**
+- [ ] **GATE 0S CONCLUÍDO — FASE 1 LIBERADA PARA PUBLICAÇÃO.**
 
