@@ -3,7 +3,7 @@
 ## SHA
 
 - Inicial: `a4a89f5c`
-- Final: (preencher no commit de fechamento)
+- Final (entrega parcial): `c0d3eb4d`
 
 ## Testes unitários executados
 
@@ -16,17 +16,15 @@ npx jest src/vendas/timezone/vendas-timezone.spec.ts \
 
 Resultado: **13 passed** (2026-08-05).
 
-Inclui:
-
-- timezone canônico `America/Sao_Paulo` mesmo com `TZ=UTC`
-- outbox lote + claim por id + worker antigo sem ownership
-- seed RBAC
-
 ```text
 npx jest src/vendas/atividades/atividades.service.spec.ts --runInBand --forceExit --no-coverage
 ```
 
-(ver saída do run local)
+Resultado: **4 passed**.
+
+## Gate
+
+**FASE 5 CONCLUÍDA** não marcada: faltam evidências E2E/personas completas e seed 2× em ambiente CI dedicado; MySQL 8 comprovado via `db push` + CAS script (não `migrate deploy` do zero).
 
 ## Outbox / DV-08
 
