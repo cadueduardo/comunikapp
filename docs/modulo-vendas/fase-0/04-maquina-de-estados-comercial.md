@@ -73,8 +73,6 @@ stateDiagram-v2
 
     aguardando_alcada --> enviada: alçada aprovada + enviar
     aguardando_alcada --> rascunho: alçada rejeitada
-    aguardando_alcada --> cancelada: cancelar
-
     enviada --> em_negociacao: cliente respondeu
     enviada --> revisao_solicitada: cliente pediu alteração
     enviada --> aceita: aceite válido

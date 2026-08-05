@@ -671,24 +671,26 @@ demanda/follow-up.
 
 ## 10. Fase 6 — Pipeline, proposta, versão e negociação
 
-**Status:** [ ] Não iniciada
-**Dependência:** Fase 5 concluída
+**Status:** [ ] Em execução — máquina DV-14 religada no endpoint genérico
+**Dependência:** Fase 5 funcionalmente implementada; validações operacional e de migration permanecem abertas e bloqueiam publicação, não o desenvolvimento local autorizado desta fase
 **Referências do RP:** §§4.1, 4.9, 5.3, 6.5.5–6.5.6, 7/E1, 8.2, 8.6 e
 8.9 (38–39).
 **Objetivo:** tornar Orçamentos V2 o coração de um pipeline comercial coerente.
 
 ### Ajustes exigidos pela auditoria da Fase 0
 
-- [ ] Tratar D-03: a máquina de estados **já existe** em
+- [x] Tratar D-03: a máquina de estados **já existe** em
       `validacao-v2.service.ts:605–636`, mas `OrcamentosV2Service.alterarStatus`
       (`:2923`) **não a chama** e grava qualquer string. Religar validação e caminho
-      de escrita é pré-requisito de tudo nesta fase.
+      de escrita é pré-requisito de tudo nesta fase. Implementado por contrato
+      DV-14 canônico, DTO tipado, allowlist e CAS em `status_comercial`.
 - [ ] Garantir um **único ponto de escrita** de status comercial. Hoje há escritas
       espalhadas em `alterarStatus`, `fecharPedidoInterno` e
       `processarAcaoClientePublico`.
-- [ ] Remover o `console.log` do código de aprovação em
+- [x] Remover o `console.log` do código de aprovação em
       `orcamentos-v2.service.ts:2961–2967`, que imprime o segredo em texto puro,
       contra `docs/database/boas-praticas-schema-prisma.md` §Segurança.
+      Já fechado pelo Gate 0S; reauditoria da Fase 6 não encontrou emissão em log.
 - [ ] Eleger `MensagemChat`: é a tabela que o frontend realmente usa, apesar de os
       métodos se chamarem `...Legado`. O módulo `mensagens-negociacao` é o órfão.
 - [ ] Decidir o destino do `LinkPublico`, que tem quatro campos duplicados de duas
@@ -698,9 +700,9 @@ demanda/follow-up.
 
 ### Máquina de estados
 
-- [ ] Implementar os 10 estados e 23 transições de
+- [x] Implementar os 10 estados e 23 transições de
       `fase-0/04-maquina-de-estados-comercial.md`, após decisão de DV-14.
-- [ ] Definir transições válidas e ator autorizado.
+- [x] Definir transições válidas e ator autorizado.
 - [ ] Implementar proposta enviada, negociação, revisão, expiração e perda.
 - [ ] Separar `em_execucao`/`concluido` da superfície comercial.
 - [ ] Exigir motivo de perda e auditar reabertura.

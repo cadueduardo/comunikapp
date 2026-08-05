@@ -16,6 +16,90 @@ export enum OrcamentoStatusComercial {
   CANCELADA = 'cancelada',
 }
 
+/**
+ * As 23 transições aprovadas em DV-14. Esta é a fonte de verdade da máquina
+ * comercial; caminhos HTTP, aceite e jobs não devem manter tabelas paralelas.
+ */
+export const TRANSICOES_STATUS_COMERCIAL: Readonly<
+  Record<OrcamentoStatusComercial, readonly OrcamentoStatusComercial[]>
+> = {
+  [OrcamentoStatusComercial.RASCUNHO]: [
+    OrcamentoStatusComercial.AGUARDANDO_ALCADA,
+    OrcamentoStatusComercial.ENVIADA,
+    OrcamentoStatusComercial.CANCELADA,
+  ],
+  [OrcamentoStatusComercial.AGUARDANDO_ALCADA]: [
+    OrcamentoStatusComercial.ENVIADA,
+    OrcamentoStatusComercial.RASCUNHO,
+  ],
+  [OrcamentoStatusComercial.ENVIADA]: [
+    OrcamentoStatusComercial.EM_NEGOCIACAO,
+    OrcamentoStatusComercial.REVISAO_SOLICITADA,
+    OrcamentoStatusComercial.ACEITA,
+    OrcamentoStatusComercial.EXPIRADA,
+    OrcamentoStatusComercial.PERDIDA,
+    OrcamentoStatusComercial.CANCELADA,
+  ],
+  [OrcamentoStatusComercial.EM_NEGOCIACAO]: [
+    OrcamentoStatusComercial.REVISAO_SOLICITADA,
+    OrcamentoStatusComercial.ACEITA,
+    OrcamentoStatusComercial.EXPIRADA,
+    OrcamentoStatusComercial.PERDIDA,
+  ],
+  [OrcamentoStatusComercial.REVISAO_SOLICITADA]: [
+    OrcamentoStatusComercial.AGUARDANDO_ALCADA,
+    OrcamentoStatusComercial.ENVIADA,
+    OrcamentoStatusComercial.PERDIDA,
+  ],
+  [OrcamentoStatusComercial.EXPIRADA]: [
+    OrcamentoStatusComercial.RASCUNHO,
+    OrcamentoStatusComercial.PERDIDA,
+  ],
+  [OrcamentoStatusComercial.ACEITA]: [
+    OrcamentoStatusComercial.PEDIDO_CONFIRMADO,
+    OrcamentoStatusComercial.PERDIDA,
+  ],
+  [OrcamentoStatusComercial.PEDIDO_CONFIRMADO]: [],
+  [OrcamentoStatusComercial.PERDIDA]: [
+    OrcamentoStatusComercial.RASCUNHO,
+  ],
+  [OrcamentoStatusComercial.CANCELADA]: [],
+};
+
+const ALIASES_STATUS_COMERCIAL: Readonly<Record<string, OrcamentoStatusComercial>> = {
+  rascunho: OrcamentoStatusComercial.RASCUNHO,
+  pendente: OrcamentoStatusComercial.RASCUNHO,
+  aguardando_alcada: OrcamentoStatusComercial.AGUARDANDO_ALCADA,
+  enviada: OrcamentoStatusComercial.ENVIADA,
+  enviado: OrcamentoStatusComercial.ENVIADA,
+  em_analise: OrcamentoStatusComercial.ENVIADA,
+  em_negociacao: OrcamentoStatusComercial.EM_NEGOCIACAO,
+  negociando: OrcamentoStatusComercial.EM_NEGOCIACAO,
+  revisao_solicitada: OrcamentoStatusComercial.REVISAO_SOLICITADA,
+  expirada: OrcamentoStatusComercial.EXPIRADA,
+  aceita: OrcamentoStatusComercial.ACEITA,
+  aprovado: OrcamentoStatusComercial.ACEITA,
+  pedido_confirmado: OrcamentoStatusComercial.PEDIDO_CONFIRMADO,
+  perdida: OrcamentoStatusComercial.PERDIDA,
+  rejeitado: OrcamentoStatusComercial.PERDIDA,
+  cancelada: OrcamentoStatusComercial.CANCELADA,
+  cancelado: OrcamentoStatusComercial.CANCELADA,
+};
+
+/** Resolve somente valores conhecidos; desconhecido nunca degrada para rascunho. */
+export function resolverStatusComercial(
+  valor: string | null | undefined,
+): OrcamentoStatusComercial | null {
+  return ALIASES_STATUS_COMERCIAL[normalizar(valor)] ?? null;
+}
+
+export function transicaoStatusComercialPermitida(
+  origem: OrcamentoStatusComercial,
+  destino: OrcamentoStatusComercial,
+): boolean {
+  return TRANSICOES_STATUS_COMERCIAL[origem].includes(destino);
+}
+
 /** Valores legados ainda gravados em `orcamento.status` para compatibilidade. */
 export enum OrcamentoStatusLegado {
   RASCUNHO = 'rascunho',

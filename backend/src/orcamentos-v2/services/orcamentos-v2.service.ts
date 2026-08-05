@@ -60,6 +60,8 @@ import {
   mapearStatusLegadoParaComercial,
   montarAtualizacaoStatusDual,
   OrcamentoStatusComercial,
+  resolverStatusComercial,
+  transicaoStatusComercialPermitida,
 } from '../domain/status-comercial';
 import {
   ACEITE_PUBLICO_DESABILITADO_MSG,
@@ -2139,19 +2141,8 @@ export class OrcamentosV2Service {
       },
     });
 
-    await this.criarHistorico(
-      orcamentoId,
-      'envio',
-      'Proposta enviada ao cliente',
-      usuarioId,
-      {
-        versao_enviada_id: versao.id,
-        validade_dias: validade.validade_dias,
-        expira_em: validade.expira_em.toISOString(),
-      },
-      lojaId,
-      EVENTOS_COMERCIAIS.PROPOSTA_ENVIADA,
-    );
+    // A timeline do envio é gravada pelo ponto único de transição comercial.
+    // Este método apenas congela a versão e prepara validade antes da transição.
   }
 
   private construirFiltros(filtros: any, lojaId: string): any {
@@ -3817,15 +3808,12 @@ export class OrcamentosV2Service {
     observacoes?: string,
     contexto?: ContextoDaRequisicao,
   ) {
-    await this.vendasPermissions.assertPode(
-      userId,
-      lojaId,
-      VENDAS_PERMISSOES.PROPOSTA_EDITAR,
-    );
+    const destino = resolverStatusComercial(novoStatus);
+    if (!destino) {
+      throw new BadRequestException('Status comercial não reconhecido.');
+    }
 
-    this.logger.log(
-      'Alterando status do orcamento ' + id + ' para ' + novoStatus,
-    );
+    this.logger.log(`Alterando estado comercial do orçamento ${id}`);
 
     const orcamento = await this.prisma.orcamento.findFirst({
       where: { id, loja_id: lojaId },
@@ -3839,21 +3827,95 @@ export class OrcamentosV2Service {
       throw new NotFoundException('Orcamento nao encontrado');
     }
 
-    const statusAnterior = orcamento.status;
-    const statusAprovacaoAnterior = orcamento.status_aprovacao;
-    const observacoesClienteAnterior = (orcamento as any).observacoes_cliente;
+    const origem =
+      (orcamento as any).status_comercial ??
+      mapearStatusLegadoParaComercial(orcamento.status, false);
 
-    const possuiOs =
-      (await this.prisma.ordemServico.count({
-        where: { orcamento_id: id },
-      })) > 0;
-    const dual = montarAtualizacaoStatusDual(novoStatus, possuiOs);
+    if (
+      origem !== destino &&
+      !transicaoStatusComercialPermitida(origem, destino)
+    ) {
+      throw new BadRequestException(
+        `Transição comercial inválida: ${origem} → ${destino}.`,
+      );
+    }
+
+    const permissoesPorDestino: Partial<
+      Record<OrcamentoStatusComercial, string>
+    > = {
+      [OrcamentoStatusComercial.AGUARDANDO_ALCADA]:
+        VENDAS_PERMISSOES.ALCADA_SOLICITAR,
+      [OrcamentoStatusComercial.ENVIADA]: VENDAS_PERMISSOES.PROPOSTA_ENVIAR,
+      [OrcamentoStatusComercial.REVISAO_SOLICITADA]:
+        VENDAS_PERMISSOES.PROPOSTA_REVISAR,
+      [OrcamentoStatusComercial.PERDIDA]:
+        VENDAS_PERMISSOES.PROPOSTA_MARCAR_PERDIDA,
+      [OrcamentoStatusComercial.CANCELADA]:
+        VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    };
+
+    const reabertura =
+      destino === OrcamentoStatusComercial.RASCUNHO &&
+      [
+        OrcamentoStatusComercial.EXPIRADA,
+        OrcamentoStatusComercial.PERDIDA,
+      ].includes(origem);
+    const permissao = reabertura
+      ? VENDAS_PERMISSOES.PROPOSTA_REABRIR
+      : permissoesPorDestino[destino] ?? VENDAS_PERMISSOES.PROPOSTA_EDITAR;
+
+    await this.vendasPermissions.assertPode(userId, lojaId, permissao as any);
+
+    if (origem === destino) {
+      return orcamento;
+    }
+
+    if (
+      [
+        OrcamentoStatusComercial.ACEITA,
+        OrcamentoStatusComercial.PEDIDO_CONFIRMADO,
+      ].includes(destino)
+    ) {
+      throw new BadRequestException(
+        'Aceite e confirmação do pedido devem usar o fluxo próprio de fechamento.',
+      );
+    }
+    if (
+      [
+        OrcamentoStatusComercial.EM_NEGOCIACAO,
+        OrcamentoStatusComercial.EXPIRADA,
+      ].includes(destino)
+    ) {
+      throw new BadRequestException(
+        'Esta transição é exclusiva do fluxo de negociação ou do processamento automático.',
+      );
+    }
+    if (
+      destino === OrcamentoStatusComercial.PERDIDA &&
+      !observacoes?.trim()
+    ) {
+      throw new BadRequestException(
+        'Informe o motivo para marcar a proposta como perdida.',
+      );
+    }
+    if (
+      destino === OrcamentoStatusComercial.ENVIADA &&
+      !(orcamento as any).versao_enviada_id
+    ) {
+      throw new BadRequestException(
+        'A proposta precisa ter uma versão congelada antes do envio.',
+      );
+    }
+
+    const statusLegado = mapearStatusComercialParaLegado(destino);
+    const statusAprovacao = mapearStatusComercialParaAprovacao(destino);
 
     const dadosAtualizacao: Record<string, unknown> = {
-      status: dual.status,
-      status_comercial: dual.status_comercial,
-      status_aprovacao: dual.status_aprovacao,
+      status: statusLegado,
+      status_comercial: destino,
+      status_aprovacao: statusAprovacao,
       data_atualizacao: new Date(),
+      ...(reabertura ? { expira_em: null, enviado_em: null } : {}),
     };
 
     // Gate 0S / HS-04: a mudança de status não emite mais código de aprovação.
@@ -3867,87 +3929,90 @@ export class OrcamentosV2Service {
     // auditoria valem ou falham juntas. Antes, a revogação e a trilha rodavam
     // depois do `update`, e uma falha no meio deixava o status novo sem o
     // código revogado.
-    const orcamentoAtualizado = await this.prisma.$transaction(async (tx) => {
-      const atualizado = await tx.orcamento.update({
-        where: { id },
+    await this.prisma.$transaction(async (tx) => {
+      const transicao = await tx.orcamento.updateMany({
+        where: { id, loja_id: lojaId, status_comercial: origem },
         data: dadosAtualizacao,
-        include: {
-          cliente: true,
-          loja: true,
-        },
       });
+      if (transicao.count !== 1) {
+        throw new BadRequestException(
+          'A proposta foi alterada por outra operação. Recarregue e tente novamente.',
+        );
+      }
 
       // Gate 0S / HS-04: sair para um estado onde o aceite público não se
       // aplica mais invalida o código imediatamente, sem depender da expiração.
       if (
-        ['cancelado', 'rejeitado'].includes(String(novoStatus).toLowerCase())
+        [
+          OrcamentoStatusComercial.CANCELADA,
+          OrcamentoStatusComercial.PERDIDA,
+        ].includes(destino)
       ) {
         await this.revogarCodigoAprovacaoDoOrcamento(
           id,
           lojaId,
-          'status alterado para ' + novoStatus,
+          `estado comercial alterado para ${destino}`,
           tx,
         );
       }
 
       await this.registrarAuditoriaNaTransacao(tx, {
         orcamentoId: id,
+        // Mantém o tipo legado para consumidores da auditoria; a timeline
+        // canônica abaixo diferencia explicitamente o eixo comercial.
         tipoAcao: 'STATUS_ALTERADO',
-        descricao:
-          'Status alterado para ' +
-          novoStatus +
-          (observacoes ? '. Observacoes: ' + observacoes : ''),
+        descricao: `Estado comercial alterado para ${destino}`,
         origem: 'INTERNO',
         autor: userId,
-        statusAnterior,
-        statusNovo: novoStatus,
+        statusAnterior: orcamento.status,
+        statusNovo: statusLegado,
         contexto,
       });
 
-      return atualizado;
+      await tx.historicoOrcamento.create({
+        data: {
+          orcamento: { connect: { id } },
+          loja: { connect: { id: lojaId } },
+          acao: 'mudanca_status_comercial',
+          evento:
+            destino === OrcamentoStatusComercial.ENVIADA
+              ? EVENTOS_COMERCIAIS.PROPOSTA_ENVIADA
+              : destino === OrcamentoStatusComercial.REVISAO_SOLICITADA
+                ? EVENTOS_COMERCIAIS.PROPOSTA_REVISAO_SOLICITADA
+                : destino === OrcamentoStatusComercial.PERDIDA
+                  ? EVENTOS_COMERCIAIS.PROPOSTA_PERDIDA
+                  : reabertura
+                    ? EVENTOS_COMERCIAIS.PROPOSTA_REABERTA
+                    : null,
+          descricao: `Transição comercial ${origem} → ${destino}`,
+          usuario_id: userId,
+          payload: {
+            origem,
+            destino,
+            motivo: observacoes?.trim() || null,
+          },
+        },
+      });
+
     });
 
-    if (novoStatus?.toLowerCase() === 'aprovado') {
-      try {
-        await this.criarOSAutomaticaParaOrcamento(
-          lojaId,
-          orcamentoAtualizado.id,
-          userId,
-          'ALTERAR_STATUS',
-        );
-      } catch (error) {
-        this.logger.error(
-          '[OS_AUTO] Falha ao gerar OS automatica para o orcamento ' +
-            orcamentoAtualizado.id +
-            ' via alterarStatus: ' +
-            error.message,
-        );
-
-        await this.prisma.orcamento.update({
-          where: { id },
-          data: {
-            status: statusAnterior,
-            status_aprovacao: statusAprovacaoAnterior,
-            observacoes_cliente: observacoesClienteAnterior,
-            data_atualizacao: new Date(),
-          },
-        });
-
-        throw new InternalServerErrorException(
-          'Falha ao gerar OS automaticamente. Status do orcamento foi revertido.',
-        );
-      }
+    const orcamentoAtualizado = await this.prisma.orcamento.findFirst({
+      where: { id, loja_id: lojaId },
+      include: { cliente: true, loja: true },
+    });
+    if (!orcamentoAtualizado) {
+      throw new NotFoundException('Orçamento não encontrado.');
     }
 
     await this.notificacaoService.notificarMudancaStatus(
       orcamentoAtualizado,
       orcamento.status as any,
-      novoStatus as any,
+      statusLegado as any,
       lojaId,
     );
 
     this.logger.log(
-      'Status do orcamento ' + id + ' alterado para ' + novoStatus,
+      `Estado comercial do orçamento ${id} alterado para ${destino}`,
     );
 
     return orcamentoAtualizado;
@@ -3977,14 +4042,14 @@ export class OrcamentosV2Service {
       throw new NotFoundException('Orçamento não encontrado');
     }
 
+    await this.marcarEnvioDaProposta(id, lojaId, userId);
+
     const orcamentoAtualizado = await this.alterarStatus(
       id,
       'enviado',
       lojaId,
       userId,
     );
-
-    await this.marcarEnvioDaProposta(id, lojaId, userId);
 
     // Enviar email para o cliente (se tiver email)
     let emailEnviado = false;

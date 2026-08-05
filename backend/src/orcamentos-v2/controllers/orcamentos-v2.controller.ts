@@ -42,6 +42,7 @@ import {
   AtualizarOrcamentoBodyDto,
   CriarOrcamentoBodyDto,
 } from '../dto/orcamento-body.dto';
+import { AlterarStatusComercialDto } from '../dto/alterar-status-comercial.dto';
 
 /** Pipe local: tipa o body sem descartar campos ainda fora do DTO canônico. */
 const BODY_PIPE_EXPANSIVO = new ValidationPipe({
@@ -590,7 +591,14 @@ export class OrcamentosV2Controller {
    * Altera status do orçamento
    */
   @Put(':id/status')
-  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_EDITAR)
+  @RequerPermissaoVendas(
+    VENDAS_PERMISSOES.PROPOSTA_EDITAR,
+    VENDAS_PERMISSOES.PROPOSTA_ENVIAR,
+    VENDAS_PERMISSOES.PROPOSTA_REVISAR,
+    VENDAS_PERMISSOES.PROPOSTA_MARCAR_PERDIDA,
+    VENDAS_PERMISSOES.PROPOSTA_REABRIR,
+    VENDAS_PERMISSOES.ALCADA_SOLICITAR,
+  )
   @ApiOperation({ summary: 'Alterar status do orçamento' })
   @ApiResponse({ status: 200, description: 'Status alterado com sucesso' })
   @ApiResponse({ status: 400, description: 'Transição de status inválida' })
@@ -598,7 +606,7 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async alterarStatus(
     @Param('id') id: string,
-    @Body() dados: { status: string; observacoes?: string },
+    @Body() dados: AlterarStatusComercialDto,
     @Request() req: any,
   ) {
     const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
