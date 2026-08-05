@@ -563,9 +563,8 @@ cadastro mestre da loja.
 ### Backend e banco
 
 - [x] Implementar responsável comercial principal.
-- [x] Implementar gestão de participantes na API e na ficha do cliente. A entrega
-      atual criou o modelo e o utiliza no escopo de leitura, mas não oferece caminho
-      autorizado para adicionar ou remover participantes.
+- [x] Implementar gestão de participantes na API e na ficha do cliente, com caminho
+      autorizado para listar, adicionar e remover participantes.
 - [x] Preservar histórico de atribuição e transferência.
 - [x] Implementar busca normalizada e deduplicação por tenant.
 - [x] Tratar CPF/CNPJ, e-mail e telefone conforme normalização compartilhada.

@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   Put,
@@ -168,6 +170,7 @@ export class ClientesController {
   }
 
   @Delete(':id/participantes/:usuarioId')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @RequerPermissaoVendas(VENDAS_PERMISSOES.CARTEIRA_TRANSFERIR)
   @ApiOperation({
     summary: 'Remove participante (auditado; não concede poderes ao removido)',
