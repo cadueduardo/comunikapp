@@ -22,11 +22,11 @@
 |---|---|
 | (35) Home prioriza o dia | OK — `GET /vendas/home` + UI |
 | (36) Atendimento sem cadastro completo + cliente existente | OK — UI busca carteira; prospect opcional; `CLIENTE_CRIAR` só no prospect |
-| (37) CTA / deep-link com contato persistido | OK nos testes de fluxo (URL → payload → validação); ver `fluxo-atendimento-orcamento-contato.spec.ts` |
+| (37) CTA / deep-link com contato | Implementado e coberto com mocks (URL → payload → validação); persistência real aguarda M5.5 no MySQL de teste |
 
 ## Checklist plano §9
 
-Ver `PLANO-ACAO-MODULO-VENDAS.md` §9 — **FASE 5 permanece Em validação** até o gate final ser marcado com evidência reproduzível completa (incluindo seed 2× no MySQL previsto).
+Ver `PLANO-ACAO-MODULO-VENDAS.md` §9 — **FASE 5 permanece Em validação** até o gate final ser marcado com evidência reproduzível completa, incluindo seed duas vezes e criação/leitura de orçamento com contato no MySQL previsto.
 
 ## Diferidos (documentados)
 

@@ -663,8 +663,9 @@ demanda/follow-up.
 - [x] Uma demanda pode ser registrada sem cadastro completo. (prospect)
 - [x] Nenhuma atividade depende somente de memória ou planilha.
 - [ ] Critérios RP 8.9 (35–37) atendidos.
-      Implementação e testes unitários/contrato presentes; gate final só fecha
-      com evidência reproduzível completa em `fase-5/evidencia-testes-fase-5.md`.
+      Implementação e testes com mocks presentes; gate final só fecha com a
+      migration aplicada, criação/leitura real do contato no orçamento e as
+      demais evidências descritas em `fase-5/evidencia-testes-fase-5.md`.
 - [ ] **FASE 5 CONCLUÍDA.**
       Mantida aberta até fechar o checkbox acima com SHA final e seed 2×.
 ---

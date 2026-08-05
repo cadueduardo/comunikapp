@@ -1,9 +1,9 @@
-﻿# EvidÃªncia de testes â€” Fase 5 (continuidade pÃ³s-a29c46fc)
+# Evidência de testes — Fase 5 (continuidade pós-`a29c46fc`)
 
 **SHA inicial:** `a29c46fc`
-**Status do gate:** Em validaÃ§Ã£o (FASE 5 nÃ£o concluÃ­da)
+**Status do gate:** Em validação — Fase 5 não concluída
 
-## Backend (obrigatÃ³rio) â€” executado 2026-08-05
+## Backend — executado em 2026-08-05
 
 ```text
 npx jest src/vendas/atendimento src/vendas/carteira/vendas-carteira-escopo.spec.ts \
@@ -14,50 +14,60 @@ npx jest src/vendas/atendimento src/vendas/carteira/vendas-carteira-escopo.spec.
   --runInBand --forceExit --no-coverage
 ```
 
-**Resultado:** `7 passed` suites / `21 passed` tests.
+**Resultado informado na entrega:** 7 suítes e 21 testes aprovados.
 
-Cobertura:
+Cobertura unitária e integrada com dependências simuladas:
 
-- Atendimento com cliente existente da prÃ³pria carteira
-- Participante autorizado (escopo `CARTEIRA_VER_PROPRIA` + participantes)
-- Gestor/equipe (`CARTEIRA_VER_EQUIPE`)
-- UsuÃ¡rio sem `ATIVIDADE_GERENCIAR` negado
-- Cliente de outra loja/fora do escopo negado
-- Contato que nÃ£o pertence ao cliente negado
-- Fluxo real: atendimento â†’ deep-link â†’ preparaÃ§Ã£o â†’ validaÃ§Ã£o com `contato_id` no payload
-- Seed RBAC idempotente (suite `seed-vendas-rbac.spec.ts`, duas passagens no fake)
+- atendimento com cliente existente da própria carteira;
+- participante autorizado e gestor/equipe conforme escopo;
+- usuário sem `ATIVIDADE_GERENCIAR` negado;
+- cliente de outra loja ou fora do escopo negado;
+- contato incompatível com o cliente negado;
+- atendimento → deep-link → transformação → validação de `contato_id`;
+- seed RBAC idempotente em memória.
 
-### EvidÃªncia de contato persistido no orÃ§amento
+### Alcance da prova de `contato_id`
 
-Em `fluxo-atendimento-orcamento-contato.spec.ts`:
+O teste `fluxo-atendimento-orcamento-contato.spec.ts` comprova, com mocks:
 
-1. Atendimento devolve deep-link com `clienteId` + `contatoId`
-2. `TransformacaoV2Service.prepararDadosCriacao` inclui `contato_id` no payload Prisma
-3. `ValidacaoV2Service.validarDadosCriacao` consulta `cliente_contato` com
-   `{ id, loja_id, cliente_id, ativo: true }` antes de aceitar
-4. Contato de outro cliente Ã© rejeitado com `BadRequestException`
+1. geração do deep-link com `clienteId` e `contatoId`;
+2. inclusão de `contato_id` no objeto preparado para o Prisma;
+3. validação por `{ id, loja_id, cliente_id, ativo: true }`;
+4. rejeição de contato incompatível.
 
-## Frontend (E2E de contratos / personas UI) â€” executado 2026-08-05
+Ele não executa `orcamento.create` em MySQL e, portanto, não comprova sozinho a
+persistência física da coluna ou a migration. Essa evidência depende da aplicação
+da migration `20260805120800_vendas_orcamento_add_contato` em banco de teste e de
+um teste de integração com criação e leitura do orçamento.
+
+## Frontend — verificações estáticas
 
 ```text
 npm run test:vendas-nav
 npm run test:vendas-atendimento
 ```
 
-**Resultado:** ambos `ok: true` (nav + personas/estados de atendimento + consumo de `contatoId`).
+Os scripts verificam contratos por leitura do código-fonte. Eles confirmam a
+presença das ramificações de cliente/prospect, permissões e consumo de
+`contatoId`, mas não são testes E2E, não interagem com o navegador e não provam
+as jornadas das personas.
 
-## Seed 2Ã— no MySQL (ambiente previsto)
+## Seed duas vezes no MySQL previsto
 
 ```text
 npx ts-node scripts/seed-vendas-rbac-duas-vezes.ts
 ```
 
-**Nesta sessÃ£o:** bloqueado por guardrail
-`ALLOW_RBAC_TEST_MUTATIONS=true` (nÃ£o forÃ§ado aqui; nÃ£o tocar produÃ§Ã£o).
-IdempotÃªncia 2Ã— coberta pela suite Jest `seed-vendas-rbac.spec.ts`.
-Para rodar no MySQL de teste local: definir a env e executar o script.
+**Pendente:** a execução foi bloqueada corretamente pelo guardrail
+`ALLOW_RBAC_TEST_MUTATIONS=true`. O teste Jest do seed não substitui a prova no
+MySQL previsto.
 
-## Gate
+## Pendências do gate
 
-**FASE 5 permanece Em validaÃ§Ã£o.** NÃ£o marcar CONCLUÃDA atÃ© o operador confirmar
-o seed 2Ã— no MySQL previsto e validar a jornada manual se desejado.
+- aplicar M5.5 no banco MySQL de teste;
+- criar e reler um orçamento real com `contato_id` nesse banco;
+- executar o seed duas vezes no MySQL autorizado;
+- executar a jornada das personas em navegador, caso ela permaneça como
+  requisito do gate.
+
+**FASE 5 permanece Em validação.**
