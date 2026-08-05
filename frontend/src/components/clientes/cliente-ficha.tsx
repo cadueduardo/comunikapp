@@ -164,7 +164,7 @@ export function ClienteFicha({ clienteId }: ClienteFichaProps) {
     );
   }
 
-  const novoOrcamentoHref = `/orcamentos-v2/novo?cliente_id=${cliente.id}`;
+  const novoOrcamentoHref = `/orcamentos-v2/novo?clienteId=${cliente.id}`;
 
   return (
     <div className="space-y-6">
@@ -352,15 +352,27 @@ export function ClienteFicha({ clienteId }: ClienteFichaProps) {
                       ) : null}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-1 text-sm text-muted-foreground">
-                    {c.cargo ? <p>{c.cargo}</p> : null}
-                    {c.email ? <p>{c.email}</p> : null}
-                    {c.telefone || c.whatsapp ? (
-                      <p>{c.telefone || c.whatsapp}</p>
+                  <CardContent className="space-y-3 text-sm text-muted-foreground">
+                    <div className="space-y-1">
+                      {c.cargo ? <p>{c.cargo}</p> : null}
+                      {c.email ? <p>{c.email}</p> : null}
+                      {c.telefone || c.whatsapp ? (
+                        <p>{c.telefone || c.whatsapp}</p>
+                      ) : null}
+                      <p className="text-xs">
+                        Papéis: {(c.papeis ?? []).join(', ') || '—'}
+                      </p>
+                    </div>
+                    {acesso.permissoes.proposta_criar ? (
+                      <div className="pt-2 border-t">
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={`/orcamentos-v2/novo?clienteId=${cliente.id}&contatoId=${c.id}`}>
+                            <Plus className="mr-2 h-3 w-3" />
+                            Novo orçamento
+                          </Link>
+                        </Button>
+                      </div>
                     ) : null}
-                    <p className="text-xs">
-                      Papéis: {(c.papeis ?? []).join(', ') || '—'}
-                    </p>
                   </CardContent>
                 </Card>
               ))}

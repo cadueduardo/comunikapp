@@ -614,7 +614,7 @@ cadastro mestre da loja.
 
 ## 9. Fase 5 — Home acionável, novo atendimento e atividades
 
-**Status:** [ ] Não iniciada
+**Status:** [ ] Em implementação — gate parcial (MySQL 8 schema sync + unitários; FASE 5 CONCLUÍDA ainda não)
 **Dependências:** Fases 3 e 4 concluídas
 **Referências do RP:** §§6.4, 6.5.1–6.5.4, 7/E3B-1–E3B-2, E3C-1–E3C-3 e
 8.9 (35–37).
@@ -623,37 +623,45 @@ demanda/follow-up.
 
 ### Ajustes exigidos pela auditoria da Fase 0
 
-- [ ] Tratar D-09: a tabela `notificacao` é endereçada à **loja**, não ao usuário —
+- [x] Tratar D-09: a tabela `notificacao` é endereçada à **loja**, não ao usuário —
       não existe `usuario_id`. A home por próxima ação exige a migration M5.2.
-- [ ] Não criar um sexto serviço de notificação. Já existem cinco caminhos
+      Evidência: migration `20260805120500` + `criarNotificacaoEndereçada`.
+- [x] Não criar um sexto serviço de notificação. Já existem cinco caminhos
       (`notificacoes`, `notificacao-v2`, `notificacoes-pcp`, `arte-notificacao` com
       nodemailer próprio, `expedicao-notificacao` via WebSocket). Reutilizar
       `NotificacoesService` e `MailService`.
-- [ ] Criar `atividade_comercial` (M5.1); o conceito não existe em nenhuma forma hoje.
+- [x] Criar `atividade_comercial` (M5.1); o conceito não existe em nenhuma forma hoje.
+      Evidência: migration `20260805120400`.
 
 ### Execução detalhada
 
-- [ ] Definir atividade comercial, próxima ação, prazo, responsável e conclusão.
-- [ ] Criar agregador da Home respeitando escopo e permissão.
-- [ ] Implementar prioridades do dia, vencidas e próximas.
-- [ ] Implementar propostas aguardando ação, mensagens e aditivos pendentes.
-- [ ] Implementar Novo atendimento.
-- [ ] Buscar cliente/prospect antes de cadastrar.
-- [ ] Preservar dados digitados ao detectar duplicidade ou falta de acesso.
+- [x] Definir atividade comercial, próxima ação, prazo, responsável e conclusão.
+- [x] Criar agregador da Home respeitando escopo e permissão.
+- [x] Implementar prioridades do dia, vencidas e próximas.
+- [x] Implementar propostas aguardando ação, mensagens e aditivos pendentes.
+      (aditivos: bloco só se contrato/auth; caso contrário indisponível)
+- [x] Implementar Novo atendimento.
+- [x] Buscar cliente/prospect antes de cadastrar.
+- [x] Preservar dados digitados ao detectar duplicidade ou falta de acesso.
+      (preservação no frontend; backend sem eco de payload)
 - [ ] Registrar origem, contato, necessidade, prazo, anexos e consentimentos.
-- [ ] Permitir criar orçamento ou agendar próxima ação.
-- [ ] Criar Minhas atividades com paginação e estados.
-- [ ] Em Minhas atividades e demais listagens, aplicar desktop Tabela/Grid por
+      Anexos e consentimento de cliente diferidos (plano). Origem/contato/necessidade/prazo: [x].
+- [x] Permitir criar orçamento ou agendar próxima ação.
+      (orçamento via deep-link canônico; próxima ação via atividade)
+- [x] Criar Minhas atividades com paginação e estados.
+- [x] Em Minhas atividades e demais listagens, aplicar desktop Tabela/Grid por
       padrão e mobile sempre Cards conforme o template de Fornecedores.
-- [ ] Criar notificações acionáveis, sem duplicidade.
-- [ ] Não criar gráficos sem ação correspondente.
+- [x] Criar notificações acionáveis, sem duplicidade.
+- [x] Não criar gráficos sem ação correspondente.
 
 ### Gate de conclusão
 
-- [ ] O vendedor identifica o que fazer primeiro ao entrar.
-- [ ] Uma demanda pode ser registrada sem cadastro completo.
-- [ ] Nenhuma atividade depende somente de memória ou planilha.
+- [x] O vendedor identifica o que fazer primeiro ao entrar. (home tipada)
+- [x] Uma demanda pode ser registrada sem cadastro completo. (prospect)
+- [x] Nenhuma atividade depende somente de memória ou planilha.
 - [ ] Critérios RP 8.9 (35–37) atendidos.
+      (35)(36) cobertos por home/atividades/atendimento; (37) CTA ficha com deep-link —
+      evidência E2E/personas ainda pendente de suíte completa.
 - [ ] **FASE 5 CONCLUÍDA.**
 
 ---

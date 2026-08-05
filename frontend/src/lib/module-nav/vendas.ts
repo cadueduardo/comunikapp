@@ -5,6 +5,8 @@ import {
   LayoutDashboard,
   UserRound,
   Users,
+  CheckSquare,
+  UserPlus,
 } from 'lucide-react';
 import type { ModuleNavConfig, ModuleNavItem } from './types';
 
@@ -58,6 +60,22 @@ export const vendasModuleNav: ModuleNavConfig = {
       href: '/orcamentos-v2/simulador',
       description: 'Simulação de cálculo sem gravar proposta.',
       icon: Calculator,
+    },
+    {
+      id: 'atividades',
+      label: 'Atividades',
+      shortLabel: 'Atividades',
+      href: '/vendas/atividades',
+      description: 'Tarefas comerciais organizadas por prioridade e responsável.',
+      icon: CheckSquare,
+    },
+    {
+      id: 'novo-atendimento',
+      label: 'Novo atendimento',
+      shortLabel: 'Atendimento',
+      href: '/vendas/atendimento',
+      description: 'Registrar novo contato comercial ou lead qualificado.',
+      icon: UserPlus,
     },
     {
       id: 'aditivos',

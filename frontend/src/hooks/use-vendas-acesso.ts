@@ -23,6 +23,10 @@ export type VendasAcessoResposta = {
     cliente_inativar: boolean;
     cliente_mesclar: boolean;
     contato_gerenciar: boolean;
+    // Atividades (Fase 5) — permissões para gestão de tarefas comerciais
+    atividade_ver_propria: boolean;
+    atividade_ver_equipe: boolean;
+    atividade_gerenciar: boolean;
   };
 };
 
@@ -44,6 +48,9 @@ const VAZIO: VendasAcessoResposta = {
     cliente_inativar: false,
     cliente_mesclar: false,
     contato_gerenciar: false,
+    atividade_ver_propria: false,
+    atividade_ver_equipe: false,
+    atividade_gerenciar: false,
   },
 };
 
@@ -108,6 +115,9 @@ export function useVendasAcesso(enabled: boolean) {
           cliente_inativar: data?.permissoes?.cliente_inativar === true,
           cliente_mesclar: data?.permissoes?.cliente_mesclar === true,
           contato_gerenciar: data?.permissoes?.contato_gerenciar === true,
+          atividade_ver_propria: data?.permissoes?.atividade_ver_propria === true,
+          atividade_ver_equipe: data?.permissoes?.atividade_ver_equipe === true,
+          atividade_gerenciar: data?.permissoes?.atividade_gerenciar === true,
         },
       });
     } catch {
