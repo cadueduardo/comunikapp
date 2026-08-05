@@ -1,10 +1,27 @@
 # Evidência — Fase 4
 
 **Data:** 2026-08-05
-**HEAD final:** '+sha+\
+**Implementação auditada:** `e5992b04bffe46d0a05a5607d3bbb28ad542773d`
 **HEAD inicial:** `b1c59dd6dfe099023915e61b69ded682d023cf7d`
 **Gate 0S:** congelado
 **Produção / deploy:** não executados
+
+## Correções do code review
+
+- M4.4 torna `chave_operacao` única por `loja_id`, sem editar a M4.2 aplicada.
+- Transferência usa compare-and-set transacional e não sobrescreve alteração concorrente.
+- Corrida com a mesma chave é tratada como idempotência.
+- Logs de transferência usam referências pseudonimizadas.
+- Destinos são obtidos por endpoint mínimo e limitados a usuários ativos
+  `VENDAS` ou `ADMINISTRADOR` da mesma loja.
+- Alertas de duplicidade não devolvem ID nem nome de outro cliente.
+
+## Gate ainda aberto
+
+- O modelo de participantes existe e participa do escopo, mas não há operação
+  autorizada de inclusão/remoção nem UX correspondente.
+- Clientes anteriores à M4.1 permanecem sem responsável; falta plano de atribuição.
+- A evidência disponível é MariaDB 10.4, não MySQL 8.
 
 ## Checklist do plano §8 — evidência
 

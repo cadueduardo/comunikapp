@@ -43,6 +43,7 @@ import {
   ClienteDetalhe,
   ClienteResumo,
   ClientesPaginados,
+  ResponsavelComercialResumo,
   TransferenciaCarteiraResumo,
 } from './clientes.types';
 
@@ -363,6 +364,34 @@ export class ClientesService {
   // Transferência de carteira
   // --------------------------------------------------------------------
 
+  async listarResponsaveisDisponiveis(
+    identidade: IdentidadeAutenticada,
+  ): Promise<ResponsavelComercialResumo[]> {
+    await this.vendasPermissions.assertPode(
+      identidade.usuarioId,
+      identidade.lojaId,
+      VENDAS_PERMISSOES.CARTEIRA_TRANSFERIR,
+    );
+
+    const usuarios = await this.prisma.usuario.findMany({
+      where: {
+        loja_id: identidade.lojaId,
+        status: 'ATIVO',
+        ativo: true,
+        funcao: {
+          in: [usuario_funcao.VENDAS, usuario_funcao.ADMINISTRADOR],
+        },
+      },
+      select: { id: true, nome_completo: true },
+      orderBy: { nome_completo: 'asc' },
+    });
+
+    return usuarios.map((usuario) => ({
+      id: usuario.id,
+      nome: usuario.nome_completo,
+    }));
+  }
+
   async transferirCarteira(
     identidade: IdentidadeAutenticada,
     clienteId: string,
@@ -387,19 +416,23 @@ export class ClientesService {
     // processado, sem duplicar histórico (cobre duplo clique/retry de rede).
     const transferenciaExistente =
       await this.prisma.cliente_transferencia_carteira.findUnique({
-        where: { chave_operacao: dto.chave_operacao },
+        where: {
+          loja_id_chave_operacao: {
+            loja_id: identidade.lojaId,
+            chave_operacao: dto.chave_operacao,
+          },
+        },
       });
 
     if (transferenciaExistente) {
       const mesmoContexto =
-        transferenciaExistente.cliente_id === clienteId &&
-        transferenciaExistente.loja_id === identidade.lojaId;
+        transferenciaExistente.cliente_id === clienteId;
 
       if (!mesmoContexto) {
         registrarEventoDeSeguranca({
           tipo: 'CONFLITO_IDEMPOTENCIA',
           rota: 'ClientesService.transferirCarteira',
-          recursoId: clienteId,
+          recursoId: pseudonimizar(clienteId),
           motivo: 'chave_operacao_reutilizada_outro_contexto',
         });
         throw new ConflictException(
@@ -421,6 +454,9 @@ export class ClientesService {
         loja_id: identidade.lojaId,
         status: 'ATIVO',
         ativo: true,
+        funcao: {
+          in: [usuario_funcao.VENDAS, usuario_funcao.ADMINISTRADOR],
+        },
       },
       select: { id: true },
     });
@@ -439,34 +475,79 @@ export class ClientesService {
 
     const deUsuarioId = cliente.responsavel_comercial_id;
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.cliente.update({
-        where: { id: clienteId },
-        data: {
-          responsavel_comercial_id: dto.para_usuario_id,
-          responsavel_desde: new Date(),
-        },
-      });
+    if (deUsuarioId === dto.para_usuario_id) {
+      throw new BadRequestException(
+        'O usuário informado já é o responsável comercial deste cliente.',
+      );
+    }
 
-      await tx.cliente_transferencia_carteira.create({
-        data: {
-          loja_id: identidade.lojaId,
-          cliente_id: clienteId,
-          de_usuario_id: deUsuarioId,
-          para_usuario_id: dto.para_usuario_id,
-          autor_id: identidade.usuarioId,
-          motivo: dto.motivo,
-          chave_operacao: dto.chave_operacao,
-        },
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const alteracao = await tx.cliente.updateMany({
+          where: {
+            id: clienteId,
+            loja_id: identidade.lojaId,
+            responsavel_comercial_id: deUsuarioId,
+          },
+          data: {
+            responsavel_comercial_id: dto.para_usuario_id,
+            responsavel_desde: new Date(),
+          },
+        });
+
+        if (alteracao.count !== 1) {
+          throw new ConflictException(
+            'A carteira foi alterada por outro usuário. Atualize os dados e tente novamente.',
+          );
+        }
+
+        await tx.cliente_transferencia_carteira.create({
+          data: {
+            loja_id: identidade.lojaId,
+            cliente_id: clienteId,
+            de_usuario_id: deUsuarioId,
+            para_usuario_id: dto.para_usuario_id,
+            autor_id: identidade.usuarioId,
+            motivo: dto.motivo,
+            chave_operacao: dto.chave_operacao,
+          },
+        });
       });
-    });
+    } catch (erro) {
+      if (this.isViolacaoUnicidade(erro)) {
+        const concorrente =
+          await this.prisma.cliente_transferencia_carteira.findUnique({
+            where: {
+              loja_id_chave_operacao: {
+                loja_id: identidade.lojaId,
+                chave_operacao: dto.chave_operacao,
+              },
+            },
+          });
+
+        if (concorrente?.cliente_id === clienteId) {
+          const clienteAtual = await this.buscarClienteBrutoOuFalhar(
+            identidade,
+            clienteId,
+          );
+          return this.mapClienteDetalhe(clienteAtual);
+        }
+
+        throw new ConflictException(
+          'Esta chave de operação já foi utilizada em outra transferência.',
+        );
+      }
+      throw erro;
+    }
 
     // Evento comercial (eventos-comerciais.ts) — apenas IDs, nunca
     // e-mail/documento do cliente nem do usuário.
     this.logger.log(
-      `${EVENTOS_COMERCIAIS.CARTEIRA_TRANSFERIDA} cliente=${clienteId} ` +
-        `de=${deUsuarioId ?? 'sem_responsavel'} para=${dto.para_usuario_id} ` +
-        `autor=${identidade.usuarioId}`,
+      `${EVENTOS_COMERCIAIS.CARTEIRA_TRANSFERIDA} ` +
+        `cliente_ref=${pseudonimizar(clienteId)} ` +
+        `de_ref=${deUsuarioId ? pseudonimizar(deUsuarioId) : 'sem_responsavel'} ` +
+        `para_ref=${pseudonimizar(dto.para_usuario_id)} ` +
+        `autor_ref=${pseudonimizar(identidade.usuarioId)}`,
     );
 
     const clienteAtualizado = await this.buscarClienteBrutoOuFalhar(
@@ -622,6 +703,10 @@ export class ClientesService {
   }
 
   private isViolacaoUnicidadeContato(erro: unknown): boolean {
+    return this.isViolacaoUnicidade(erro);
+  }
+
+  private isViolacaoUnicidade(erro: unknown): boolean {
     return (
       erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2002'
     );
@@ -857,7 +942,7 @@ export class ClientesService {
     for (const candidato of candidatos) {
       if (!candidato.valor) continue;
 
-      const duplicados = await this.prisma.cliente.findMany({
+      const duplicado = await this.prisma.cliente.findFirst({
         where: {
           loja_id: lojaId,
           id: { not: clienteIdExcluir },
@@ -867,16 +952,11 @@ export class ClientesService {
               ? { email_normalizado: candidato.valor }
               : { telefone_normalizado: candidato.valor }),
         },
-        select: { id: true, nome: true },
-        take: 5,
+        select: { id: true },
       });
 
-      for (const duplicado of duplicados) {
-        avisos.push({
-          campo: candidato.campo,
-          cliente_id: duplicado.id,
-          nome: duplicado.nome,
-        });
+      if (duplicado) {
+        avisos.push({ campo: candidato.campo });
       }
     }
 

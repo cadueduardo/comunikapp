@@ -342,7 +342,7 @@ function criarPrismaFake(banco: BancoFake): PrismaService {
             u.loja_id === where.loja_id &&
             u.status === where.status &&
             u.ativo === where.ativo &&
-            (where.funcao === undefined || u.funcao === where.funcao),
+            (where.funcao === undefined || avaliarValor(u.funcao, where.funcao)),
         );
         if (!usuario) return Promise.resolve(null);
 
@@ -377,16 +377,31 @@ function criarPrismaFake(banco: BancoFake): PrismaService {
         // Formato do ClientesService (select: { id: true }).
         return Promise.resolve({ id: usuario.id });
       },
-      findMany: (args: { where: Record<string, unknown> }) => {
+      findMany: (args: {
+        where: Record<string, unknown>;
+        select?: Record<string, boolean>;
+        orderBy?: Record<string, 'asc' | 'desc'>;
+      }) => {
         const where = args.where;
-        const resultado = banco.usuarios.filter(
+        let resultado = banco.usuarios.filter(
           (u) =>
             u.loja_id === where.loja_id &&
             u.status === where.status &&
             u.ativo === where.ativo &&
-            u.funcao === where.funcao,
+            avaliarValor(u.funcao, where.funcao),
         );
-        return Promise.resolve(resultado.map((u) => ({ id: u.id })));
+        if (args.orderBy?.nome_completo) {
+          resultado = [...resultado].sort((a, b) =>
+            a.nome_completo.localeCompare(b.nome_completo),
+          );
+        }
+        return Promise.resolve(
+          resultado.map((u) =>
+            args.select?.nome_completo
+              ? { id: u.id, nome_completo: u.nome_completo }
+              : { id: u.id },
+          ),
+        );
       },
     },
     cliente: {
@@ -468,6 +483,24 @@ function criarPrismaFake(banco: BancoFake): PrismaService {
         };
         return Promise.resolve(projetarCliente(banco.clientes[idx], args, banco));
       },
+      updateMany: (args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+      }) => {
+        const indices = banco.clientes
+          .map((cliente, index) =>
+            avaliarCondicaoCliente(cliente, banco, args.where) ? index : -1,
+          )
+          .filter((index) => index >= 0);
+        for (const index of indices) {
+          banco.clientes[index] = {
+            ...banco.clientes[index],
+            ...omitirUndefined(args.data as Partial<ClienteFake>),
+            atualizado_em: new Date(),
+          };
+        }
+        return Promise.resolve({ count: indices.length });
+      },
     },
     cliente_contato: {
       create: (args: { data: Record<string, unknown> }) => {
@@ -535,17 +568,37 @@ function criarPrismaFake(banco: BancoFake): PrismaService {
       },
     },
     cliente_transferencia_carteira: {
-      findUnique: (args: { where: { chave_operacao: string } }) => {
+      findUnique: (args: {
+        where: {
+          loja_id_chave_operacao: {
+            loja_id: string;
+            chave_operacao: string;
+          };
+        };
+      }) => {
+        const chave = args.where.loja_id_chave_operacao;
         const encontrada = banco.transferencias.find(
-          (t) => t.chave_operacao === args.where.chave_operacao,
+          (t) =>
+            t.loja_id === chave.loja_id &&
+            t.chave_operacao === chave.chave_operacao,
         );
         return Promise.resolve(encontrada ?? null);
       },
       create: (args: { data: Record<string, unknown> }) => {
+        const dados = args.data as Omit<TransferenciaFake, 'id' | 'criado_em'>;
+        if (
+          banco.transferencias.some(
+            (t) =>
+              t.loja_id === dados.loja_id &&
+              t.chave_operacao === dados.chave_operacao,
+          )
+        ) {
+          throw criarErroUnicidade();
+        }
         const nova: TransferenciaFake = {
           id: proximoId('transferencia'),
           criado_em: new Date(),
-          ...(args.data as Omit<TransferenciaFake, 'id' | 'criado_em'>),
+          ...dados,
         };
         banco.transferencias.push(nova);
         return Promise.resolve(nova);
@@ -555,7 +608,15 @@ function criarPrismaFake(banco: BancoFake): PrismaService {
       arg: unknown[] | ((tx: typeof fake) => Promise<unknown>),
     ) => {
       if (Array.isArray(arg)) return Promise.all(arg);
-      return arg(fake);
+      const snapshot = {
+        clientes: structuredClone(banco.clientes),
+        transferencias: structuredClone(banco.transferencias),
+      };
+      return arg(fake).catch((erro) => {
+        banco.clientes = snapshot.clientes;
+        banco.transferencias = snapshot.transferencias;
+        throw erro;
+      });
     },
   };
 
@@ -898,9 +959,7 @@ describe('ClientesService — criação', () => {
     );
 
     expect(resultado.cliente.id).not.toBe('cli-existente');
-    expect(resultado.avisos).toEqual([
-      { campo: 'documento', cliente_id: 'cli-existente', nome: 'Cliente Existente' },
-    ]);
+    expect(resultado.avisos).toEqual([{ campo: 'documento' }]);
   });
 
   it('duplicidade é calculada só dentro da loja (outra loja não gera aviso)', async () => {
@@ -1022,6 +1081,33 @@ describe('ClientesService — transferência de carteira', () => {
     return banco;
   }
 
+  it('lista somente responsáveis comerciais elegíveis da mesma loja', async () => {
+    const banco = bancoComGestorEClientes();
+    banco.usuarios.push(
+      usuarioFake('admin-1', {
+        nome_completo: 'Administrador',
+        funcao: usuario_funcao.ADMINISTRADOR,
+      }),
+      usuarioFake('producao-1', {
+        nome_completo: 'Produção',
+        funcao: usuario_funcao.PRODUCAO,
+      }),
+      usuarioFake('vend-loja-b', { loja_id: LOJA_B }),
+    );
+    const { service } = criarServicos(banco);
+
+    const opcoes = await service.listarResponsaveisDisponiveis(
+      identidade('gestor-1'),
+    );
+
+    expect(opcoes.map((opcao) => opcao.id)).toEqual([
+      'admin-1',
+      'gestor-1',
+      'vend-destino',
+      'vend-origem',
+    ]);
+  });
+
   it('transfere responsável e grava histórico com chave_operacao na mesma transação', async () => {
     const banco = bancoComGestorEClientes();
     const { service } = criarServicos(banco);
@@ -1062,6 +1148,50 @@ describe('ClientesService — transferência de carteira', () => {
     expect(banco.clientes[0].responsavel_comercial_id).toBe('vend-destino');
   });
 
+  it('aborta sem histórico quando outra transferência vence a concorrência', async () => {
+    const banco = bancoComGestorEClientes();
+    const { service, prisma } = criarServicos(banco);
+    jest
+      .spyOn(prisma.cliente, 'updateMany')
+      .mockResolvedValueOnce({ count: 0 });
+
+    await expect(
+      service.transferirCarteira(identidade('gestor-1'), 'cli-1', {
+        para_usuario_id: 'vend-destino',
+        motivo: 'Redistribuição concorrente',
+        chave_operacao: 'chave-concorrente',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(banco.clientes[0].responsavel_comercial_id).toBe('vend-origem');
+    expect(banco.transferencias).toHaveLength(0);
+  });
+
+  it('permite a mesma chave de idempotência em lojas diferentes', async () => {
+    const banco = bancoComGestorEClientes();
+    banco.transferencias.push({
+      id: 'transferencia-loja-b',
+      loja_id: LOJA_B,
+      cliente_id: 'cliente-loja-b',
+      de_usuario_id: null,
+      para_usuario_id: 'usuario-loja-b',
+      autor_id: 'admin-loja-b',
+      motivo: 'Outra loja',
+      chave_operacao: 'chave-por-tenant',
+      criado_em: new Date(),
+    });
+    const { service } = criarServicos(banco);
+
+    await service.transferirCarteira(identidade('gestor-1'), 'cli-1', {
+      para_usuario_id: 'vend-destino',
+      motivo: 'Transferência da loja A',
+      chave_operacao: 'chave-por-tenant',
+    });
+
+    expect(banco.transferencias).toHaveLength(2);
+    expect(banco.clientes[0].responsavel_comercial_id).toBe('vend-destino');
+  });
+
   it('nega cross-loja: usuário destino de outra loja é rejeitado', async () => {
     const banco = bancoComGestorEClientes();
     banco.usuarios.push(usuarioFake('vend-loja-b', { loja_id: LOJA_B }));
@@ -1090,6 +1220,24 @@ describe('ClientesService — transferência de carteira', () => {
         para_usuario_id: 'vend-inativo',
         motivo: 'Tentativa para usuário inativo',
         chave_operacao: 'chave-inativo',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(banco.transferencias).toHaveLength(0);
+  });
+
+  it('nega usuário operacional como responsável comercial', async () => {
+    const banco = bancoComGestorEClientes();
+    banco.usuarios.push(
+      usuarioFake('producao-1', { funcao: usuario_funcao.PRODUCAO }),
+    );
+    const { service } = criarServicos(banco);
+
+    await expect(
+      service.transferirCarteira(identidade('gestor-1'), 'cli-1', {
+        para_usuario_id: 'producao-1',
+        motivo: 'Destino operacional inválido',
+        chave_operacao: 'chave-operacional',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
 

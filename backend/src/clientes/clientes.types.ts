@@ -89,8 +89,6 @@ export interface ClientesPaginados {
 /** Alerta de possível duplicidade — nunca bloqueia a criação. */
 export interface AlertaDuplicidadeCliente {
   campo: 'documento' | 'email' | 'telefone';
-  cliente_id: string;
-  nome: string;
 }
 
 export interface ClienteCriadoResultado {

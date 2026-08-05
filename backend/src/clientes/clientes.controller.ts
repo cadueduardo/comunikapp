@@ -83,6 +83,17 @@ export class ClientesController {
     return this.clientesService.criar(identidade, dto);
   }
 
+  @Get('responsaveis-disponiveis')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.CARTEIRA_TRANSFERIR)
+  @ApiOperation({
+    summary: 'Lista responsáveis comerciais elegíveis da mesma loja',
+  })
+  listarResponsaveisDisponiveis(
+    @Identidade() identidade: IdentidadeAutenticada,
+  ) {
+    return this.clientesService.listarResponsaveisDisponiveis(identidade);
+  }
+
   @Get(':id')
   @RequerPermissaoVendas(...PERMISSOES_VISUALIZACAO_CARTEIRA)
   @ApiOperation({ summary: 'Ficha do cliente (404 se fora do escopo do chamador)' })

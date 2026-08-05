@@ -119,8 +119,7 @@ export function ClienteFicha({ clienteId }: ClienteFichaProps) {
       } else {
         setOrdens([]);
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error('Erro ao carregar ficha do cliente');
       setCliente(null);
     } finally {

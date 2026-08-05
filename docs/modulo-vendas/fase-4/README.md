@@ -1,7 +1,7 @@
 # Fase 4 — Clientes, carteira e contatos
 
-**Status:** em fechamento com evidências
-**HEAD final:** '+sha+\
+**Status:** gate reaberto após code review
+**Implementação auditada:** `e5992b04bffe46d0a05a5607d3bbb28ad542773d`
 **HEAD inicial:** `b1c59dd6dfe099023915e61b69ded682d023cf7d`
 **Dependência:** Fases 2 e 3
 **Fora de escopo:** mesclagem completa, ficha 360º com atividades (Fase 5), Gate 0S, deploy/produção
@@ -11,6 +11,13 @@
 1. `20260805120000_vendas_add_responsavel_comercial_cliente` (M4.1)
 2. `20260805120100_vendas_add_participantes_e_transferencia_carteira` (M4.2)
 3. `20260805120200_vendas_add_contatos_cliente_e_deduplicacao` (M4.3)
+4. `20260805120300_vendas_scope_idempotencia_transferencia` (M4.4)
+
+## Pendências para fechar o gate
+
+- gestão autorizada de participantes na API e na ficha;
+- plano de atribuição dos clientes legados que ficaram sem responsável;
+- execução da cadeia M4.1–M4.4 em MySQL 8.
 
 ## Autorização / escopo
 

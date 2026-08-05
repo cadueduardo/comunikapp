@@ -63,7 +63,6 @@ export default function EditarClientePage({ params }: { params: Promise<{ id: st
         const data = await clientesApi.getById(clienteId, token);
         setFormData(data);
       } catch (error) {
-        console.error('Erro ao buscar cliente:', error);
         toast.error('Erro ao carregar dados do cliente.');
       } finally {
         setLoading(false);
@@ -100,7 +99,6 @@ export default function EditarClientePage({ params }: { params: Promise<{ id: st
       toast.success('Cliente atualizado com sucesso!');
       router.push(`/clientes/${clienteId}`);
     } catch (error) {
-      console.error('Erro ao atualizar cliente:', error);
       toast.error('Erro ao atualizar cliente. Tente novamente.');
     } finally {
       setLoading(false);
@@ -395,4 +393,4 @@ export default function EditarClientePage({ params }: { params: Promise<{ id: st
       </form>
     </div>
   );
-} 
+}

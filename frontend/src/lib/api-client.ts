@@ -1197,8 +1197,6 @@ export interface ClientesPaginadosApi {
 
 export interface AlertaDuplicidadeClienteApi {
   campo: 'documento' | 'email' | 'telefone';
-  cliente_id: string;
-  nome: string;
 }
 
 /** Resposta de `POST /clientes` — o criador vira responsável comercial. */
@@ -1242,6 +1240,11 @@ function montarQueryClientes(
 }
 
 export const clientesApi = {
+  listarResponsaveisDisponiveis: (token: string) =>
+    ApiClient.get<ResponsavelComercialResumoApi[]>(
+      '/clientes/responsaveis-disponiveis',
+      token,
+    ),
   /** Listagem paginada por escopo de carteira — preferir esta função em telas novas. */
   listar: (params: ListarClientesParamsApi | undefined, token: string) =>
     ApiClient.get<ClientesPaginadosApi>(

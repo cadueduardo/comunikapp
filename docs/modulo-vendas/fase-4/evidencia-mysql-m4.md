@@ -6,6 +6,9 @@
 A migration F1 `20260804183000` usa `CAST(... AS JSON)`, incompatível nesse MariaDB;
 foi recuperada localmente (colunas já presentes + `migrate resolve --applied`) sem editar o arquivo da migration. Em MySQL 8 a cadeia completa deve aplicar sem esse workaround.
 
+> Esta evidência não fecha o requisito de MySQL 8. A migration M4.4 criada no
+> code review também precisa ser incluída no ensaio final.
+
 ## Ordem aplicada
 
 1. `20260805120000_vendas_add_responsavel_comercial_cliente`

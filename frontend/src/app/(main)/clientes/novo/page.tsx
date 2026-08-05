@@ -86,7 +86,6 @@ export default function NovoClientePage() {
       toast.success('📍 Endereço encontrado! Agora preencha o número e complemento.');
 
     } catch (error) {
-      console.error('Erro ao buscar CEP:', error);
       toast.error('Erro ao buscar CEP. Tente novamente.');
     } finally {
       setBuscandoCep(false);
@@ -136,9 +135,9 @@ export default function NovoClientePage() {
       const avisos = resultado?.avisos ?? [];
       if (avisos.length > 0) {
         toast.warning(
-          `Cliente criado. Possível duplicidade: ${avisos
-            .map((a) => `${a.campo} (${a.nome})`)
-            .join(', ')}`,
+          `Cliente criado. Possível duplicidade nos campos: ${avisos
+            .map((a) => a.campo)
+            .join(', ')}. Consulte um gestor antes de prosseguir.`,
         );
       } else {
         toast.success(
@@ -148,7 +147,6 @@ export default function NovoClientePage() {
       const novoId = resultado?.cliente?.id;
       router.push(novoId ? `/clientes/${novoId}` : '/vendas/carteira');
     } catch (error) {
-      console.error('Erro ao cadastrar cliente:', error);
       toast.error(
         error instanceof Error
           ? error.message

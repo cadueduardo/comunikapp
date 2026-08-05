@@ -22,19 +22,10 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import {
   clientesApi,
-  usuariosApi,
   type ClienteApi,
+  type ResponsavelComercialResumoApi,
 } from '@/lib/api-client';
 import { getClientSessionToken } from '@/lib/session-auth';
-
-type UsuarioOpcao = {
-  id: string;
-  nome_completo?: string;
-  nome?: string;
-  ativo?: boolean;
-  status?: string;
-  funcao?: string;
-};
 
 type Props = {
   open: boolean;
@@ -56,7 +47,7 @@ export function TransferirCarteiraDialog({
   onClose,
   onSuccess,
 }: Props) {
-  const [usuarios, setUsuarios] = useState<UsuarioOpcao[]>([]);
+  const [usuarios, setUsuarios] = useState<ResponsavelComercialResumoApi[]>([]);
   const [paraUsuarioId, setParaUsuarioId] = useState('');
   const [motivo, setMotivo] = useState('');
   const [loading, setLoading] = useState(false);
@@ -69,17 +60,11 @@ export function TransferirCarteiraDialog({
     const token = getClientSessionToken();
     if (!token) return;
     setLoadingUsuarios(true);
-    void usuariosApi
-      .getAll(token)
-      .then((data: unknown) => {
-        const lista = Array.isArray(data) ? (data as UsuarioOpcao[]) : [];
+    void clientesApi
+      .listarResponsaveisDisponiveis(token)
+      .then((data) => {
         setUsuarios(
-          lista.filter(
-            (u) =>
-              u.ativo !== false &&
-              String(u.status ?? 'ATIVO').toUpperCase() === 'ATIVO' &&
-              u.id !== cliente?.responsavel_comercial_id,
-          ),
+          data.filter((u) => u.id !== cliente?.responsavel_comercial_id),
         );
       })
       .catch(() => {
@@ -158,7 +143,7 @@ export function TransferirCarteiraDialog({
               <SelectContent>
                 {usuarios.map((u) => (
                   <SelectItem key={u.id} value={u.id}>
-                    {u.nome_completo || u.nome || u.id}
+                    {u.nome}
                   </SelectItem>
                 ))}
               </SelectContent>

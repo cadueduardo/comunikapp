@@ -524,7 +524,7 @@ model cliente_transferencia_carteira {
   autor_id        String
   motivo          String   @db.Text
   /// Chave de idempotência da operação (evita duplo processamento).
-  chave_operacao  String   @unique
+  chave_operacao  String
   criado_em       DateTime @default(now())
   loja            loja     @relation(fields: [loja_id], references: [id], onDelete: Restrict)
   cliente         cliente  @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
@@ -534,6 +534,7 @@ model cliente_transferencia_carteira {
 
   @@index([loja_id, cliente_id])
   @@index([loja_id, criado_em])
+  @@unique([loja_id, chave_operacao])
   @@index([cliente_id])
   @@index([de_usuario_id])
   @@index([para_usuario_id])

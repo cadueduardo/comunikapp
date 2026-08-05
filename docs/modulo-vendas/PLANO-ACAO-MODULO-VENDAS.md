@@ -537,7 +537,7 @@ seed com auditoria MySQL, colisões abortivas e idempotência real.
 
 ## 8. Fase 4 — Clientes, carteira e contatos
 
-**Status:** [x] Concluída (evidências em `docs/modulo-vendas/fase-4/`; mesclagem e redistribuição automática diferidas)
+**Status:** [ ] Em revisão — correções de segurança aplicadas; gate funcional ainda aberto
 **Dependência:** Fase 2 concluída
 **Referências do RP:** §§4.5, 5.2.1–5.2.4, 6.2, 7/E3B-3 e E3B-6–E3B-10,
 8.8 e DV-11–DV-12.
@@ -563,7 +563,9 @@ cadastro mestre da loja.
 ### Backend e banco
 
 - [x] Implementar responsável comercial principal.
-- [x] Implementar participantes quando aprovado na Fase 0.
+- [ ] Implementar gestão de participantes na API e na ficha do cliente. A entrega
+      atual criou o modelo e o utiliza no escopo de leitura, mas não oferece caminho
+      autorizado para adicionar ou remover participantes.
 - [x] Preservar histórico de atribuição e transferência.
 - [x] Implementar busca normalizada e deduplicação por tenant.
 - [x] Tratar CPF/CNPJ, e-mail e telefone conforme normalização compartilhada.
@@ -607,7 +609,7 @@ cadastro mestre da loja.
 
 - [x] Critérios RP 8.8 (27–34) atendidos.
 - [x] Nenhuma regressão no CRUD atual de Clientes.
-- [x] **FASE 4 CONCLUÍDA.**
+- [ ] **FASE 4 CONCLUÍDA.**
 
 ---
 
