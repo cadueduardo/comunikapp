@@ -1,73 +1,65 @@
-# Evidência de testes — Fase 5 (continuidade pós-`a29c46fc`)
+# Evidência de testes — Fase 5 (continuidade pós-`7ace2dc6`)
 
-**SHA inicial:** `a29c46fc`
+**SHA inicial desta rodada:** `7ace2dc6`
 **Status do gate:** Em validação — Fase 5 não concluída
 
-## Backend — executado em 2026-08-05
+## MySQL 8 scratch (obrigatório do gate) — executado
 
-```text
-npx jest src/vendas/atendimento src/vendas/carteira/vendas-carteira-escopo.spec.ts \
-  src/orcamentos-v2/services/validacao-v2-contato.spec.ts \
-  src/orcamentos-v2/services/transformacao-v2-contato.spec.ts \
-  src/orcamentos-v2/services/fluxo-atendimento-orcamento-contato.spec.ts \
-  src/vendas/permissions/seed-vendas-rbac.spec.ts \
-  --runInBand --forceExit --no-coverage
-```
+Ver `evidencia-mysql-m5.md` (detalhe completo).
 
-**Resultado informado na entrega:** 7 suítes e 21 testes aprovados.
+Resumo:
 
-Cobertura unitária e integrada com dependências simuladas:
+| Prova | Resultado |
+|---|---|
+| Aplicar M5.5 `20260805120800` | OK — coluna/índice/FK `SET NULL` |
+| Drift schema×banco pós-M5.5 | OK — empty migration |
+| Integração create+releitura `contato_id` | OK |
+| Nega contato outro cliente / outra loja | OK |
+| Aceita contato nulo | OK |
+| SET NULL ao deletar contato | OK |
+| Seed 2× idempotente | OK (`idempotente: true`) |
+| Sem concessões indevidas (Financeiro) | OK |
 
-- atendimento com cliente existente da própria carteira;
-- participante autorizado e gestor/equipe conforme escopo;
-- usuário sem `ATIVIDADE_GERENCIAR` negado;
-- cliente de outra loja ou fora do escopo negado;
-- contato incompatível com o cliente negado;
-- atendimento → deep-link → transformação → validação de `contato_id`;
-- seed RBAC idempotente em memória.
+## Backend unitário / mocks (já existentes)
 
-### Alcance da prova de `contato_id`
+Mantidos como regressão; **não** fecham o gate sozinhos.
 
-O teste `fluxo-atendimento-orcamento-contato.spec.ts` comprova, com mocks:
+## Frontend
 
-1. geração do deep-link com `clienteId` e `contatoId`;
-2. inclusão de `contato_id` no objeto preparado para o Prisma;
-3. validação por `{ id, loja_id, cliente_id, ativo: true }`;
-4. rejeição de contato incompatível.
+Scripts estáticos (`test:vendas-nav`, `test:vendas-atendimento`) **não** foram
+usados nesta rodada como prova E2E (code review).
 
-Ele não executa `orcamento.create` em MySQL e, portanto, não comprova sozinho a
-persistência física da coluna ou a migration. Essa evidência depende da aplicação
-da migration `20260805120800_vendas_orcamento_add_contato` em banco de teste e de
-um teste de integração com criação e leitura do orçamento.
+### Jornada no navegador — validação manual reproduzível
 
-## Frontend — verificações estáticas
+**Estado nesta sessão:** frontend `:3000` e backend `:4000` estavam **fora do ar**.
+Não houve automação Playwright/Cypress nem sessão autenticada no scratch.
 
-```text
-npm run test:vendas-nav
-npm run test:vendas-atendimento
-```
+Checklist manual (executar com app local apontando ao ambiente de teste autorizado,
+nunca produção):
 
-Os scripts verificam contratos por leitura do código-fonte. Eles confirmam a
-presença das ramificações de cliente/prospect, permissões e consumo de
-`contatoId`, mas não são testes E2E, não interagem com o navegador e não provam
-as jornadas das personas.
+1. Persona **vendedor com `ATIVIDADE_GERENCIAR` e sem `CLIENTE_CRIAR`**
+   - Abrir `/vendas/atendimento`
+   - Confirmar modo "Cliente existente" disponível
+   - Confirmar botão "Criar prospect" **desabilitado** / bloqueado
+   - Buscar cliente da carteira (≥2 chars): loading → resultados ou vazio
+   - Selecionar cliente + contato opcional → registrar com "Abrir orçamento"
+   - Confirmar URL `/orcamentos-v2/novo?clienteId=…&contatoId=…`
+   - Confirmar formulário herda cliente/contato; ao salvar, `contato_id` no banco
 
-## Seed duas vezes no MySQL previsto
+2. Persona **sem `ATIVIDADE_GERENCIAR`**
+   - Abrir `/vendas/atendimento` → estado "Sem acesso ao atendimento"
 
-```text
-npx ts-node scripts/seed-vendas-rbac-duas-vezes.ts
-```
+3. Persona **com `CLIENTE_CRIAR`**
+   - Alternar para prospect, preencher e registrar
 
-**Pendente:** a execução foi bloqueada corretamente pelo guardrail
-`ALLOW_RBAC_TEST_MUTATIONS=true`. O teste Jest do seed não substitui a prova no
-MySQL previsto.
+4. Estados de UI
+   - Loading na busca
+   - Erro de rede/API (toast)
+   - Ausência de resultados (lista vazia sem seleção)
 
-## Pendências do gate
+Registrar prints/data/horário na reexecução e só então fechar o gate.
 
-- aplicar M5.5 no banco MySQL de teste;
-- criar e reler um orçamento real com `contato_id` nesse banco;
-- executar o seed duas vezes no MySQL autorizado;
-- executar a jornada das personas em navegador, caso ela permaneça como
-  requisito do gate.
+## Gate
 
-**FASE 5 permanece Em validação.**
+**FASE 5 permanece Em validação** até a jornada manual acima ser executada e
+anexada. MySQL M5.5 + seed 2× desta rodada estão comprovados.

@@ -1,34 +1,33 @@
 ﻿# Evidência — Fase 5
 
 **Data:** 2026-08-05
-**SHA inicial desta continuidade:** `a29c46fc`
-**SHA final desta continuidade:** `e7f1c220`
+**SHA inicial da rodada MySQL:** `7ace2dc6`
 **Status do gate:** Em validação (não concluída)
 **Gate 0S / produção / deploy:** não tocados
 
-## Entregas desta continuidade
+## Entregas comprovadas nesta rodada
 
 | Área | Evidência |
 |---|---|
-| UI atendimento: cliente existente + prospect | `frontend/.../vendas/atendimento/page.tsx` |
-| Critério 37: `orcamento.contato_id` | migration `20260805120800_vendas_orcamento_add_contato` |
-| Validação loja/cliente/contato | `validacao-v2.service.ts` + specs |
-| Deep-link consumido no Novo orçamento | `orcamentos-v2/novo/page.tsx` + form V2 |
-| Persistência no create canônico | `transformacao-v2.service.ts` (`contato_id`) |
+| M5.5 no MySQL 8 scratch | `evidencia-mysql-m5.md` — coluna/índice/FK SET NULL |
+| Drift pós-M5.5 | empty migration (`migrate diff`) |
+| Persistência real `contato_id` | `comprovar-m55-orcamento-contato-mysql8.ts` |
+| Seed 2× + concessões | `seed-vendas-rbac-duas-vezes.ts` + `comprovar-seed-fase5-concessoes.ts` |
 
 ## Gate RP 8.9
 
 | Critério | Status |
 |---|---|
-| (35) Home prioriza o dia | OK — `GET /vendas/home` + UI |
-| (36) Atendimento sem cadastro completo + cliente existente | OK — UI busca carteira; prospect opcional; `CLIENTE_CRIAR` só no prospect |
-| (37) CTA / deep-link com contato | Implementado e coberto com mocks (URL → payload → validação); persistência real aguarda M5.5 no MySQL de teste |
+| (35) Home prioriza o dia | OK (entregas anteriores) |
+| (36) Atendimento cliente existente + prospect | Implementado; jornada browser manual pendente |
+| (37) Contato no orçamento | OK no MySQL scratch (create+releitura+SET NULL) |
 
 ## Checklist plano §9
 
-Ver `PLANO-ACAO-MODULO-VENDAS.md` §9 — **FASE 5 permanece Em validação** até o gate final ser marcado com evidência reproduzível completa, incluindo seed duas vezes e criação/leitura de orçamento com contato no MySQL previsto.
+Ver `PLANO-ACAO-MODULO-VENDAS.md` §9 — **FASE 5 permanece Em validação** até a
+jornada manual no navegador ser executada.
 
-## Diferidos (documentados)
+## Diferidos
 
-Anexos, consentimento de contato externo, WhatsApp, Fase 6, `migrate deploy` do zero
-(dívida `20251101000100`, igual F4), drift legado `produtoorcamento` FKs.
+Anexos, consentimento externo, WhatsApp, Fase 6, `migrate deploy` do zero
+(dívida `20251101000100`).
