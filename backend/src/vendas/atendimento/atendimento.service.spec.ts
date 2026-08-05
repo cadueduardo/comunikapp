@@ -2,7 +2,7 @@ import { ConflictException } from '@nestjs/common';
 import { AtendimentoService } from './atendimento.service';
 import { VENDAS_PERMISSOES } from '../permissions/vendas-permissoes';
 
-describe('AtendimentoService — idempotência e deep-link (37)', () => {
+describe('AtendimentoService — idempotência e construção do deep-link', () => {
   const identidade = { usuarioId: 'u1', lojaId: 'l1' };
 
   function dto(overrides: Record<string, unknown> = {}) {
@@ -87,7 +87,7 @@ describe('AtendimentoService — idempotência e deep-link (37)', () => {
     expect(perms.assertPode).toHaveBeenCalledWith(
       'u1',
       'l1',
-      VENDAS_PERMISSOES.ATIVIDADE_VER_PROPRIA,
+      VENDAS_PERMISSOES.ATIVIDADE_GERENCIAR,
     );
 
     const r2 = await svc.criar(identidade as never, dto() as never);
@@ -117,7 +117,7 @@ describe('AtendimentoService — idempotência e deep-link (37)', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('deep-link inclui contatoId quando informado (critério 37)', async () => {
+  it('deep-link inclui contatoId quando informado', async () => {
     const prisma: Record<string, unknown> = {};
     Object.assign(prisma, {
       atendimento_idempotencia: {

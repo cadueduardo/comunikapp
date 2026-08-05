@@ -76,7 +76,7 @@ export class AtendimentoService {
     await this.vendasPermissions.assertPode(
       identidade.usuarioId,
       identidade.lojaId,
-      VENDAS_PERMISSOES.ATIVIDADE_VER_PROPRIA,
+      VENDAS_PERMISSOES.ATIVIDADE_GERENCIAR,
     );
 
     if (dto.prospect) {

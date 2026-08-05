@@ -13,7 +13,9 @@ npx jest src/vendas/outbox src/vendas/atendimento src/vendas/home \
 Cobertura:
 
 - Outbox: lote 20, CAS, worker antigo, lock expirado, descartado, e-mail alterado, dead_letter, ator=destinatário, vencendo
-- Atendimento: idempotência, 409 payload, deep-link critério 37
+- Atendimento: idempotência, 409 payload e construção do deep-link. Isso não
+  comprova sozinho o critério 37, pois falta consumo/persistência de `contatoId`
+  no formulário canônico e E2E da jornada.
 - Home: KPI `aceito_em`, escopo vendedor
 - Atividades: conclusão idempotente, escopo equipe
 - Seed 2× + `ATIVIDADE_*` no vendedor; Financeiro sem atividade

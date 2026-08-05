@@ -614,7 +614,7 @@ cadastro mestre da loja.
 
 ## 9. Fase 5 — Home acionável, novo atendimento e atividades
 
-**Status:** [x] FASE 5 CONCLUÍDA (evidências em `docs/modulo-vendas/fase-5/`)
+**Status:** [ ] Em validação — gate reaberto pelo code review de `60c572b6..54450014`
 **Dependências:** Fases 3 e 4 concluídas
 **Referências do RP:** §§6.4, 6.5.1–6.5.4, 7/E3B-1–E3B-2, E3C-1–E3C-3 e
 8.9 (35–37).
@@ -641,7 +641,9 @@ demanda/follow-up.
 - [x] Implementar propostas aguardando ação, mensagens e aditivos pendentes.
       (aditivos: bloco só se contrato/auth; caso contrário indisponível)
 - [x] Implementar Novo atendimento.
-- [x] Buscar cliente/prospect antes de cadastrar.
+- [ ] Buscar cliente/prospect antes de cadastrar.
+      **Pendente:** a API aceita `cliente_id`, mas a UI de Novo atendimento cria
+      apenas prospect e ainda não oferece busca/seleção do cadastro mestre.
 - [x] Preservar dados digitados ao detectar duplicidade ou falta de acesso.
       (preservação no frontend; backend sem eco de payload)
 - [x] N/A — anexos e consentimento de cliente diferidos (plano §12). Origem,
@@ -659,12 +661,13 @@ demanda/follow-up.
 - [x] O vendedor identifica o que fazer primeiro ao entrar. (home tipada)
 - [x] Uma demanda pode ser registrada sem cadastro completo. (prospect)
 - [x] Nenhuma atividade depende somente de memória ou planilha.
-- [x] Critérios RP 8.9 (35–37) atendidos.
-      Evidência: home + atendimento + CTA/deep-link (ficha e testes).
-- [x] **FASE 5 CONCLUÍDA.**
-      Evidências: `docs/modulo-vendas/fase-5/` (testes, MySQL 8 CAS lote, nav).
-      Ressalvas documentadas: `migrate deploy` do zero e drift legado pré-F5
-      (mesmo padrão da Fase 4).
+- [ ] Critérios RP 8.9 (35–37) atendidos.
+      **Parcial:** (35) comprovado; (36) precisa da busca/seleção de cliente
+      existente na jornada; (37) gera o deep-link, mas `contatoId` ainda não é
+      consumido/persistido pelo fluxo canônico de Novo orçamento.
+- [ ] **FASE 5 CONCLUÍDA.**
+      Bloqueada pelas pendências de jornada acima e pela evidência E2E real das
+      três personas; testes unitários de construção de URL não substituem E2E.
 ---
 
 ## 10. Fase 6 — Pipeline, proposta, versão e negociação

@@ -1,6 +1,6 @@
 # Fase 5 — Home acionável, atendimento e atividades
 
-**Status:** FASE 5 CONCLUÍDA  
+**Status:** EM VALIDAÇÃO — gate funcional ainda aberto
 **SHA inicial:** `a4a89f5c`  
 **Contrato:** plano `fase_5_vendas_home_e8800926.plan.md`
 
@@ -32,6 +32,14 @@ direto de orçamento no Atendimento.
 - `evidencia-fase-5.md`
 - `evidencia-testes-fase-5.md`
 - `evidencia-mysql-m5.md`
+
+## Pendências bloqueantes
+
+- Novo atendimento ainda precisa buscar e selecionar cliente existente antes de
+  oferecer a criação de prospect.
+- O fluxo canônico de Novo orçamento recebe `contatoId` no deep-link, mas ainda
+  não consome/persiste esse contexto.
+- Falta E2E real das personas vendedor, gestor e usuário sem acesso.
 
 ## Fora de escopo / diferidos
 
