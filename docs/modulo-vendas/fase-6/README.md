@@ -55,3 +55,6 @@ Evidência reproduzível: `evidencia-entrega-6-2.md`.
 - provas MySQL, E2E e regressão integral.
 
 **FASE 6 não concluída.**
+
+Continuidade multiagente e prompt de handoff:
+`HANDOFF-ANTIGRAVITY.md`.
