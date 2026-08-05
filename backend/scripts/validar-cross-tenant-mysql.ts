@@ -19,7 +19,7 @@
  * O script remove tudo o que criou no final, inclusive em caso de falha.
  */
 import { PrismaClient } from '@prisma/client';
-import { Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { OrcamentosV2Service } from '../src/orcamentos-v2/services/orcamentos-v2.service';
 import { ChatV2Service } from '../src/orcamentos-v2/services/chat-v2.service';
 import { ImpressaoV2Service } from '../src/orcamentos-v2/services/impressao-v2.service';
@@ -76,9 +76,10 @@ function verificar(nome: string, ok: boolean, detalhe: string) {
 }
 
 /**
- * Executa uma operação que **deve** ser negada. Passa se lançar exceção ou se
- * devolver vazio/negativo — o que não pode acontecer é devolver o dado do outro
- * tenant.
+ * Executa uma operação que **deve** ser negada. Só aceita as respostas HTTP
+ * canônicas de autorização/recurso invisível (403/404) ou um resultado vazio
+ * explicitamente previsto pelo chamador. Erros internos nunca comprovam
+ * isolamento entre tenants.
  */
 async function deveNegar(
   nome: string,
@@ -96,23 +97,21 @@ async function deveNegar(
       false,
       'RETORNOU DADO: ' + JSON.stringify(valor).slice(0, 200),
     );
-  } catch (erro: any) {
-    // TypeError/ReferenceError indicam fixture quebrada (ex.: dependência não
-    // injetada), não isolamento de tenant. Não contar como negação válida.
-    if (
-      erro instanceof TypeError ||
-      erro instanceof ReferenceError ||
-      erro?.name === 'TypeError' ||
-      erro?.name === 'ReferenceError'
-    ) {
-      verificar(
-        nome,
-        false,
-        'ERRO DE FIXTURE: ' + (erro?.message ?? String(erro)),
-      );
-      return;
-    }
-    verificar(nome, true, 'negado com ' + (erro?.constructor?.name ?? 'erro'));
+  } catch (erro: unknown) {
+    const nomeErro =
+      erro instanceof Error ? erro.constructor.name : 'ErroDesconhecido';
+    const status =
+      erro instanceof HttpException ? erro.getStatus() : undefined;
+    const negacaoEsperada =
+      status === HttpStatus.FORBIDDEN || status === HttpStatus.NOT_FOUND;
+
+    verificar(
+      nome,
+      negacaoEsperada,
+      negacaoEsperada
+        ? `negado com ${nomeErro} (${status})`
+        : `ERRO INESPERADO: ${nomeErro}${status ? ` (${status})` : ''}`,
+    );
   }
 }
 
@@ -563,7 +562,9 @@ async function principal() {
 
 principal()
   .catch((erro) => {
-    console.error('Falha na validação:', erro);
+    const nomeErro =
+      erro instanceof Error ? erro.constructor.name : 'ErroDesconhecido';
+    console.error(`Falha na validação: ${nomeErro}`);
     process.exitCode = 1;
   })
   .finally(() => prisma.$disconnect());
