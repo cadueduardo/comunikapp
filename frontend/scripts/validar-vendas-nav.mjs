@@ -33,6 +33,7 @@ assert.match(
 );
 
 for (const [id, href] of [
+  ['minha-carteira', '/vendas/carteira'],
   ['orcamentos', '/orcamentos-v2'],
   ['clientes', '/clientes'],
   ['simulador', '/orcamentos-v2/simulador'],
@@ -41,6 +42,17 @@ for (const [id, href] of [
 }
 assert.match(vendasNav, /item\.id === 'aditivos'/);
 assert.match(vendasPage, /<ModuleHubCards nav=\{navFiltrado\}/);
+
+const [carteiraPage, listagem, columns] = await Promise.all([
+  ler('src/app/(main)/vendas/carteira/page.tsx'),
+  ler('src/components/clientes/ClientesCarteiraListagem.tsx'),
+  ler('src/app/(main)/clientes/columns.tsx'),
+]);
+assert.match(carteiraPage, /ClientesCarteiraListagem/);
+assert.match(listagem, /useState<'table' \| 'cards'>\('table'\)/);
+assert.match(listagem, /enablePagination=\{false\}/);
+assert.match(listagem, /grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3/);
+assert.match(columns, /ClienteAcoesMenu/);
 
 for (const layout of layoutsProtegidos) {
   assert.match(layout, /<VendasAccessGate>/);
@@ -61,6 +73,7 @@ console.log(
       'cards_e_aliases_canonicos',
       'aditivos_filtrados',
       'rotas_vendas_e_aliases_protegidos',
+      'carteira_nav_e_template_crud',
     ],
   }),
 );

@@ -11,6 +11,18 @@ export type VendasAcessoResposta = {
     proposta_editar: boolean;
     proposta_enviar: boolean;
     proposta_excluir: boolean;
+    // Carteira / cliente / contato (Fase 4) — só controlam a UI; a
+    // autorização real é sempre revalidada no backend por registro.
+    carteira_ver_propria: boolean;
+    carteira_ver_equipe: boolean;
+    carteira_ver_todos: boolean;
+    carteira_ver_sem_responsavel: boolean;
+    carteira_transferir: boolean;
+    cliente_criar: boolean;
+    cliente_editar: boolean;
+    cliente_inativar: boolean;
+    cliente_mesclar: boolean;
+    contato_gerenciar: boolean;
   };
 };
 
@@ -22,6 +34,16 @@ const VAZIO: VendasAcessoResposta = {
     proposta_editar: false,
     proposta_enviar: false,
     proposta_excluir: false,
+    carteira_ver_propria: false,
+    carteira_ver_equipe: false,
+    carteira_ver_todos: false,
+    carteira_ver_sem_responsavel: false,
+    carteira_transferir: false,
+    cliente_criar: false,
+    cliente_editar: false,
+    cliente_inativar: false,
+    cliente_mesclar: false,
+    contato_gerenciar: false,
   },
 };
 
@@ -75,6 +97,17 @@ export function useVendasAcesso(enabled: boolean) {
           proposta_editar: data?.permissoes?.proposta_editar === true,
           proposta_enviar: data?.permissoes?.proposta_enviar === true,
           proposta_excluir: data?.permissoes?.proposta_excluir === true,
+          carteira_ver_propria: data?.permissoes?.carteira_ver_propria === true,
+          carteira_ver_equipe: data?.permissoes?.carteira_ver_equipe === true,
+          carteira_ver_todos: data?.permissoes?.carteira_ver_todos === true,
+          carteira_ver_sem_responsavel:
+            data?.permissoes?.carteira_ver_sem_responsavel === true,
+          carteira_transferir: data?.permissoes?.carteira_transferir === true,
+          cliente_criar: data?.permissoes?.cliente_criar === true,
+          cliente_editar: data?.permissoes?.cliente_editar === true,
+          cliente_inativar: data?.permissoes?.cliente_inativar === true,
+          cliente_mesclar: data?.permissoes?.cliente_mesclar === true,
+          contato_gerenciar: data?.permissoes?.contato_gerenciar === true,
         },
       });
     } catch {

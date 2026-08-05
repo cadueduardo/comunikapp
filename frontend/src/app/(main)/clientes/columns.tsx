@@ -1,8 +1,17 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal, ArrowUpDown, Edit, Trash2, FileText } from 'lucide-react';
+import {
+  ArrowUpDown,
+  Edit,
+  FileText,
+  MoreHorizontal,
+  Trash2,
+  UserRoundCog,
+} from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,37 +20,111 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
+import type { ClienteApi } from '@/lib/api-client';
 
-export type Cliente = {
-  id: string;
-  nome: string;
-  tipo_pessoa: 'PESSOA_FISICA' | 'PESSOA_JURIDICA';
-  documento: string;
-  email?: string;
-  telefone?: string;
-  cidade?: string;
-  status_cliente: 'ATIVO' | 'INATIVO' | 'PROSPECT' | 'BLOQUEADO';
-  criado_em: string;
+/** Tipo de linha da listagem — espelha o resumo da API. */
+export type Cliente = ClienteApi;
+
+function statusClienteClass(status: string) {
+  switch (status) {
+    case 'ATIVO':
+      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200';
+    case 'PROSPECT':
+      return 'bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200';
+    case 'INATIVO':
+      return 'bg-muted text-muted-foreground';
+    case 'BLOQUEADO':
+      return 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-200';
+    default:
+      return 'bg-muted text-muted-foreground';
+  }
+}
+
+export type ClienteColumnsOptions = {
+  onInativar?: (cliente: ClienteApi) => void;
+  onTransferir?: (cliente: ClienteApi) => void;
+  podeEditar?: boolean;
 };
 
+/** Menu de ações compartilhado entre Tabela e Cards. */
+export function ClienteAcoesMenu({
+  cliente,
+  onInativar,
+  onTransferir,
+  podeEditar = true,
+}: {
+  cliente: ClienteApi;
+  onInativar?: (cliente: ClienteApi) => void;
+  onTransferir?: (cliente: ClienteApi) => void;
+  podeEditar?: boolean;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Abrir menu de ações</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <Link href={`/clientes/${cliente.id}`}>
+            <FileText className="mr-2 h-4 w-4" />
+            Ver ficha
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/orcamentos-v2/novo?cliente_id=${cliente.id}`}>
+            <FileText className="mr-2 h-4 w-4" />
+            Novo orçamento
+          </Link>
+        </DropdownMenuItem>
+        {podeEditar ? (
+          <DropdownMenuItem asChild>
+            <Link href={`/clientes/editar/${cliente.id}`}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar cadastro
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
+        {onTransferir ? (
+          <DropdownMenuItem onClick={() => onTransferir(cliente)}>
+            <UserRoundCog className="mr-2 h-4 w-4" />
+            Transferir carteira
+          </DropdownMenuItem>
+        ) : null}
+        {onInativar ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => onInativar(cliente)}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Inativar
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export const createColumns = (
-  onDelete: (id: string) => void
+  options: ClienteColumnsOptions,
 ): ColumnDef<Cliente>[] => [
   {
     accessorKey: 'nome',
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        >
-          Nome
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        Nome
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
     cell: ({ row }) => (
       <Link
         href={`/clientes/${row.original.id}`}
@@ -56,111 +139,59 @@ export const createColumns = (
     header: 'Documento',
   },
   {
+    id: 'responsavel_comercial',
+    header: 'Responsável comercial',
+    cell: ({ row }) =>
+      row.original.responsavel_comercial?.nome ?? (
+        <span className="text-muted-foreground">Sem responsável</span>
+      ),
+  },
+  {
     accessorKey: 'email',
-    header: 'Email',
-    cell: ({ row }) => {
-      return row.original.email || '-';
-    },
+    header: 'E-mail',
+    cell: ({ row }) => row.original.email || '—',
   },
   {
     accessorKey: 'telefone',
     header: 'Telefone',
-    cell: ({ row }) => {
-      return row.original.telefone || '-';
-    },
+    cell: ({ row }) => row.original.telefone || '—',
   },
   {
     accessorKey: 'cidade',
     header: 'Cidade',
-    cell: ({ row }) => {
-      return row.original.cidade || '-';
-    },
+    cell: ({ row }) => row.original.cidade || '—',
   },
   {
     accessorKey: 'tipo_pessoa',
     header: 'Tipo',
-    cell: ({ row }) => {
-      return (
-        <Badge variant="outline">
-          {row.original.tipo_pessoa === 'PESSOA_FISICA' ? 'P. Física' : 'P. Jurídica'}
-        </Badge>
-      );
-    },
+    cell: ({ row }) => (
+      <Badge variant="outline">
+        {row.original.tipo_pessoa === 'PESSOA_FISICA'
+          ? 'P. Física'
+          : 'P. Jurídica'}
+      </Badge>
+    ),
   },
   {
     accessorKey: 'status_cliente',
     header: 'Status',
-    cell: ({ row }) => {
-      const status = row.original.status_cliente;
-      const getStatusColor = (status: string) => {
-        switch (status) {
-          case 'ATIVO': return 'bg-green-100 text-green-800';
-          case 'PROSPECT': return 'bg-blue-100 text-blue-800';
-          case 'INATIVO': return 'bg-gray-100 text-gray-800';
-          case 'BLOQUEADO': return 'bg-red-100 text-red-800';
-          default: return 'bg-gray-100 text-gray-800';
-        }
-      };
-      
-      return (
-        <Badge className={`${getStatusColor(status)} hover:${getStatusColor(status)}`}>
-          {status}
-        </Badge>
-      );
-    },
-  },
-  {
-    accessorKey: 'criado_em',
-    header: 'Desde',
-    cell: ({ row }) => {
-      return new Date(row.original.criado_em).toLocaleDateString('pt-BR');
-    },
+    cell: ({ row }) => (
+      <Badge className={statusClienteClass(row.original.status_cliente)}>
+        {row.original.status_cliente}
+      </Badge>
+    ),
   },
   {
     id: 'actions',
-    cell: ({ row }) => {
-      const cliente = row.original;
-      return (
-        <div className="text-right">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Abrir menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Ações</DropdownMenuLabel>
-              <DropdownMenuItem asChild>
-                <Link href={`/clientes/${cliente.id}`}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Ver ficha
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/orcamentos-v2/novo?cliente_id=${cliente.id}`}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Novo orçamento
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/clientes/editar/${cliente.id}`}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Editar cadastro
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={() => onDelete(cliente.id)}
-                className="text-red-600"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Excluir
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      );
-    },
+    cell: ({ row }) => (
+      <div className="text-right">
+        <ClienteAcoesMenu
+          cliente={row.original}
+          onInativar={options.onInativar}
+          onTransferir={options.onTransferir}
+          podeEditar={options.podeEditar}
+        />
+      </div>
+    ),
   },
-]; 
+];

@@ -56,18 +56,18 @@ export default function NovoClientePage() {
   // Buscar endereço por CEP
   const buscarCep = async (cep: string) => {
     const cepLimpo = cep.replace(/\D/g, '');
-    
+
     if (cepLimpo.length !== 8) {
       toast.error('CEP deve ter 8 dígitos');
       return;
     }
 
     setBuscandoCep(true);
-    
+
     try {
       const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
       const data = await response.json();
-      
+
       if (data.erro) {
         toast.error('CEP não encontrado');
         return;
@@ -84,7 +84,7 @@ export default function NovoClientePage() {
 
       setEnderecoPreenchido(true);
       toast.success('📍 Endereço encontrado! Agora preencha o número e complemento.');
-      
+
     } catch (error) {
       console.error('Erro ao buscar CEP:', error);
       toast.error('Erro ao buscar CEP. Tente novamente.');
@@ -97,7 +97,7 @@ export default function NovoClientePage() {
   const handleCepChange = (cep: string) => {
     const cepFormatado = formatarCep(cep);
     handleChange('cep', cepFormatado);
-    
+
     const cepLimpo = cep.replace(/\D/g, '');
     if (cepLimpo.length === 8) {
       buscarCep(cepLimpo);
@@ -132,12 +132,28 @@ export default function NovoClientePage() {
         Object.entries(formData).filter(([, v]) => v !== '')
       );
 
-      await clientesApi.create(cleanData, token);
-      toast.success('Cliente cadastrado com sucesso!');
-      router.push('/clientes');
+      const resultado = await clientesApi.create(cleanData, token);
+      const avisos = resultado?.avisos ?? [];
+      if (avisos.length > 0) {
+        toast.warning(
+          `Cliente criado. Possível duplicidade: ${avisos
+            .map((a) => `${a.campo} (${a.nome})`)
+            .join(', ')}`,
+        );
+      } else {
+        toast.success(
+          'Cliente cadastrado. Você é o responsável comercial deste cadastro.',
+        );
+      }
+      const novoId = resultado?.cliente?.id;
+      router.push(novoId ? `/clientes/${novoId}` : '/vendas/carteira');
     } catch (error) {
       console.error('Erro ao cadastrar cliente:', error);
-      toast.error('Erro ao cadastrar cliente. Tente novamente.');
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao cadastrar cliente. Tente novamente.',
+      );
     } finally {
       setLoading(false);
     }
@@ -248,7 +264,7 @@ export default function NovoClientePage() {
         {/* Contato */}
         <Card>
           <CardHeader>
-            <CardTitle>Contato</CardTitle>
+            <CardTitle>Contato no cliente</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -281,15 +297,20 @@ export default function NovoClientePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="responsavel">Responsável</Label>
-                <Input
+                <Label htmlFor="responsavel">Contato no cliente</Label>
+                  <Input
                   id="responsavel"
                   value={formData.responsavel}
                   onChange={(e) => handleChange('responsavel', e.target.value)}
+                  placeholder="Pessoa de referência dentro do cliente"
                 />
-              </div>
-              <div>
-                <Label htmlFor="cargo_responsavel">Cargo do Responsável</Label>
+                <p className="text-xs text-muted-foreground">
+                  Não é o vendedor. O responsável comercial da carteira será você
+                  (criador do cadastro).
+                </p>
+                </div>
+                <div>
+                <Label htmlFor="cargo_responsavel">Cargo do contato</Label>
                 <Input
                   id="cargo_responsavel"
                   value={formData.cargo_responsavel}
@@ -463,4 +484,4 @@ export default function NovoClientePage() {
       </form>
     </div>
   );
-} 
+}

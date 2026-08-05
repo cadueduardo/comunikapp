@@ -457,6 +457,7 @@ model cliente {
   razao_social       String?
   nome_fantasia      String?
   inscricao_estadual String?
+  /// Contato interno do cliente (pessoa física de referência). NÃO é o vendedor.
   responsavel        String?
   cargo_responsavel  String?
   observacoes        String?                @db.Text
@@ -465,7 +466,21 @@ model cliente {
   origem             String?
   segmento           String?
   loja_id            String
+  /// Vendedor responsável comercial pela carteira (FK usuario). Distinto de `responsavel`.
+  responsavel_comercial_id String?
+  /// Início da responsabilidade comercial atual (base para carteira parada).
+  responsavel_desde        DateTime?
+  /// Documento só com dígitos — deduplicação por alerta (sem @@unique).
+  documento_normalizado    String?
+  /// E-mail em minúsculas sem espaços — deduplicação por alerta (sem @@unique).
+  email_normalizado        String?
+  /// Telefone só com dígitos — deduplicação por alerta (sem @@unique).
+  telefone_normalizado     String?
   loja               loja                   @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Cliente_loja_id_fkey")
+  responsavel_comercial usuario?            @relation("ClienteResponsavelComercial", fields: [responsavel_comercial_id], references: [id], onDelete: SetNull)
+  participantes      cliente_participante[]
+  transferencias_carteira cliente_transferencia_carteira[]
+  contatos           cliente_contato[]
   orcamento          orcamento[]
   ordens_servico     OrdemServico[]
   cobrancas          Cobranca[] // Fase 6
@@ -473,6 +488,83 @@ model cliente {
   @@index([loja_id, documento], map: "Cliente_loja_id_documento_idx")
   @@index([loja_id], map: "Cliente_loja_id_idx")
   @@index([loja_id, nome], map: "Cliente_loja_id_nome_idx")
+  @@index([loja_id, responsavel_comercial_id])
+  @@index([loja_id, atualizado_em])
+  @@index([loja_id, documento_normalizado])
+  @@index([loja_id, email_normalizado])
+  @@index([loja_id, telefone_normalizado])
+  @@index([responsavel_comercial_id])
+}
+
+/// Vendedor colaborador na carteira (DV-11). Não concede poderes de gestão.
+model cliente_participante {
+  id         String   @id @default(cuid())
+  loja_id    String
+  cliente_id String
+  usuario_id String
+  criado_em  DateTime @default(now())
+  loja       loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  cliente    cliente  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  usuario    usuario  @relation("ClienteParticipanteUsuario", fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@unique([cliente_id, usuario_id])
+  @@index([loja_id, usuario_id])
+  @@index([loja_id, cliente_id])
+  @@index([usuario_id])
+  @@map("cliente_participante")
+}
+
+/// Histórico imutável de transferência de carteira (RP §5.2.1).
+model cliente_transferencia_carteira {
+  id              String   @id @default(cuid())
+  loja_id         String
+  cliente_id      String
+  de_usuario_id   String?
+  para_usuario_id String
+  autor_id        String
+  motivo          String   @db.Text
+  /// Chave de idempotência da operação (evita duplo processamento).
+  chave_operacao  String   @unique
+  criado_em       DateTime @default(now())
+  loja            loja     @relation(fields: [loja_id], references: [id], onDelete: Restrict)
+  cliente         cliente  @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  de_usuario      usuario? @relation("TransferenciaCarteiraDe", fields: [de_usuario_id], references: [id], onDelete: Restrict)
+  para_usuario    usuario  @relation("TransferenciaCarteiraPara", fields: [para_usuario_id], references: [id], onDelete: Restrict)
+  autor           usuario  @relation("TransferenciaCarteiraAutor", fields: [autor_id], references: [id], onDelete: Restrict)
+
+  @@index([loja_id, cliente_id])
+  @@index([loja_id, criado_em])
+  @@index([cliente_id])
+  @@index([de_usuario_id])
+  @@index([para_usuario_id])
+  @@index([autor_id])
+  @@map("cliente_transferencia_carteira")
+}
+
+/// Contatos e papéis do cliente (sem duplicar o cadastro mestre).
+model cliente_contato {
+  id           String   @id @default(cuid())
+  loja_id      String
+  cliente_id   String
+  nome         String
+  email        String?
+  telefone     String?
+  whatsapp     String?
+  cargo        String?
+  /// Papéis: solicitante | aprovador | financeiro | entrega | local
+  papeis       Json
+  principal    Boolean  @default(false)
+  ativo        Boolean  @default(true)
+  criado_em    DateTime @default(now())
+  atualizado_em DateTime @updatedAt
+  loja         loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  cliente      cliente  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+
+  @@unique([loja_id, cliente_id, email])
+  @@index([loja_id, cliente_id])
+  @@index([loja_id, email])
+  @@index([cliente_id])
+  @@map("cliente_contato")
 }
 
 model custoindireto {
@@ -682,6 +774,9 @@ model loja {
 
   categorias                         Categoria[]
   cliente                            cliente[]
+  cliente_participante               cliente_participante[]
+  cliente_transferencia_carteira     cliente_transferencia_carteira[]
+  cliente_contato                    cliente_contato[]
   custoindireto                      custoindireto[]
   fornecedor                         fornecedor[]
   funcao                             funcao[]
@@ -2072,6 +2167,11 @@ model usuario {
   perfis                             usuario_perfil[]
   password_reset_tokens              PasswordResetToken[]
   orcamentos_responsavel             orcamento[]
+  clientes_responsavel_comercial     cliente[] @relation("ClienteResponsavelComercial")
+  clientes_participante              cliente_participante[] @relation("ClienteParticipanteUsuario")
+  transferencias_carteira_de         cliente_transferencia_carteira[] @relation("TransferenciaCarteiraDe")
+  transferencias_carteira_para       cliente_transferencia_carteira[] @relation("TransferenciaCarteiraPara")
+  transferencias_carteira_autor      cliente_transferencia_carteira[] @relation("TransferenciaCarteiraAutor")
   os_logs                            OrdemServicoLog[]
   store_user_invitations             store_user_invitation[]
 

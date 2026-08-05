@@ -71,6 +71,12 @@ export class CreateClienteDto {
   @IsString()
   inscricao_estadual?: string;
 
+  /**
+   * Campo legado: contato interno de referência dentro do cadastro do
+   * cliente (ex.: "quem atende no financeiro do cliente"). NÃO é o vendedor
+   * responsável pela carteira — esse é `responsavel_comercial_id`, definido
+   * pelo service a partir da identidade do criador e nunca aceito no body.
+   */
   @IsOptional()
   @IsString()
   responsavel?: string;

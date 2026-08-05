@@ -3,6 +3,7 @@ import {
   ClipboardPlus,
   FileText,
   LayoutDashboard,
+  UserRound,
   Users,
 } from 'lucide-react';
 import type { ModuleNavConfig, ModuleNavItem } from './types';
@@ -25,6 +26,14 @@ export const vendasModuleNav: ModuleNavConfig = {
       href: '/vendas',
       description: 'Hub comercial com atalhos para propostas e clientes.',
       icon: LayoutDashboard,
+    },
+    {
+      id: 'minha-carteira',
+      label: 'Minha carteira',
+      shortLabel: 'Carteira',
+      href: '/vendas/carteira',
+      description: 'Clientes sob sua responsabilidade comercial (e escopos de equipe/todos, se permitido).',
+      icon: UserRound,
     },
     {
       id: 'orcamentos',

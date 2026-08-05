@@ -250,15 +250,20 @@ export default function EditarClientePage({ params }: { params: Promise<{ id: st
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="responsavel">Responsável</Label>
-                <Input
+                <Label htmlFor="responsavel">Contato no cliente</Label>
+                  <Input
                   id="responsavel"
                   value={formData.responsavel || ''}
                   onChange={(e) => handleChange('responsavel', e.target.value)}
+                  placeholder="Pessoa de referência dentro do cliente"
                 />
-              </div>
-              <div>
-                <Label htmlFor="cargo_responsavel">Cargo do Responsável</Label>
+                <p className="text-xs text-muted-foreground">
+                  Campo legado `responsavel` — não altera o responsável comercial
+                  da carteira (use Transferir carteira).
+                </p>
+                </div>
+                <div>
+                <Label htmlFor="cargo_responsavel">Cargo do contato</Label>
                 <Input
                   id="cargo_responsavel"
                   value={formData.cargo_responsavel || ''}

@@ -57,6 +57,9 @@ describe('VendasAcessoController', () => {
     expect(resp.pode_acessar_modulo).toBe(true);
     expect(resp.permissoes.proposta_ver).toBe(true);
     expect(resp.permissoes.proposta_excluir).toBe(false);
+    expect(resp.permissoes.carteira_ver_propria).toBe(true);
+    expect(resp.permissoes.cliente_criar).toBe(true);
+    expect(resp.permissoes.carteira_transferir).toBe(false);
   });
 
   it('concede módulo a ADMINISTRADOR (gestor) com piso completo', async () => {

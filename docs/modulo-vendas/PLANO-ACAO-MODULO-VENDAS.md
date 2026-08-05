@@ -537,7 +537,7 @@ seed com auditoria MySQL, colisões abortivas e idempotência real.
 
 ## 8. Fase 4 — Clientes, carteira e contatos
 
-**Status:** [ ] Não iniciada
+**Status:** [x] Concluída (evidências em `docs/modulo-vendas/fase-4/`; mesclagem e redistribuição automática diferidas)
 **Dependência:** Fase 2 concluída
 **Referências do RP:** §§4.5, 5.2.1–5.2.4, 6.2, 7/E3B-3 e E3B-6–E3B-10,
 8.8 e DV-11–DV-12.
@@ -546,65 +546,68 @@ cadastro mestre da loja.
 
 ### Ajustes exigidos pela auditoria da Fase 0
 
-- [ ] Tratar D-06: o modelo `cliente` **não tem responsável comercial, participantes,
+- [x] Tratar D-06: o modelo `cliente` **não tem responsável comercial, participantes,
       contatos nem histórico de transferência**. Esta fase é construção, não
       absorção. Migrations M4.1 a M4.3 são obrigatórias.
-- [ ] Atenção ao nome: `cliente.responsavel` já existe e é o **contato dentro do
+- [x] Atenção ao nome: `cliente.responsavel` já existe e é o **contato dentro do
       cliente**, não o vendedor. O campo novo precisa de nome e comentário distintos.
-- [ ] Não criar `@@unique` nos campos normalizados de deduplicação: duplicidade é
+- [x] Não criar `@@unique` nos campos normalizados de deduplicação: duplicidade é
       alerta, não bloqueio (RP §5.2.3), e constraint quebraria cadastros existentes.
-- [ ] Implementar paginação de servidor em `backend/src/clientes/clientes.controller.ts`,
+- [x] Implementar paginação de servidor em `backend/src/clientes/clientes.controller.ts`,
       que hoje não tem `take`/`skip` — exigido pelo critério RP 8.8 (34).
-- [ ] Corrigir os desvios de template já mapeados em
+- [x] Corrigir os desvios de template já mapeados em
       `fase-0/01-auditoria-estado-real.md` §6 na tela de Clientes: grid de cards fora
       do padrão, erro só em `console.error`, cores fixas de light mode,
       `createColumns` sem `useMemo` e ausência de `ModuleHeader`.
 
 ### Backend e banco
 
-- [ ] Implementar responsável comercial principal.
-- [ ] Implementar participantes quando aprovado na Fase 0.
-- [ ] Preservar histórico de atribuição e transferência.
-- [ ] Implementar busca normalizada e deduplicação por tenant.
-- [ ] Tratar CPF/CNPJ, e-mail e telefone conforme normalização compartilhada.
-- [ ] Criar contatos e papéis sem duplicar cliente.
-- [ ] Garantir acesso contextual mínimo pelos outros domínios.
-- [ ] Implementar paginação e filtros de Minha carteira, Minha equipe, Todos e Sem
+- [x] Implementar responsável comercial principal.
+- [x] Implementar participantes quando aprovado na Fase 0.
+- [x] Preservar histórico de atribuição e transferência.
+- [x] Implementar busca normalizada e deduplicação por tenant.
+- [x] Tratar CPF/CNPJ, e-mail e telefone conforme normalização compartilhada.
+- [x] Criar contatos e papéis sem duplicar cliente.
+- [x] Garantir acesso contextual mínimo pelos outros domínios.
+- [x] Implementar paginação e filtros de Minha carteira, Minha equipe, Todos e Sem
       responsável.
 - [ ] Implementar redistribuição segura ao inativar vendedor.
-- [ ] Implementar mesclagem administrativa apenas se incluída nesta entrega; caso
+      *(Diferido: transferência manual coberta; hook no fluxo de inativação de usuário fica para entrega posterior.)*
+- [x] Implementar mesclagem administrativa apenas se incluída nesta entrega; caso
       contrário, manter bloqueio/alerta sem merge parcial.
+      *(Bloqueio explícito via `mesclar` → Forbidden.)*
 
 ### Frontend e UX
 
-- [ ] Criar `/vendas/carteira`.
-- [ ] Integrar Todos os clientes dentro do shell de Vendas.
-- [ ] Seguir o template de Fornecedores: desktop abre em Tabela/Grid com toggle para
+- [x] Criar `/vendas/carteira`.
+- [x] Integrar Todos os clientes dentro do shell de Vendas.
+- [x] Seguir o template de Fornecedores: desktop abre em Tabela/Grid com toggle para
       Cards; mobile força Cards e oculta o toggle.
-- [ ] Implementar `columns.tsx` + `DataTable` e card reutilizável com as mesmas
+- [x] Implementar `columns.tsx` + `DataTable` e card reutilizável com as mesmas
       ações/permissões.
-- [ ] Criar CTA Novo cliente/prospect.
-- [ ] Mostrar duplicidades sem expor dados não autorizados.
-- [ ] Criar transferência com confirmação, motivo e impacto.
+- [x] Criar CTA Novo cliente/prospect.
+- [x] Mostrar duplicidades sem expor dados não autorizados.
+- [x] Criar transferência com confirmação, motivo e impacto.
 - [ ] Criar ficha 360º com contatos, atividades, propostas, pedidos, aditivos e
       timeline.
-- [ ] Exibir financeiro somente no nível autorizado.
-- [ ] Criar estados vazios orientativos para carteira nova e sem responsável.
+      *(Parcial: contatos + transferências + orçamentos/OS; atividades/pedidos/aditivos na ficha = Fase 5+.)*
+- [x] Exibir financeiro somente no nível autorizado.
+- [x] Criar estados vazios orientativos para carteira nova e sem responsável.
 
 ### Testes obrigatórios
 
-- [ ] Vendedor vê por padrão apenas sua carteira/participações.
-- [ ] Gestor alterna escopos permitidos.
-- [ ] Duplicidade é calculada somente dentro da loja.
-- [ ] Transferência não altera silenciosamente responsáveis históricos.
-- [ ] Outros módulos continuam resolvendo o mesmo cliente.
-- [ ] Inativação não apaga clientes nem histórico.
+- [x] Vendedor vê por padrão apenas sua carteira/participações.
+- [x] Gestor alterna escopos permitidos.
+- [x] Duplicidade é calculada somente dentro da loja.
+- [x] Transferência não altera silenciosamente responsáveis históricos.
+- [x] Outros módulos continuam resolvendo o mesmo cliente.
+- [x] Inativação não apaga clientes nem histórico.
 
 ### Gate de conclusão
 
-- [ ] Critérios RP 8.8 (27–34) atendidos.
-- [ ] Nenhuma regressão no CRUD atual de Clientes.
-- [ ] **FASE 4 CONCLUÍDA.**
+- [x] Critérios RP 8.8 (27–34) atendidos.
+- [x] Nenhuma regressão no CRUD atual de Clientes.
+- [x] **FASE 4 CONCLUÍDA.**
 
 ---
 
@@ -1118,7 +1121,7 @@ Cada item abaixo exige RP/delta próprio, decisão de produto e novos critérios
 - [x] Fase 1 — Contratos de domínio, dados e compatibilidade
 - [x] Fase 2 — RBAC, segurança e multi-tenancy
 - [x] Fase 3 — Fundação visual e navegação
-- [ ] Fase 4 — Clientes, carteira e contatos
+- [x] Fase 4 — Clientes, carteira e contatos
 - [ ] Fase 5 — Home, novo atendimento e atividades
 - [ ] Fase 6 — Pipeline, proposta, versão e negociação
 - [ ] Fase 7 — Preço, desconto, margem e alçadas

@@ -33,7 +33,7 @@ export class ApiClient {
   static async get<T>(endpoint: string, token?: string): Promise<T> {
     const url = buildApiUrl(endpoint);
     const headers = getAuthHeaders(token);
-    
+
     try {
       const response = await fetch(url, {
         method: 'GET',
@@ -43,11 +43,11 @@ export class ApiClient {
         // Evita retornar valores antigos após salvar/atualizar.
         cache: 'no-store',
       });
-      
+
       if (!response.ok) {
         throw new Error(await buildErrorMessage(response));
       }
-      
+
       return response.json();
     } catch (error) {
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
@@ -56,7 +56,7 @@ export class ApiClient {
       throw error;
     }
   }
-  
+
   // POST request
   static async post<T>(endpoint: string, data: object | FormData, token?: string): Promise<T> {
     const url = buildApiUrl(endpoint);
@@ -66,45 +66,45 @@ export class ApiClient {
     if (isFormData) {
       delete requestHeaders['Content-Type'];
     }
-    
+
     const response = await fetch(url, {
       method: 'POST',
       headers: requestHeaders,
       credentials: 'include',
       body: isFormData ? data : JSON.stringify(data),
     });
-    
+
     if (!response.ok) {
       throw new Error(await buildErrorMessage(response));
     }
-    
+
     return response.json();
   }
-  
+
   // PUT request
   static async put<T>(endpoint: string, data: object, token?: string): Promise<T> {
     const url = buildApiUrl(endpoint);
     const headers = getAuthHeaders(token);
-    
+
     const response = await fetch(url, {
       method: 'PUT',
       headers,
       credentials: 'include',
       body: JSON.stringify(data),
     });
-    
+
     if (!response.ok) {
       throw new Error(await buildErrorMessage(response));
     }
-    
+
     return response.json();
   }
-  
+
   // DELETE request
   static async delete<T>(endpoint: string, token?: string, data?: object): Promise<T> {
     const url = buildApiUrl(endpoint);
     const headers = getAuthHeaders(token);
-    
+
     const response = await fetch(url, {
       method: 'DELETE',
       credentials: 'include',
@@ -114,35 +114,35 @@ export class ApiClient {
       },
       ...(data && { body: JSON.stringify(data) }),
     });
-    
+
     if (!response.ok) {
       throw new Error(await buildErrorMessage(response));
     }
-    
+
     // Se status 204 (No Content), retorna undefined
     if (response.status === 204) {
       return undefined as T;
     }
-    
+
     return response.json();
   }
-  
+
   // PATCH request
   static async patch<T>(endpoint: string, data: object, token?: string): Promise<T> {
     const url = buildApiUrl(endpoint);
     const headers = getAuthHeaders(token);
-    
+
     const response = await fetch(url, {
       method: 'PATCH',
       headers,
       credentials: 'include',
       body: JSON.stringify(data),
     });
-    
+
     if (!response.ok) {
       throw new Error(await buildErrorMessage(response));
     }
-    
+
     return response.json();
   }
 }
@@ -979,15 +979,15 @@ export const orcamentosApi = {
     ApiClient.get(`/orcamentos-v2/${orcamentoId}/candidatos-sobra`, token),
   getMensagens: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}/mensagens`, token),
   getMensagensNaoVisualizadas: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}/mensagens/nao-visualizadas`, token),
-  marcarMensagemVisualizada: (orcamentoId: string, mensagemId: string, token: string) => 
+  marcarMensagemVisualizada: (orcamentoId: string, mensagemId: string, token: string) =>
     ApiClient.patch(`/orcamentos-v2/${orcamentoId}/mensagens/${mensagemId}/visualizar`, {}, token),
-  processarAcaoCliente: (id: string, acao: string, data: Record<string, unknown>, token: string) => 
+  processarAcaoCliente: (id: string, acao: string, data: Record<string, unknown>, token: string) =>
     ApiClient.post(`/orcamentos-v2/${id}/acao-cliente`, { acao, ...data }, token),
   getVersoes: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}/versoes`, token),
   getPublico: (id: string) => ApiClient.get(`/orcamentos-v2/${id}/publico`),
   salvarRascunho: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2/rascunho', data, token),
   recalcularExistentes: (token: string) => ApiClient.post('/orcamentos-v2/recalcular-existentes', {}, token),
-  
+
   // APIs V2 - Sistema Multi-Produtos
   v2: {
     getAll: (token: string) => ApiClient.get('/orcamentos-v2', token),
@@ -1005,35 +1005,35 @@ export const orcamentosApi = {
     calcularOrcamento: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2/calcular', data, token),
     calcularPreview: (data: Record<string, unknown>, token: string) => ApiClient.post('/motor-calculo-v2/preview', data, token),
     validarDados: (data: Record<string, unknown>, token: string) => ApiClient.post('/motor-calculo-v2/validar', data, token),
-    
+
     // Operações específicas V2
-    enviarParaAprovacao: (id: string, observacoes: string, token: string) => 
+    enviarParaAprovacao: (id: string, observacoes: string, token: string) =>
       ApiClient.post(`/orcamentos-v2/${id}/enviar-aprovacao`, { observacoes }, token),
     fecharPedido: (id: string, token: string, observacoes?: string) =>
       ApiClient.post(`/orcamentos-v2/${id}/fechar-pedido`, { observacoes }, token),
-    aprovar: (id: string, observacoes: string, token: string) => 
+    aprovar: (id: string, observacoes: string, token: string) =>
       ApiClient.post(`/orcamentos-v2/${id}/aprovar`, { observacoes }, token),
-    rejeitar: (id: string, motivo: string, token: string) => 
+    rejeitar: (id: string, motivo: string, token: string) =>
       ApiClient.post(`/orcamentos-v2/${id}/rejeitar`, { motivo }, token),
-    
+
     // Chat e mensagens V2
     getMensagens: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}/chat/mensagens`, token),
-    enviarMensagem: (id: string, mensagem: string, token: string) => 
+    enviarMensagem: (id: string, mensagem: string, token: string) =>
       ApiClient.post(`/orcamentos-v2/${id}/chat/mensagens`, { mensagem }, token),
-    
+
     // Links públicos V2
-    criarLinkPublico: (id: string, configuracoes: Record<string, unknown>, token: string) => 
+    criarLinkPublico: (id: string, configuracoes: Record<string, unknown>, token: string) =>
       ApiClient.post(`/orcamentos-v2/${id}/links`, configuracoes, token),
     getLinkPublico: (token: string) => ApiClient.get(`/orcamentos-v2/links/${token}`),
-    
+
     // Versões e histórico V2
     getVersoes: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}/versoes`, token),
-    criarVersao: (id: string, descricao: string, token: string) => 
+    criarVersao: (id: string, descricao: string, token: string) =>
       ApiClient.post(`/orcamentos-v2/${id}/versoes`, { descricao }, token),
-    
+
     // Validação de estoque V2
     validarEstoque: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}/validar-estoque`, token),
-    
+
     // Estatísticas V2
     getEstatisticas: (token: string) => ApiClient.get('/motor-calculo-v2/estatisticas', token),
     healthCheck: () => ApiClient.get('/motor-calculo-v2/health'),
@@ -1084,13 +1084,235 @@ export const pcpApi = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Clientes / carteira / contatos (Fase 4 — módulo Vendas)
+// ---------------------------------------------------------------------------
+
+export type TipoPessoaClienteApi = 'PESSOA_FISICA' | 'PESSOA_JURIDICA';
+export type StatusClienteApi = 'ATIVO' | 'INATIVO' | 'PROSPECT' | 'BLOQUEADO';
+
+/**
+ * Escopos de carteira (RP §5.2.1 / Fase 4). `propria` é o default do backend
+ * quando `escopo` é omitido — sempre o menor privilégio.
+ */
+export type EscopoCarteiraClienteApi =
+  | 'propria'
+  | 'equipe'
+  | 'todos'
+  | 'sem_responsavel';
+
+export type CampoOrdenacaoClienteApi =
+  | 'nome'
+  | 'criado_em'
+  | 'atualizado_em'
+  | 'responsavel_desde';
+
+export type PapelContatoClienteApi =
+  | 'solicitante'
+  | 'aprovador'
+  | 'financeiro'
+  | 'entrega'
+  | 'local';
+
+export interface ResponsavelComercialResumoApi {
+  id: string;
+  nome: string;
+}
+
+/** Espelha `ClienteResumo` do backend (`backend/src/clientes/clientes.types.ts`). */
+export interface ClienteApi {
+  id: string;
+  nome: string;
+  tipo_pessoa: TipoPessoaClienteApi;
+  documento: string;
+  email: string | null;
+  telefone: string | null;
+  whatsapp: string | null;
+  cidade: string | null;
+  estado: string | null;
+  status_cliente: StatusClienteApi;
+  ativo: boolean;
+  responsavel_comercial_id: string | null;
+  responsavel_desde: string | null;
+  responsavel_comercial: ResponsavelComercialResumoApi | null;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export interface ClienteContatoApi {
+  id: string;
+  nome: string;
+  email: string | null;
+  telefone: string | null;
+  whatsapp: string | null;
+  cargo: string | null;
+  papeis: PapelContatoClienteApi[];
+  principal: boolean;
+  ativo: boolean;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export interface TransferenciaCarteiraApi {
+  id: string;
+  de_usuario: ResponsavelComercialResumoApi | null;
+  para_usuario: ResponsavelComercialResumoApi;
+  autor: ResponsavelComercialResumoApi;
+  motivo: string;
+  criado_em: string;
+}
+
+/** Espelha `ClienteDetalhe` — resposta de `getById`/`create`/`update`/`transferir`. */
+export interface ClienteDetalheApi extends ClienteApi {
+  razao_social: string | null;
+  nome_fantasia: string | null;
+  inscricao_estadual: string | null;
+  cep: string | null;
+  endereco: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  /** Contato interno de referência DENTRO do cliente — NÃO é o vendedor. */
+  responsavel: string | null;
+  cargo_responsavel: string | null;
+  observacoes: string | null;
+  origem: string | null;
+  segmento: string | null;
+  contatos: ClienteContatoApi[];
+  /** Só populado em `getById` (ficha) — últimas 20, mais recente primeiro. */
+  transferencias_carteira?: TransferenciaCarteiraApi[];
+}
+
+export interface ClientesMetaApi {
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface ClientesPaginadosApi {
+  data: ClienteApi[];
+  meta: ClientesMetaApi;
+}
+
+export interface AlertaDuplicidadeClienteApi {
+  campo: 'documento' | 'email' | 'telefone';
+  cliente_id: string;
+  nome: string;
+}
+
+/** Resposta de `POST /clientes` — o criador vira responsável comercial. */
+export interface ClienteCriadoResultadoApi {
+  cliente: ClienteDetalheApi;
+  avisos: AlertaDuplicidadeClienteApi[];
+}
+
+export interface ListarClientesParamsApi {
+  page?: number;
+  pageSize?: number;
+  escopo?: EscopoCarteiraClienteApi;
+  q?: string;
+  status?: StatusClienteApi;
+  ativo?: boolean;
+  orderBy?: CampoOrdenacaoClienteApi;
+  orderDir?: 'asc' | 'desc';
+}
+
+export interface TransferirCarteiraPayloadApi {
+  para_usuario_id: string;
+  motivo: string;
+  /** Chave de idempotência gerada no frontend por tentativa (evita duplo processamento). */
+  chave_operacao: string;
+}
+
+function montarQueryClientes(
+  params: ListarClientesParamsApi | undefined,
+): string {
+  const search = new URLSearchParams();
+  if (params?.page) search.set('page', String(params.page));
+  if (params?.pageSize) search.set('pageSize', String(params.pageSize));
+  if (params?.escopo) search.set('escopo', params.escopo);
+  if (params?.q) search.set('q', params.q);
+  if (params?.status) search.set('status', params.status);
+  if (params?.ativo !== undefined) search.set('ativo', String(params.ativo));
+  if (params?.orderBy) search.set('orderBy', params.orderBy);
+  if (params?.orderDir) search.set('orderDir', params.orderDir);
+  const qs = search.toString();
+  return qs ? `?${qs}` : '';
+}
+
 export const clientesApi = {
-  getAll: (token: string) => ApiClient.get('/clientes', token),
-  getById: (id: string, token: string) => ApiClient.get(`/clientes/${id}`, token),
-  create: (data: Record<string, unknown>, token: string) => ApiClient.post('/clientes', data, token),
-  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/clientes/${id}`, data, token),
-  delete: (id: string, token: string) => ApiClient.delete(`/clientes/${id}`, token),
-  search: (query: string, token: string) => ApiClient.get(`/clientes/search?q=${encodeURIComponent(query)}`, token),
+  /** Listagem paginada por escopo de carteira — preferir esta função em telas novas. */
+  listar: (params: ListarClientesParamsApi | undefined, token: string) =>
+    ApiClient.get<ClientesPaginadosApi>(
+      `/clientes${montarQueryClientes(params)}`,
+      token,
+    ),
+  /**
+   * Compat legada: consumidores antigos (ex.: select de cliente em
+   * orçamento) esperam array puro. Usa `?legado=1` do backend — mesmo
+   * filtro de escopo/permissão do modo paginado, só muda o formato.
+   * Prefira `listar()` em telas novas.
+   */
+  getAll: (token: string) =>
+    ApiClient.get<ClienteApi[]>('/clientes?legado=1', token),
+  search: (
+    query: string,
+    token: string,
+    escopo?: EscopoCarteiraClienteApi,
+  ) => {
+    const search = new URLSearchParams({ q: query });
+    if (escopo) search.set('escopo', escopo);
+    return ApiClient.get<ClienteApi[]>(
+      `/clientes/search?${search.toString()}`,
+      token,
+    );
+  },
+  getById: (id: string, token: string) =>
+    ApiClient.get<ClienteDetalheApi>(`/clientes/${id}`, token),
+  /** O criador do cadastro vira responsável comercial automaticamente (backend). */
+  create: (data: Record<string, unknown>, token: string) =>
+    ApiClient.post<ClienteCriadoResultadoApi>('/clientes', data, token),
+  /**
+   * Nunca aceita `responsavel_comercial_id`: a troca de responsável pela
+   * carteira só acontece via `transferir()` (histórico + auditoria).
+   */
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    ApiClient.put<ClienteDetalheApi>(`/clientes/${id}`, data, token),
+  /** Soft: nunca apaga o cadastro nem o histórico. Requer `CLIENTE_INATIVAR`. */
+  inativar: (id: string, token: string) =>
+    ApiClient.delete<ClienteDetalheApi>(`/clientes/${id}`, token),
+  /** @deprecated usar `inativar` — mantido só para não quebrar chamadas existentes. */
+  delete: (id: string, token: string) =>
+    ApiClient.delete<ClienteDetalheApi>(`/clientes/${id}`, token),
+  /** Requer `CARTEIRA_TRANSFERIR`. Idempotente por `chave_operacao`. */
+  transferir: (
+    id: string,
+    data: TransferirCarteiraPayloadApi,
+    token: string,
+  ) =>
+    ApiClient.post<ClienteDetalheApi>(`/clientes/${id}/transferir`, data, token),
+  listarContatos: (id: string, token: string) =>
+    ApiClient.get<ClienteContatoApi[]>(`/clientes/${id}/contatos`, token),
+  criarContato: (id: string, data: Record<string, unknown>, token: string) =>
+    ApiClient.post<ClienteContatoApi>(`/clientes/${id}/contatos`, data, token),
+  atualizarContato: (
+    id: string,
+    contatoId: string,
+    data: Record<string, unknown>,
+    token: string,
+  ) =>
+    ApiClient.put<ClienteContatoApi>(
+      `/clientes/${id}/contatos/${contatoId}`,
+      data,
+      token,
+    ),
+  /** Soft: `ativo=false`. */
+  inativarContato: (id: string, contatoId: string, token: string) =>
+    ApiClient.delete<ClienteContatoApi>(
+      `/clientes/${id}/contatos/${contatoId}`,
+      token,
+    ),
 };
 
 export const maquinasApi = {
