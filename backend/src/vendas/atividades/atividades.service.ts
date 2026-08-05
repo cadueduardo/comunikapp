@@ -17,6 +17,7 @@ import {
   CriarAtividadeDto,
   ListarAtividadesQueryDto,
 } from './dto/atividade.dto';
+import { VendasCarteiraEscopoService } from '../carteira/vendas-carteira-escopo.service';
 
 function mapAtividade(row: {
   id: string;
@@ -65,6 +66,7 @@ export class AtividadesService {
     private readonly vendasPermissions: VendasPermissionsService,
     private readonly notificacoes: NotificacoesService,
     private readonly outbox: OutboxEmailVendasService,
+    private readonly carteiraEscopo: VendasCarteiraEscopoService,
   ) {}
 
   async listar(
@@ -147,7 +149,7 @@ export class AtividadesService {
     await this.vendasPermissions.assertPode(
       identidade.usuarioId,
       identidade.lojaId,
-      VENDAS_PERMISSOES.ATIVIDADE_VER_PROPRIA,
+      VENDAS_PERMISSOES.ATIVIDADE_GERENCIAR,
     );
 
     let responsavelId = identidade.usuarioId;
@@ -161,7 +163,10 @@ export class AtividadesService {
     }
 
     if (dto.cliente_id) {
-      await this.assertClienteNaLoja(identidade.lojaId, dto.cliente_id);
+      await this.carteiraEscopo.assertClienteAcessivel(
+        identidade,
+        dto.cliente_id,
+      );
     }
     if (dto.contato_id) {
       await this.assertContatoNaLoja(
@@ -230,6 +235,11 @@ export class AtividadesService {
     id: string,
     dto: AtualizarAtividadeDto,
   ) {
+    await this.vendasPermissions.assertPode(
+      identidade.usuarioId,
+      identidade.lojaId,
+      VENDAS_PERMISSOES.ATIVIDADE_GERENCIAR,
+    );
     const atual = await this.carregarComEscopo(identidade, id, 'mutar');
     if (atual.concluida_em) {
       throw new ConflictException('Atividade já concluída não pode ser editada.');
@@ -310,7 +320,7 @@ export class AtividadesService {
     await this.vendasPermissions.assertPode(
       identidade.usuarioId,
       identidade.lojaId,
-      VENDAS_PERMISSOES.ATIVIDADE_VER_PROPRIA,
+      VENDAS_PERMISSOES.ATIVIDADE_GERENCIAR,
     );
 
     const escopo = await this.whereEscopoMutacao(identidade);
@@ -462,14 +472,6 @@ export class AtividadesService {
     if (!u || u.status === 'INATIVO' || u.status === 'BLOQUEADO') {
       throw new BadRequestException('Responsável inválido para a loja.');
     }
-  }
-
-  private async assertClienteNaLoja(lojaId: string, clienteId: string) {
-    const c = await this.prisma.cliente.findFirst({
-      where: { id: clienteId, loja_id: lojaId },
-      select: { id: true },
-    });
-    if (!c) throw new NotFoundException('Cliente não encontrado.');
   }
 
   private async assertContatoNaLoja(

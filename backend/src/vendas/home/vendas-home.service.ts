@@ -4,12 +4,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { VendasPermissionsService } from '../permissions/vendas-permissions.service';
 import { VENDAS_PERMISSOES } from '../permissions/vendas-permissoes';
 import { limitesDiaOperacional } from '../timezone/vendas-timezone';
+import { VendasCarteiraEscopoService } from '../carteira/vendas-carteira-escopo.service';
 
 @Injectable()
 export class VendasHomeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly vendasPermissions: VendasPermissionsService,
+    private readonly carteiraEscopo: VendasCarteiraEscopoService,
   ) {}
 
   async obter(identidade: IdentidadeAutenticada) {
@@ -128,9 +130,10 @@ export class VendasHomeService {
       if (!pode) {
         return { disponivel: false as const, items: [] };
       }
+      const escopo = await this.carteiraEscopo.whereOrcamento(identidade);
       const rows = await this.prisma.orcamento.findMany({
         where: {
-          loja_id: identidade.lojaId,
+          ...escopo,
           status_comercial: { in: ['enviada', 'em_negociacao'] },
         },
         orderBy: { atualizado_em: 'desc' },
@@ -180,23 +183,24 @@ export class VendasHomeService {
 
       const periodoInicio = new Date(inicioUtc);
       periodoInicio.setUTCDate(periodoInicio.getUTCDate() - 30);
+      const escopo = await this.carteiraEscopo.whereOrcamento(identidade);
 
       const [enviadas, aguardando, aprovadas] = await Promise.all([
         this.prisma.orcamento.count({
           where: {
-            loja_id: identidade.lojaId,
+            ...escopo,
             enviado_em: { gte: periodoInicio, lte: fimUtc },
           },
         }),
         this.prisma.orcamento.count({
           where: {
-            loja_id: identidade.lojaId,
+            ...escopo,
             status_comercial: { in: ['enviada', 'em_negociacao'] },
           },
         }),
         this.prisma.orcamento.count({
           where: {
-            loja_id: identidade.lojaId,
+            ...escopo,
             aceito_em: { gte: periodoInicio, lte: fimUtc },
           },
         }),
@@ -220,10 +224,11 @@ export class VendasHomeService {
 
   private async carregarMensagens(identidade: IdentidadeAutenticada) {
     try {
+      const escopo = await this.carteiraEscopo.whereOrcamento(identidade);
       const count = await this.prisma.mensagemChat.count({
         where: {
           lida: false,
-          orcamento: { loja_id: identidade.lojaId },
+          orcamento: { is: escopo },
         },
       });
       return { disponivel: true as const, total: count };

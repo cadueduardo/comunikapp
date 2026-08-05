@@ -1,7 +1,9 @@
 import { usuario_funcao } from '@prisma/client';
 import {
   DEFAULTS_CONCEDIDOS_FASE_2,
+  DEFAULTS_CONCEDIDOS_FASE_5,
   NOMES_PERFIL_SISTEMA,
+  VENDAS_PERMISSOES,
 } from './vendas-permissoes';
 import {
   SeedVendasColisaoError,
@@ -196,6 +198,30 @@ describe('seedVendasPerfisEPermissoes (M2.1)', () => {
         ),
       ).toBe(true);
     }
+
+    // Fase 5: seed 2× preserva ATIVIDADE_* no vendedor; Financeiro sem atividade.
+    for (const chave of DEFAULTS_CONCEDIDOS_FASE_5.VENDEDOR) {
+      const acao = chave.split('.').slice(1).join('.');
+      expect(
+        estado.permissoes.some(
+          (p) =>
+            p.perfil_id === vendedor.id &&
+            p.acao === acao &&
+            p.permitido,
+        ),
+      ).toBe(true);
+    }
+    expect(
+      estado.permissoes.some(
+        (p) =>
+          p.perfil_id === finPerfil.id &&
+          p.acao === 'atividade.ver.propria' &&
+          p.permitido,
+      ),
+    ).toBe(false);
+    expect(VENDAS_PERMISSOES.ATIVIDADE_VER_PROPRIA).toBe(
+      'vendas.atividade.ver.propria',
+    );
 
     expect(JSON.stringify(r1)).not.toMatch(/@/);
   });

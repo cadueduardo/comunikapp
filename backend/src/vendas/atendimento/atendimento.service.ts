@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { cliente_tipo_pessoa, Prisma } from '@prisma/client';
 import { IdentidadeAutenticada } from '../../auth/decorators';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -13,6 +13,19 @@ import { VENDAS_PERMISSOES } from '../permissions/vendas-permissoes';
 import { OutboxEmailVendasService } from '../outbox/outbox-email-vendas.service';
 import { CriarAtendimentoDto } from './dto/criar-atendimento.dto';
 import { normalizarCamposCliente } from '../../clientes/utils/cliente-normalizacao.util';
+import { VendasCarteiraEscopoService } from '../carteira/vendas-carteira-escopo.service';
+
+function ordenarRecursivamente(valor: unknown): unknown {
+  if (Array.isArray(valor)) return valor.map(ordenarRecursivamente);
+  if (valor && typeof valor === 'object') {
+    return Object.fromEntries(
+      Object.entries(valor as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([chave, item]) => [chave, ordenarRecursivamente(item)]),
+    );
+  }
+  return valor;
+}
 
 function hashPayloadCanonico(dto: CriarAtendimentoDto): string {
   const relevante = {
@@ -34,7 +47,7 @@ function hashPayloadCanonico(dto: CriarAtendimentoDto): string {
     tipo_proxima_acao: dto.tipo_proxima_acao ?? 'demanda',
     criar_orcamento: !!dto.criar_orcamento,
   };
-  const canonico = JSON.stringify(relevante, Object.keys(relevante).sort());
+  const canonico = JSON.stringify(ordenarRecursivamente(relevante));
   return createHash('sha256').update(canonico, 'utf8').digest('hex');
 }
 
@@ -56,6 +69,7 @@ export class AtendimentoService {
     private readonly prisma: PrismaService,
     private readonly vendasPermissions: VendasPermissionsService,
     private readonly outbox: OutboxEmailVendasService,
+    private readonly carteiraEscopo: VendasCarteiraEscopoService,
   ) {}
 
   async criar(identidade: IdentidadeAutenticada, dto: CriarAtendimentoDto) {
@@ -64,11 +78,14 @@ export class AtendimentoService {
       identidade.lojaId,
       VENDAS_PERMISSOES.ATIVIDADE_VER_PROPRIA,
     );
-    await this.vendasPermissions.assertPode(
-      identidade.usuarioId,
-      identidade.lojaId,
-      VENDAS_PERMISSOES.CLIENTE_CRIAR,
-    );
+
+    if (dto.prospect) {
+      await this.vendasPermissions.assertPode(
+        identidade.usuarioId,
+        identidade.lojaId,
+        VENDAS_PERMISSOES.CLIENTE_CRIAR,
+      );
+    }
 
     const chave = dto.chave_operacao.trim();
     if (chave.length < 8 || chave.length > 200) {
@@ -111,15 +128,48 @@ export class AtendimentoService {
         let clienteId = dto.cliente_id ?? null;
 
         if (clienteId) {
-          const c = await tx.cliente.findFirst({
-            where: { id: clienteId, loja_id: identidade.lojaId },
-            select: { id: true },
-          });
-          if (!c) throw new NotFoundException('Cliente não encontrado.');
+          await this.carteiraEscopo.assertClienteAcessivel(
+            identidade,
+            clienteId,
+          );
         } else if (dto.prospect) {
+          const normalizacaoInformada = normalizarCamposCliente({
+            documento: dto.prospect.documento,
+            email: dto.prospect.email,
+            telefone: dto.prospect.telefone,
+          });
+          const sinaisDuplicidade = [
+            normalizacaoInformada.documento_normalizado
+              ? { documento_normalizado: normalizacaoInformada.documento_normalizado }
+              : null,
+            normalizacaoInformada.email_normalizado
+              ? { email_normalizado: normalizacaoInformada.email_normalizado }
+              : null,
+            normalizacaoInformada.telefone_normalizado
+              ? { telefone_normalizado: normalizacaoInformada.telefone_normalizado }
+              : null,
+          ].filter((item): item is NonNullable<typeof item> => item !== null);
+
+          if (sinaisDuplicidade.length > 0) {
+            const duplicado = await tx.cliente.findFirst({
+              where: {
+                loja_id: identidade.lojaId,
+                OR: sinaisDuplicidade,
+              },
+              select: { id: true },
+            });
+            if (duplicado) {
+              throw new ConflictException({
+                codigo: 'DUPLICIDADE_ALERTA',
+                message:
+                  'Existe um possível cliente duplicado. Pesquise e selecione o cadastro existente.',
+              });
+            }
+          }
+
           const doc =
             dto.prospect.documento?.replace(/\D/g, '') ||
-            `PROSPECT-${Date.now()}`;
+            `PROSPECT-${randomUUID()}`;
           const normalizacao = normalizarCamposCliente({
             documento: doc,
             email: dto.prospect.email,
@@ -128,7 +178,7 @@ export class AtendimentoService {
           const criado = await tx.cliente.create({
             data: {
               nome: dto.prospect.nome.trim(),
-              tipo_pessoa: cliente_tipo_pessoa.PF,
+              tipo_pessoa: cliente_tipo_pessoa.PESSOA_FISICA,
               documento: doc,
               email: dto.prospect.email ?? null,
               telefone: dto.prospect.telefone ?? null,

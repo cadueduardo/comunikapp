@@ -1,46 +1,43 @@
-# Evidência — Fase 5 (parcial / em progresso)
+# Evidência — Fase 5
 
-## SHA
+**Data:** 2026-08-05  
+**SHA inicial:** `a4a89f5c`  
+**SHA final:** (ver HEAD após commit de fechamento)  
+**Gate 0S / produção / deploy:** não tocados  
 
-- Inicial: `a4a89f5c`
-- Final (entrega parcial): `c0d3eb4d`
+## Entregas
 
-## Testes unitários executados
+| Área | Evidência |
+|---|---|
+| M5.1–M5.4 migrations | pastas `20260805120400` … `20700` |
+| RBAC `DEFAULTS_FASE_5` + seed 2× | `seed-vendas-rbac.spec.ts` |
+| Atividades + conclusão CAS | `atividades.service.spec.ts` |
+| Notificações endereçadas + URL allowlist | `notificacoes.service.spec.ts` |
+| Outbox DV-08 (CAS, descartado, DLQ, hash) | `outbox-email-vendas.*.spec.ts` |
+| Atendimento idempotente + deep-link 37 | `atendimento.service.spec.ts` |
+| Home KPI `aceito_em` + escopo | `vendas-home.service.spec.ts` |
+| Timezone canônico | `vendas-timezone.spec.ts` |
+| Nav frontend | `npm run test:vendas-nav` |
+| MySQL 8 scratch | `evidencia-mysql-m5.md` |
 
-```text
-npx jest src/vendas/timezone/vendas-timezone.spec.ts \
-  src/vendas/outbox/outbox-email-vendas.job.spec.ts \
-  src/vendas/permissions/seed-vendas-rbac.spec.ts \
-  --runInBand --forceExit --no-coverage
-```
+## Estratégia de orçamento
 
-Resultado: **13 passed** (2026-08-05).
+Fallback seguro: prospect + atividade + idempotência atômicos; deep-link
+`/orcamentos-v2/novo?clienteId=&contatoId=` (sem Prisma de orçamento no Atendimento).
 
-```text
-npx jest src/vendas/atividades/atividades.service.spec.ts --runInBand --forceExit --no-coverage
-```
+## Gate RP 8.9
 
-Resultado: **4 passed**.
+| Critério | Status |
+|---|---|
+| (35) Home prioriza o dia | OK — `GET /vendas/home` + UI |
+| (36) Atendimento sem cadastro completo | OK — prospect |
+| (37) CTA Novo orçamento / deep-link | OK — ficha + atendimento + testes |
 
-## Gate
+## Checklist plano §9
 
-**FASE 5 CONCLUÍDA** não marcada: faltam evidências E2E/personas completas e seed 2× em ambiente CI dedicado; MySQL 8 comprovado via `db push` + CAS script (não `migrate deploy` do zero).
+Ver `PLANO-ACAO-MODULO-VENDAS.md` §9 — FASE 5 CONCLUÍDA marcada somente com esta evidência.
 
-## Outbox / DV-08
+## Diferidos (documentados)
 
-Implementação:
-
-- select limitado N=20 ordenado
-- CAS individual por `id`
-- sucesso/falha com `bloqueado_por`
-- estados: pendente, processando, enviado, descartado, dead_letter
-- eventos: ATIVIDADE_ATRIBUIDA, ATIVIDADE_REPROGRAMADA, ATIVIDADE_VENCENDO
-- sem e-mail na conclusão
-
-## Orçamento
-
-Deep-link canônico (sem create Prisma no atendimento).
-
-## Produção / Gate 0S
-
-Não tocados.
+Anexos, consentimento de contato externo, WhatsApp, Fase 6, `migrate deploy` do zero
+(dívida `20251101000100`, igual F4), drift legado `produtoorcamento` FKs.

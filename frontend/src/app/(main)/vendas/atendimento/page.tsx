@@ -153,7 +153,11 @@ export default function NovoAtendimentoPage() {
     }
   };
 
-  if (!acesso.pode_acessar_modulo) {
+  if (
+    !acesso.pode_acessar_modulo ||
+    !acesso.permissoes.atividade_gerenciar ||
+    !acesso.permissoes.cliente_criar
+  ) {
     return (
       <div className="space-y-4 py-12 text-center">
         <p className="text-muted-foreground">Sem acesso ao atendimento.</p>

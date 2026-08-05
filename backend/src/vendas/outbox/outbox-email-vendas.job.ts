@@ -76,7 +76,7 @@ export class OutboxEmailVendasJob {
       await this.processarLote(this.workerId);
     } catch (err) {
       this.logger.warn(
-        `Outbox tick falhou: ${err instanceof Error ? err.message : 'erro'}`,
+        `Outbox tick falhou: ${err instanceof Error ? err.name : 'erro'}`,
       );
     } finally {
       this.rodando = false;

@@ -38,6 +38,7 @@ export default function VendasAtividadesPage() {
     totalPages: 1,
   });
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const isMobile = useIsMobile();
   const [concluirDialog, setConcluirDialog] = useState<{
@@ -49,6 +50,7 @@ export default function VendasAtividadesPage() {
   const carregarAtividades = useCallback(async (page = 1) => {
     try {
       setLoading(true);
+      setErro(null);
       const token = getClientSessionToken();
       if (!token) return;
 
@@ -77,9 +79,10 @@ export default function VendasAtividadesPage() {
         totalPages: data.totalPages ?? 1,
       });
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Erro ao carregar atividades.',
-      );
+      const mensagem =
+        error instanceof Error ? error.message : 'Erro ao carregar atividades.';
+      setErro(mensagem);
+      toast.error(mensagem);
     } finally {
       setLoading(false);
     }
@@ -96,8 +99,12 @@ export default function VendasAtividadesPage() {
   }, []);
 
   const columns = useMemo(
-    () => createAtividadesColumns(abrirConclusao),
-    [abrirConclusao],
+    () =>
+      createAtividadesColumns(
+        abrirConclusao,
+        acesso.permissoes.atividade_gerenciar,
+      ),
+    [abrirConclusao, acesso.permissoes.atividade_gerenciar],
   );
 
   const concluirAtividade = async () => {
@@ -191,7 +198,7 @@ export default function VendasAtividadesPage() {
               </Button>
             </div>
           ) : null}
-          {acesso.permissoes.atividade_ver_propria ? (
+          {acesso.permissoes.atividade_gerenciar ? (
             <Button asChild>
               <Link href="/vendas/atendimento">
                 <Plus className="mr-2 h-4 w-4" />
@@ -208,6 +215,15 @@ export default function VendasAtividadesPage() {
             Carregando atividades…
           </CardContent>
         </Card>
+      ) : erro ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
+            <p className="text-sm text-destructive">{erro}</p>
+            <Button variant="outline" onClick={() => void carregarAtividades(lista.page)}>
+              Tentar novamente
+            </Button>
+          </CardContent>
+        </Card>
       ) : lista.items.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -216,12 +232,14 @@ export default function VendasAtividadesPage() {
             <p className="mb-5 mt-1 max-w-md text-sm text-muted-foreground">
               Registre um atendimento para criar a próxima ação comercial.
             </p>
-            <Button asChild>
-              <Link href="/vendas/atendimento">
-                <Plus className="mr-2 h-4 w-4" />
-                Novo atendimento
-              </Link>
-            </Button>
+            {acesso.permissoes.atividade_gerenciar ? (
+              <Button asChild>
+                <Link href="/vendas/atendimento">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Novo atendimento
+                </Link>
+              </Button>
+            ) : null}
           </CardContent>
         </Card>
       ) : mostrarCards ? (
@@ -231,6 +249,7 @@ export default function VendasAtividadesPage() {
               key={atividade.id}
               atividade={atividade}
               onConcluir={abrirConclusao}
+              podeGerenciar={acesso.permissoes.atividade_gerenciar}
             />
           ))}
         </div>

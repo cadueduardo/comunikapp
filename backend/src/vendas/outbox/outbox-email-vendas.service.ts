@@ -93,6 +93,30 @@ export class OutboxEmailVendasService {
       proxima_tentativa_em: agora,
     };
 
+    const existente = await db.outbox_email_vendas.findUnique({
+      where: {
+        loja_id_chave_dedup: {
+          loja_id: input.lojaId,
+          chave_dedup: input.chaveDedup,
+        },
+      },
+    });
+    if (existente) {
+      if (
+        existente.evento !== input.evento ||
+        existente.destinatario_usuario_id !== usuario.id
+      ) {
+        throw new ConflictException(
+          'Chave de deduplicação reutilizada com destinatário ou evento diferente.',
+        );
+      }
+      this.assertPayloadCompativel(
+        existente.payload_sanitizado as OutboxPayloadSanitizado,
+        input.payload,
+      );
+      return { id: existente.id };
+    }
+
     try {
       const row = await db.outbox_email_vendas.create({ data });
       return { id: row.id };
@@ -101,8 +125,28 @@ export class OutboxEmailVendasService {
         err instanceof Prisma.PrismaClientKnownRequestError &&
         err.code === 'P2002'
       ) {
-        // Dedup: já enfileirado — idempotente.
-        return null;
+        const concorrente = await db.outbox_email_vendas.findUnique({
+          where: {
+            loja_id_chave_dedup: {
+              loja_id: input.lojaId,
+              chave_dedup: input.chaveDedup,
+            },
+          },
+        });
+        if (
+          concorrente &&
+          concorrente.evento === input.evento &&
+          concorrente.destinatario_usuario_id === usuario.id
+        ) {
+          this.assertPayloadCompativel(
+            concorrente.payload_sanitizado as OutboxPayloadSanitizado,
+            input.payload,
+          );
+          return { id: concorrente.id };
+        }
+        throw new ConflictException(
+          'Chave de deduplicação concorrente com payload incompatível.',
+        );
       }
       throw err;
     }

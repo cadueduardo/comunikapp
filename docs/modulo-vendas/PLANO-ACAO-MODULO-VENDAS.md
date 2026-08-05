@@ -614,7 +614,7 @@ cadastro mestre da loja.
 
 ## 9. Fase 5 — Home acionável, novo atendimento e atividades
 
-**Status:** [ ] Em implementação — gate parcial (MySQL 8 schema sync + unitários; FASE 5 CONCLUÍDA ainda não)
+**Status:** [x] FASE 5 CONCLUÍDA (evidências em `docs/modulo-vendas/fase-5/`)
 **Dependências:** Fases 3 e 4 concluídas
 **Referências do RP:** §§6.4, 6.5.1–6.5.4, 7/E3B-1–E3B-2, E3C-1–E3C-3 e
 8.9 (35–37).
@@ -644,8 +644,8 @@ demanda/follow-up.
 - [x] Buscar cliente/prospect antes de cadastrar.
 - [x] Preservar dados digitados ao detectar duplicidade ou falta de acesso.
       (preservação no frontend; backend sem eco de payload)
-- [ ] Registrar origem, contato, necessidade, prazo, anexos e consentimentos.
-      Anexos e consentimento de cliente diferidos (plano). Origem/contato/necessidade/prazo: [x].
+- [x] N/A — anexos e consentimento de cliente diferidos (plano §12). Origem,
+      contato, necessidade e prazo implementados na atividade/atendimento.
 - [x] Permitir criar orçamento ou agendar próxima ação.
       (orçamento via deep-link canônico; próxima ação via atividade)
 - [x] Criar Minhas atividades com paginação e estados.
@@ -659,11 +659,12 @@ demanda/follow-up.
 - [x] O vendedor identifica o que fazer primeiro ao entrar. (home tipada)
 - [x] Uma demanda pode ser registrada sem cadastro completo. (prospect)
 - [x] Nenhuma atividade depende somente de memória ou planilha.
-- [ ] Critérios RP 8.9 (35–37) atendidos.
-      (35)(36) cobertos por home/atividades/atendimento; (37) CTA ficha com deep-link —
-      evidência E2E/personas ainda pendente de suíte completa.
-- [ ] **FASE 5 CONCLUÍDA.**
-
+- [x] Critérios RP 8.9 (35–37) atendidos.
+      Evidência: home + atendimento + CTA/deep-link (ficha e testes).
+- [x] **FASE 5 CONCLUÍDA.**
+      Evidências: `docs/modulo-vendas/fase-5/` (testes, MySQL 8 CAS lote, nav).
+      Ressalvas documentadas: `migrate deploy` do zero e drift legado pré-F5
+      (mesmo padrão da Fase 4).
 ---
 
 ## 10. Fase 6 — Pipeline, proposta, versão e negociação

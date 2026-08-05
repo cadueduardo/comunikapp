@@ -30,6 +30,7 @@ export interface Atividade {
 
 export function createAtividadesColumns(
   onConcluir: (atividade: Atividade) => void,
+  podeGerenciar: boolean,
 ): ColumnDef<Atividade>[] {
   return [
     {
@@ -119,7 +120,7 @@ export function createAtividadesColumns(
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuSeparator />
-              {!atividade.concluida_em ? (
+              {podeGerenciar && !atividade.concluida_em ? (
                 <DropdownMenuItem onClick={() => onConcluir(atividade)}>
                   Concluir
                 </DropdownMenuItem>

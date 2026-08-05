@@ -149,10 +149,10 @@ export class NotificacoesService {
         },
       });
     } catch (err) {
-      if (
+        if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
         err.code === 'P2002'
-      ) {
+        ) {
         const again = await this.prisma.notificacao.findUnique({
           where: {
             loja_id_chave_dedup: {
@@ -161,7 +161,18 @@ export class NotificacoesService {
             },
           },
         });
-        if (again) return again;
+        if (again) {
+          const mesmo =
+            again.titulo === params.titulo &&
+            again.mensagem === params.mensagem &&
+            again.usuario_id === params.usuarioId &&
+            again.url_destino === url &&
+            again.dados_extras === extras;
+          if (mesmo) return again;
+          throw new ConflictException(
+            'Notificação concorrente com payload incompatível.',
+          );
+        }
       }
       throw err;
     }
@@ -231,59 +242,80 @@ export class NotificacoesService {
     });
   }
 
-  async buscarNotificacoes(lojaId: string, limit = 50, offset = 0) {
+  async buscarNotificacoes(
+    lojaId: string,
+    usuarioId: string,
+    limit = 50,
+    offset = 0,
+  ) {
     return this.prisma.notificacao.findMany({
-      where: { loja_id: lojaId },
+      where: {
+        loja_id: lojaId,
+        OR: [{ usuario_id: usuarioId }, { usuario_id: null }],
+      },
       orderBy: { criado_em: 'desc' },
       take: limit,
       skip: offset,
     });
   }
 
-  async buscarNaoVisualizadas(lojaId: string) {
+  async buscarNaoVisualizadas(lojaId: string, usuarioId: string) {
     return this.prisma.notificacao.findMany({
       where: {
         loja_id: lojaId,
         visualizada: false,
+        OR: [{ usuario_id: usuarioId }, { usuario_id: null }],
       },
       orderBy: { criado_em: 'desc' },
     });
   }
 
-  async contarNaoVisualizadas(lojaId: string) {
+  async contarNaoVisualizadas(lojaId: string, usuarioId: string) {
     return this.prisma.notificacao.count({
       where: {
         loja_id: lojaId,
         visualizada: false,
+        OR: [{ usuario_id: usuarioId }, { usuario_id: null }],
       },
     });
   }
 
-  async marcarComoVisualizada(notificacaoId: string, lojaId: string) {
+  async marcarComoVisualizada(
+    notificacaoId: string,
+    lojaId: string,
+    usuarioId: string,
+  ) {
     return this.prisma.notificacao.updateMany({
       where: {
         id: notificacaoId,
         loja_id: lojaId,
+        OR: [{ usuario_id: usuarioId }, { usuario_id: null }],
       },
-      data: { visualizada: true },
+      data: { visualizada: true, lida_em: new Date() },
     });
   }
 
-  async marcarTodasComoVisualizadas(lojaId: string) {
+  async marcarTodasComoVisualizadas(lojaId: string, usuarioId: string) {
     return this.prisma.notificacao.updateMany({
       where: {
         loja_id: lojaId,
         visualizada: false,
+        OR: [{ usuario_id: usuarioId }, { usuario_id: null }],
       },
-      data: { visualizada: true },
+      data: { visualizada: true, lida_em: new Date() },
     });
   }
 
-  async deletarNotificacao(notificacaoId: string, lojaId: string) {
+  async deletarNotificacao(
+    notificacaoId: string,
+    lojaId: string,
+    usuarioId: string,
+  ) {
     return this.prisma.notificacao.deleteMany({
       where: {
         id: notificacaoId,
         loja_id: lojaId,
+        OR: [{ usuario_id: usuarioId }, { usuario_id: null }],
       },
     });
   }

@@ -1,6 +1,6 @@
 # Fase 5 — Home acionável, atendimento e atividades
 
-**Status:** em implementação / gate em validação  
+**Status:** FASE 5 CONCLUÍDA  
 **SHA inicial:** `a4a89f5c`  
 **Contrato:** plano `fase_5_vendas_home_e8800926.plan.md`
 
@@ -27,6 +27,13 @@ direto de orçamento no Atendimento.
 3. `20260805120600_vendas_add_atendimento_idempotencia`
 4. `20260805120700_vendas_add_outbox_email`
 
-## Fora de escopo
+## Evidências
 
-Fase 6, WhatsApp, e-mail ao cliente, anexos, reabertura, Gate 0S produção.
+- `evidencia-fase-5.md`
+- `evidencia-testes-fase-5.md`
+- `evidencia-mysql-m5.md`
+
+## Fora de escopo / diferidos
+
+Fase 6, WhatsApp, e-mail ao cliente, anexos, reabertura, Gate 0S produção,
+`migrate deploy` do zero (dívida pré-existente).

@@ -37,11 +37,14 @@ for (const [id, href] of [
   ['orcamentos', '/orcamentos-v2'],
   ['clientes', '/clientes'],
   ['simulador', '/orcamentos-v2/simulador'],
+  ['atividades', '/vendas/atividades'],
+  ['novo-atendimento', '/vendas/atendimento'],
 ]) {
   assert.match(vendasNav, new RegExp(`id: '${id}'[\\s\\S]*?href: '${href}'`));
 }
 assert.match(vendasNav, /item\.id === 'aditivos'/);
-assert.match(vendasPage, /<ModuleHubCards nav=\{navFiltrado\}/);
+assert.match(vendasPage, /Novo atendimento|prioridades|aprovadas_periodo/);
+assert.doesNotMatch(vendasPage, /ModuleHubCards/);
 
 const [carteiraPage, listagem, columns] = await Promise.all([
   ler('src/app/(main)/vendas/carteira/page.tsx'),
@@ -74,6 +77,8 @@ console.log(
       'aditivos_filtrados',
       'rotas_vendas_e_aliases_protegidos',
       'carteira_nav_e_template_crud',
+      'atividades_e_atendimento_nav',
+      'home_acionavel_sem_hub_cards',
     ],
   }),
 );

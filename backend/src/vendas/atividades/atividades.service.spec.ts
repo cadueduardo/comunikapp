@@ -45,12 +45,16 @@ describe('AtividadesService — conclusão idempotente', () => {
       enfileirarAtribuida: jest.fn(),
       enfileirarReprogramada: jest.fn(),
     };
+    const carteiraEscopo = {
+      assertClienteAcessivel: jest.fn().mockResolvedValue(undefined),
+    };
     return {
       service: new AtividadesService(
         prisma as never,
         vendasPermissions as never,
         notificacoes as never,
         outbox as never,
+        carteiraEscopo as never,
       ),
       prisma,
       notificacoes,
@@ -148,6 +152,7 @@ describe('AtividadesService — escopo equipe', () => {
       vendasPermissions as never,
       { criarNotificacaoEndereçada: jest.fn() } as never,
       { enfileirarAtribuida: jest.fn() } as never,
+      { assertClienteAcessivel: jest.fn() } as never,
     );
     await expect(
       service.listar(

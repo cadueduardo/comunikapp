@@ -24,9 +24,11 @@ import type { Atividade } from './atividades-columns';
 export function AtividadeCard({
   atividade,
   onConcluir,
+  podeGerenciar,
 }: {
   atividade: Atividade;
   onConcluir: (atividade: Atividade) => void;
+  podeGerenciar: boolean;
 }) {
   const prazo = new Date(atividade.prazo);
   return (
@@ -61,7 +63,7 @@ export function AtividadeCard({
               </DropdownMenuItem>
             ) : null}
             <DropdownMenuSeparator />
-            {!atividade.concluida_em ? (
+            {podeGerenciar && !atividade.concluida_em ? (
               <DropdownMenuItem onClick={() => onConcluir(atividade)}>
                 Concluir
               </DropdownMenuItem>

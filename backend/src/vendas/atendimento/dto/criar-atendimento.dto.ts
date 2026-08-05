@@ -9,7 +9,10 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TIPOS_ATIVIDADE, TipoAtividade } from '../atividades/dto/atividade.dto';
+import {
+  TIPOS_ATIVIDADE,
+  TipoAtividade,
+} from '../../atividades/dto/atividade.dto';
 
 export class ProspectAtendimentoDto {
   @IsString()

@@ -2,22 +2,29 @@
 
 **Host:** `127.0.0.1:3307`  
 **Banco:** `comunikapp_ci_scratch`  
-**Método:** `npx prisma db push --accept-data-loss --skip-generate` (mesmo padrão F4; `migrate deploy` do zero permanece bloqueado pela dívida pré-existente `20251101000100`).
+**Método schema:** `npx prisma db push --accept-data-loss --skip-generate`  
+(`migrate deploy` do zero permanece bloqueado pela dívida pré-existente `20251101000100`, mesmo padrão da Fase 4.)
 
-## Resultado
+## Provas CAS outbox
 
-- Schema Prisma sincronizado no scratch (inclui `atividade_comercial`, colunas M5.2 em `notificacao`, `atendimento_idempotencia`, `outbox_email_vendas`).
-- `prisma migrate diff` ainda lista FKs legadas de `produtoorcamento`/`versaoorcamento` (dívida pré-F5, não introduzida nesta fase).
-- Script `backend/scripts/proof-outbox-cas-mysql8.ts`: disputa CAS de duas atualizações na mesma linha outbox (um vencedor).
-
-Saída observada:
+Script: `backend/scripts/proof-outbox-cas-mysql8.ts`
 
 ```json
-{"ok":true,"c1":0,"c2":1,"id":"cmsgho0df0001w43gmo780vpk","engine":"mysql8_scratch_3307"}
+{"ok":true,"uma_linha":{"c1":1,"c2":0,"ok":true},"lote":{"adquiridos":3,"esperado":3,"ok":true},"worker_antigo_bloqueado":true,"engine":"mysql8_scratch_3307"}
 ```
 
-## Não feito neste host
+Interpretação:
 
-- `migrate deploy` completo do zero (bloqueio conhecido).
-- Seed 2× em produção.
-- Suíte E2E personas completa do gate (parcialmente coberta por unitários).
+- Duas instâncias em **uma** linha → exatamente um claim (`count=1`).
+- Lote de 3 linhas com claims paralelos → 3 adquiridos no total (sem double-send).
+- Worker antigo com `bloqueado_por` divergente **não** finaliza (`count=0`).
+
+## Drift
+
+`prisma migrate diff` ainda lista FKs legadas de `produtoorcamento`/`versaoorcamento`
+(pré-F5). Tabelas M5 entraram via schema sync no scratch.
+
+## Não executado
+
+- Deploy / produção
+- `migrate deploy` completo do zero

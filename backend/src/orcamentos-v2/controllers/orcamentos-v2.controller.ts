@@ -125,11 +125,12 @@ export class OrcamentosV2Controller {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
+    const { lojaId, usuarioId } = extrairIdentidadeAutenticada(req);
     const limitNumber = limit ? parseInt(limit) : 50;
     const offsetNumber = offset ? parseInt(offset) : 0;
     return this.notificacoesService.buscarNotificacoes(
       lojaId,
+      usuarioId,
       limitNumber,
       offsetNumber,
     );
@@ -147,8 +148,8 @@ export class OrcamentosV2Controller {
   })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async buscarNaoVisualizadas(@Request() req: any) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
-    return this.notificacoesService.buscarNaoVisualizadas(lojaId);
+    const { lojaId, usuarioId } = extrairIdentidadeAutenticada(req);
+    return this.notificacoesService.buscarNaoVisualizadas(lojaId, usuarioId);
   }
 
   /**
@@ -163,8 +164,11 @@ export class OrcamentosV2Controller {
   })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async contarNaoVisualizadas(@Request() req: any) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
-    const count = await this.notificacoesService.contarNaoVisualizadas(lojaId);
+    const { lojaId, usuarioId } = extrairIdentidadeAutenticada(req);
+    const count = await this.notificacoesService.contarNaoVisualizadas(
+      lojaId,
+      usuarioId,
+    );
     return { count };
   }
 
@@ -181,8 +185,8 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   @ApiResponse({ status: 404, description: 'Notificação não encontrada' })
   async marcarComoVisualizada(@Param('id') id: string, @Request() req: any) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
-    await this.notificacoesService.marcarComoVisualizada(id, lojaId);
+    const { lojaId, usuarioId } = extrairIdentidadeAutenticada(req);
+    await this.notificacoesService.marcarComoVisualizada(id, lojaId, usuarioId);
     return { message: 'Notificação marcada como visualizada' };
   }
 
@@ -198,8 +202,11 @@ export class OrcamentosV2Controller {
   })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async marcarTodasComoVisualizadas(@Request() req: any) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
-    await this.notificacoesService.marcarTodasComoVisualizadas(lojaId);
+    const { lojaId, usuarioId } = extrairIdentidadeAutenticada(req);
+    await this.notificacoesService.marcarTodasComoVisualizadas(
+      lojaId,
+      usuarioId,
+    );
     return {
       message: 'Todas as notificações foram marcadas como visualizadas',
     };
@@ -216,8 +223,8 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   @ApiResponse({ status: 404, description: 'Notificação não encontrada' })
   async deletarNotificacao(@Param('id') id: string, @Request() req: any) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
-    await this.notificacoesService.deletarNotificacao(id, lojaId);
+    const { lojaId, usuarioId } = extrairIdentidadeAutenticada(req);
+    await this.notificacoesService.deletarNotificacao(id, lojaId, usuarioId);
   }
 
   // ===== ENDPOINTS DE CHAT V2 =====

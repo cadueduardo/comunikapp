@@ -13,6 +13,7 @@ import { VendasHomeController } from './home/vendas-home.controller';
 import { VendasHomeService } from './home/vendas-home.service';
 import { OutboxEmailVendasService } from './outbox/outbox-email-vendas.service';
 import { OutboxEmailVendasJob } from './outbox/outbox-email-vendas.job';
+import { VendasCarteiraEscopoService } from './carteira/vendas-carteira-escopo.service';
 
 /**
  * Autorização comercial + Home / Atividades / Atendimento / Outbox (Fase 5).
@@ -33,12 +34,14 @@ import { OutboxEmailVendasJob } from './outbox/outbox-email-vendas.job';
     VendasHomeService,
     OutboxEmailVendasService,
     OutboxEmailVendasJob,
+    VendasCarteiraEscopoService,
   ],
   exports: [
     VendasPermissionsService,
     VendasPermissionsGuard,
     OutboxEmailVendasService,
     OutboxEmailVendasJob,
+    VendasCarteiraEscopoService,
   ],
 })
 export class VendasSecurityModule {}
