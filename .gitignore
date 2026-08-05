@@ -20,6 +20,8 @@ uploads/
 backend/.mysql-data/
 backend/.mysql-dev-data/
 tmp/
+.tmp/
+
 *.sql
 !backend/prisma/migrations/**/*.sql
 *.dump

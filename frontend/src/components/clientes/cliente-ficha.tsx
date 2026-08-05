@@ -35,6 +35,7 @@ import type { OrdemServico } from '@/app/(main)/os/columns';
 import { useDuplicarOrcamento } from '@/hooks/use-duplicar-orcamento';
 import { useVendasAcesso } from '@/hooks/use-vendas-acesso';
 import { TransferirCarteiraDialog } from '@/components/clientes/TransferirCarteiraDialog';
+import { ParticipantesCarteiraPanel } from '@/components/clientes/ParticipantesCarteiraPanel';
 
 interface OrcamentoHistorico {
   id: string;
@@ -275,6 +276,14 @@ export function ClienteFicha({ clienteId }: ClienteFichaProps) {
           </CardContent>
         </Card>
       </div>
+
+      <ParticipantesCarteiraPanel
+        clienteId={cliente.id}
+        responsavelComercialId={cliente.responsavel_comercial_id}
+        participantes={cliente.participantes ?? []}
+        podeAdministrar={Boolean(acesso.permissoes.carteira_transferir)}
+        onChanged={() => void carregar()}
+      />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Card>

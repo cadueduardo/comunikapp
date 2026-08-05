@@ -23,6 +23,10 @@ describe('ClientesController', () => {
     atualizar: jest.fn(),
     inativar: jest.fn(),
     transferirCarteira: jest.fn(),
+    listarResponsaveisDisponiveis: jest.fn(),
+    listarParticipantes: jest.fn(),
+    adicionarParticipante: jest.fn(),
+    removerParticipante: jest.fn(),
     mesclar: jest.fn(),
     listarContatos: jest.fn(),
     criarContato: jest.fn(),
@@ -97,6 +101,30 @@ describe('ClientesController', () => {
     };
     controller.transferir(identidade, 'cli-1', dto);
     expect(service.transferirCarteira).toHaveBeenCalledWith(identidade, 'cli-1', dto);
+  });
+
+  it('listarParticipantes delega identidade e id', () => {
+    controller.listarParticipantes(identidade, 'cli-1');
+    expect(service.listarParticipantes).toHaveBeenCalledWith(identidade, 'cli-1');
+  });
+
+  it('adicionarParticipante delega identidade, id e dto', () => {
+    const dto = { usuario_id: 'user-2' };
+    controller.adicionarParticipante(identidade, 'cli-1', dto);
+    expect(service.adicionarParticipante).toHaveBeenCalledWith(
+      identidade,
+      'cli-1',
+      dto,
+    );
+  });
+
+  it('removerParticipante delega identidade, cliente e usuarioId', () => {
+    controller.removerParticipante(identidade, 'cli-1', 'user-2');
+    expect(service.removerParticipante).toHaveBeenCalledWith(
+      identidade,
+      'cli-1',
+      'user-2',
+    );
   });
 
   it('mesclar delega para o service (que nega — Fase diferida)', () => {

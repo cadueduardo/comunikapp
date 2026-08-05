@@ -1179,8 +1179,17 @@ export interface ClienteDetalheApi extends ClienteApi {
   origem: string | null;
   segmento: string | null;
   contatos: ClienteContatoApi[];
+  /** Vendedores colaboradores (DV-11) — sem poderes de gestor. */
+  participantes: ParticipanteCarteiraApi[];
   /** Só populado em `getById` (ficha) — últimas 20, mais recente primeiro. */
   transferencias_carteira?: TransferenciaCarteiraApi[];
+}
+
+export interface ParticipanteCarteiraApi {
+  id: string;
+  usuario_id: string;
+  usuario: ResponsavelComercialResumoApi;
+  criado_em: string;
 }
 
 export interface ClientesMetaApi {
@@ -1295,6 +1304,28 @@ export const clientesApi = {
     token: string,
   ) =>
     ApiClient.post<ClienteDetalheApi>(`/clientes/${id}/transferir`, data, token),
+  listarParticipantes: (id: string, token: string) =>
+    ApiClient.get<ParticipanteCarteiraApi[]>(
+      `/clientes/${id}/participantes`,
+      token,
+    ),
+  /** Requer `CARTEIRA_TRANSFERIR`. Inclusão idempotente. */
+  adicionarParticipante: (
+    id: string,
+    data: { usuario_id: string },
+    token: string,
+  ) =>
+    ApiClient.post<ParticipanteCarteiraApi>(
+      `/clientes/${id}/participantes`,
+      data,
+      token,
+    ),
+  /** Requer `CARTEIRA_TRANSFERIR`. Remoção auditada. */
+  removerParticipante: (id: string, usuarioId: string, token: string) =>
+    ApiClient.delete<void>(
+      `/clientes/${id}/participantes/${encodeURIComponent(usuarioId)}`,
+      token,
+    ),
   listarContatos: (id: string, token: string) =>
     ApiClient.get<ClienteContatoApi[]>(`/clientes/${id}/contatos`, token),
   criarContato: (id: string, data: Record<string, unknown>, token: string) =>

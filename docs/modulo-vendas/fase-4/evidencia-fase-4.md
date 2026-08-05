@@ -1,56 +1,50 @@
 # Evidência — Fase 4
 
 **Data:** 2026-08-05
-**Implementação auditada:** `e5992b04bffe46d0a05a5607d3bbb28ad542773d`
-**HEAD inicial:** `b1c59dd6dfe099023915e61b69ded682d023cf7d`
+**HEAD inicial (code review):** `7657ec34548291c0d0e425e799fea9cb2a28d1b3`
 **Gate 0S:** congelado
-**Produção / deploy:** não executados
+**Produção / deploy / Fase 5:** não executados
 
-## Correções do code review
-
-- M4.4 torna `chave_operacao` única por `loja_id`, sem editar a M4.2 aplicada.
-- Transferência usa compare-and-set transacional e não sobrescreve alteração concorrente.
-- Corrida com a mesma chave é tratada como idempotência.
-- Logs de transferência usam referências pseudonimizadas.
-- Destinos são obtidos por endpoint mínimo e limitados a usuários ativos
-  `VENDAS` ou `ADMINISTRADOR` da mesma loja.
-- Alertas de duplicidade não devolvem ID nem nome de outro cliente.
-
-## Gate ainda aberto
-
-- O modelo de participantes existe e participa do escopo, mas não há operação
-  autorizada de inclusão/remoção nem UX correspondente.
-- Clientes anteriores à M4.1 permanecem sem responsável; falta plano de atribuição.
-- A evidência disponível é MariaDB 10.4, não MySQL 8.
-
-## Checklist do plano §8 — evidência
+## Pendências do review — fechadas
 
 | Item | Evidência |
 |---|---|
-| D-06 / M4.1–M4.3 | Migrations aplicadas; schema com `responsavel_comercial_id`, participantes, transferência, contatos, normalizados |
-| Nome inequívoco | Comentários Prisma + UI “Responsável comercial” vs “Contato no cliente” |
-| Sem `@@unique` em normalizados | Só `@@index([loja_id, *])` |
-| Paginação servidor | `ListarClientesQueryDto` + `take`/`skip`; UI `enablePagination={false}` |
-| Template Fornecedores | `ClientesCarteiraListagem` default `table`; mobile cards; menu compartilhado |
-| `/vendas/carteira` | `frontend/src/app/(main)/vendas/carteira/page.tsx` |
-| Alias `/clientes` | mesma listagem + `VendasAccessGate` |
-| Transferência + histórico | `transferirCarteira` em `$transaction` + `chave_operacao` |
-| Contatos | CRUD `/clientes/:id/contatos` |
-| Mesclagem | `mesclar` → Forbidden (diferido) |
-| Redistribuição ao inativar vendedor | Diferido operacional (transferência manual coberta); sem hook no fluxo de inativação de usuário |
-| Ficha 360 completa (atividades/pedidos/aditivos) | Parcial: contatos + transferências + orçamentos/OS; atividades = Fase 5 |
+| A — Gestão de participantes | API `GET/POST/DELETE /clientes/:id/participantes` + painel na ficha |
+| B — Rollout clientes legados | `docs/modulo-vendas/fase-4/rollout-clientes-legados.md` + dry-run script |
+| C — MySQL 8 | `evidencia-mysql-m4.md` (8.4.9 / `comunikapp_ci_scratch`:3307) |
+| D — Testes adicionais | suite carteira 51 testes (concorrência, isolamento, participantes, legado) |
+
+## Modelo de participantes
+
+- Tabela `cliente_participante` (M4.2).
+- Administração exige `CARTEIRA_TRANSFERIR` (gestor/admin no seed).
+- Elegível: mesma loja, ativo, status ATIVO, função VENDAS|ADMINISTRADOR.
+- Responsável principal não pode ser duplicado como participante.
+- Inclusão idempotente; remoção auditada (evento comercial sanitizado).
+- Participante vê na carteira própria; **não** recebe transferência/inativação/alcada.
+- Transferência remove o destino da lista de participantes (DV-11).
+
+## Estratégia legados
+
+- Sem atribuição automática.
+- Escopo `sem_responsavel` para gestor/admin.
+- Dry-run: `scripts/carteira-rollout-legado-dry-run.ts` (contagens + refs hash).
+- `legado=1` só muda formato; mantém escopo de carteira.
+
+## Checklist do plano §8
+
+| Item | Evidência |
+|---|---|
+| D-06 / M4.1–M4.4 | MySQL 8 + schema |
+| Participantes API/UX | controller + `ParticipantesCarteiraPanel` |
+| Paginação servidor | inalterada |
+| Template Fornecedores | inalterado (tabela desktop / cards mobile) |
+| Transferência CAS + idempotência por tenant | service + testes |
+| Mesclagem / redistribuição auto / ficha 360 completa | diferidos |
 
 ## Gate RP 8.8
 
-| # | Critério | Evidência |
-|---|---|---|
-| 27 | Clientes na nav Vendas | `vendasModuleNav` + alias |
-| 28 | Default Minha carteira | `escopoInicial="propria"` |
-| 29 | Gestor alterna escopos | Select de escopo filtrado por `/vendas/acesso` |
-| 30–31 | Contatos / responsável | API + ficha |
-| 32 | Transferência auditada | histórico + SEC_EVT |
-| 33 | Inativação não apaga | soft `ativo`/`status` |
-| 34 | Paginação servidor | listar paginado |
+Mantido; ver entrega anterior + participantes na ficha.
 
 ## Testes
 

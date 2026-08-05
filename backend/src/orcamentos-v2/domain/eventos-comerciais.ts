@@ -18,6 +18,8 @@ export const EVENTOS_COMERCIAIS = {
   ALCADA_SOLICITADA: 'vendas.alcada.solicitada',
   ALCADA_DECIDIDA: 'vendas.alcada.decidida',
   CARTEIRA_TRANSFERIDA: 'vendas.carteira.transferida',
+  CARTEIRA_PARTICIPANTE_INCLUIDO: 'vendas.carteira.participante_incluido',
+  CARTEIRA_PARTICIPANTE_REMOVIDO: 'vendas.carteira.participante_removido',
   ADITIVO_PRECIFICADO: 'vendas.aditivo.precificado',
   ADITIVO_ACEITO: 'vendas.aditivo.aceito',
 } as const;

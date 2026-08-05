@@ -23,6 +23,7 @@ import {
   ListarClientesQueryDto,
 } from './dto/listar-clientes-query.dto';
 import { TransferirCarteiraDto } from './dto/transferir-carteira.dto';
+import { AddParticipanteDto } from './dto/add-participante.dto';
 import {
   CreateContatoDto,
   PAPEIS_CONTATO_CLIENTE,
@@ -43,6 +44,7 @@ import {
   ClienteDetalhe,
   ClienteResumo,
   ClientesPaginados,
+  ParticipanteCarteiraResumo,
   ResponsavelComercialResumo,
   TransferenciaCarteiraResumo,
 } from './clientes.types';
@@ -66,7 +68,15 @@ const INCLUDE_RESUMO = {
 /** Include completo: usado sempre que a autorização por escopo precisa dos
  * dados de responsável/participantes, e sempre que a resposta é `ClienteDetalhe`. */
 const INCLUDE_COMPLETO = {
-  participantes: { select: { usuario_id: true } },
+  participantes: {
+    select: {
+      id: true,
+      usuario_id: true,
+      criado_em: true,
+      usuario: { select: { id: true, nome_completo: true } },
+    },
+    orderBy: { criado_em: 'asc' as const },
+  },
   responsavel_comercial: { select: { id: true, nome_completo: true } },
   contatos: { where: { ativo: true }, orderBy: { criado_em: 'asc' } },
 } satisfies Prisma.clienteInclude;
@@ -448,30 +458,11 @@ export class ClientesService {
     }
 
     // Destino sempre revalidado no backend: ativo e da MESMA loja.
-    const paraUsuario = await this.prisma.usuario.findFirst({
-      where: {
-        id: dto.para_usuario_id,
-        loja_id: identidade.lojaId,
-        status: 'ATIVO',
-        ativo: true,
-        funcao: {
-          in: [usuario_funcao.VENDAS, usuario_funcao.ADMINISTRADOR],
-        },
-      },
-      select: { id: true },
-    });
-
-    if (!paraUsuario) {
-      registrarEventoDeSeguranca({
-        tipo: 'AUTORIZACAO_NEGADA',
-        rota: 'ClientesService.transferirCarteira',
-        origem: pseudonimizar(identidade.usuarioId),
-        motivo: 'usuario_destino_invalido_ou_outra_loja',
-      });
-      throw new BadRequestException(
-        'Usuário de destino inválido, inativo ou de outra loja.',
-      );
-    }
+    await this.assertUsuarioComercialElegivel(
+      identidade,
+      dto.para_usuario_id,
+      'ClientesService.transferirCarteira',
+    );
 
     const deUsuarioId = cliente.responsavel_comercial_id;
 
@@ -512,27 +503,38 @@ export class ClientesService {
             chave_operacao: dto.chave_operacao,
           },
         });
+
+        // Novo responsável não pode permanecer como participante (DV-11).
+        await tx.cliente_participante.deleteMany({
+          where: {
+            loja_id: identidade.lojaId,
+            cliente_id: clienteId,
+            usuario_id: dto.para_usuario_id,
+          },
+        });
       });
     } catch (erro) {
-      if (this.isViolacaoUnicidade(erro)) {
-        const concorrente =
-          await this.prisma.cliente_transferencia_carteira.findUnique({
-            where: {
-              loja_id_chave_operacao: {
-                loja_id: identidade.lojaId,
-                chave_operacao: dto.chave_operacao,
-              },
+      // Unicidade da chave OU CAS perdido na corrida com a mesma chave:
+      // se a chave já foi gravada neste cliente/loja, trata como retry idempotente.
+      const concorrente =
+        await this.prisma.cliente_transferencia_carteira.findUnique({
+          where: {
+            loja_id_chave_operacao: {
+              loja_id: identidade.lojaId,
+              chave_operacao: dto.chave_operacao,
             },
-          });
+          },
+        });
 
-        if (concorrente?.cliente_id === clienteId) {
-          const clienteAtual = await this.buscarClienteBrutoOuFalhar(
-            identidade,
-            clienteId,
-          );
-          return this.mapClienteDetalhe(clienteAtual);
-        }
+      if (concorrente?.cliente_id === clienteId) {
+        const clienteAtual = await this.buscarClienteBrutoOuFalhar(
+          identidade,
+          clienteId,
+        );
+        return this.mapClienteDetalhe(clienteAtual);
+      }
 
+      if (this.isViolacaoUnicidade(erro)) {
         throw new ConflictException(
           'Esta chave de operação já foi utilizada em outra transferência.',
         );
@@ -568,6 +570,152 @@ export class ClientesService {
   ): Promise<never> {
     throw new ForbiddenException(
       'Mesclagem de clientes ainda não está disponível nesta versão do sistema.',
+    );
+  }
+
+  // --------------------------------------------------------------------
+  // Participantes da carteira (DV-11)
+  // --------------------------------------------------------------------
+
+  async listarParticipantes(
+    identidade: IdentidadeAutenticada,
+    clienteId: string,
+  ): Promise<ParticipanteCarteiraResumo[]> {
+    const cliente = await this.carregarClienteComAcesso(identidade, clienteId);
+    return cliente.participantes.map((p) => this.mapParticipante(p));
+  }
+
+  async adicionarParticipante(
+    identidade: IdentidadeAutenticada,
+    clienteId: string,
+    dto: AddParticipanteDto,
+  ): Promise<ParticipanteCarteiraResumo> {
+    await this.vendasPermissions.assertPode(
+      identidade.usuarioId,
+      identidade.lojaId,
+      VENDAS_PERMISSOES.CARTEIRA_TRANSFERIR,
+    );
+
+    const cliente = await this.prisma.cliente.findFirst({
+      where: { id: clienteId, loja_id: identidade.lojaId },
+      select: { id: true, responsavel_comercial_id: true },
+    });
+    if (!cliente) {
+      throw new NotFoundException('Cliente não encontrado.');
+    }
+
+    if (cliente.responsavel_comercial_id === dto.usuario_id) {
+      throw new BadRequestException(
+        'O responsável comercial principal não pode ser adicionado como participante.',
+      );
+    }
+
+    await this.assertUsuarioComercialElegivel(
+      identidade,
+      dto.usuario_id,
+      'ClientesService.adicionarParticipante',
+    );
+
+    const existente = await this.prisma.cliente_participante.findFirst({
+      where: {
+        loja_id: identidade.lojaId,
+        cliente_id: clienteId,
+        usuario_id: dto.usuario_id,
+      },
+      select: {
+        id: true,
+        usuario_id: true,
+        criado_em: true,
+        usuario: { select: { id: true, nome_completo: true } },
+      },
+    });
+
+    if (existente) {
+      return this.mapParticipante(existente);
+    }
+
+    try {
+      const criado = await this.prisma.cliente_participante.create({
+        data: {
+          loja_id: identidade.lojaId,
+          cliente_id: clienteId,
+          usuario_id: dto.usuario_id,
+        },
+        select: {
+          id: true,
+          usuario_id: true,
+          criado_em: true,
+          usuario: { select: { id: true, nome_completo: true } },
+        },
+      });
+
+      this.logger.log(
+        `${EVENTOS_COMERCIAIS.CARTEIRA_PARTICIPANTE_INCLUIDO} ` +
+          `cliente_ref=${pseudonimizar(clienteId)} ` +
+          `usuario_ref=${pseudonimizar(dto.usuario_id)} ` +
+          `autor_ref=${pseudonimizar(identidade.usuarioId)}`,
+      );
+
+      return this.mapParticipante(criado);
+    } catch (erro) {
+      if (this.isViolacaoUnicidade(erro)) {
+        const concorrente = await this.prisma.cliente_participante.findFirst({
+          where: {
+            loja_id: identidade.lojaId,
+            cliente_id: clienteId,
+            usuario_id: dto.usuario_id,
+          },
+          select: {
+            id: true,
+            usuario_id: true,
+            criado_em: true,
+            usuario: { select: { id: true, nome_completo: true } },
+          },
+        });
+        if (concorrente) {
+          return this.mapParticipante(concorrente);
+        }
+      }
+      throw erro;
+    }
+  }
+
+  async removerParticipante(
+    identidade: IdentidadeAutenticada,
+    clienteId: string,
+    usuarioId: string,
+  ): Promise<void> {
+    await this.vendasPermissions.assertPode(
+      identidade.usuarioId,
+      identidade.lojaId,
+      VENDAS_PERMISSOES.CARTEIRA_TRANSFERIR,
+    );
+
+    const cliente = await this.prisma.cliente.findFirst({
+      where: { id: clienteId, loja_id: identidade.lojaId },
+      select: { id: true },
+    });
+    if (!cliente) {
+      throw new NotFoundException('Cliente não encontrado.');
+    }
+
+    const remocao = await this.prisma.cliente_participante.deleteMany({
+      where: {
+        loja_id: identidade.lojaId,
+        cliente_id: clienteId,
+        usuario_id: usuarioId,
+      },
+    });
+
+    if (remocao.count === 0) {
+      throw new NotFoundException('Participante não encontrado.');
+    }
+
+    this.logger.log(
+      `${EVENTOS_COMERCIAIS.CARTEIRA_PARTICIPANTE_REMOVIDO} ` +
+        `cliente_ref=${pseudonimizar(clienteId)} ` +
+        `usuario_ref=${pseudonimizar(usuarioId)} ` +
+        `autor_ref=${pseudonimizar(identidade.usuarioId)}`,
     );
   }
 
@@ -915,6 +1063,41 @@ export class ClientesService {
     return cliente;
   }
 
+  /**
+   * Usuário elegível a responsável comercial ou participante: mesma loja,
+   * ativo, status ATIVO e função VENDAS ou ADMINISTRADOR.
+   */
+  private async assertUsuarioComercialElegivel(
+    identidade: IdentidadeAutenticada,
+    usuarioId: string,
+    rota: string,
+  ): Promise<void> {
+    const usuario = await this.prisma.usuario.findFirst({
+      where: {
+        id: usuarioId,
+        loja_id: identidade.lojaId,
+        status: 'ATIVO',
+        ativo: true,
+        funcao: {
+          in: [usuario_funcao.VENDAS, usuario_funcao.ADMINISTRADOR],
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!usuario) {
+      registrarEventoDeSeguranca({
+        tipo: 'AUTORIZACAO_NEGADA',
+        rota,
+        origem: pseudonimizar(identidade.usuarioId),
+        motivo: 'usuario_destino_invalido_ou_outra_loja',
+      });
+      throw new BadRequestException(
+        'Usuário inválido, inativo, de outra loja ou sem função comercial adequada.',
+      );
+    }
+  }
+
   // --------------------------------------------------------------------
   // Deduplicação (alerta, nunca bloqueio — RP §5.2.3)
   // --------------------------------------------------------------------
@@ -1050,6 +1233,24 @@ export class ClientesService {
       origem: cliente.origem,
       segmento: cliente.segmento,
       contatos: cliente.contatos.map((contato) => this.mapContato(contato)),
+      participantes: cliente.participantes.map((p) => this.mapParticipante(p)),
+    };
+  }
+
+  private mapParticipante(participante: {
+    id: string;
+    usuario_id: string;
+    criado_em: Date;
+    usuario: { id: string; nome_completo: string };
+  }): ParticipanteCarteiraResumo {
+    return {
+      id: participante.id,
+      usuario_id: participante.usuario_id,
+      usuario: {
+        id: participante.usuario.id,
+        nome: participante.usuario.nome_completo,
+      },
+      criado_em: participante.criado_em,
     };
   }
 

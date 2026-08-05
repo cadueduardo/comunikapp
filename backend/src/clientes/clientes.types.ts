@@ -50,6 +50,14 @@ export interface TransferenciaCarteiraResumo {
   criado_em: Date;
 }
 
+/** Participante da carteira (DV-11) — só id + nome; sem e-mail/documento. */
+export interface ParticipanteCarteiraResumo {
+  id: string;
+  usuario_id: string;
+  usuario: ResponsavelComercialResumo;
+  criado_em: Date;
+}
+
 /** Ficha do cliente com dados completos + relações de exibição segura. */
 export interface ClienteDetalhe extends ClienteResumo {
   razao_social: string | null;
@@ -66,6 +74,8 @@ export interface ClienteDetalhe extends ClienteResumo {
   origem: string | null;
   segmento: string | null;
   contatos: ClienteContatoResumo[];
+  /** Vendedores colaboradores (não gestores). Sempre presente na ficha/detalhe. */
+  participantes: ParticipanteCarteiraResumo[];
   /**
    * Últimas 20 transferências de carteira (mais recente primeiro).
    * Só populado em `GET /clientes/:id` (ficha) — as demais operações

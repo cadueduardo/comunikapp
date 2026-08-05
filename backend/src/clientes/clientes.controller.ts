@@ -20,6 +20,7 @@ import { CreateClienteDto } from './dto/create-cliente.dto';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
 import { ListarClientesQueryDto } from './dto/listar-clientes-query.dto';
 import { TransferirCarteiraDto } from './dto/transferir-carteira.dto';
+import { AddParticipanteDto } from './dto/add-participante.dto';
 import { CreateContatoDto } from './dto/create-contato.dto';
 import { UpdateContatoDto } from './dto/update-contato.dto';
 
@@ -138,6 +139,45 @@ export class ClientesController {
     @Body() dto: TransferirCarteiraDto,
   ) {
     return this.clientesService.transferirCarteira(identidade, id, dto);
+  }
+
+  @Get(':id/participantes')
+  @RequerPermissaoVendas(...PERMISSOES_VISUALIZACAO_CARTEIRA)
+  @ApiOperation({
+    summary: 'Lista participantes da carteira (id + nome; escopo de leitura)',
+  })
+  listarParticipantes(
+    @Identidade() identidade: IdentidadeAutenticada,
+    @Param('id') id: string,
+  ) {
+    return this.clientesService.listarParticipantes(identidade, id);
+  }
+
+  @Post(':id/participantes')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.CARTEIRA_TRANSFERIR)
+  @ApiOperation({
+    summary:
+      'Inclui participante (idempotente; gestor/admin via CARTEIRA_TRANSFERIR)',
+  })
+  adicionarParticipante(
+    @Identidade() identidade: IdentidadeAutenticada,
+    @Param('id') id: string,
+    @Body() dto: AddParticipanteDto,
+  ) {
+    return this.clientesService.adicionarParticipante(identidade, id, dto);
+  }
+
+  @Delete(':id/participantes/:usuarioId')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.CARTEIRA_TRANSFERIR)
+  @ApiOperation({
+    summary: 'Remove participante (auditado; não concede poderes ao removido)',
+  })
+  removerParticipante(
+    @Identidade() identidade: IdentidadeAutenticada,
+    @Param('id') id: string,
+    @Param('usuarioId') usuarioId: string,
+  ) {
+    return this.clientesService.removerParticipante(identidade, id, usuarioId);
   }
 
   @Post(':id/mesclar')

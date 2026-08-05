@@ -281,7 +281,17 @@ function montarClienteComInclude(
   if (include.participantes) {
     resultado.participantes = banco.participantes
       .filter((p) => p.cliente_id === cliente.id)
-      .map((p) => ({ usuario_id: p.usuario_id }));
+      .map((p) => {
+        const usuario = banco.usuarios.find((u) => u.id === p.usuario_id);
+        return {
+          id: p.id,
+          usuario_id: p.usuario_id,
+          criado_em: p.criado_em,
+          usuario: usuario
+            ? { id: usuario.id, nome_completo: usuario.nome_completo }
+            : { id: p.usuario_id, nome_completo: p.usuario_id },
+        };
+      });
   }
 
   if (include.contatos) {
@@ -567,6 +577,80 @@ function criarPrismaFake(banco: BancoFake): PrismaService {
         return Promise.resolve(encontrado ?? null);
       },
     },
+    cliente_participante: {
+      findFirst: (args: {
+        where: Record<string, unknown>;
+        select?: Record<string, unknown>;
+      }) => {
+        const where = args.where;
+        const encontrado = banco.participantes.find(
+          (p) =>
+            (where.loja_id === undefined || p.loja_id === where.loja_id) &&
+            (where.cliente_id === undefined || p.cliente_id === where.cliente_id) &&
+            (where.usuario_id === undefined || p.usuario_id === where.usuario_id) &&
+            (where.id === undefined || p.id === where.id),
+        );
+        if (!encontrado) return Promise.resolve(null);
+        const usuario = banco.usuarios.find((u) => u.id === encontrado.usuario_id);
+        return Promise.resolve({
+          id: encontrado.id,
+          usuario_id: encontrado.usuario_id,
+          criado_em: encontrado.criado_em,
+          usuario: usuario
+            ? { id: usuario.id, nome_completo: usuario.nome_completo }
+            : { id: encontrado.usuario_id, nome_completo: encontrado.usuario_id },
+        });
+      },
+      create: (args: {
+        data: Record<string, unknown>;
+        select?: Record<string, unknown>;
+      }) => {
+        const dados = args.data as {
+          loja_id: string;
+          cliente_id: string;
+          usuario_id: string;
+        };
+        if (
+          banco.participantes.some(
+            (p) =>
+              p.cliente_id === dados.cliente_id &&
+              p.usuario_id === dados.usuario_id,
+          )
+        ) {
+          throw criarErroUnicidade();
+        }
+        const novo: ParticipanteFake = {
+          id: proximoId('part'),
+          loja_id: dados.loja_id,
+          cliente_id: dados.cliente_id,
+          usuario_id: dados.usuario_id,
+          criado_em: new Date(),
+        };
+        banco.participantes.push(novo);
+        const usuario = banco.usuarios.find((u) => u.id === novo.usuario_id);
+        return Promise.resolve({
+          id: novo.id,
+          usuario_id: novo.usuario_id,
+          criado_em: novo.criado_em,
+          usuario: usuario
+            ? { id: usuario.id, nome_completo: usuario.nome_completo }
+            : { id: novo.usuario_id, nome_completo: novo.usuario_id },
+        });
+      },
+      deleteMany: (args: { where: Record<string, unknown> }) => {
+        const where = args.where;
+        const antes = banco.participantes.length;
+        banco.participantes = banco.participantes.filter(
+          (p) =>
+            !(
+              (where.loja_id === undefined || p.loja_id === where.loja_id) &&
+              (where.cliente_id === undefined || p.cliente_id === where.cliente_id) &&
+              (where.usuario_id === undefined || p.usuario_id === where.usuario_id)
+            ),
+        );
+        return Promise.resolve({ count: antes - banco.participantes.length });
+      },
+    },
     cliente_transferencia_carteira: {
       findUnique: (args: {
         where: {
@@ -583,6 +667,44 @@ function criarPrismaFake(banco: BancoFake): PrismaService {
             t.chave_operacao === chave.chave_operacao,
         );
         return Promise.resolve(encontrada ?? null);
+      },
+      findMany: (args: {
+        where: Record<string, unknown>;
+        orderBy?: Record<string, 'asc' | 'desc'>;
+        take?: number;
+        include?: Record<string, unknown>;
+      }) => {
+        let lista = banco.transferencias.filter(
+          (t) =>
+            (args.where.cliente_id === undefined ||
+              t.cliente_id === args.where.cliente_id) &&
+            (args.where.loja_id === undefined || t.loja_id === args.where.loja_id),
+        );
+        if (args.orderBy?.criado_em === 'desc') {
+          lista = [...lista].sort(
+            (a, b) => b.criado_em.getTime() - a.criado_em.getTime(),
+          );
+        }
+        if (args.take !== undefined) lista = lista.slice(0, args.take);
+        return Promise.resolve(
+          lista.map((t) => {
+            const de = banco.usuarios.find((u) => u.id === t.de_usuario_id);
+            const para = banco.usuarios.find((u) => u.id === t.para_usuario_id);
+            const autor = banco.usuarios.find((u) => u.id === t.autor_id);
+            return {
+              ...t,
+              de_usuario: de
+                ? { id: de.id, nome_completo: de.nome_completo }
+                : null,
+              para_usuario: para
+                ? { id: para.id, nome_completo: para.nome_completo }
+                : { id: t.para_usuario_id, nome_completo: t.para_usuario_id },
+              autor: autor
+                ? { id: autor.id, nome_completo: autor.nome_completo }
+                : { id: t.autor_id, nome_completo: t.autor_id },
+            };
+          }),
+        );
       },
       create: (args: { data: Record<string, unknown> }) => {
         const dados = args.data as Omit<TransferenciaFake, 'id' | 'criado_em'>;
@@ -608,15 +730,30 @@ function criarPrismaFake(banco: BancoFake): PrismaService {
       arg: unknown[] | ((tx: typeof fake) => Promise<unknown>),
     ) => {
       if (Array.isArray(arg)) return Promise.all(arg);
-      const snapshot = {
-        clientes: structuredClone(banco.clientes),
-        transferencias: structuredClone(banco.transferencias),
+      // Serializa callbacks concorrentes (aproxima CAS/row lock do MySQL).
+      const executar = async () => {
+        const snapshot = {
+          clientes: structuredClone(banco.clientes),
+          transferencias: structuredClone(banco.transferencias),
+          participantes: structuredClone(banco.participantes),
+        };
+        try {
+          return await arg(fake);
+        } catch (erro) {
+          banco.clientes = snapshot.clientes;
+          banco.transferencias = snapshot.transferencias;
+          banco.participantes = snapshot.participantes;
+          throw erro;
+        }
       };
-      return arg(fake).catch((erro) => {
-        banco.clientes = snapshot.clientes;
-        banco.transferencias = snapshot.transferencias;
-        throw erro;
-      });
+      const anterior = (fake as { __txChain?: Promise<unknown> }).__txChain ??
+        Promise.resolve();
+      const atual = anterior.then(executar, executar);
+      (fake as { __txChain?: Promise<unknown> }).__txChain = atual.then(
+        () => undefined,
+        () => undefined,
+      );
+      return atual;
     },
   };
 
@@ -1381,5 +1518,329 @@ describe('ClientesService — contatos (isolamento por loja)', () => {
         email: 'repetido@cliente.com',
       } as any),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+});
+
+describe('ClientesService — participantes (DV-11)', () => {
+  function bancoComGestorEParticipantes() {
+    const banco = new BancoFake();
+    banco.usuarios.push(
+      usuarioFake('gestor-1', {
+        funcao: usuario_funcao.ADMINISTRADOR,
+        perfis: [
+          perfilComPermissoes('Gestor de Vendas', DEFAULTS_CONCEDIDOS_FASE_4.GESTOR),
+        ],
+      }),
+      usuarioFake('vend-origem'),
+      usuarioFake('vend-colab'),
+      usuarioFake('vend-outro'),
+      usuarioFake('producao-1', { funcao: usuario_funcao.PRODUCAO }),
+      usuarioFake('vend-loja-b', { loja_id: LOJA_B }),
+    );
+    banco.clientes.push(
+      clienteFake({ id: 'cli-1', responsavel_comercial_id: 'vend-origem' }),
+    );
+    return banco;
+  }
+
+  it('participante da própria carteira consegue visualizar o cliente', async () => {
+    const banco = bancoComGestorEParticipantes();
+    banco.participantes.push({
+      id: 'part-1',
+      loja_id: LOJA_A,
+      cliente_id: 'cli-1',
+      usuario_id: 'vend-colab',
+      criado_em: new Date(),
+    });
+    const { service } = criarServicos(banco);
+
+    const ficha = await service.obterUm(identidade('vend-colab'), 'cli-1');
+    expect(ficha.id).toBe('cli-1');
+    expect(ficha.participantes.map((p) => p.usuario_id)).toContain('vend-colab');
+  });
+
+  it('participante sem CARTEIRA_TRANSFERIR não consegue transferir nem inativar', async () => {
+    const banco = bancoComGestorEParticipantes();
+    banco.participantes.push({
+      id: 'part-1',
+      loja_id: LOJA_A,
+      cliente_id: 'cli-1',
+      usuario_id: 'vend-colab',
+      criado_em: new Date(),
+    });
+    const { service } = criarServicos(banco);
+
+    await expect(
+      service.transferirCarteira(identidade('vend-colab'), 'cli-1', {
+        para_usuario_id: 'vend-outro',
+        motivo: 'Tentativa de participante',
+        chave_operacao: 'chave-part-tx',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    await expect(
+      service.inativar(identidade('vend-colab'), 'cli-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('inclusão duplicada de participante é idempotente', async () => {
+    const banco = bancoComGestorEParticipantes();
+    const { service } = criarServicos(banco);
+
+    const a = await service.adicionarParticipante(identidade('gestor-1'), 'cli-1', {
+      usuario_id: 'vend-colab',
+    });
+    const b = await service.adicionarParticipante(identidade('gestor-1'), 'cli-1', {
+      usuario_id: 'vend-colab',
+    });
+
+    expect(a.id).toBe(b.id);
+    expect(banco.participantes).toHaveLength(1);
+  });
+
+  it('não duplica responsável principal como participante', async () => {
+    const banco = bancoComGestorEParticipantes();
+    const { service } = criarServicos(banco);
+
+    await expect(
+      service.adicionarParticipante(identidade('gestor-1'), 'cli-1', {
+        usuario_id: 'vend-origem',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('nega participante operacional e cross-tenant na inclusão', async () => {
+    const banco = bancoComGestorEParticipantes();
+    const { service } = criarServicos(banco);
+
+    await expect(
+      service.adicionarParticipante(identidade('gestor-1'), 'cli-1', {
+        usuario_id: 'producao-1',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    await expect(
+      service.adicionarParticipante(identidade('gestor-1'), 'cli-1', {
+        usuario_id: 'vend-loja-b',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('remoção cross-tenant é negada (404)', async () => {
+    const banco = bancoComGestorEParticipantes();
+    banco.participantes.push({
+      id: 'part-1',
+      loja_id: LOJA_A,
+      cliente_id: 'cli-1',
+      usuario_id: 'vend-colab',
+      criado_em: new Date(),
+    });
+    banco.usuarios.push(
+      usuarioFake('gestor-b', {
+        loja_id: LOJA_B,
+        funcao: usuario_funcao.ADMINISTRADOR,
+        perfis: [
+          perfilComPermissoes('Gestor de Vendas', DEFAULTS_CONCEDIDOS_FASE_4.GESTOR),
+        ],
+      }),
+    );
+    const { service } = criarServicos(banco);
+
+    await expect(
+      service.removerParticipante(
+        identidade('gestor-b', LOJA_B),
+        'cli-1',
+        'vend-colab',
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(banco.participantes).toHaveLength(1);
+  });
+
+  it('transferência remove o destino da lista de participantes', async () => {
+    const banco = bancoComGestorEParticipantes();
+    banco.participantes.push({
+      id: 'part-1',
+      loja_id: LOJA_A,
+      cliente_id: 'cli-1',
+      usuario_id: 'vend-colab',
+      criado_em: new Date(),
+    });
+    const { service } = criarServicos(banco);
+
+    await service.transferirCarteira(identidade('gestor-1'), 'cli-1', {
+      para_usuario_id: 'vend-colab',
+      motivo: 'Promove participante a responsável',
+      chave_operacao: 'chave-promove',
+    });
+
+    expect(banco.clientes[0].responsavel_comercial_id).toBe('vend-colab');
+    expect(banco.participantes).toHaveLength(0);
+  });
+});
+
+describe('ClientesService — concorrência e isolamento (gate Fase 4)', () => {
+  function bancoDoisGestores() {
+    const banco = new BancoFake();
+    banco.usuarios.push(
+      usuarioFake('gestor-1', {
+        funcao: usuario_funcao.ADMINISTRADOR,
+        perfis: [
+          perfilComPermissoes('Gestor de Vendas', DEFAULTS_CONCEDIDOS_FASE_4.GESTOR),
+        ],
+      }),
+      usuarioFake('gestor-2', {
+        funcao: usuario_funcao.ADMINISTRADOR,
+        perfis: [
+          perfilComPermissoes('Gestor de Vendas', DEFAULTS_CONCEDIDOS_FASE_4.GESTOR),
+        ],
+      }),
+      usuarioFake('vend-origem'),
+      usuarioFake('vend-destino-a'),
+      usuarioFake('vend-destino-b'),
+      usuarioFake('vend-loja-b', { loja_id: LOJA_B }),
+      usuarioFake('gestor-b', {
+        loja_id: LOJA_B,
+        funcao: usuario_funcao.ADMINISTRADOR,
+        perfis: [
+          perfilComPermissoes('Gestor de Vendas', DEFAULTS_CONCEDIDOS_FASE_4.GESTOR),
+        ],
+      }),
+    );
+    banco.clientes.push(
+      clienteFake({ id: 'cli-1', responsavel_comercial_id: 'vend-origem' }),
+      clienteFake({
+        id: 'cli-loja-b',
+        loja_id: LOJA_B,
+        responsavel_comercial_id: 'vend-loja-b',
+      }),
+    );
+    return banco;
+  }
+
+  it('dois gestores transferem simultaneamente com chaves diferentes (CAS)', async () => {
+    const banco = bancoDoisGestores();
+    const { service } = criarServicos(banco);
+
+    const [r1, r2] = await Promise.allSettled([
+      service.transferirCarteira(identidade('gestor-1'), 'cli-1', {
+        para_usuario_id: 'vend-destino-a',
+        motivo: 'Gestor 1',
+        chave_operacao: 'chave-g1',
+      }),
+      service.transferirCarteira(identidade('gestor-2'), 'cli-1', {
+        para_usuario_id: 'vend-destino-b',
+        motivo: 'Gestor 2',
+        chave_operacao: 'chave-g2',
+      }),
+    ]);
+
+    const ok = [r1, r2].filter((r) => r.status === 'fulfilled');
+    const falha = [r1, r2].filter((r) => r.status === 'rejected');
+    expect(ok).toHaveLength(1);
+    expect(falha).toHaveLength(1);
+    expect(falha[0].status).toBe('rejected');
+    if (falha[0].status === 'rejected') {
+      expect(falha[0].reason).toBeInstanceOf(ConflictException);
+    }
+    expect(banco.transferencias).toHaveLength(1);
+  });
+
+  it('duas requisições simultâneas com a mesma chave são idempotentes', async () => {
+    const banco = bancoDoisGestores();
+    const { service } = criarServicos(banco);
+
+    const [r1, r2] = await Promise.all([
+      service.transferirCarteira(identidade('gestor-1'), 'cli-1', {
+        para_usuario_id: 'vend-destino-a',
+        motivo: 'Retry A',
+        chave_operacao: 'chave-igual',
+      }),
+      service.transferirCarteira(identidade('gestor-2'), 'cli-1', {
+        para_usuario_id: 'vend-destino-a',
+        motivo: 'Retry B',
+        chave_operacao: 'chave-igual',
+      }),
+    ]);
+
+    expect(r1.responsavel_comercial_id).toBe('vend-destino-a');
+    expect(r2.responsavel_comercial_id).toBe('vend-destino-a');
+    expect(banco.transferencias).toHaveLength(1);
+  });
+
+  it('mesma chave_operacao pode existir em lojas diferentes', async () => {
+    const banco = bancoDoisGestores();
+    const { service } = criarServicos(banco);
+
+    await service.transferirCarteira(identidade('gestor-1'), 'cli-1', {
+      para_usuario_id: 'vend-destino-a',
+      motivo: 'Loja A',
+      chave_operacao: 'chave-compartilhada',
+    });
+
+    await service.transferirCarteira(identidade('gestor-b', LOJA_B), 'cli-loja-b', {
+      para_usuario_id: 'gestor-b',
+      motivo: 'Loja B',
+      chave_operacao: 'chave-compartilhada',
+    });
+
+    expect(banco.transferencias).toHaveLength(2);
+    expect(
+      banco.transferencias.every((t) => t.chave_operacao === 'chave-compartilhada'),
+    ).toBe(true);
+  });
+
+  it('endpoint de responsáveis não expõe usuários operacionais nem de outra loja', async () => {
+    const banco = bancoDoisGestores();
+    banco.usuarios.push(
+      usuarioFake('producao-1', { funcao: usuario_funcao.PRODUCAO }),
+      usuarioFake('estoque-1', { funcao: usuario_funcao.ESTOQUE }),
+    );
+    const { service } = criarServicos(banco);
+
+    const lista = await service.listarResponsaveisDisponiveis(identidade('gestor-1'));
+    const ids = lista.map((u) => u.id);
+    expect(ids).not.toContain('producao-1');
+    expect(ids).not.toContain('estoque-1');
+    expect(ids).not.toContain('vend-loja-b');
+    expect(ids).toContain('vend-destino-a');
+  });
+
+  it('cliente legado sem responsável não aparece na carteira própria do vendedor', async () => {
+    const banco = new BancoFake();
+    banco.usuarios.push(usuarioFake('vend-1'));
+    banco.clientes.push(
+      clienteFake({ id: 'cli-legado', responsavel_comercial_id: null }),
+      clienteFake({ id: 'cli-meu', responsavel_comercial_id: 'vend-1' }),
+    );
+    const { service } = criarServicos(banco);
+
+    const lista = (await service.listar(identidade('vend-1'), {
+      escopo: 'propria',
+    } as any)) as { data: { id: string }[] };
+
+    expect(lista.data.map((c) => c.id)).toEqual(['cli-meu']);
+  });
+
+  it('alerta de duplicidade não revela id/nome de outro cliente', async () => {
+    const banco = new BancoFake();
+    banco.usuarios.push(usuarioFake('vend-1'));
+    banco.clientes.push(
+      clienteFake({
+        id: 'cli-existente',
+        responsavel_comercial_id: 'vend-1',
+        documento: '52998224725',
+        documento_normalizado: '52998224725',
+      }),
+    );
+    const { service } = criarServicos(banco);
+
+    const criado = await service.criar(identidade('vend-1'), criarDtoBase({
+      nome: 'Outro',
+      documento: '52998224725',
+    }));
+
+    expect(criado.avisos).toEqual([{ campo: 'documento' }]);
+    expect(JSON.stringify(criado.avisos)).not.toContain('cli-existente');
   });
 });
