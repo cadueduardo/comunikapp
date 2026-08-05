@@ -26,11 +26,30 @@ O diagrama da Fase 0 continha `aguardando_alcada → cancelada`, mas a tabela
 numerada aprovada declarava 23 transições e não continha essa passagem. A
 implementação segue a tabela normativa de 23 transições; o diagrama foi alinhado.
 
+## Entrega 6.2 — writer comercial único
+
+- `TransicaoComercialService` é o único componente que grava
+  `status_comercial`, `status` legado e `status_aprovacao`;
+- toda transição usa CAS por `id + loja_id + status_comercial` e grava auditoria
+  e timeline na mesma transação;
+- aceite interno/público, rejeição, negociação, alteração genérica, handoff e
+  reconciliação de OS passaram pelo writer canônico;
+- o repositório V2 sem consumidores, que mantinha um segundo writer sem as
+  garantias da DV-14, foi removido;
+- aceite exige versão enviada vigente e proposta não expirada;
+- falha ao criar a OS compensa o aceite; depois que a OS existe, falha de
+  promoção nunca reativa o token e exige reconciliação;
+- pedido confirmado é imutável pela edição de proposta; alteração material em
+  proposta aceita exige permissão de perda antes de qualquer mutação;
+- o snapshot material agora mescla corretamente atualizações parciais ao estado
+  anterior antes do hash DV-02/DV-15.
+
+Evidência reproduzível: `evidencia-entrega-6-2.md`.
+
 ## Ainda aberto
 
-- centralizar também aceite, negociação, expiração e handoff no mesmo caso de uso;
+- implementar o job de expiração em lote pelo writer canônico;
 - congelamento e diff de versões;
-- expiração em lote;
 - superfície de pipeline/negociação;
 - chat, não lidas e anexos privados;
 - provas MySQL, E2E e regressão integral.

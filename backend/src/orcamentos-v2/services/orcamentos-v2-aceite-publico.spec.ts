@@ -33,6 +33,11 @@ describe('OrcamentosV2Service - aceite público', () => {
     status: string;
     status_aprovacao: string | null;
     status_comercial?: string | null;
+    versao_enviada_id: string | null;
+    versao_aceita_id: string | null;
+    expira_em: Date | null;
+    aceito_em: Date | null;
+    aceite_evidencia: unknown;
     observacoes_cliente: string | null;
     titulo: string;
     descricao: string | null;
@@ -65,6 +70,12 @@ describe('OrcamentosV2Service - aceite público', () => {
   const casaComFiltro = (where: any): boolean => {
     if (where.id && where.id !== registro.id) return false;
     if (where.loja_id && where.loja_id !== registro.loja_id) return false;
+    if (
+      typeof where.status_comercial === 'string' &&
+      where.status_comercial !== registro.status_comercial
+    ) {
+      return false;
+    }
 
     if (where.status?.in && !where.status.in.includes(registro.status)) {
       return false;
@@ -231,6 +242,11 @@ describe('OrcamentosV2Service - aceite público', () => {
       status: 'enviado',
       status_aprovacao: 'PENDENTE',
       status_comercial: 'enviada',
+      versao_enviada_id: 'versao-1',
+      versao_aceita_id: null,
+      expira_em: new Date('2099-01-01T00:00:00.000Z'),
+      aceito_em: null,
+      aceite_evidencia: null,
       observacoes_cliente: null,
       titulo: 'Fachada em ACM',
       descricao: null,
@@ -488,6 +504,28 @@ describe('OrcamentosV2Service - aceite público', () => {
     );
   });
 
+  it('não reativa o código quando a OS existe e somente a promoção comercial falha', async () => {
+    const codigo = emitirCodigoValido();
+    jest
+      .spyOn((service as any).transicoesComerciais, 'executar')
+      .mockResolvedValueOnce(false);
+
+    await expect(
+      service.processarAcaoClientePublico(ORCAMENTO_ID, {
+        acao: 'APROVAR',
+        codigo_aprovacao: codigo,
+      }),
+    ).rejects.toThrow(
+      new InternalServerErrorException(
+        'A ordem de serviço foi gerada, mas a confirmação comercial exige reconciliação.',
+      ),
+    );
+
+    expect(ordensServico).toHaveLength(1);
+    expect(registro.status_comercial).toBe('aceita');
+    expect(registro.codigo_aprovacao_usado_em).toBeInstanceOf(Date);
+  });
+
   it('não exige código para rejeitar, mas exige motivo', async () => {
     await expect(
       service.processarAcaoClientePublico(ORCAMENTO_ID, { acao: 'REJEITAR' }),
@@ -655,6 +693,65 @@ describe('OrcamentosV2Service - aceite público', () => {
     });
   });
 
+  describe('edição após aceite (DV-02)', () => {
+    it('bloqueia pedido confirmado antes de qualquer mutação', async () => {
+      const assertPode = jest.fn(async () => undefined);
+      (service as any).vendasPermissions = { assertPode };
+      jest.spyOn(service as any, 'buscarOrcamento').mockResolvedValue({
+        ...registro,
+        status: 'aprovado',
+        status_comercial: 'pedido_confirmado',
+        prazo_entrega: '10 dias',
+      });
+
+      await expect(
+        service.atualizarOrcamento(
+          ORCAMENTO_ID,
+          { prazo_entrega: '15 dias' },
+          LOJA_ID,
+          'usuario-1',
+        ),
+      ).rejects.toThrow(
+        new BadRequestException(
+          'Pedido confirmado não pode ser editado como proposta. Registre um aditivo ou cancelamento.',
+        ),
+      );
+
+      expect(prisma.orcamento.update).not.toHaveBeenCalled();
+    });
+
+    it('exige permissão de perda antes de editar materialmente uma proposta aceita', async () => {
+      const assertPode = jest.fn(async (_usuario, _loja, permissao) => {
+        if (permissao === 'vendas.proposta.marcar_perdida') {
+          throw new BadRequestException('Permissão insuficiente.');
+        }
+      });
+      (service as any).vendasPermissions = { assertPode };
+      jest.spyOn(service as any, 'buscarOrcamento').mockResolvedValue({
+        ...registro,
+        status: 'aprovado',
+        status_comercial: 'aceita',
+        prazo_entrega: '10 dias',
+      });
+
+      await expect(
+        service.atualizarOrcamento(
+          ORCAMENTO_ID,
+          { prazo_entrega: '15 dias' },
+          LOJA_ID,
+          'usuario-1',
+        ),
+      ).rejects.toThrow('Permissão insuficiente.');
+
+      expect(assertPode).toHaveBeenLastCalledWith(
+        'usuario-1',
+        LOJA_ID,
+        'vendas.proposta.marcar_perdida',
+      );
+      expect(prisma.orcamento.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe('revogação', () => {
     // A edição de uma proposta já enviada chama este caminho antes de decidir
     // se consegue entregar um código novo. É o que impede um código válido de
@@ -690,6 +787,7 @@ describe('OrcamentosV2Service - aceite público', () => {
 
   it('recusa ação quando a proposta já saiu do estado que aceita ação pública', async () => {
     registro.status = 'cancelado';
+    registro.status_comercial = 'cancelada';
 
     await expect(
       service.processarAcaoClientePublico(ORCAMENTO_ID, { acao: 'NEGOCIAR' }),
@@ -812,6 +910,7 @@ describe('OrcamentosV2Service - aceite público', () => {
       // Nada é aplicado: a condição do `UPDATE` não casa. Sem o evento, esse
       // desfecho seria indistinguível de sucesso no log.
       registro.status = 'aprovado';
+      registro.status_comercial = 'aceita';
 
       await expect(
         service.processarAcaoClientePublico(ORCAMENTO_ID, {

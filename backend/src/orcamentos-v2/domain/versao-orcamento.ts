@@ -34,11 +34,19 @@ function extrairCamposMateriais(fonte: unknown): Record<string, unknown> {
     return {};
   }
   const origem = fonte as Record<string, unknown>;
+  const anterior =
+    origem.anterior && typeof origem.anterior === 'object'
+      ? (origem.anterior as Record<string, unknown>)
+      : {};
+  const mudancas =
+    origem.mudancas && typeof origem.mudancas === 'object'
+      ? (origem.mudancas as Record<string, unknown>)
+      : {};
   const atual =
     origem.atual && typeof origem.atual === 'object'
       ? (origem.atual as Record<string, unknown>)
-      : origem.mudancas && typeof origem.mudancas === 'object'
-        ? (origem.mudancas as Record<string, unknown>)
+      : origem.anterior !== undefined || origem.mudancas !== undefined
+        ? { ...anterior, ...mudancas }
         : origem;
 
   const material: Record<string, unknown> = {};

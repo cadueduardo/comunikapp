@@ -684,9 +684,10 @@ demanda/follow-up.
       (`:2923`) **não a chama** e grava qualquer string. Religar validação e caminho
       de escrita é pré-requisito de tudo nesta fase. Implementado por contrato
       DV-14 canônico, DTO tipado, allowlist e CAS em `status_comercial`.
-- [ ] Garantir um **único ponto de escrita** de status comercial. Hoje há escritas
-      espalhadas em `alterarStatus`, `fecharPedidoInterno` e
-      `processarAcaoClientePublico`.
+- [x] Garantir um **único ponto de escrita** de status comercial. Aceite,
+      negociação, perda, alteração genérica, handoff e reconciliação de OS usam
+      `TransicaoComercialService`, com CAS multi-tenant, dual-write, auditoria e
+      timeline atômicos. Evidência em `fase-6/evidencia-entrega-6-2.md`.
 - [x] Remover o `console.log` do código de aprovação em
       `orcamentos-v2.service.ts:2961–2967`, que imprime o segredo em texto puro,
       contra `docs/database/boas-praticas-schema-prisma.md` §Segurança.

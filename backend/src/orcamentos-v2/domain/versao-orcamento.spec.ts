@@ -31,4 +31,33 @@ describe('versao-orcamento (DV-15 / DV-02)', () => {
     });
     expect(houveAlteracaoMaterial(a, b)).toBe(false);
   });
+
+  it('mescla atualizacao parcial ao estado anterior antes de calcular o hash', () => {
+    const anterior = montarSnapshotVersao({
+      atual: { preco_final: 100, cliente_id: 'c1', prazo_entrega: '10 dias' },
+    });
+    const parcialSemMudancaMaterial = montarSnapshotVersao({
+      anterior: {
+        preco_final: 100,
+        cliente_id: 'c1',
+        prazo_entrega: '10 dias',
+      },
+      mudancas: { observacoes_internas: 'ajuste interno' },
+    });
+    const parcialComMudancaMaterial = montarSnapshotVersao({
+      anterior: {
+        preco_final: 100,
+        cliente_id: 'c1',
+        prazo_entrega: '10 dias',
+      },
+      mudancas: { prazo_entrega: '15 dias' },
+    });
+
+    expect(houveAlteracaoMaterial(anterior, parcialSemMudancaMaterial)).toBe(
+      false,
+    );
+    expect(houveAlteracaoMaterial(anterior, parcialComMudancaMaterial)).toBe(
+      true,
+    );
+  });
 });
