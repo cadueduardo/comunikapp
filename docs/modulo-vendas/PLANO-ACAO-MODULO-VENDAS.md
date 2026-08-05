@@ -614,7 +614,7 @@ cadastro mestre da loja.
 
 ## 9. Fase 5 — Home acionável, novo atendimento e atividades
 
-**Status:** [ ] Em validação — MySQL M5.5 + seed 2× comprovados; jornada browser manual pendente
+**Status:** [ ] Em validação — DDL MySQL + seed 2× comprovados; aplicação canônica M5.5 e jornada browser pendentes
 **Dependências:** Fases 3 e 4 concluídas
 **Referências do RP:** §§6.4, 6.5.1–6.5.4, 7/E3B-1–E3B-2, E3C-1–E3C-3 e
 8.9 (35–37).
@@ -663,10 +663,10 @@ demanda/follow-up.
 - [x] Uma demanda pode ser registrada sem cadastro completo. (prospect)
 - [x] Nenhuma atividade depende somente de memória ou planilha.
 - [ ] Critérios RP 8.9 (35–37) atendidos.
-      MySQL scratch: M5.5 aplicada, contato persistido/relido, seed 2× idempotente.
-      Pendente: jornada manual no navegador (app estava fora do ar nesta sessão).
+      MySQL scratch: DDL, contato persistido/relido e seed 2× comprovados.
+      Pendente: aplicação da migration pelo Prisma e jornada no navegador.
 - [ ] **FASE 5 CONCLUÍDA.**
-      Mantida aberta até a jornada manual e o checkbox acima.
+      Mantida aberta até as duas evidências pendentes e o checkbox acima.
 ---
 
 ## 10. Fase 6 — Pipeline, proposta, versão e negociação

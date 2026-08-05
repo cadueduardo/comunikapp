@@ -11,8 +11,8 @@ Resumo:
 
 | Prova | Resultado |
 |---|---|
-| Aplicar M5.5 `20260805120800` | OK — coluna/índice/FK `SET NULL` |
-| Drift schema×banco pós-M5.5 | OK — empty migration |
+| DDL de M5.5 no scratch | OK — coluna/índice/FK `SET NULL`; aplicação não canônica |
+| Equivalência schema×banco pós-DDL | OK — empty diff; não comprova `migrate deploy` |
 | Integração create+releitura `contato_id` | OK |
 | Nega contato outro cliente / outra loja | OK |
 | Aceita contato nulo | OK |
@@ -62,4 +62,5 @@ Registrar prints/data/horário na reexecução e só então fechar o gate.
 ## Gate
 
 **FASE 5 permanece Em validação** até a jornada manual acima ser executada e
-anexada. MySQL M5.5 + seed 2× desta rodada estão comprovados.
+anexada e o caminho canônico da migration ser comprovado. O comportamento do
+DDL no MySQL e o seed duas vezes estão comprovados.

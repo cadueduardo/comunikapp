@@ -3,6 +3,7 @@
  * Uso: ALLOW_RBAC_TEST_MUTATIONS=true npx ts-node --transpile-only scripts/comprovar-seed-fase5-concessoes.ts
  */
 import { PrismaClient } from '@prisma/client';
+import { createHash } from 'crypto';
 import { validarAmbienteTesteMutavel } from './validar-ambiente-teste-mutavel';
 import {
   DEFAULTS_CONCEDIDOS_FASE_5,
@@ -16,6 +17,10 @@ const prisma = new PrismaClient();
 function chavePerm(permissao: string) {
   const { modulo, acao } = separarModuloEAcao(permissao);
   return `${modulo}:${acao}`;
+}
+
+function pseudonimizar(valor: string): string {
+  return createHash('sha256').update(valor).digest('hex').slice(0, 12);
 }
 
 async function main() {
@@ -68,7 +73,7 @@ async function main() {
     const defaultsGest = DEFAULTS_CONCEDIDOS_FASE_5.GESTOR.map(chavePerm);
 
     resumoLojas.push({
-      loja_pseudo: loja.id.slice(0, 8),
+      loja_pseudo: pseudonimizar(loja.id),
       financeiro_sem_atividade: financeiroSemAtividade,
       vendedor_tem_defaults_f5: defaultsVend.every((k) => vend.has(k)),
       gestor_tem_defaults_f5: defaultsGest.every((k) => gest.has(k)),

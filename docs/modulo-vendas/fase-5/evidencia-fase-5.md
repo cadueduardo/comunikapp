@@ -9,8 +9,8 @@
 
 | Área | Evidência |
 |---|---|
-| M5.5 no MySQL 8 scratch | `evidencia-mysql-m5.md` — coluna/índice/FK SET NULL |
-| Drift pós-M5.5 | empty migration (`migrate diff`) |
+| DDL de M5.5 no MySQL 8 scratch | `evidencia-mysql-m5.md` — comportamento comprovado; aplicação não canônica |
+| Equivalência pós-DDL | empty diff; não substitui `migrate deploy` |
 | Persistência real `contato_id` | `comprovar-m55-orcamento-contato-mysql8.ts` |
 | Seed 2× + concessões | `seed-vendas-rbac-duas-vezes.ts` + `comprovar-seed-fase5-concessoes.ts` |
 
@@ -25,7 +25,7 @@
 ## Checklist plano §9
 
 Ver `PLANO-ACAO-MODULO-VENDAS.md` §9 — **FASE 5 permanece Em validação** até a
-jornada manual no navegador ser executada.
+jornada manual no navegador e a aplicação canônica da migration serem comprovadas.
 
 ## Diferidos
 

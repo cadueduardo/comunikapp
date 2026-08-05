@@ -11,14 +11,14 @@
 ## 1. Migration `20260805120800_vendas_orcamento_add_contato`
 
 Como `migrate deploy` do zero permanece bloqueado pela dívida
-`20251101000100` (mesmo padrão F4/F5), a M5.5 foi aplicada pelo script oficial
-do SQL da pasta de migration + registro em `_prisma_migrations`:
+`20251101000100` (mesmo padrão F4/F5), nesta rodada o SQL da migration foi
+executado diretamente no scratch e a linha correspondente foi inserida em
+`_prisma_migrations`. O code review posterior classificou esse procedimento
+como **não canônico**, pois viola a regra de não alterar schema ou histórico fora
+do Prisma. O utilitário que fazia essa aplicação foi removido do repositório.
 
-```text
-$env:ALLOW_RBAC_TEST_MUTATIONS='true'
-$env:NODE_ENV='development'
-npx ts-node --transpile-only scripts/aplicar-m55-contato-scratch.ts
-```
+A evidência abaixo continua válida como prova do DDL e do comportamento no
+MySQL 8, mas **não equivale a uma execução aprovada de `prisma migrate deploy`**.
 
 **Resultado sanitizado:**
 
@@ -46,8 +46,9 @@ npx ts-node --transpile-only scripts/aplicar-m55-contato-scratch.ts
 npx prisma migrate diff --from-url $env:DATABASE_URL --to-schema-datamodel prisma/schema.prisma --script
 ```
 
-Saída: `-- This is an empty migration.` → **sem drift novo** schema×banco após M5.5
-(incluindo ausência de pendência de `contato_id`).
+Saída: `-- This is an empty migration.` → schema e banco ficaram equivalentes
+após a aplicação manual. Isso não valida o processo de migration nem elimina a
+dívida histórica que impede `migrate deploy`.
 
 ## 2. Integração real — orçamento + contato_id
 
