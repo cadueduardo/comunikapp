@@ -60,9 +60,12 @@ const orcamentos = montar(OrcamentosV2Service, {
   parcelasBuilder: { gerarDescricao: () => 'condição de teste' },
   mailService: { enviarEmail: async () => undefined },
 });
-const chat = montar(ChatV2Service, {});
+// Chat/Links passaram a exigir VendasPermissionsService (Fase 2 RBAC).
+// Sem injetar aqui, o script mascara TypeError como "negado" e quebra no
+// caminho legítimo (criar link na própria loja).
+const chat = montar(ChatV2Service, { vendasPermissions: permissoes });
 const impressao = montar(ImpressaoV2Service, {});
-const links = montar(LinksV2Service, {});
+const links = montar(LinksV2Service, { vendasPermissions: permissoes });
 
 type Resultado = { nome: string; ok: boolean; detalhe: string };
 const resultados: Resultado[] = [];
@@ -94,6 +97,21 @@ async function deveNegar(
       'RETORNOU DADO: ' + JSON.stringify(valor).slice(0, 200),
     );
   } catch (erro: any) {
+    // TypeError/ReferenceError indicam fixture quebrada (ex.: dependência não
+    // injetada), não isolamento de tenant. Não contar como negação válida.
+    if (
+      erro instanceof TypeError ||
+      erro instanceof ReferenceError ||
+      erro?.name === 'TypeError' ||
+      erro?.name === 'ReferenceError'
+    ) {
+      verificar(
+        nome,
+        false,
+        'ERRO DE FIXTURE: ' + (erro?.message ?? String(erro)),
+      );
+      return;
+    }
     verificar(nome, true, 'negado com ' + (erro?.constructor?.name ?? 'erro'));
   }
 }
