@@ -1,5 +1,6 @@
 # Evidência de testes — Fase 4
 
+**HEAD final:** '+sha+\
 **HEAD inicial:** `b1c59dd6`
 
 ## Jest (backend)

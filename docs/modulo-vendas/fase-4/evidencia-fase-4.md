@@ -1,6 +1,7 @@
 # Evidência — Fase 4
 
 **Data:** 2026-08-05
+**HEAD final:** '+sha+\
 **HEAD inicial:** `b1c59dd6dfe099023915e61b69ded682d023cf7d`
 **Gate 0S:** congelado
 **Produção / deploy:** não executados

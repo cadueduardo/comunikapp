@@ -1,6 +1,7 @@
 # Fase 4 — Clientes, carteira e contatos
 
 **Status:** em fechamento com evidências
+**HEAD final:** '+sha+\
 **HEAD inicial:** `b1c59dd6dfe099023915e61b69ded682d023cf7d`
 **Dependência:** Fases 2 e 3
 **Fora de escopo:** mesclagem completa, ficha 360º com atividades (Fase 5), Gate 0S, deploy/produção
