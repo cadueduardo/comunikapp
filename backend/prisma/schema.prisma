@@ -481,6 +481,7 @@ model cliente {
   participantes      cliente_participante[]
   transferencias_carteira cliente_transferencia_carteira[]
   contatos           cliente_contato[]
+  atividades_comerciais atividade_comercial[]
   orcamento          orcamento[]
   ordens_servico     OrdemServico[]
   cobrancas          Cobranca[] // Fase 6
@@ -560,6 +561,7 @@ model cliente_contato {
   atualizado_em DateTime @updatedAt
   loja         loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
   cliente      cliente  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  atividades_comerciais atividade_comercial[]
 
   @@unique([loja_id, cliente_id, email])
   @@index([loja_id, cliente_id])
@@ -795,6 +797,9 @@ model loja {
   pagamentos_fornecedor_apropriacoes PagamentoFornecedorApropriacao[]
   maquina                            maquina[]
   notificacao                        notificacao[]
+  atividades_comerciais              atividade_comercial[]
+  atendimento_idempotencia           atendimento_idempotencia[]
+  outbox_email_vendas                outbox_email_vendas[]
   orcamento                          orcamento[]
   perfis_acesso                      perfil_acesso[]
   template_produtos                  TemplateProduto[]
@@ -1439,15 +1444,114 @@ model notificacao {
   mensagem     String     @db.Text
   orcamento_id String?
   loja_id      String
+  // Fase 5 / M5.2 — destinatário por usuário (DV-08). Broadcast legado: null.
+  usuario_id   String?
+  lida_em      DateTime?
+  url_destino  String?    @db.VarChar(512)
+  chave_dedup  String?    @db.VarChar(191)
   visualizada  Boolean    @default(false)
   dados_extras String?    @db.Text
   criado_em    DateTime   @default(now())
   loja         loja       @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Notificacao_loja_id_fkey")
   orcamento    orcamento? @relation(fields: [orcamento_id], references: [id], map: "Notificacao_orcamento_id_fkey")
+  usuario      usuario?   @relation("NotificacaoDestinatario", fields: [usuario_id], references: [id], onDelete: SetNull)
 
+  @@unique([loja_id, chave_dedup])
   @@index([loja_id], map: "Notificacao_loja_id_idx")
   @@index([orcamento_id], map: "Notificacao_orcamento_id_idx")
   @@index([visualizada], map: "Notificacao_visualizada_idx")
+  @@index([usuario_id])
+  @@index([loja_id, usuario_id, visualizada])
+}
+
+/// Próxima ação comercial do vendedor (Fase 5 / M5.1). Sem DELETE físico.
+model atividade_comercial {
+  id              String    @id @default(cuid())
+  loja_id         String
+  cliente_id      String?
+  orcamento_id    String?
+  contato_id      String?
+  responsavel_id  String
+  criado_por      String
+  concluida_por   String?
+  tipo            String    @db.VarChar(32)
+  titulo          String    @db.VarChar(200)
+  descricao       String?   @db.Text
+  origem          String?   @db.VarChar(64)
+  prazo           DateTime
+  prazo_desejado  DateTime?
+  concluida_em    DateTime?
+  criado_em       DateTime  @default(now())
+  atualizado_em   DateTime  @updatedAt
+  loja            loja      @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  cliente         cliente?  @relation(fields: [cliente_id], references: [id], onDelete: SetNull)
+  orcamento       orcamento? @relation(fields: [orcamento_id], references: [id], onDelete: SetNull)
+  contato         cliente_contato? @relation(fields: [contato_id], references: [id], onDelete: SetNull)
+  responsavel     usuario   @relation("AtividadeResponsavel", fields: [responsavel_id], references: [id], onDelete: Restrict)
+  autor           usuario   @relation("AtividadeCriadoPor", fields: [criado_por], references: [id], onDelete: Restrict)
+  concluidor      usuario?  @relation("AtividadeConcluidaPor", fields: [concluida_por], references: [id], onDelete: SetNull)
+
+  @@index([loja_id, responsavel_id, prazo])
+  @@index([loja_id, responsavel_id, concluida_em])
+  @@index([loja_id, cliente_id])
+  @@index([loja_id, criado_em])
+  @@index([cliente_id])
+  @@index([orcamento_id])
+  @@index([contato_id])
+  @@index([responsavel_id])
+  @@index([criado_por])
+  @@index([concluida_por])
+  @@map("atividade_comercial")
+}
+
+/// Idempotência do Novo atendimento (Fase 5). Retenção 30 dias.
+model atendimento_idempotencia {
+  id              String   @id @default(cuid())
+  loja_id         String
+  usuario_id      String
+  chave_operacao  String   @db.VarChar(200)
+  payload_hash    String   @db.Char(64)
+  resultado       Json
+  criado_em       DateTime @default(now())
+  loja            loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  usuario         usuario  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@unique([loja_id, usuario_id, chave_operacao])
+  @@index([loja_id, criado_em])
+  @@index([usuario_id])
+  @@map("atendimento_idempotencia")
+}
+
+/// Outbox de e-mail interno comercial (DV-08 / Fase 5).
+model outbox_email_vendas {
+  id                       String    @id @default(cuid())
+  loja_id                  String
+  chave_dedup              String    @db.VarChar(191)
+  evento                   String    @db.VarChar(64)
+  canal                    String    @db.VarChar(16) @default("email")
+  destinatario_usuario_id  String?
+  destinatario_email_hash  String    @db.Char(64)
+  assunto_sanitizado       String    @db.VarChar(200)
+  template_codigo          String    @db.VarChar(64)
+  payload_sanitizado       Json
+  estado                   String    @db.VarChar(24)
+  tentativas               Int       @default(0)
+  max_tentativas           Int       @default(5)
+  proxima_tentativa_em     DateTime
+  processado_em            DateTime?
+  bloqueado_em             DateTime?
+  bloqueado_por            String?   @db.VarChar(64)
+  ultimo_erro_sanitizado   String?   @db.VarChar(500)
+  criado_em                DateTime  @default(now())
+  atualizado_em            DateTime  @updatedAt
+  loja                     loja      @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  destinatario             usuario?  @relation("OutboxEmailDestinatario", fields: [destinatario_usuario_id], references: [id], onDelete: SetNull)
+
+  @@unique([loja_id, chave_dedup])
+  @@index([estado, proxima_tentativa_em, criado_em])
+  @@index([destinatario_usuario_id])
+  @@index([loja_id])
+  @@map("outbox_email_vendas")
 }
 
 model ModalidadeEntrega {
@@ -1629,6 +1733,7 @@ model orcamento {
   maquinaorcamento             maquinaorcamento[]
   mensagemnegociacao           mensagemnegociacao[]
   notificacao                  notificacao[]
+  atividades_comerciais       atividade_comercial[]
   cliente                      cliente?                    @relation(fields: [cliente_id], references: [id], map: "Orcamento_cliente_id_fkey")
   entrega_modalidade           ModalidadeEntrega?          @relation(fields: [entrega_modalidade_id], references: [id], map: "Orcamento_entrega_modalidade_id_fkey")
   loja                         loja                        @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Orcamento_loja_id_fkey")
@@ -2173,6 +2278,12 @@ model usuario {
   transferencias_carteira_de         cliente_transferencia_carteira[] @relation("TransferenciaCarteiraDe")
   transferencias_carteira_para       cliente_transferencia_carteira[] @relation("TransferenciaCarteiraPara")
   transferencias_carteira_autor      cliente_transferencia_carteira[] @relation("TransferenciaCarteiraAutor")
+  atividades_responsavel             atividade_comercial[] @relation("AtividadeResponsavel")
+  atividades_criadas                 atividade_comercial[] @relation("AtividadeCriadoPor")
+  atividades_concluidas              atividade_comercial[] @relation("AtividadeConcluidaPor")
+  atendimento_idempotencia           atendimento_idempotencia[]
+  notificacoes_recebidas             notificacao[] @relation("NotificacaoDestinatario")
+  outbox_email_vendas                outbox_email_vendas[] @relation("OutboxEmailDestinatario")
   os_logs                            OrdemServicoLog[]
   store_user_invitations             store_user_invitation[]
 

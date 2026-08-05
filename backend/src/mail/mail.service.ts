@@ -814,4 +814,25 @@ export class MailService implements OnModuleInit {
 
     return { messageId: info.messageId, previewUrl };
   }
+
+  /**
+   * E-mail interno operacional de Vendas (Fase 5 / DV-08).
+   * O endereço nunca é logado em claro — apenas hash/máscara.
+   */
+  async sendInternalVendasEmail(params: {
+    to: string;
+    subject: string;
+    html: string;
+  }): Promise<{ messageId: string }> {
+    const info = await this.transporter.sendMail({
+      from: this.getFromAddress(),
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+    });
+    this.logger.log(
+      `E-mail interno vendas enviado messageId=${info.messageId} destino=${MailService.maskEmail(params.to)}`,
+    );
+    return { messageId: info.messageId };
+  }
 }

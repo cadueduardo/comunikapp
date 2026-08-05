@@ -10,6 +10,7 @@ import * as express from 'express';
 const cookieParser = require('cookie-parser') as typeof import('cookie-parser');
 import { join } from 'path';
 import { criarRateLimitAcaoPublica } from './common/security/rate-limit-acao-publica';
+import { assertVendasTimezoneBoot } from './vendas/timezone/vendas-timezone';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -22,8 +23,8 @@ async function bootstrap() {
     process.stderr.setEncoding('utf8');
   }
 
-  // Configurar timezone - padrão Brasil, mas configurável via .env
-  process.env.TZ = process.env.TZ || 'America/Sao_Paulo';
+  // Timezone canônico Vendas (Fase 5) — fonte única America/Sao_Paulo.
+  assertVendasTimezoneBoot();
   const app = await NestFactory.create(AppModule);
   const isProd = process.env.NODE_ENV === 'production';
 

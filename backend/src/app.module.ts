@@ -42,6 +42,7 @@ import { RotasPublicasValidator } from './common/security/rotas-publicas.validat
 import { PlatformModule } from './platform/platform.module';
 import { ConexoesModule } from './conexoes/conexoes.module';
 import { AdminModule } from './admin/admin.module';
+import { VendasSecurityModule } from './vendas/vendas-security.module';
 
 @Module({
   imports: [
@@ -95,6 +96,7 @@ import { AdminModule } from './admin/admin.module';
     PlatformModule,
     ConexoesModule,
     AdminModule,
+    VendasSecurityModule, // Fase 5 — home, atividades, atendimento, outbox
     DiscoveryModule,
   ],
   providers: [RotasPublicasValidator],

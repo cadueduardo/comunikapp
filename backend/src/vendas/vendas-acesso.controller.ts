@@ -50,6 +50,9 @@ export class VendasAcessoController {
       clienteInativar,
       clienteMesclar,
       contatoGerenciar,
+      atividadeVerPropria,
+      atividadeVerEquipe,
+      atividadeGerenciar,
     ] = await Promise.all([
       pode(VENDAS_PERMISSOES.PROPOSTA_VER),
       pode(VENDAS_PERMISSOES.PROPOSTA_CRIAR),
@@ -66,10 +69,13 @@ export class VendasAcessoController {
       pode(VENDAS_PERMISSOES.CLIENTE_INATIVAR),
       pode(VENDAS_PERMISSOES.CLIENTE_MESCLAR),
       pode(VENDAS_PERMISSOES.CONTATO_GERENCIAR),
+      pode(VENDAS_PERMISSOES.ATIVIDADE_VER_PROPRIA),
+      pode(VENDAS_PERMISSOES.ATIVIDADE_VER_EQUIPE),
+      pode(VENDAS_PERMISSOES.ATIVIDADE_GERENCIAR),
     ]);
 
     return {
-      pode_acessar_modulo: propostaVer,
+      pode_acessar_modulo: propostaVer || atividadeVerPropria,
       permissoes: {
         proposta_ver: propostaVer,
         proposta_criar: propostaCriar,
@@ -88,6 +94,9 @@ export class VendasAcessoController {
         cliente_inativar: clienteInativar,
         cliente_mesclar: clienteMesclar,
         contato_gerenciar: contatoGerenciar,
+        atividade_ver_propria: atividadeVerPropria,
+        atividade_ver_equipe: atividadeVerEquipe,
+        atividade_gerenciar: atividadeGerenciar,
       },
     };
   }

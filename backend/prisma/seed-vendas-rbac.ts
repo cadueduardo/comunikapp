@@ -4,12 +4,12 @@
  * - Upsert apenas de perfis com `sistema=true` (identidade técnica).
  * - Colisão de nome com perfil customizado (`sistema=false`) → aborta sem mutar.
  * - Não reativa perfil inativo; não reabre `permitido=false`.
- * - Transação por loja; defaults = DEFAULTS_CONCEDIDOS_FASE_4 (inclui F2).
+ * - Transação por loja; defaults = DEFAULTS_CONCEDIDOS_FASE_5 (inclui F2+F4).
  * - Relatório sanitizado (sem e-mail/segredo).
  */
 import { PrismaClient, usuario_funcao, Prisma } from '@prisma/client';
 import {
-  DEFAULTS_CONCEDIDOS_FASE_4,
+  DEFAULTS_CONCEDIDOS_FASE_5,
   NOMES_PERFIL_SISTEMA,
   separarModuloEAcao,
 } from '../src/vendas/permissions/vendas-permissoes';
@@ -61,13 +61,13 @@ const DESCRICOES: Record<string, string> = {
 function permissoesDoPerfil(nome: string): readonly string[] {
   switch (nome) {
     case NOMES_PERFIL_SISTEMA.VENDEDOR:
-      return DEFAULTS_CONCEDIDOS_FASE_4.VENDEDOR;
+      return DEFAULTS_CONCEDIDOS_FASE_5.VENDEDOR;
     case NOMES_PERFIL_SISTEMA.GESTOR:
-      return DEFAULTS_CONCEDIDOS_FASE_4.GESTOR;
+      return DEFAULTS_CONCEDIDOS_FASE_5.GESTOR;
     case NOMES_PERFIL_SISTEMA.FINANCEIRO:
-      return DEFAULTS_CONCEDIDOS_FASE_4.FINANCEIRO;
+      return DEFAULTS_CONCEDIDOS_FASE_5.FINANCEIRO;
     case NOMES_PERFIL_SISTEMA.ADMIN:
-      return DEFAULTS_CONCEDIDOS_FASE_4.ADMIN;
+      return DEFAULTS_CONCEDIDOS_FASE_5.ADMIN;
     default:
       return [];
   }

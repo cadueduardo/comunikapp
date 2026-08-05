@@ -1,4 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 export enum TipoNotificacao {
@@ -19,7 +24,31 @@ export interface Notificacao {
   loja_id: string;
   visualizada: boolean;
   criado_em: Date;
-  dados_extras?: any;
+  dados_extras?: Record<string, unknown>;
+}
+
+const URL_DESTINO_PREFIXOS = [
+  '/vendas',
+  '/vendas/atividades',
+  '/vendas/atendimento',
+  '/vendas/carteira',
+  '/clientes',
+  '/orcamentos-v2',
+] as const;
+
+function validarUrlDestino(url: string | undefined | null): string | null {
+  if (!url) return null;
+  const t = url.trim();
+  if (!t.startsWith('/') || t.startsWith('//') || t.includes('..')) {
+    throw new BadRequestException('url_destino inválida.');
+  }
+  const ok = URL_DESTINO_PREFIXOS.some(
+    (p) => t === p || t.startsWith(`${p}/`) || t.startsWith(`${p}?`),
+  );
+  if (!ok) {
+    throw new BadRequestException('url_destino fora da allowlist.');
+  }
+  return t.slice(0, 512);
 }
 
 @Injectable()
@@ -32,7 +61,7 @@ export class NotificacoesService {
     titulo: string,
     mensagem: string,
     orcamentoId?: string,
-    dadosExtras?: any,
+    dadosExtras?: Record<string, unknown>,
   ) {
     return this.prisma.notificacao.create({
       data: {
@@ -45,6 +74,97 @@ export class NotificacoesService {
         dados_extras: dadosExtras ? JSON.stringify(dadosExtras) : null,
       },
     });
+  }
+
+  /**
+   * Notificação endereçada (Fase 5 / M5.2) com dedup atômico por upsert.
+   */
+  async criarNotificacaoEndereçada(params: {
+    lojaId: string;
+    usuarioId: string;
+    tipo: TipoNotificacao;
+    titulo: string;
+    mensagem: string;
+    urlDestino?: string;
+    chaveDedup?: string;
+    orcamentoId?: string;
+    dadosExtras?: Record<string, unknown>;
+  }) {
+    const url = validarUrlDestino(params.urlDestino);
+    const extras = params.dadosExtras
+      ? JSON.stringify(params.dadosExtras)
+      : null;
+
+    if (!params.chaveDedup) {
+      return this.prisma.notificacao.create({
+        data: {
+          tipo: params.tipo,
+          titulo: params.titulo,
+          mensagem: params.mensagem,
+          orcamento_id: params.orcamentoId,
+          loja_id: params.lojaId,
+          usuario_id: params.usuarioId,
+          url_destino: url,
+          visualizada: false,
+          dados_extras: extras,
+        },
+      });
+    }
+
+    const existente = await this.prisma.notificacao.findUnique({
+      where: {
+        loja_id_chave_dedup: {
+          loja_id: params.lojaId,
+          chave_dedup: params.chaveDedup,
+        },
+      },
+    });
+
+    if (existente) {
+      const mesmo =
+        existente.titulo === params.titulo &&
+        existente.mensagem === params.mensagem &&
+        existente.usuario_id === params.usuarioId;
+      if (!mesmo) {
+        throw new ConflictException(
+          'Notificação com chave_dedup e payload incompatível.',
+        );
+      }
+      return existente;
+    }
+
+    try {
+      return await this.prisma.notificacao.create({
+        data: {
+          tipo: params.tipo,
+          titulo: params.titulo,
+          mensagem: params.mensagem,
+          orcamento_id: params.orcamentoId,
+          loja_id: params.lojaId,
+          usuario_id: params.usuarioId,
+          url_destino: url,
+          chave_dedup: params.chaveDedup,
+          visualizada: false,
+          dados_extras: extras,
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        const again = await this.prisma.notificacao.findUnique({
+          where: {
+            loja_id_chave_dedup: {
+              loja_id: params.lojaId,
+              chave_dedup: params.chaveDedup!,
+            },
+          },
+        });
+        if (again) return again;
+      }
+      throw err;
+    }
   }
 
   async notificarNovaMensagem(

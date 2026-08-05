@@ -132,6 +132,30 @@ export const DEFAULTS_CONCEDIDOS_FASE_4 = {
 } as const;
 
 /**
+ * Defaults da Fase 5 (atividades) sobre o recorte da Fase 4.
+ * Financeiro: sem ATIVIDADE_* implícito.
+ */
+export const DEFAULTS_CONCEDIDOS_FASE_5 = {
+  VENDEDOR: [
+    ...DEFAULTS_CONCEDIDOS_FASE_4.VENDEDOR,
+    VENDAS_PERMISSOES.ATIVIDADE_VER_PROPRIA,
+  ],
+  GESTOR: [
+    ...DEFAULTS_CONCEDIDOS_FASE_4.GESTOR,
+    VENDAS_PERMISSOES.ATIVIDADE_VER_PROPRIA,
+    VENDAS_PERMISSOES.ATIVIDADE_VER_EQUIPE,
+    VENDAS_PERMISSOES.ATIVIDADE_GERENCIAR,
+  ],
+  FINANCEIRO: [...DEFAULTS_CONCEDIDOS_FASE_4.FINANCEIRO],
+  ADMIN: [
+    ...DEFAULTS_CONCEDIDOS_FASE_4.ADMIN,
+    VENDAS_PERMISSOES.ATIVIDADE_VER_PROPRIA,
+    VENDAS_PERMISSOES.ATIVIDADE_VER_EQUIPE,
+    VENDAS_PERMISSOES.ATIVIDADE_GERENCIAR,
+  ],
+} as const;
+
+/**
  * Piso por `usuario_funcao` enquanto perfil não concede explicitamente.
  * Função desconhecida / operacional → [].
  * Admin → todas as permissões do catálogo (bypass também no service).
@@ -140,8 +164,8 @@ const PISO_POR_FUNCAO: Readonly<
   Record<usuario_funcao, readonly string[]>
 > = {
   [usuario_funcao.ADMINISTRADOR]: Object.values(VENDAS_PERMISSOES),
-  [usuario_funcao.VENDAS]: DEFAULTS_CONCEDIDOS_FASE_4.VENDEDOR,
-  [usuario_funcao.FINANCEIRO]: DEFAULTS_CONCEDIDOS_FASE_4.FINANCEIRO,
+  [usuario_funcao.VENDAS]: DEFAULTS_CONCEDIDOS_FASE_5.VENDEDOR,
+  [usuario_funcao.FINANCEIRO]: DEFAULTS_CONCEDIDOS_FASE_5.FINANCEIRO,
   [usuario_funcao.PRODUCAO]: [],
   [usuario_funcao.ESTOQUE]: [],
 };
