@@ -18,6 +18,12 @@ export class CriarOrcamentoBodyDto extends PartialType(
   @IsString()
   @MaxLength(200)
   nome_servico?: string;
+
+  /** Contato comercial herdado do atendimento (cuid, não UUID). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  contato_id?: string;
 }
 
 /**

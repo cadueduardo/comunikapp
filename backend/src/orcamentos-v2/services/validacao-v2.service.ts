@@ -42,6 +42,11 @@ export class ValidacaoV2Service {
         'Campo obrigatório não informado: cliente_id',
       );
     }
+    await this.validarContato(
+      dados.contato_id,
+      dados.cliente_id ?? null,
+      lojaId,
+    );
     await this.validarProdutos(dados.produtos, lojaId);
     await this.validarConfiguracoes(dados.configuracoes, lojaId);
 
@@ -71,6 +76,20 @@ export class ValidacaoV2Service {
     // 2. Validações de negócio
     if (dados.cliente_id) {
       await this.validarCliente(dados.cliente_id, orcamentoExistente.loja_id);
+    }
+    const clienteEfetivo =
+      dados.cliente_id ?? orcamentoExistente.cliente_id ?? null;
+    if (
+      Object.prototype.hasOwnProperty.call(dados, 'contato_id') ||
+      dados.cliente_id
+    ) {
+      await this.validarContato(
+        Object.prototype.hasOwnProperty.call(dados, 'contato_id')
+          ? dados.contato_id
+          : (orcamentoExistente as { contato_id?: string | null }).contato_id,
+        clienteEfetivo,
+        orcamentoExistente.loja_id,
+      );
     }
     if (dados.produtos) {
       await this.validarProdutos(dados.produtos, orcamentoExistente.loja_id);
@@ -299,6 +318,44 @@ export class ValidacaoV2Service {
     if (!cliente.ativo) {
       throw new BadRequestException(
         'Cliente inativo não pode receber orçamentos',
+      );
+    }
+  }
+
+  /**
+   * Critério RP 8.9 (37): contato opcional, mas se informado deve ser da
+   * mesma loja e pertencer ao cliente do orçamento.
+   */
+  private async validarContato(
+    contatoId: unknown,
+    clienteId: string | null | undefined,
+    lojaId: string,
+  ): Promise<void> {
+    if (contatoId == null || contatoId === '') return;
+
+    if (typeof contatoId !== 'string' || contatoId.trim().length === 0) {
+      throw new BadRequestException('contato_id inválido');
+    }
+
+    if (!clienteId || typeof clienteId !== 'string') {
+      throw new BadRequestException(
+        'contato_id exige cliente_id compatível no orçamento',
+      );
+    }
+
+    const contato = await this.prisma.cliente_contato.findFirst({
+      where: {
+        id: contatoId.trim(),
+        loja_id: lojaId,
+        cliente_id: clienteId,
+        ativo: true,
+      },
+      select: { id: true },
+    });
+
+    if (!contato) {
+      throw new BadRequestException(
+        'Contato não encontrado, inativo ou incompatível com o cliente/loja',
       );
     }
   }

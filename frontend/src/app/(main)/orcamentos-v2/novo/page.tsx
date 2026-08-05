@@ -18,6 +18,7 @@ import {
 
 interface OrcamentoData extends Record<string, unknown> {
   cliente_id: string;
+  contato_id?: string;
   nome_servico: string;
   descricao: string;
   quantidade_produto: string;
@@ -47,6 +48,8 @@ export default function NovoOrcamentoV2Page() {
   const editId = searchParams.get('id');
   const clienteIdFromQuery =
     searchParams.get('cliente_id') || searchParams.get('clienteId');
+  const contatoIdFromQuery =
+    searchParams.get('contato_id') || searchParams.get('contatoId');
   const isEditMode = !!editId;
   const mode = isEditMode ? 'editar' : 'novo';
 
@@ -415,6 +418,7 @@ export default function NovoOrcamentoV2Page() {
         const cliente = await clientesApi.getById(clienteIdFromQuery, token);
         setInitialData({
           cliente_id: clienteIdFromQuery,
+          contato_id: contatoIdFromQuery || undefined,
           nome_servico: '',
           descricao: '',
           quantidade_produto: '1',
@@ -434,6 +438,7 @@ export default function NovoOrcamentoV2Page() {
       } catch {
         setInitialData({
           cliente_id: clienteIdFromQuery,
+          contato_id: contatoIdFromQuery || undefined,
           nome_servico: '',
           descricao: '',
           quantidade_produto: '1',
@@ -453,7 +458,7 @@ export default function NovoOrcamentoV2Page() {
     };
 
     preencherCliente();
-  }, [isEditMode, clienteIdFromQuery, initialData]);
+  }, [isEditMode, clienteIdFromQuery, contatoIdFromQuery, initialData]);
   // Mostrar loading durante carregamento dos dados
   if (loading) {
     return (

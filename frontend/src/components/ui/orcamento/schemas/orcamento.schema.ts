@@ -449,6 +449,7 @@ export const createFormSchema = (mode: 'novo' | 'editar' | 'template') =>
       mode === 'template'
         ? z.string().optional()
         : z.string().min(1, 'Selecione um cliente'),
+    contato_id: z.string().optional(),
     titulo:
       mode === 'template'
         ? z.string().optional()

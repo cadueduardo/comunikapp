@@ -82,6 +82,17 @@ export class CriarOrcamentoDto {
   cliente_id?: string;
 
   @ApiPropertyOptional({
+    description:
+      'ID do contato comercial do cliente (Fase 5 / RP 8.9). Deve pertencer ao cliente e à loja.',
+    example: 'clxcontatoexemplo001',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  contato_id?: string;
+
+  @ApiPropertyOptional({
     description: 'ID do responsável pelo orçamento',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })

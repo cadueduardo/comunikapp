@@ -300,6 +300,7 @@ export function OrcamentoV2Form({
     shouldUnregister: false,
     defaultValues: {
       cliente_id: '',
+      contato_id: '',
       titulo: '',
       margem_lucro_customizada: '30',
       impostos_customizados: '25',
@@ -495,9 +496,25 @@ export function OrcamentoV2Form({
     });
   }, [mode, initialData, orcamentoId, orcamentoStatus]);
 
-  // Carregar dados iniciais se for edição/template
+  // Carregar dados iniciais se for edição/template OU deep-link (novo)
   useEffect(() => {
-    if ((mode !== 'editar' && mode !== 'template') || !initialData) {
+    if (!initialData) {
+      return;
+    }
+
+    if (mode === 'novo') {
+      const clienteId = String(initialData.cliente_id || '').trim();
+      const contatoId = String(initialData.contato_id || '').trim();
+      if (clienteId) {
+        form.setValue('cliente_id', clienteId, { shouldDirty: false });
+      }
+      if (contatoId) {
+        form.setValue('contato_id', contatoId, { shouldDirty: false });
+      }
+      return;
+    }
+
+    if (mode !== 'editar' && mode !== 'template') {
       return;
     }
 
@@ -512,6 +529,7 @@ export function OrcamentoV2Form({
         | undefined;
       const dadosFormatados = {
         cliente_id: String(initialData.cliente_id || ''),
+        contato_id: String(initialData.contato_id || ''),
         titulo: String(initialData.titulo || ''),
         margem_lucro_customizada: String(initialData.margem_lucro_customizada ?? '30'),
         impostos_customizados: String(initialData.impostos_customizados ?? '25'),
@@ -1700,6 +1718,7 @@ export function OrcamentoV2Form({
         nome_servico: nomeServicoPrincipal,
         descricao: descricaoPrincipal,
         cliente_id: resolverClienteId(data.cliente_id),
+        contato_id: String(data.contato_id || '').trim() || undefined,
         condicoes_comerciais: data.condicoes_comerciais,
         prazo_entrega: data.prazo_entrega,
         // forma_pagamento: DEPRECATED Fase 6 - nao gravamos mais; backend deriva da condicao estruturada
@@ -2183,6 +2202,7 @@ export function OrcamentoV2Form({
       nome_servico: nomeServicoPrincipal,
       descricao: descricaoPrincipal,
       cliente_id: resolverClienteId(data.cliente_id),
+      contato_id: String(data.contato_id || '').trim() || undefined,
       condicoes_comerciais: data.condicoes_comerciais,
       prazo_entrega: data.prazo_entrega,
       // forma_pagamento: DEPRECATED Fase 6 - nao gravamos mais; backend deriva da condicao estruturada

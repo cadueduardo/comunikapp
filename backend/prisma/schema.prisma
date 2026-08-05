@@ -562,6 +562,7 @@ model cliente_contato {
   loja         loja     @relation(fields: [loja_id], references: [id], onDelete: Cascade)
   cliente      cliente  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
   atividades_comerciais atividade_comercial[]
+  orcamentos   orcamento[]
 
   @@unique([loja_id, cliente_id, email])
   @@index([loja_id, cliente_id])
@@ -1624,6 +1625,8 @@ model orcamento {
   preco_final            Decimal  @db.Decimal(10, 2)
   loja_id                String
   cliente_id             String?
+  // Fase 5 / critério 37 — contato comercial herdado do atendimento/ficha.
+  contato_id             String?
   altura_produto         Decimal? @db.Decimal(10, 2)
   area_produto           Decimal? @db.Decimal(10, 2)
   largura_produto        Decimal? @db.Decimal(10, 2)
@@ -1735,6 +1738,7 @@ model orcamento {
   notificacao                  notificacao[]
   atividades_comerciais       atividade_comercial[]
   cliente                      cliente?                    @relation(fields: [cliente_id], references: [id], map: "Orcamento_cliente_id_fkey")
+  contato                      cliente_contato?            @relation(fields: [contato_id], references: [id], onDelete: SetNull)
   entrega_modalidade           ModalidadeEntrega?          @relation(fields: [entrega_modalidade_id], references: [id], map: "Orcamento_entrega_modalidade_id_fkey")
   loja                         loja                        @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Orcamento_loja_id_fkey")
   responsavel                  usuario?                    @relation(fields: [responsavel_id], references: [id])
@@ -1761,6 +1765,7 @@ model orcamento {
 
   @@unique([loja_id, numero], map: "Orcamento_loja_id_numero_key")
   @@index([cliente_id], map: "Orcamento_cliente_id_fkey")
+  @@index([contato_id])
   @@index([loja_id], map: "Orcamento_loja_id_idx")
   @@index([loja_id, numero], map: "Orcamento_loja_id_numero_idx")
   @@index([responsavel_id])

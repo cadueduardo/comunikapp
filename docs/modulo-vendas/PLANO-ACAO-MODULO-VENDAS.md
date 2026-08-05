@@ -614,7 +614,7 @@ cadastro mestre da loja.
 
 ## 9. Fase 5 — Home acionável, novo atendimento e atividades
 
-**Status:** [ ] Em validação — gate reaberto pelo code review de `60c572b6..54450014`
+**Status:** [ ] Em validação — continuidade pós-`a29c46fc` (cliente existente + contato no orçamento)
 **Dependências:** Fases 3 e 4 concluídas
 **Referências do RP:** §§6.4, 6.5.1–6.5.4, 7/E3B-1–E3B-2, E3C-1–E3C-3 e
 8.9 (35–37).
@@ -641,15 +641,16 @@ demanda/follow-up.
 - [x] Implementar propostas aguardando ação, mensagens e aditivos pendentes.
       (aditivos: bloco só se contrato/auth; caso contrário indisponível)
 - [x] Implementar Novo atendimento.
-- [ ] Buscar cliente/prospect antes de cadastrar.
-      **Pendente:** a API aceita `cliente_id`, mas a UI de Novo atendimento cria
-      apenas prospect e ainda não oferece busca/seleção do cadastro mestre.
+- [x] Buscar cliente/prospect antes de cadastrar.
+      Evidência: UI typeahead `clientesApi.search` + prospect opcional;
+      `CLIENTE_CRIAR` só no caminho prospect; carteira validada no backend.
 - [x] Preservar dados digitados ao detectar duplicidade ou falta de acesso.
       (preservação no frontend; backend sem eco de payload)
 - [x] N/A — anexos e consentimento de cliente diferidos (plano §12). Origem,
       contato, necessidade e prazo implementados na atividade/atendimento.
 - [x] Permitir criar orçamento ou agendar próxima ação.
-      (orçamento via deep-link canônico; próxima ação via atividade)
+      (orçamento via deep-link canônico com `contatoId` consumido/persistido;
+      próxima ação via atividade)
 - [x] Criar Minhas atividades com paginação e estados.
 - [x] Em Minhas atividades e demais listagens, aplicar desktop Tabela/Grid por
       padrão e mobile sempre Cards conforme o template de Fornecedores.
@@ -662,12 +663,10 @@ demanda/follow-up.
 - [x] Uma demanda pode ser registrada sem cadastro completo. (prospect)
 - [x] Nenhuma atividade depende somente de memória ou planilha.
 - [ ] Critérios RP 8.9 (35–37) atendidos.
-      **Parcial:** (35) comprovado; (36) precisa da busca/seleção de cliente
-      existente na jornada; (37) gera o deep-link, mas `contatoId` ainda não é
-      consumido/persistido pelo fluxo canônico de Novo orçamento.
+      Implementação e testes unitários/contrato presentes; gate final só fecha
+      com evidência reproduzível completa em `fase-5/evidencia-testes-fase-5.md`.
 - [ ] **FASE 5 CONCLUÍDA.**
-      Bloqueada pelas pendências de jornada acima e pela evidência E2E real das
-      três personas; testes unitários de construção de URL não substituem E2E.
+      Mantida aberta até fechar o checkbox acima com SHA final e seed 2×.
 ---
 
 ## 10. Fase 6 — Pipeline, proposta, versão e negociação

@@ -180,6 +180,10 @@ export class TransformacaoV2Service {
       typeof dados.cliente_id === 'string' ? dados.cliente_id.trim() : '';
     dadosPreparados.cliente_id = clienteId.length > 0 ? clienteId : null;
 
+    const contatoId =
+      typeof dados.contato_id === 'string' ? dados.contato_id.trim() : '';
+    dadosPreparados.contato_id = contatoId.length > 0 ? contatoId : null;
+
     // Preparar tags: schema usa tags (String), converter array para JSON string
     if (dados.tags && Array.isArray(dados.tags)) {
       const tagsFiltradas = dados.tags.filter(
@@ -356,6 +360,13 @@ export class TransformacaoV2Service {
     if (Object.prototype.hasOwnProperty.call(dados, 'cliente_id')) {
       dadosPreparados.cliente = dados.cliente_id
         ? { connect: { id: dados.cliente_id } }
+        : { disconnect: true };
+    }
+
+    if (Object.prototype.hasOwnProperty.call(dados, 'contato_id')) {
+      delete dadosPreparados.contato_id;
+      dadosPreparados.contato = dados.contato_id
+        ? { connect: { id: dados.contato_id } }
         : { disconnect: true };
     }
 

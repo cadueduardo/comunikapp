@@ -80,6 +80,15 @@ export class AtualizarOrcamentoDto {
   cliente_id?: string;
 
   @ApiPropertyOptional({
+    description: 'ID do contato comercial do cliente',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  contato_id?: string;
+
+  @ApiPropertyOptional({
     description: 'ID do responsável pelo orçamento',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
