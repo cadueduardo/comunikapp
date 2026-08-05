@@ -2,7 +2,7 @@
 
 **Data:** 2026-08-05  
 **SHA inicial:** `a4a89f5c`  
-**SHA final:** (ver HEAD após commit de fechamento)  
+**SHA final:** `f55178b2`  
 **Gate 0S / produção / deploy:** não tocados  
 
 ## Entregas
