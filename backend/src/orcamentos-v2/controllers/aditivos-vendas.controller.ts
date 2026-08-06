@@ -9,10 +9,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { VendasPermissionsGuard } from '../../vendas/guards/vendas-permissions.guard';
-import { RequerPermissaoVendas } from '../../vendas/decorators/requer-permissao-vendas.decorator';
+import { VendasPermissionsGuard } from '../../vendas/permissions/vendas-permissions.guard';
+import { RequerPermissaoVendas } from '../../vendas/permissions/requer-permissao-vendas.decorator';
 import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
-import { extrairIdentidadeAutenticada } from '../helpers/identidade-autenticada.helper';
+import { extrairIdentidadeAutenticada } from '../../auth/decorators';
 import { AditivosComerciaisService } from '../services/aditivos-comerciais.service';
 import { PrecificarOcorrenciaDto } from '../dto/precificar-ocorrencia.dto';
 import { GerarOsAditivaDto } from '../dto/gerar-os-aditiva.dto';
