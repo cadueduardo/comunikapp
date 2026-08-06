@@ -44,7 +44,7 @@ export default function VendasAditivosPage() {
       const token = getClientSessionToken();
       if (!token) return;
 
-      const res = await fetch('/api/backend-proxy/vendas/aditivos/ocorrencias', {
+      const res = await fetch('/api/vendas/aditivos/ocorrencias', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -79,7 +79,7 @@ export default function VendasAditivosPage() {
       const token = getClientSessionToken();
       if (!token) return;
 
-      const res = await fetch('/api/backend-proxy/vendas/aditivos/precificar', {
+      const res = await fetch('/api/vendas/aditivos/precificar', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -119,7 +119,7 @@ export default function VendasAditivosPage() {
       const token = getClientSessionToken();
       if (!token) return;
 
-      const res = await fetch('/api/backend-proxy/vendas/aditivos/gerar-os-aditiva', {
+      const res = await fetch('/api/vendas/aditivos/gerar-os-aditiva', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

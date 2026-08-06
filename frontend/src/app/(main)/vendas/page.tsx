@@ -10,6 +10,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { ModuleHeader } from '@/components/layout/ModuleHeader';
+import { ModuleHubCards } from '@/components/layout/ModuleHubCards';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -114,6 +115,21 @@ function ListaPrioridade({
   );
 }
 
+function KpiSkeleton() {
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      {[0, 1, 2].map((i) => (
+        <Card key={i}>
+          <CardHeader className="pb-2">
+            <CardDescription>Carregando…</CardDescription>
+            <CardTitle className="text-2xl text-muted-foreground">—</CardTitle>
+          </CardHeader>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 export default function VendasHomePage() {
   const { acesso, loading: loadingAcesso, erro: erroAcesso, recarregar } =
     useVendasAcesso(true);
@@ -128,8 +144,9 @@ export default function VendasHomePage() {
   const [loadingHome, setLoadingHome] = useState(true);
   const [erroHome, setErroHome] = useState<string | null>(null);
 
+  // Não bloqueia a home na config de aditivos — nav já vem utilizável sem ela.
   const estado: EstadoHub = (() => {
-    if (loadingAcesso || loadingConfig || loadingHome) return 'loading';
+    if (loadingAcesso) return 'loading';
     if (erroAcesso) return 'erro';
     if (!acesso.pode_acessar_modulo) return 'sem_permissao';
     return 'pronto';
@@ -194,11 +211,13 @@ export default function VendasHomePage() {
             </Button>
             <Button
               onClick={atualizar}
-              disabled={estado === 'loading'}
+              disabled={estado === 'loading' || loadingHome}
               variant="outline"
             >
               <RefreshCw
-                className={`mr-2 h-4 w-4 ${estado === 'loading' ? 'animate-spin' : ''}`}
+                className={`mr-2 h-4 w-4 ${
+                  estado === 'loading' || loadingHome ? 'animate-spin' : ''
+                }`}
               />
               Atualizar
             </Button>
@@ -210,9 +229,7 @@ export default function VendasHomePage() {
         <Card>
           <CardHeader>
             <CardTitle>Carregando Vendas…</CardTitle>
-            <CardDescription>
-              Verificando permissões e carregando o painel.
-            </CardDescription>
+            <CardDescription>Verificando permissões.</CardDescription>
           </CardHeader>
         </Card>
       ) : null}
@@ -252,7 +269,7 @@ export default function VendasHomePage() {
         </Card>
       ) : null}
 
-      {estado === 'pronto' && homeData ? (
+      {estado === 'pronto' ? (
         <>
           {erroHome ? (
             <Card role="alert">
@@ -263,104 +280,127 @@ export default function VendasHomePage() {
             </Card>
           ) : null}
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Enviadas (30 dias)</CardDescription>
-                <CardTitle className="text-2xl">
-                  {homeData.kpis.disponivel
-                    ? (homeData.kpis.enviadas_periodo ?? '—')
-                    : 'Indisponível'}
-                </CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Aguardando cliente</CardDescription>
-                <CardTitle className="text-2xl">
-                  {homeData.kpis.disponivel
-                    ? (homeData.kpis.aguardando_cliente ?? '—')
-                    : 'Indisponível'}
-                </CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Aprovadas (30 dias)</CardDescription>
-                <CardTitle className="text-2xl">
-                  {homeData.kpis.disponivel
-                    ? (homeData.kpis.aprovadas_periodo ?? '—')
-                    : 'Indisponível'}
-                </CardTitle>
-              </CardHeader>
-            </Card>
+          {loadingHome && !homeData ? (
+            <KpiSkeleton />
+          ) : homeData ? (
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>Enviadas (30 dias)</CardDescription>
+                  <CardTitle className="text-2xl">
+                    {homeData.kpis.disponivel
+                      ? (homeData.kpis.enviadas_periodo ?? '—')
+                      : 'Indisponível'}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>Aguardando cliente</CardDescription>
+                  <CardTitle className="text-2xl">
+                    {homeData.kpis.disponivel
+                      ? (homeData.kpis.aguardando_cliente ?? '—')
+                      : 'Indisponível'}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>Aprovadas (30 dias)</CardDescription>
+                  <CardTitle className="text-2xl">
+                    {homeData.kpis.disponivel
+                      ? (homeData.kpis.aprovadas_periodo ?? '—')
+                      : 'Indisponível'}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+            </div>
+          ) : null}
+
+          <div className="space-y-2">
+            <h2 className="text-sm font-medium text-muted-foreground">
+              Atalhos do módulo
+              {loadingConfig ? (
+                <span className="ml-2 text-xs font-normal">(atualizando…)</span>
+              ) : null}
+            </h2>
+            <ModuleHubCards
+              nav={navFiltrado}
+              gridClassName="lg:grid-cols-4"
+            />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-3">
-            <ListaPrioridade
-              titulo="Vencidas"
-              items={homeData.prioridades.vencidas}
-              variante="destructive"
-            />
-            <ListaPrioridade
-              titulo="Hoje"
-              items={homeData.prioridades.hoje}
-            />
-            <ListaPrioridade
-              titulo="Próximas"
-              items={homeData.prioridades.proximas}
-            />
-          </div>
+          {homeData ? (
+            <>
+              <div className="grid gap-4 lg:grid-cols-3">
+                <ListaPrioridade
+                  titulo="Vencidas"
+                  items={homeData.prioridades.vencidas}
+                  variante="destructive"
+                />
+                <ListaPrioridade
+                  titulo="Hoje"
+                  items={homeData.prioridades.hoje}
+                />
+                <ListaPrioridade
+                  titulo="Próximas"
+                  items={homeData.prioridades.proximas}
+                />
+              </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild>
-              <Link href={homeData.links.atividades}>Ver todas as atividades</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href={homeData.links.carteira}>Minha carteira</Link>
-            </Button>
-            {homeData.mensagens_nao_lidas.disponivel ? (
-              <Badge variant="secondary">
-                Mensagens não lidas:{' '}
-                {homeData.mensagens_nao_lidas.total ?? 0}
-              </Badge>
-            ) : null}
-          </div>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" asChild>
+                  <Link href={homeData.links.atividades}>
+                    Ver todas as atividades
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href={homeData.links.carteira}>Minha carteira</Link>
+                </Button>
+                {homeData.mensagens_nao_lidas.disponivel ? (
+                  <Badge variant="secondary">
+                    Mensagens não lidas:{' '}
+                    {homeData.mensagens_nao_lidas.total ?? 0}
+                  </Badge>
+                ) : null}
+              </div>
 
-          {homeData.propostas_aguardando.disponivel ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">
-                  Propostas aguardando ação
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {homeData.propostas_aguardando.items.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhuma proposta aguardando.
-                  </p>
-                ) : (
-                  homeData.propostas_aguardando.items.map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-border p-3"
-                    >
-                      <div>
-                        <p className="text-sm font-medium">
-                          #{p.numero ?? '—'} {p.nome ?? ''}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {p.status_comercial}
-                        </p>
-                      </div>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/orcamentos-v2/${p.id}`}>Abrir</Link>
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
+              {homeData.propostas_aguardando.disponivel ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      Propostas aguardando ação
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {homeData.propostas_aguardando.items.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        Nenhuma proposta aguardando.
+                      </p>
+                    ) : (
+                      homeData.propostas_aguardando.items.map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex items-center justify-between gap-3 rounded-lg border border-border p-3"
+                        >
+                          <div>
+                            <p className="text-sm font-medium">
+                              #{p.numero ?? '—'} {p.nome ?? ''}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {p.status_comercial}
+                            </p>
+                          </div>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/orcamentos-v2/${p.id}`}>Abrir</Link>
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              ) : null}
+            </>
           ) : null}
         </>
       ) : null}

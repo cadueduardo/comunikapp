@@ -31,7 +31,7 @@ export default function VendasPedidosPage() {
       const token = getClientSessionToken();
       if (!token) return;
 
-      const res = await fetch('/api/backend-proxy/vendas/pedidos', {
+      const res = await fetch('/api/vendas/pedidos', {
         headers: { Authorization: `Bearer ${token}` },
       });
 

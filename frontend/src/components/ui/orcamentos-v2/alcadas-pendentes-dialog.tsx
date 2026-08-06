@@ -53,13 +53,13 @@ export function AlcadasPendentesDialog({
       const token = getClientSessionToken();
       if (!token) return;
 
-      const res = await fetch('/api/backend-proxy/orcamentos-v2/alcadas-pendentes', {
+      const res = await fetch('/api/orcamentos-v2/alcadas-pendentes', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) {
-        if (res.status === 403) {
-          // Usuário sem permissão de gestor
+        // Sem permissão, rota ausente ou falha transitória: UI vazia, sem ruído.
+        if (res.status === 401 || res.status === 403 || res.status === 404) {
           setSolicitacoes([]);
           return;
         }
@@ -67,9 +67,10 @@ export function AlcadasPendentesDialog({
       }
 
       const data = await res.json();
-      setSolicitacoes(data);
+      setSolicitacoes(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
+      setSolicitacoes([]);
       toast.error('Erro ao carregar solicitações de alçada.');
     } finally {
       setLoading(false);
@@ -97,7 +98,7 @@ export function AlcadasPendentesDialog({
       if (!token) return;
 
       const res = await fetch(
-        `/api/backend-proxy/orcamentos-v2/${itemSelecionado.id}/alcada/decidir`,
+        `/api/orcamentos-v2/${itemSelecionado.id}/alcada/decidir`,
         {
           method: 'POST',
           headers: {

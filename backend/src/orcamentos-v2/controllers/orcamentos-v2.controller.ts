@@ -511,6 +511,22 @@ export class OrcamentosV2Controller {
   }
 
   /**
+   * Lista solicitações de alçada comercial pendentes na loja.
+   * Deve ficar antes de @Get(':id') para não ser capturada como ID.
+   */
+  @Get('alcadas-pendentes')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.ALCADA_APROVAR)
+  @ApiOperation({ summary: 'Listar solicitações de alçada comercial pendentes' })
+  @ApiResponse({ status: 200, description: 'Lista de solicitações retornada' })
+  async listarSolicitacoesAlcada(@Request() req: any) {
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
+    return await this.alcadaComercialService.listarSolicitacoesAlcada(
+      lojaId,
+      usuarioId,
+    );
+  }
+
+  /**
    * Busca orçamento por ID
    */
   @Get(':id')
@@ -778,21 +794,6 @@ export class OrcamentosV2Controller {
   exportarOrcamento(): never {
     throw new NotImplementedException(
       'Exportação não disponível. Use os endpoints de impressão da proposta.',
-    );
-  }
-
-  /**
-   * Lista solicitações de alçada comercial pendentes na loja.
-   */
-  @Get('alcadas-pendentes')
-  @RequerPermissaoVendas(VENDAS_PERMISSOES.ALCADA_APROVAR)
-  @ApiOperation({ summary: 'Listar solicitações de alçada comercial pendentes' })
-  @ApiResponse({ status: 200, description: 'Lista de solicitações retornada' })
-  async listarSolicitacoesAlcada(@Request() req: any) {
-    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
-    return await this.alcadaComercialService.listarSolicitacoesAlcada(
-      lojaId,
-      usuarioId,
     );
   }
 

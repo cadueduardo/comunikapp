@@ -45,7 +45,7 @@ export function TimelinePedidoDialog({
       const token = getClientSessionToken();
       if (!token) return;
 
-      const res = await fetch(`/api/backend-proxy/vendas/pedidos/${pedido.id}/timeline`, {
+      const res = await fetch(`/api/vendas/pedidos/${pedido.id}/timeline`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
