@@ -13,6 +13,9 @@ import {
 import { VendasPermissionsService } from '../../vendas/permissions/vendas-permissions.service';
 import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 
+import { TransicaoComercialService } from './transicao-comercial.service';
+import { OrcamentoStatusComercial } from '../domain/status-comercial';
+
 /**
  * Serviço de Chat V2 para Orçamentos
  * Implementa sistema de chat e negociação
@@ -28,6 +31,7 @@ export class ChatV2Service {
   constructor(
     private readonly prisma: PrismaService,
     private readonly vendasPermissions: VendasPermissionsService,
+    private readonly transicaoComercialService: TransicaoComercialService,
   ) {}
 
   /**
@@ -47,10 +51,34 @@ export class ChatV2Service {
       VENDAS_PERMISSOES.PROPOSTA_EDITAR,
     );
 
-    this.logger.log(`💬 Enviando mensagem no orçamento ${orcamentoId}`);
+    this.logger.log(`Enviando mensagem no orçamento ${orcamentoId}`);
 
     try {
       const orcamento = await this.validarOrcamento(orcamentoId, lojaId);
+
+      // Promoção para em_negociacao na 1a mensagem enviada do cliente (DV-14)
+      if (
+        orcamento.status_comercial === OrcamentoStatusComercial.ENVIADA ||
+        orcamento.status_comercial === 'enviada'
+      ) {
+        try {
+          await this.transicaoComercialService.executar({
+            orcamentoId,
+            lojaId,
+            origemStatus: OrcamentoStatusComercial.ENVIADA,
+            destinoStatus: OrcamentoStatusComercial.EM_NEGOCIACAO,
+            origemAcao: 'PUBLICO',
+            autor: usuarioId,
+            tipoAuditoria: 'entrada_em_negociacao',
+            descricao: 'Primeira mensagem enviada no chat; promoção para em_negociação',
+            evento: 'vendas.proposta.negociacao',
+          });
+        } catch (err) {
+          this.logger.warn(
+            `Falha ao promover status para em_negociacao: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
 
       // Criar mensagem
       const mensagem = await this.prisma.mensagemChat.create({
@@ -72,10 +100,10 @@ export class ChatV2Service {
       // Processar mensagem baseada no tipo
       await this.processarMensagem(mensagem, orcamento);
 
-      this.logger.log(`✅ Mensagem enviada com sucesso: ${mensagem.id}`);
+      this.logger.log(`Mensagem ${mensagem.id} criada no orçamento ${orcamentoId}`);
       return this.transformarMensagem(mensagem);
     } catch (error) {
-      this.logger.error(`❌ Erro ao enviar mensagem: ${error.message}`);
+      this.logger.error(`Erro ao enviar mensagem no orçamento ${orcamentoId}`);
       throw error;
     }
   }
@@ -291,9 +319,33 @@ export class ChatV2Service {
       VENDAS_PERMISSOES.PROPOSTA_EDITAR,
     );
 
-    this.logger.log(
-      `📎 Enviando arquivo no orçamento ${orcamentoId}: ${nomeArquivo}`,
-    );
+    const MAX_TAMANHO_BYTES = 10 * 1024 * 1024; // 10MB
+    if (tamanho > MAX_TAMANHO_BYTES) {
+      throw new BadRequestException('Tamanho do arquivo excede o limite permitido (10MB).');
+    }
+
+    const MIME_ALLOWLIST = new Set([
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+      'application/pdf',
+      'text/plain',
+      'application/dxf',
+      'image/vnd.dxf',
+      'application/octet-stream',
+    ]);
+
+    const ext = (nomeArquivo.split('.').pop() || '').toLowerCase();
+    const EXT_ALLOWLIST = new Set(['jpg', 'jpeg', 'png', 'webp', 'pdf', 'txt', 'dxf', 'dwg']);
+
+    if (!MIME_ALLOWLIST.has(tipoArquivo.toLowerCase()) && !EXT_ALLOWLIST.has(ext)) {
+      throw new BadRequestException(`Tipo ou extensão de arquivo não permitida (${tipoArquivo} / .${ext}).`);
+    }
+
+    const nomeSanitizado = nomeArquivo.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200);
+
+    this.logger.log(`Enviando arquivo no orçamento ${orcamentoId}`);
 
     try {
       await this.validarOrcamento(orcamentoId, lojaId);
@@ -304,12 +356,12 @@ export class ChatV2Service {
           orcamento_id: orcamentoId,
           usuario_id: usuarioId,
           tipo: TipoMensagem.ARQUIVO,
-          conteudo: `Arquivo enviado: ${nomeArquivo}`,
+          conteudo: `Arquivo enviado: ${nomeSanitizado}`,
           anexos: JSON.stringify([urlArquivo]),
           data_envio: new Date(),
           lida: false,
           dados_extras: JSON.stringify({
-            nome_arquivo: nomeArquivo,
+            nome_arquivo: nomeSanitizado,
             url_arquivo: urlArquivo,
             tamanho,
             tipo_arquivo: tipoArquivo,
@@ -318,7 +370,7 @@ export class ChatV2Service {
         include: {},
       });
 
-      this.logger.log(`✅ Arquivo enviado com sucesso: ${mensagem.id}`);
+      this.logger.log(`Arquivo enviado com sucesso: ${mensagem.id}`);
       return this.transformarMensagem(mensagem);
     } catch (error) {
       this.logger.error(`❌ Erro ao enviar arquivo: ${error.message}`);

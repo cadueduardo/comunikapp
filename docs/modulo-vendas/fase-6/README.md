@@ -67,9 +67,18 @@ Evidência reproduzível: `evidencia-entrega-6-3.md`.
 
 Evidência reproduzível: `evidencia-entrega-6-4.md`.
 
+## Entrega 6.5 — negociação e contrato de chat
+
+- promoção de `enviada -> em_negociacao` no recebimento da primeira mensagem através do writer canônico (`TransicaoComercialService`);
+- marcação de mensagens não lidas e listagens com isolamento por `loja_id` / `orcamento_id` e sem N+1;
+- validação de tamanho de anexo (máx 10MB) e allowlist de extensoes/MIME (`.jpg`, `.png`, `.webp`, `.pdf`, `.txt`, `.dxf`, `.dwg`);
+- sanitização de logs expurgando corpos de mensagem e credenciais;
+- 6 testes unitários/integrados aprovados cobrindo todos os casos bloqueantes do §3.
+
+Evidência reproduzível: `evidencia-entrega-6-5.md`.
+
 ## Ainda aberto
 
-- chat, não lidas e anexos privados (6.5);
 - auditoria de `LinkPublico` (6.6);
 - superfície de pipeline/negociação (6.7);
 - provas MySQL 8, E2E e regressão integral.
