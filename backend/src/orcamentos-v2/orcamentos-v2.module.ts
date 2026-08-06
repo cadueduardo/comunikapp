@@ -40,6 +40,7 @@ import { OrcamentoOrigemSobraService } from './services/orcamento-origem-sobra.s
 import { TransicaoComercialService } from './services/transicao-comercial.service';
 import { ExpiracaoOrcamentosService } from './services/expiracao-orcamentos.service';
 import { ExpiracaoOrcamentosJob } from './jobs/expiracao-orcamentos.job';
+import { VersaoOrcamentoService } from './services/versao-orcamento.service';
 
 // Repositories
 import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
@@ -96,6 +97,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     TransicaoComercialService,
     ExpiracaoOrcamentosService,
     ExpiracaoOrcamentosJob,
+    VersaoOrcamentoService,
 
     // Repositories
     ProdutosV2Repository,
@@ -114,6 +116,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     OrcamentoOrigemSobraService,
     TransicaoComercialService,
     ExpiracaoOrcamentosService,
+    VersaoOrcamentoService,
   ],
 })
 export class OrcamentosV2Module {}

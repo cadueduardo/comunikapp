@@ -56,12 +56,22 @@ Evidência reproduzível: `evidencia-entrega-6-2.md`.
 
 Evidência reproduzível: `evidencia-entrega-6-3.md`.
 
+## Entrega 6.4 — versão enviada, aceita e diff
+
+- congelamento imutável de snapshot completo no envio via `VersaoOrcamentoService`;
+- edições posteriores geram novas versões (`vN+1`) mantendo snapshots anteriores byte a byte imutáveis;
+- aceite vinculado estritamente à `versao_enviada_id` vigente com validação multi-tenant por `orcamento_id` e `loja_id`;
+- comparador de diff legível em `diff-versao-orcamento.ts` cobrindo preço, produtos, quantidades, prazos, entrega, instalação e pagamento;
+- higienização automática purgando custos, margem de lucro e cálculos internos em contratos públicos;
+- 7 testes unitários/integrados aprovados cobrindo todos os casos bloqueantes do §3.
+
+Evidência reproduzível: `evidencia-entrega-6-4.md`.
+
 ## Ainda aberto
 
-- congelamento e diff de versões (6.4);
-- superfície de pipeline/negociação (6.7);
 - chat, não lidas e anexos privados (6.5);
 - auditoria de `LinkPublico` (6.6);
+- superfície de pipeline/negociação (6.7);
 - provas MySQL 8, E2E e regressão integral.
 
 **FASE 6 não concluída.**
