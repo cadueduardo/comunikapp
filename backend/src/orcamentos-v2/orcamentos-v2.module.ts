@@ -21,6 +21,7 @@ import { LinksV2Controller } from './controllers/links-v2.controller';
 import { ImpressaoV2Controller } from './controllers/impressao-v2.controller';
 import { ProdutoDetalhesController } from './controllers/produto-detalhes.controller';
 import { AnexoGeometriaController } from './controllers/anexo-geometria.controller';
+import { AditivosVendasController } from './controllers/aditivos-vendas.controller';
 
 // Services
 import { OrcamentosV2Service } from './services/orcamentos-v2.service';
@@ -43,6 +44,7 @@ import { ExpiracaoOrcamentosJob } from './jobs/expiracao-orcamentos.job';
 import { VersaoOrcamentoService } from './services/versao-orcamento.service';
 import { AlcadaComercialService } from './services/alcada-comercial.service';
 import { ProcessarAceiteHandoffService } from './services/processar-aceite-handoff.service';
+import { AditivosComerciaisService } from './services/aditivos-comerciais.service';
 
 // Repositories
 import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
@@ -77,6 +79,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     ImpressaoV2Controller,
     ProdutoDetalhesController,
     AnexoGeometriaController,
+    AditivosVendasController,
   ],
   providers: [
     // Services principais
@@ -102,6 +105,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     VersaoOrcamentoService,
     AlcadaComercialService,
     ProcessarAceiteHandoffService,
+    AditivosComerciaisService,
 
     // Repositories
     ProdutosV2Repository,
@@ -123,6 +127,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     VersaoOrcamentoService,
     AlcadaComercialService,
     ProcessarAceiteHandoffService,
+    AditivosComerciaisService,
   ],
 })
 export class OrcamentosV2Module {}
