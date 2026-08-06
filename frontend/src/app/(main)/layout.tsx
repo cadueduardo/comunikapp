@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { ShieldCheck } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
+import { VendasAcessoProvider } from '@/contexts/VendasAcessoContext';
 import { MainHeader } from '@/components/ui/main-header';
 import { usuariosApi } from '@/lib/api-client';
 import { BetaFeedbackButton } from '@/components/feedback/BetaFeedbackButton';
@@ -22,25 +23,27 @@ import { useSidebarContadores } from '@/hooks/use-sidebar-contadores';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { useVendasAcesso } from '@/hooks/use-vendas-acesso';
 
-export default function DashboardLayout({
+type AuthUser = {
+  id: string;
+  funcao: string;
+};
+
+function AuthenticatedShell({
+  user,
   children,
 }: {
+  user: AuthUser;
   children: React.ReactNode;
 }) {
-  const { user, loading } = useUser();
   const router = useRouter();
   const [twoFactorReminderOpen, setTwoFactorReminderOpen] = useState(false);
-  const { contadores, recarregar } = useSidebarContadores(
-    Boolean(user) && !loading,
-    user?.id,
-  );
-  // Deny-by-default enquanto `/vendas/acesso` não responder.
-  const { acesso: vendasAcesso } = useVendasAcesso(Boolean(user) && !loading);
+  const { contadores, recarregar } = useSidebarContadores(true, user.id);
+  // Deny-by-default enquanto `/vendas/acesso` não responder (estado compartilhado).
+  const { acesso: vendasAcesso } = useVendasAcesso();
 
   const permissions = useMemo(() => {
-    const funcao = String(user?.funcao ?? '').toUpperCase();
+    const funcao = String(user.funcao ?? '').toUpperCase();
     return {
-      // Backend é a fonte de verdade; role sozinha não libera Vendas.
       podeVerVendas: vendasAcesso.pode_acessar_modulo === true,
       podeVerFinanceiro: ['ADMINISTRADOR', 'FINANCEIRO'].includes(funcao),
       podeVerExpedicao: ['ADMINISTRADOR', 'PRODUCAO', 'ESTOQUE'].includes(
@@ -50,17 +53,11 @@ export default function DashboardLayout({
         funcao,
       ),
     };
-  }, [user?.funcao, vendasAcesso.pode_acessar_modulo]);
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    }
-  }, [user, loading, router]);
+  }, [user.funcao, vendasAcesso.pode_acessar_modulo]);
 
   useEffect(() => {
     const loadTwoFactorStatus = async () => {
-      if (!user || typeof window === 'undefined') return;
+      if (typeof window === 'undefined') return;
 
       const reminderKey = `comunikapp:2fa-reminder-seen:${user.id}`;
       if (localStorage.getItem(reminderKey) === '1') return;
@@ -81,10 +78,10 @@ export default function DashboardLayout({
     };
 
     void loadTwoFactorStatus();
-  }, [user]);
+  }, [user.id]);
 
   const closeTwoFactorReminder = () => {
-    if (user && typeof window !== 'undefined') {
+    if (typeof window !== 'undefined') {
       localStorage.setItem(`comunikapp:2fa-reminder-seen:${user.id}`, '1');
     }
     setTwoFactorReminderOpen(false);
@@ -94,33 +91,6 @@ export default function DashboardLayout({
     closeTwoFactorReminder();
     router.push('/configuracoes?security=2fa#seguranca-2fa');
   };
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-neutral-800">
-        <div className="text-center">
-          <div className="mb-2 text-lg font-medium text-gray-700 dark:text-gray-200">
-            Carregando...
-          </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Conectando ao servidor...
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-neutral-800">
-        <div className="text-center">
-          <div className="mb-2 text-lg font-medium text-gray-700 dark:text-gray-200">
-            Redirecionando para login...
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <SidebarProvider>
@@ -170,5 +140,53 @@ export default function DashboardLayout({
         <BetaFeedbackButton />
       </div>
     </SidebarProvider>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { user, loading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-neutral-800">
+        <div className="text-center">
+          <div className="mb-2 text-lg font-medium text-gray-700 dark:text-gray-200">
+            Carregando...
+          </div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            Conectando ao servidor...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-neutral-800">
+        <div className="text-center">
+          <div className="mb-2 text-lg font-medium text-gray-700 dark:text-gray-200">
+            Redirecionando para login...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <VendasAcessoProvider enabled>
+      <AuthenticatedShell user={user}>{children}</AuthenticatedShell>
+    </VendasAcessoProvider>
   );
 }

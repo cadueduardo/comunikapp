@@ -13,9 +13,10 @@ import {
 } from '@/components/ui/card';
 
 export function VendasAccessGate({ children }: { children: ReactNode }) {
-  const { acesso, loading, erro, recarregar } = useVendasAcesso(true);
+  const { acesso, loading, erro, resolvido, recarregar } = useVendasAcesso();
 
-  if (loading) {
+  // Já resolvido no shell (sidebar): não mostrar tela de espera ao entrar no módulo.
+  if (loading && !resolvido) {
     return (
       <Card aria-busy="true">
         <CardHeader>
