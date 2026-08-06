@@ -75,11 +75,8 @@ export class AcompanhamentoComercialService {
         ],
       },
       include: {
-        cliente: { select: { id: true, nome: true } },
-        cobrancas: {
-          select: { id: true, status: true, valor_total: true, valor_recebido: true },
-          take: 1,
-        },
+        cliente: true,
+        cobranca: true,
       },
       orderBy: { atualizado_em: 'desc' },
     });
@@ -113,7 +110,7 @@ export class AcompanhamentoComercialService {
 
       // Status Consolidado de Financeiro
       let statusFinanceiro = 'EM_ABERTO';
-      const cobranca = o.cobrancas?.[0];
+      const cobranca = (o as any).cobranca;
       if (cobranca) {
         const stCob = (cobranca.status ?? '').toUpperCase();
         if (stCob === 'PAGA' || stCob === 'LIQUIDADA') {
@@ -123,12 +120,14 @@ export class AcompanhamentoComercialService {
         }
       }
 
+      const cliente = (o as any).cliente;
+
       resultados.push({
         id: o.id,
         numero: o.numero,
         nome_servico: o.nome_servico,
-        cliente_id: o.cliente?.id ?? null,
-        cliente_nome: o.cliente?.nome ?? 'Cliente não informado',
+        cliente_id: cliente?.id ?? null,
+        cliente_nome: cliente?.nome ?? 'Cliente não informado',
         valor_total: Number(o.preco_final),
         data_aceite: (o as any).data_aprovacao ?? o.atualizado_em,
         status_comercial: o.status_comercial ?? OrcamentoStatusComercial.PEDIDO_CONFIRMADO,
@@ -173,7 +172,7 @@ export class AcompanhamentoComercialService {
         titulo: 'Proposta Comercial Criada',
         descricao: `Elaboração da proposta ${orcamento.numero} para ${orcamento.nome_servico}.`,
         tipo: 'PROPOSTA',
-        autor: orcamento.usuario_id,
+        autor: (orcamento as any).usuario_id ?? null,
       },
     ];
 
