@@ -6,20 +6,26 @@ const port = Number(process.env.BACKEND_STARTUP_PORT || process.env.PORT || 4000
 const timeoutMs = Number(process.env.BACKEND_STARTUP_TIMEOUT_MS || 300_000);
 const startedAt = Date.now();
 
-function canConnect() {
+function tryConnect(targetHost, targetPort) {
   return new Promise((resolve) => {
-    const socket = net.createConnection({ host, port });
+    const socket = net.createConnection({ host: targetHost, port: targetPort });
     const finish = (connected) => {
       socket.removeAllListeners();
       socket.destroy();
       resolve(connected);
     };
 
-    socket.setTimeout(750);
+    socket.setTimeout(1500);
     socket.once('connect', () => finish(true));
     socket.once('timeout', () => finish(false));
     socket.once('error', () => finish(false));
   });
+}
+
+async function canConnect() {
+  if (await tryConnect(host, port)) return true;
+  if (host !== 'localhost' && (await tryConnect('localhost', port))) return true;
+  return false;
 }
 
 async function waitForBackend() {
