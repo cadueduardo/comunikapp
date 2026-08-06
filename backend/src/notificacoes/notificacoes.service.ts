@@ -248,6 +248,7 @@ export class NotificacoesService {
     limit = 50,
     offset = 0,
   ) {
+    if (!lojaId || !usuarioId) return [];
     return this.prisma.notificacao.findMany({
       where: {
         loja_id: lojaId,
@@ -260,6 +261,7 @@ export class NotificacoesService {
   }
 
   async buscarNaoVisualizadas(lojaId: string, usuarioId: string) {
+    if (!lojaId || !usuarioId) return [];
     return this.prisma.notificacao.findMany({
       where: {
         loja_id: lojaId,
@@ -271,6 +273,7 @@ export class NotificacoesService {
   }
 
   async contarNaoVisualizadas(lojaId: string, usuarioId: string) {
+    if (!lojaId || !usuarioId) return 0;
     return this.prisma.notificacao.count({
       where: {
         loja_id: lojaId,

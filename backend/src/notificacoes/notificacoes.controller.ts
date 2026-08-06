@@ -17,8 +17,8 @@ export class NotificacoesController {
     const limitNumber = limit ? parseInt(limit) : 50;
     const offsetNumber = offset ? parseInt(offset) : 0;
     return this.notificacoesService.buscarNotificacoes(
-      identidade.lojaId,
-      identidade.usuarioId,
+      identidade?.lojaId,
+      identidade?.usuarioId,
       limitNumber,
       offsetNumber,
     );
@@ -27,16 +27,16 @@ export class NotificacoesController {
   @Get('nao-visualizadas')
   async buscarNaoVisualizadas(@Identidade() identidade: IdentidadeAutenticada) {
     return this.notificacoesService.buscarNaoVisualizadas(
-      identidade.lojaId,
-      identidade.usuarioId,
+      identidade?.lojaId,
+      identidade?.usuarioId,
     );
   }
 
   @Get('nao-visualizadas/count')
   async contarNaoVisualizadas(@Identidade() identidade: IdentidadeAutenticada) {
     const count = await this.notificacoesService.contarNaoVisualizadas(
-      identidade.lojaId,
-      identidade.usuarioId,
+      identidade?.lojaId,
+      identidade?.usuarioId,
     );
     return { count };
   }
