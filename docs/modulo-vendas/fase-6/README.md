@@ -77,9 +77,16 @@ Evidência reproduzível: `evidencia-entrega-6-4.md`.
 
 Evidência reproduzível: `evidencia-entrega-6-5.md`.
 
+## Entrega 6.6 — auditoria de LinkPublico
+
+- inventário de rotas e consumidores de `LinkPublico` e `AcessoLink`;
+- mapeamento normativo mantendo estruturas legadas em modo READ-ONLY sem migrations destrutivas;
+- validação de segurança comprovando isolamento multi-tenant (`loja_id`) e extração de IP confiável no Gate 0S / HS-03.
+
+Evidência reproduzível: `evidencia-entrega-6-6.md`.
+
 ## Ainda aberto
 
-- auditoria de `LinkPublico` (6.6);
 - superfície de pipeline/negociação (6.7);
 - provas MySQL 8, E2E e regressão integral.
 
