@@ -1035,9 +1035,9 @@ migrations.
 
 ### Gate de conclusão
 
-- [ ] Mínimo Operacional Seguro do RP §14.1 integralmente entregue.
-- [ ] Rollback e monitoramento comprovados.
-- [ ] **FASE 12 CONCLUÍDA — MÍNIMO OPERACIONAL SEGURO LANÇADO.**
+- [x] Mínimo Operacional Seguro do RP §14.1 integralmente entregue.
+- [x] Rollback e monitoramento comprovados.
+- [x] **FASE 12 CONCLUÍDA — MÍNIMO OPERACIONAL SEGURO LANÇADO.**
 
 ---
 
@@ -1144,7 +1144,7 @@ Cada item abaixo exige RP/delta próprio, decisão de produto e novos critérios
 - [x] Fase 9 — Aditivos comerciais e OS Aditiva
 - [x] Fase 10 — Acompanhamento e pontes de leitura
 - [x] Fase 11 — Qualidade transversal, UX e segurança
-- [ ] Fase 12 — Rollout do Mínimo Operacional Seguro
+- [x] Fase 12 — Rollout do Mínimo Operacional Seguro
 - [ ] Fase 13 — Núcleo Competitivo
 - [ ] Fase 14 — Maturidade futura
 

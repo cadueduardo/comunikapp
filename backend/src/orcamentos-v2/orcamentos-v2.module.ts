@@ -23,6 +23,7 @@ import { ProdutoDetalhesController } from './controllers/produto-detalhes.contro
 import { AnexoGeometriaController } from './controllers/anexo-geometria.controller';
 import { AditivosVendasController } from './controllers/aditivos-vendas.controller';
 import { AcompanhamentoVendasController } from './controllers/acompanhamento-vendas.controller';
+import { VendasRolloutController } from './controllers/vendas-rollout.controller';
 
 // Services
 import { OrcamentosV2Service } from './services/orcamentos-v2.service';
@@ -47,6 +48,7 @@ import { AlcadaComercialService } from './services/alcada-comercial.service';
 import { ProcessarAceiteHandoffService } from './services/processar-aceite-handoff.service';
 import { AditivosComerciaisService } from './services/aditivos-comerciais.service';
 import { AcompanhamentoComercialService } from './services/acompanhamento-comercial.service';
+import { VendasRolloutService } from './services/vendas-rollout.service';
 
 // Repositories
 import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
@@ -83,6 +85,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     AnexoGeometriaController,
     AditivosVendasController,
     AcompanhamentoVendasController,
+    VendasRolloutController,
   ],
   providers: [
     // Services principais
@@ -110,6 +113,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     ProcessarAceiteHandoffService,
     AditivosComerciaisService,
     AcompanhamentoComercialService,
+    VendasRolloutService,
 
     // Repositories
     ProdutosV2Repository,
@@ -133,6 +137,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     ProcessarAceiteHandoffService,
     AditivosComerciaisService,
     AcompanhamentoComercialService,
+    VendasRolloutService,
   ],
 })
 export class OrcamentosV2Module {}
