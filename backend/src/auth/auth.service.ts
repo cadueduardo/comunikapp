@@ -77,7 +77,7 @@ export class AuthService {
 
   async validateUser(payload: JwtPayload) {
     // Removido o tipo de retorno para inferência
-    const user = await this.prisma.usuario.findUnique({
+    const user = await this.prisma.usuario.findFirst({
       where: { id: payload.sub, loja_id: payload.loja_id },
       include: {
         loja: true,
