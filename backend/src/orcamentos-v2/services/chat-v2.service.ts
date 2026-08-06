@@ -71,7 +71,7 @@ export class ChatV2Service {
             autor: usuarioId,
             tipoAuditoria: 'entrada_em_negociacao',
             descricao: 'Primeira mensagem enviada no chat; promoção para em_negociação',
-            evento: 'vendas.proposta.negociacao',
+            evento: null,
           });
         } catch (err) {
           this.logger.warn(

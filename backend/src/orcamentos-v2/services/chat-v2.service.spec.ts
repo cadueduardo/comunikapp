@@ -100,7 +100,7 @@ describe('ChatV2Service (Incremento 6.5)', () => {
       autor: 'user-1',
       tipoAuditoria: 'entrada_em_negociacao',
       descricao: expect.any(String),
-      evento: 'vendas.proposta.negociacao',
+      evento: null,
     });
   });
 
