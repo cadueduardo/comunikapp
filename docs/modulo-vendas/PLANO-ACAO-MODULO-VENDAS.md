@@ -1138,7 +1138,7 @@ Cada item abaixo exige RP/delta próprio, decisão de produto e novos critérios
 - [x] Fase 3 — Fundação visual e navegação
 - [x] Fase 4 — Clientes, carteira e contatos
 - [ ] Fase 5 — Home, novo atendimento e atividades
-- [ ] Fase 6 — Pipeline, proposta, versão e negociação
+- [x] Fase 6 — Pipeline, proposta, versão e negociação
 - [ ] Fase 7 — Preço, desconto, margem e alçadas
 - [ ] Fase 8 — Aceite, pedido confirmado, gates e handoffs
 - [ ] Fase 9 — Aditivos comerciais e OS Aditiva
