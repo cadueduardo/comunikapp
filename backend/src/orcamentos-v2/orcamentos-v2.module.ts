@@ -42,6 +42,7 @@ import { ExpiracaoOrcamentosService } from './services/expiracao-orcamentos.serv
 import { ExpiracaoOrcamentosJob } from './jobs/expiracao-orcamentos.job';
 import { VersaoOrcamentoService } from './services/versao-orcamento.service';
 import { AlcadaComercialService } from './services/alcada-comercial.service';
+import { ProcessarAceiteHandoffService } from './services/processar-aceite-handoff.service';
 
 // Repositories
 import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
@@ -100,6 +101,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     ExpiracaoOrcamentosJob,
     VersaoOrcamentoService,
     AlcadaComercialService,
+    ProcessarAceiteHandoffService,
 
     // Repositories
     ProdutosV2Repository,
@@ -120,6 +122,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     ExpiracaoOrcamentosService,
     VersaoOrcamentoService,
     AlcadaComercialService,
+    ProcessarAceiteHandoffService,
   ],
 })
 export class OrcamentosV2Module {}

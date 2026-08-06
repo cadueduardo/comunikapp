@@ -38,8 +38,10 @@ import { extrairContextoDaRequisicao } from '../../common/security/contexto-requ
 import { SimularChapaDto } from '../../common/calculo-chapa/simular-chapa.dto';
 import { OrcamentoOrigemSobraService } from '../services/orcamento-origem-sobra.service';
 import { AlcadaComercialService } from '../services/alcada-comercial.service';
+import { ProcessarAceiteHandoffService } from '../services/processar-aceite-handoff.service';
 import { AcaoClientePublicoDto } from '../dto/acao-cliente-publico.dto';
 import { DecidirAlcadaDto } from '../dto/decidir-alcada.dto';
+import { RegistrarAceiteDto } from '../dto/registrar-aceite.dto';
 import {
   AtualizarOrcamentoBodyDto,
   CriarOrcamentoBodyDto,
@@ -77,6 +79,7 @@ export class OrcamentosV2Controller {
     private readonly notificacoesService: NotificacoesService,
     private readonly origemSobraService: OrcamentoOrigemSobraService,
     private readonly alcadaComercialService: AlcadaComercialService,
+    private readonly processarAceiteHandoffService: ProcessarAceiteHandoffService,
   ) {}
 
   /**
@@ -822,5 +825,38 @@ export class OrcamentosV2Controller {
         ? 'Alçada comercial aprovada com sucesso.'
         : 'Alçada comercial rejeitada com sucesso.',
     };
+  }
+
+  /**
+   * Registra aceite comercial de proposta com evidências e aciona handoffs transacionais.
+   */
+  @Post(':id/aceite')
+  @HttpCode(HttpStatus.OK)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.PROPOSTA_ACEITE_REGISTRAR)
+  @ApiOperation({ summary: 'Registrar aceite comercial e confirmar pedido' })
+  @ApiResponse({ status: 200, description: 'Aceite registrado e pedido confirmado' })
+  @ApiResponse({ status: 400, description: 'Proposta expirada ou dados inválidos' })
+  @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
+  async registrarAceiteComercial(
+    @Param('id') id: string,
+    @Body() dto: RegistrarAceiteDto,
+    @Request() req: any,
+  ) {
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
+    const contexto = extrairContextoDaRequisicao(req);
+
+    return await this.processarAceiteHandoffService.processarAceiteComercial(
+      id,
+      lojaId,
+      {
+        clienteNome: dto.cliente_nome,
+        clienteEmail: dto.cliente_email,
+        cpfCnpj: dto.cpf_cnpj,
+        aceitoTermos: dto.aceito_termos,
+        autorId: usuarioId,
+        codigoAprovacao: dto.codigo_aprovacao,
+        contexto,
+      },
+    );
   }
 }
