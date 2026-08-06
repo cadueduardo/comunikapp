@@ -46,13 +46,23 @@ implementação segue a tabela normativa de 23 transições; o diagrama foi alin
 
 Evidência reproduzível: `evidencia-entrega-6-2.md`.
 
+## Entrega 6.3 — expiração canônica
+
+- job e service em lote (`ExpiracaoOrcamentosService` e `ExpiracaoOrcamentosJob`) utilizando exclusivamente o writer canônico (`TransicaoComercialService`);
+- varredura indexada de propostas em `enviada` e `em_negociacao` com `expira_em <= agora` (UTC);
+- controle de concorrência por CAS com resiliência a falhas individuais e sem abortar o lote;
+- suporte à notificação via Outbox DV-08 (`OutboxEmailVendasService`);
+- 8 testes unitários/integrados cobrindo todos os cenários bloqueantes.
+
+Evidência reproduzível: `evidencia-entrega-6-3.md`.
+
 ## Ainda aberto
 
-- implementar o job de expiração em lote pelo writer canônico;
-- congelamento e diff de versões;
-- superfície de pipeline/negociação;
-- chat, não lidas e anexos privados;
-- provas MySQL, E2E e regressão integral.
+- congelamento e diff de versões (6.4);
+- superfície de pipeline/negociação (6.7);
+- chat, não lidas e anexos privados (6.5);
+- auditoria de `LinkPublico` (6.6);
+- provas MySQL 8, E2E e regressão integral.
 
 **FASE 6 não concluída.**
 

@@ -38,6 +38,8 @@ import { DxfParserService } from './services/dxf-parser.service';
 import { DxfSugestaoInsumoService } from './services/dxf-sugestao-insumo.service';
 import { OrcamentoOrigemSobraService } from './services/orcamento-origem-sobra.service';
 import { TransicaoComercialService } from './services/transicao-comercial.service';
+import { ExpiracaoOrcamentosService } from './services/expiracao-orcamentos.service';
+import { ExpiracaoOrcamentosJob } from './jobs/expiracao-orcamentos.job';
 
 // Repositories
 import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
@@ -92,6 +94,8 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     DxfSugestaoInsumoService,
     OrcamentoOrigemSobraService,
     TransicaoComercialService,
+    ExpiracaoOrcamentosService,
+    ExpiracaoOrcamentosJob,
 
     // Repositories
     ProdutosV2Repository,
@@ -109,6 +113,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     InsumosAutocompleteService,
     OrcamentoOrigemSobraService,
     TransicaoComercialService,
+    ExpiracaoOrcamentosService,
   ],
 })
 export class OrcamentosV2Module {}
