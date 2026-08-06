@@ -1143,7 +1143,7 @@ Cada item abaixo exige RP/delta próprio, decisão de produto e novos critérios
 - [x] Fase 8 — Aceite, pedido confirmado, gates e handoffs
 - [x] Fase 9 — Aditivos comerciais e OS Aditiva
 - [x] Fase 10 — Acompanhamento e pontes de leitura
-- [ ] Fase 11 — Qualidade transversal, UX e segurança
+- [x] Fase 11 — Qualidade transversal, UX e segurança
 - [ ] Fase 12 — Rollout do Mínimo Operacional Seguro
 - [ ] Fase 13 — Núcleo Competitivo
 - [ ] Fase 14 — Maturidade futura
