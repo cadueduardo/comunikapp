@@ -37,7 +37,9 @@ import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
 import { extrairContextoDaRequisicao } from '../../common/security/contexto-requisicao';
 import { SimularChapaDto } from '../../common/calculo-chapa/simular-chapa.dto';
 import { OrcamentoOrigemSobraService } from '../services/orcamento-origem-sobra.service';
+import { AlcadaComercialService } from '../services/alcada-comercial.service';
 import { AcaoClientePublicoDto } from '../dto/acao-cliente-publico.dto';
+import { DecidirAlcadaDto } from '../dto/decidir-alcada.dto';
 import {
   AtualizarOrcamentoBodyDto,
   CriarOrcamentoBodyDto,
@@ -74,6 +76,7 @@ export class OrcamentosV2Controller {
     private readonly insumosAutocomplete: InsumosAutocompleteService,
     private readonly notificacoesService: NotificacoesService,
     private readonly origemSobraService: OrcamentoOrigemSobraService,
+    private readonly alcadaComercialService: AlcadaComercialService,
   ) {}
 
   /**
@@ -773,5 +776,51 @@ export class OrcamentosV2Controller {
     throw new NotImplementedException(
       'Exportação não disponível. Use os endpoints de impressão da proposta.',
     );
+  }
+
+  /**
+   * Lista solicitações de alçada comercial pendentes na loja.
+   */
+  @Get('alcadas-pendentes')
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.ALCADA_APROVAR)
+  @ApiOperation({ summary: 'Listar solicitações de alçada comercial pendentes' })
+  @ApiResponse({ status: 200, description: 'Lista de solicitações retornada' })
+  async listarSolicitacoesAlcada(@Request() req: any) {
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
+    return await this.alcadaComercialService.listarSolicitacoesAlcada(
+      lojaId,
+      usuarioId,
+    );
+  }
+
+  /**
+   * Processa a decisão do gestor sobre uma alçada comercial pendente.
+   */
+  @Post(':id/alcada/decidir')
+  @HttpCode(HttpStatus.OK)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.ALCADA_APROVAR)
+  @ApiOperation({ summary: 'Decidir alçada comercial (aprovar ou rejeitar)' })
+  @ApiResponse({ status: 200, description: 'Decisão de alçada registrada com sucesso' })
+  @ApiResponse({ status: 400, description: 'Dados inválidos ou justificativa ausente' })
+  @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
+  async decidirAlcada(
+    @Param('id') id: string,
+    @Body() dto: DecidirAlcadaDto,
+    @Request() req: any,
+  ) {
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
+    await this.alcadaComercialService.decidirAlcada(
+      id,
+      usuarioId,
+      lojaId,
+      dto.aprovar,
+      dto.justificativa,
+    );
+    return {
+      success: true,
+      message: dto.aprovar
+        ? 'Alçada comercial aprovada com sucesso.'
+        : 'Alçada comercial rejeitada com sucesso.',
+    };
   }
 }
