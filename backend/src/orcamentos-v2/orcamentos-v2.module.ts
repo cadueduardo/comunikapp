@@ -11,6 +11,7 @@ import { ArteAprovacaoModule } from '../modules/arte-aprovacao/arte-aprovacao.mo
 import { FinanceiroModule } from '../financeiro/financeiro.module';
 import { HomeOperacionalModule } from '../home-operacional/home-operacional.module';
 import { VendasSecurityModule } from '../vendas/vendas-security.module';
+import { InstalacaoModule } from '../instalacao/instalacao.module';
 import { getRequiredJwtSecret } from '../auth/jwt-secret';
 
 // Controllers
@@ -65,6 +66,7 @@ import { ProdutosV2Repository } from './repositories/produtos-v2.repository';
     HomeOperacionalModule, // Fase 6 - Invalidar cache da home apos aprovacao
     ArteAprovacaoModule,
     VendasSecurityModule, // Gate 0S - autorizacao comercial
+    InstalacaoModule,
 
     JwtModule.registerAsync({
       imports: [ConfigModule],
