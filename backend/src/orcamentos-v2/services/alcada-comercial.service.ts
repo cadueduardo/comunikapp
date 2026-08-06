@@ -65,7 +65,7 @@ export class AlcadaComercialService {
       throw new NotFoundException('Orçamento não encontrado ou inativo.');
     }
 
-    const precoBase = Number(orcamento.preco_base ?? orcamento.preco_calculado ?? orcamento.preco_final);
+    const precoBase = Number((orcamento as any).preco_base ?? (orcamento as any).valor_total ?? orcamento.preco_final);
     const precoFinal = Number(orcamento.preco_final);
 
     let descontoPercentual = 0;
@@ -98,7 +98,7 @@ export class AlcadaComercialService {
           lojaId,
           origemStatus: OrcamentoStatusComercial.RASCUNHO,
           destinoStatus: OrcamentoStatusComercial.AGUARDANDO_ALCADA,
-          origemAcao: 'VENDEDOR',
+          origemAcao: 'INTERNO',
           autor: usuarioId,
           tipoAuditoria: 'solicitacao_alcada_comercial',
           descricao: `Desconto de ${descontoPercentual.toFixed(1)}% excede o limite da alçada (${limitePercentualLoja}%). Aguardando aprovação do gestor.`,
@@ -153,7 +153,7 @@ export class AlcadaComercialService {
     });
 
     return orcamentos.map((o) => {
-      const precoBase = Number(o.preco_base ?? o.preco_calculado ?? o.preco_final);
+      const precoBase = Number((o as any).preco_base ?? (o as any).valor_total ?? o.preco_final);
       const precoFinal = Number(o.preco_final);
       const descontoPercentual = precoBase > 0 && precoFinal < precoBase
         ? ((precoBase - precoFinal) / precoBase) * 100
@@ -217,7 +217,7 @@ export class AlcadaComercialService {
         lojaId,
         origemStatus: OrcamentoStatusComercial.AGUARDANDO_ALCADA,
         destinoStatus: OrcamentoStatusComercial.ENVIADA,
-        origemAcao: 'GESTOR',
+        origemAcao: 'INTERNO',
         autor: usuarioId,
         tipoAuditoria: 'aprovacao_alcada_comercial',
         descricao: `Alçada comercial APROVADA pelo gestor. Justificativa: ${justificativa.slice(0, 250)}`,
@@ -231,7 +231,7 @@ export class AlcadaComercialService {
         lojaId,
         origemStatus: OrcamentoStatusComercial.AGUARDANDO_ALCADA,
         destinoStatus: OrcamentoStatusComercial.PERDIDA,
-        origemAcao: 'GESTOR',
+        origemAcao: 'INTERNO',
         autor: usuarioId,
         motivoPerda: justificativa,
         tipoAuditoria: 'rejeicao_alcada_comercial',
@@ -241,5 +241,6 @@ export class AlcadaComercialService {
 
       this.logger.log(`Alçada comercial REJEITADA no orçamento ${orcamentoId} pelo usuário ${usuarioId}`);
     }
+  }
   }
 }
