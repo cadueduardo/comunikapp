@@ -174,7 +174,7 @@ describe('AlcadaComercialService (Incremento 7.1 / Fase 7)', () => {
       destinoStatus: OrcamentoStatusComercial.PERDIDA,
       origemAcao: 'INTERNO',
       autor: 'gestor-1',
-      motivoPerda: 'Margem bruta insuficiente para a operação',
+      motivo: 'Margem bruta insuficiente para a operação',
       tipoAuditoria: 'rejeicao_alcada_comercial',
       descricao: expect.stringContaining('Alçada comercial REJEITADA pelo gestor'),
       evento: EVENTOS_COMERCIAIS.ALCADA_DECIDIDA,

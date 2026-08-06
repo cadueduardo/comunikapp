@@ -233,7 +233,7 @@ export class AlcadaComercialService {
         destinoStatus: OrcamentoStatusComercial.PERDIDA,
         origemAcao: 'INTERNO',
         autor: usuarioId,
-        motivoPerda: justificativa,
+        motivo: justificativa,
         tipoAuditoria: 'rejeicao_alcada_comercial',
         descricao: `Alçada comercial REJEITADA pelo gestor. Justificativa: ${justificativa.slice(0, 250)}`,
         evento: EVENTOS_COMERCIAIS.ALCADA_DECIDIDA,
@@ -241,6 +241,5 @@ export class AlcadaComercialService {
 
       this.logger.log(`Alçada comercial REJEITADA no orçamento ${orcamentoId} pelo usuário ${usuarioId}`);
     }
-  }
   }
 }
