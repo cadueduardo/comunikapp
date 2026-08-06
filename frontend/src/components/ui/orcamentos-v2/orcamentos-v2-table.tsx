@@ -23,7 +23,19 @@ import { Copy, Edit, FileText, Filter, Loader2, MoreHorizontal, Search, Share2, 
 import { OrcamentoV2, useOrcamentosV2 } from './hooks/useOrcamentosV2';
 import { useDuplicarOrcamento } from '@/hooks/use-duplicar-orcamento';
 
-type StatusFilter = 'todos' | 'rascunho' | 'enviado';
+type StatusFilter =
+  | 'todos'
+  | 'rascunho'
+  | 'aguardando_alcada'
+  | 'enviada'
+  | 'em_negociacao'
+  | 'revisao_solicitada'
+  | 'expirada'
+  | 'aceita'
+  | 'pedido_confirmado'
+  | 'perdida'
+  | 'cancelada';
+
 const DESCRICAO_MAX_CHARS = 32;
 
 interface OrcamentosV2TableProps {
@@ -39,97 +51,122 @@ interface StatusConfig {
 }
 
 function resolveStatusConfig(orcamento: OrcamentoV2): StatusConfig {
-  const status = orcamento.status ?? 'rascunho';
-  const approval = orcamento.status_aprovacao ?? null;
+  const statusComercial = (
+    orcamento.status_comercial ??
+    orcamento.status ??
+    'rascunho'
+  ).toLowerCase();
   const viewHref = `/orcamentos-v2/${orcamento.id}`;
   const editHref = `/orcamentos-v2/novo?id=${orcamento.id}`;
 
-  if (status === 'rascunho') {
-    return {
-      label: 'Rascunho',
-      variant: 'outline',
-      className:
-        'text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 transition-colors',
-      href: editHref,
-    };
-  }
-
-  if (status === 'aprovado') {
-    return {
-      label: 'Aprovado',
-      variant: 'default',
-      className:
-        'text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200 dark:bg-green-950/50 dark:text-green-200 dark:border-green-800 dark:hover:bg-green-900/50 transition-colors',
-      href: editHref,
-    };
-  }
-
-  if (status === 'rejeitado') {
-    return {
-      label: 'Rejeitado',
-      variant: 'destructive',
-      className: 'text-xs hover:bg-red-200 transition-colors',
-      href: viewHref,
-    };
-  }
-
-  if (status === 'negociando') {
-    return {
-      label: 'Negociando',
-      variant: 'secondary',
-      className:
-        'text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 dark:bg-blue-950/50 dark:text-blue-200 dark:border-blue-800 dark:hover:bg-blue-900/50 transition-colors',
-      href: editHref,
-    };
-  }
-
-  if (status === 'enviado') {
-    if (!approval || approval === 'PENDENTE') {
+  switch (statusComercial) {
+    case 'rascunho':
+    case 'pendente':
       return {
-        label: 'Enviado - Pendente',
+        label: 'Rascunho',
+        variant: 'outline',
+        className:
+          'text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 transition-colors',
+        href: editHref,
+      };
+
+    case 'aguardando_alcada':
+      return {
+        label: 'Aguardando Alçada',
         variant: 'secondary',
         className:
-          'text-xs bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-800 dark:hover:bg-amber-900/50 transition-colors',
+          'text-xs bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-200 dark:bg-orange-950/50 dark:text-orange-200 dark:border-orange-800 transition-colors',
         href: editHref,
       };
-    }
 
-    if (approval === 'APROVADO') {
+    case 'enviada':
+    case 'enviado':
+    case 'em_analise':
       return {
-        label: 'Enviado - Aprovado',
-        variant: 'default',
+        label: 'Enviada',
+        variant: 'secondary',
         className:
-        'text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200 dark:bg-green-950/50 dark:text-green-200 dark:border-green-800 dark:hover:bg-green-900/50 transition-colors',
+          'text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 dark:bg-blue-950/50 dark:text-blue-200 dark:border-blue-800 transition-colors',
         href: editHref,
       };
-    }
 
-    if (approval === 'REJEITADO') {
+    case 'em_negociacao':
+    case 'negociando':
       return {
-        label: 'Enviado - Rejeitado',
-        variant: 'destructive',
-        className: 'text-xs hover:bg-red-200 transition-colors',
+        label: 'Em Negociação',
+        variant: 'secondary',
+        className:
+          'text-xs bg-indigo-100 text-indigo-800 border-indigo-200 hover:bg-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-200 dark:border-indigo-800 transition-colors',
+        href: editHref,
+      };
+
+    case 'revisao_solicitada':
+      return {
+        label: 'Revisão Solicitada',
+        variant: 'secondary',
+        className:
+          'text-xs bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-800 transition-colors',
+        href: editHref,
+      };
+
+    case 'expirada':
+      return {
+        label: 'Expirada',
+        variant: 'outline',
+        className:
+          'text-xs bg-zinc-100 text-zinc-600 border-zinc-300 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-700 transition-colors',
         href: viewHref,
       };
-    }
 
-    if (approval === 'NEGOCIANDO') {
+    case 'aceita':
+    case 'aprovado':
       return {
-        label: 'Enviado - Negociando',
-        variant: 'secondary',
+        label: 'Aceita',
+        variant: 'default',
         className:
-        'text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 dark:bg-blue-950/50 dark:text-blue-200 dark:border-blue-800 dark:hover:bg-blue-900/50 transition-colors',
+          'text-xs bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-200 dark:border-emerald-800 transition-colors',
         href: editHref,
       };
-    }
-  }
 
-  return {
-    label: 'Enviado',
-    variant: 'secondary',
-    className: 'text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 transition-colors',
-    href: editHref,
-  };
+    case 'pedido_confirmado':
+    case 'em_execucao':
+    case 'concluido':
+      return {
+        label: 'Pedido Confirmado',
+        variant: 'default',
+        className:
+          'text-xs bg-green-600 text-white hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 transition-colors',
+        href: viewHref,
+      };
+
+    case 'perdida':
+    case 'rejeitado':
+      return {
+        label: 'Perdida',
+        variant: 'destructive',
+        className:
+          'text-xs bg-red-100 text-red-800 border-red-200 dark:bg-red-950/50 dark:text-red-200 dark:border-red-800 transition-colors',
+        href: viewHref,
+      };
+
+    case 'cancelada':
+    case 'cancelado':
+      return {
+        label: 'Cancelada',
+        variant: 'destructive',
+        className:
+          'text-xs bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950/50 dark:text-rose-200 dark:border-rose-800 transition-colors',
+        href: viewHref,
+      };
+
+    default:
+      return {
+        label: statusComercial,
+        variant: 'outline',
+        className: 'text-xs transition-colors',
+        href: editHref,
+      };
+  }
 }
 
 function truncateText(text: string, maxChars: number): string {
@@ -158,10 +195,11 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
       });
     }
 
-    if (statusFilter === 'rascunho') {
-      data = data.filter((item) => !item.status || item.status === 'rascunho');
-    } else if (statusFilter === 'enviado') {
-      data = data.filter((item) => item.status === 'enviado');
+    if (statusFilter !== 'todos') {
+      data = data.filter((item) => {
+        const st = (item.status_comercial ?? item.status ?? '').toLowerCase();
+        return st === statusFilter || (statusFilter === 'enviada' && st === 'enviado') || (statusFilter === 'aceita' && st === 'aprovado') || (statusFilter === 'perdida' && st === 'rejeitado');
+      });
     }
 
     return data;

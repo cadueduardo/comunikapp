@@ -85,12 +85,24 @@ Evidência reproduzível: `evidencia-entrega-6-5.md`.
 
 Evidência reproduzível: `evidencia-entrega-6-6.md`.
 
-## Ainda aberto
+## Entrega 6.7 — frontend do pipeline
 
-- superfície de pipeline/negociação (6.7);
-- provas MySQL 8, E2E e regressão integral.
+- superfície visual do pipeline V2 em `OrcamentosV2Table` e `OrcamentosV2Cards` integralmente aderente ao template de CRUD de Fornecedores (`AGENTS.md`);
+- desktop em Tabela por padrão com alternância para Cards e mobile em Cards fixos sem toggle;
+- suporte nativo a todas as 10 fases da máquina comercial DV-14 com badge styling compatível com Dark/Light mode;
+- sem dados mockados, sem CSS inline e com menus de ação coerentes em ambas as visualizações.
 
-**FASE 6 não concluída.**
+Evidência reproduzível: `evidencia-entrega-6-7.md`.
+
+## Status dos Incrementos da Fase 6
+
+- ✅ 6.1 — Máquina comercial (23 transições DV-14)
+- ✅ 6.2 — Writer comercial único (`TransicaoComercialService`)
+- ✅ 6.3 — Expiração canônica (`ExpiracaoOrcamentosService` & `ExpiracaoOrcamentosJob`)
+- ✅ 6.4 — Versão enviada, aceita e diff (`VersaoOrcamentoService` & `diff-versao-orcamento.ts`)
+- ✅ 6.5 — Negociação e contrato de chat (`ChatV2Service`)
+- ✅ 6.6 — Auditoria de LinkPublico (mapeamento read-only e segurança)
+- ✅ 6.7 — Frontend do pipeline (`OrcamentosV2Table` & `OrcamentosV2Cards`)
 
 Continuidade multiagente e prompt de handoff:
 `HANDOFF-ANTIGRAVITY.md`.

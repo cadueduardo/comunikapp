@@ -80,12 +80,15 @@ function OrcamentosFiltrosFields({
           <SelectContent>
             <SelectItem value="todos">Todos os status</SelectItem>
             <SelectItem value="rascunho">Rascunho</SelectItem>
-            <SelectItem value="enviado">Enviado</SelectItem>
-            <SelectItem value="PENDENTE">Pendente</SelectItem>
-            <SelectItem value="APROVADO">Aprovado</SelectItem>
-            <SelectItem value="REJEITADO">Rejeitado</SelectItem>
-            <SelectItem value="NEGOCIANDO">Negociando</SelectItem>
-            <SelectItem value="CONCLUIDO">Concluído</SelectItem>
+            <SelectItem value="aguardando_alcada">Aguardando Alçada</SelectItem>
+            <SelectItem value="enviada">Enviada</SelectItem>
+            <SelectItem value="em_negociacao">Em Negociação</SelectItem>
+            <SelectItem value="revisao_solicitada">Revisão Solicitada</SelectItem>
+            <SelectItem value="expirada">Expirada</SelectItem>
+            <SelectItem value="aceita">Aceita</SelectItem>
+            <SelectItem value="pedido_confirmado">Pedido Confirmado</SelectItem>
+            <SelectItem value="perdida">Perdida</SelectItem>
+            <SelectItem value="cancelada">Cancelada</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -147,8 +150,13 @@ export function OrcamentosV2Cards() {
           .toLowerCase()
           .includes(searchTerm.toLowerCase()));
 
+    const st = (orcamento.status_comercial ?? orcamento.status ?? '').toLowerCase();
     const matchesStatus =
-      statusFilter === 'todos' || orcamento.status === statusFilter;
+      statusFilter === 'todos' ||
+      st === statusFilter ||
+      (statusFilter === 'enviada' && st === 'enviado') ||
+      (statusFilter === 'aceita' && st === 'aprovado') ||
+      (statusFilter === 'perdida' && st === 'rejeitado');
 
     return matchesSearch && matchesStatus;
   });
@@ -210,12 +218,15 @@ export function OrcamentosV2Cards() {
                 <SelectContent>
                   <SelectItem value="todos">Todos os status</SelectItem>
                   <SelectItem value="rascunho">Rascunho</SelectItem>
-                  <SelectItem value="enviado">Enviado</SelectItem>
-                  <SelectItem value="PENDENTE">Pendente</SelectItem>
-                  <SelectItem value="APROVADO">Aprovado</SelectItem>
-                  <SelectItem value="REJEITADO">Rejeitado</SelectItem>
-                  <SelectItem value="NEGOCIANDO">Negociando</SelectItem>
-                  <SelectItem value="CONCLUIDO">Concluído</SelectItem>
+                  <SelectItem value="aguardando_alcada">Aguardando Alçada</SelectItem>
+                  <SelectItem value="enviada">Enviada</SelectItem>
+                  <SelectItem value="em_negociacao">Em Negociação</SelectItem>
+                  <SelectItem value="revisao_solicitada">Revisão Solicitada</SelectItem>
+                  <SelectItem value="expirada">Expirada</SelectItem>
+                  <SelectItem value="aceita">Aceita</SelectItem>
+                  <SelectItem value="pedido_confirmado">Pedido Confirmado</SelectItem>
+                  <SelectItem value="perdida">Perdida</SelectItem>
+                  <SelectItem value="cancelada">Cancelada</SelectItem>
                 </SelectContent>
               </Select>
             </div>
