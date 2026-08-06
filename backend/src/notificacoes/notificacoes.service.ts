@@ -249,38 +249,52 @@ export class NotificacoesService {
     offset = 0,
   ) {
     if (!lojaId || !usuarioId) return [];
-    return this.prisma.notificacao.findMany({
-      where: {
-        loja_id: lojaId,
-        OR: [{ usuario_id: usuarioId }, { usuario_id: null }],
-      },
-      orderBy: { criado_em: 'desc' },
-      take: limit,
-      skip: offset,
-    });
+    try {
+      const takeNumber = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 100) : 50;
+      const skipNumber = Number.isFinite(offset) && offset >= 0 ? offset : 0;
+      return await this.prisma.notificacao.findMany({
+        where: {
+          loja_id: lojaId,
+          OR: [{ usuario_id: usuarioId }, { usuario_id: null }],
+        },
+        orderBy: { criado_em: 'desc' },
+        take: takeNumber,
+        skip: skipNumber,
+      });
+    } catch {
+      return [];
+    }
   }
 
   async buscarNaoVisualizadas(lojaId: string, usuarioId: string) {
     if (!lojaId || !usuarioId) return [];
-    return this.prisma.notificacao.findMany({
-      where: {
-        loja_id: lojaId,
-        visualizada: false,
-        OR: [{ usuario_id: usuarioId }, { usuario_id: null }],
-      },
-      orderBy: { criado_em: 'desc' },
-    });
+    try {
+      return await this.prisma.notificacao.findMany({
+        where: {
+          loja_id: lojaId,
+          visualizada: false,
+          OR: [{ usuario_id: usuarioId }, { usuario_id: null }],
+        },
+        orderBy: { criado_em: 'desc' },
+      });
+    } catch {
+      return [];
+    }
   }
 
   async contarNaoVisualizadas(lojaId: string, usuarioId: string) {
     if (!lojaId || !usuarioId) return 0;
-    return this.prisma.notificacao.count({
-      where: {
-        loja_id: lojaId,
-        visualizada: false,
-        OR: [{ usuario_id: usuarioId }, { usuario_id: null }],
-      },
-    });
+    try {
+      return await this.prisma.notificacao.count({
+        where: {
+          loja_id: lojaId,
+          visualizada: false,
+          OR: [{ usuario_id: usuarioId }, { usuario_id: null }],
+        },
+      });
+    } catch {
+      return 0;
+    }
   }
 
   async marcarComoVisualizada(
