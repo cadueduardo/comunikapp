@@ -56,6 +56,14 @@ BRANCH="${BRANCH:-}"
 EXPECTED_COMMIT="${EXPECTED_COMMIT:-}"
 APP_USER="${APP_USER:-comunikapp}"
 
+git_as_app() {
+  if [ "$(id -un)" = "$APP_USER" ]; then
+    git -C "$PROJECT_DIR" "$@"
+  else
+    sudo -u "$APP_USER" -H git -C "$PROJECT_DIR" "$@"
+  fi
+}
+
 [ -n "$EXPECTED_COMMIT" ] || fail 'EXPECTED_COMMIT e obrigatorio neste entrypoint.'
 [ -n "$BRANCH" ] || fail 'BRANCH e obrigatorio neste entrypoint.'
 [ -d "$PROJECT_DIR/.git" ] || fail "PROJECT_DIR sem .git: ${PROJECT_DIR}"
@@ -88,35 +96,35 @@ esac
 
 cd "$PROJECT_DIR"
 
-if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
+if [ -n "$(git_as_app status --porcelain --untracked-files=all)" ]; then
   fail 'working tree da VPS nao esta limpo. Resolva antes do deploy.'
 fi
 
 log "fetch origin (prune) em ${PROJECT_DIR}..."
-git fetch origin --prune
+git_as_app fetch origin --prune
 
 # Resolve o commit autorizado de forma inequivoca (reusa a lib).
 export EXPECTED_COMMIT
 # Nao comparamos com HEAD ainda — o working tree pode estar em outro commit;
 # o que importa e que origin/BRANCH e o objeto existam e batam.
 resolved="$(
-  matches=($(git rev-parse --disambiguate="$EXPECTED_COMMIT" 2>/dev/null || true))
+  matches=($(git_as_app rev-parse --disambiguate="$EXPECTED_COMMIT" 2>/dev/null || true))
   if [ "${#matches[@]}" -eq 0 ]; then
     echo ''
   elif [ "${#matches[@]}" -gt 1 ]; then
     echo 'AMBIGUOUS'
   else
-    git rev-parse --verify "${matches[0]}^{commit}" 2>/dev/null || echo ''
+    git_as_app rev-parse --verify "${matches[0]}^{commit}" 2>/dev/null || echo ''
   fi
 )"
 
 [ -n "$resolved" ] || fail "EXPECTED_COMMIT=${EXPECTED_COMMIT} nao resolve nenhum objeto."
 [ "$resolved" != 'AMBIGUOUS' ] || fail "EXPECTED_COMMIT=${EXPECTED_COMMIT} e ambiguo."
 
-obj_type="$(git cat-file -t "$resolved" 2>/dev/null || true)"
+obj_type="$(git_as_app cat-file -t "$resolved" 2>/dev/null || true)"
 [ "$obj_type" = 'commit' ] || fail "EXPECTED_COMMIT nao e um commit (tipo=${obj_type:-ausente})."
 
-remote_tip="$(git rev-parse --verify "origin/${BRANCH}" 2>/dev/null || true)"
+remote_tip="$(git_as_app rev-parse --verify "origin/${BRANCH}" 2>/dev/null || true)"
 [ -n "$remote_tip" ] || fail "origin/${BRANCH} nao existe apos o fetch."
 
 if [ "$remote_tip" != "$resolved" ]; then
