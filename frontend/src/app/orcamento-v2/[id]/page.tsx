@@ -33,6 +33,7 @@ interface ProdutoOrcamento {
   unidade: string;
   largura?: number;
   altura?: number;
+  unidade_geometria?: 'mm' | 'cm' | 'm' | null;
   area?: number;
   preco_unitario: number;
   preco_total: number;
@@ -40,6 +41,20 @@ interface ProdutoOrcamento {
   impostos: number;
   observacoes?: string;
   linha_arte?: LinhaArtePdf | null;
+}
+
+function formatarDimensoesProduto(produto: ProdutoOrcamento): string {
+  const unidade = ['mm', 'cm', 'm'].includes(produto.unidade_geometria || '')
+    ? produto.unidade_geometria
+    : 'cm';
+
+  if (produto.largura && produto.altura) {
+    return `${produto.largura} x ${produto.altura} ${unidade}`;
+  }
+
+  return produto.largura
+    ? `Largura: ${produto.largura} ${unidade}`
+    : `Altura: ${produto.altura} ${unidade}`;
 }
 
 interface OrcamentoV2 {
@@ -569,12 +584,7 @@ export default function OrcamentoV2PublicoPage() {
                             {/* Dimensões se disponíveis */}
                             {(produto.largura || produto.altura) && (
                               <div className="text-sm text-gray-600 mt-1">
-                                {produto.largura && produto.altura 
-                                  ? `${produto.largura} x ${produto.altura} cm`
-                                  : produto.largura 
-                                    ? `Largura: ${produto.largura} cm`
-                                    : `Altura: ${produto.altura} cm`
-                                }
+                                {formatarDimensoesProduto(produto)}
                               </div>
                             )}
                             {produto.observacoes && (
