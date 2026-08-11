@@ -1,33 +1,30 @@
 #!/usr/bin/env bash
 # Deploy completo do branch atual do Comunikapp na VPS.
 #
-# Uso recomendado na VPS:
-#   sudo bash /opt/comunikapp/app/scripts/deploy-vps-branch-atual.sh
+# Gate 0S — NAO invoque este arquivo a partir do working tree da VPS.
+# Extraia este script + o helper do EXPECTED_COMMIT com `git archive` e use
+# `scripts/run-deploy-from-expected-commit.sh` como entrypoint. Ver cabecalho
+# daquele arquivo e §4.11 do gate de hotfix.
 #
-# Variaveis opcionais:
-#   PROJECT_DIR=/opt/comunikapp/app
-#   APP_USER=comunikapp
-#   BRANCH=nome-do-branch
+# Variaveis via ambiente (nunca como argumentos depois do caminho do script).
+#
+#   EXPECTED_COMMIT   obrigatorio no fluxo Gate 0S (pin apos pull)
+#   BRANCH            branch remoto a atualizar
 #   PRISMA_APPLY=migrate|push|skip
-#   DB_BACKUP_DIR=/srv/apps/comunikapp/shared/backups/database
-#   DB_BACKUP_RETENTION_DAYS=14
-#   RUNTIME=auto|pm2|systemd
-#   APPLY_NGINX=1|0
-#   APPLY_FAIL2BAN=1|0
-#   INSTALL_SYSTEM_PACKAGES=1|0
-#   RUN_AUDIT=1|0
-#   SKIP_HEALTH_CHECKS=1|0
-#   BUILD_MAX_OLD_SPACE_MB=4096
-#     Heap maximo (MB) do Node durante "npm run build" do backend/frontend.
-#     IMPORTANTE: "sudo VAR=valor bash script.sh" so repassa a variavel se o
-#     sudoers da VPS mantiver VAR (env_keep) ou "sudo -E" for usado; prefira
-#     exportar a variavel ou usar "sudo -E env BUILD_MAX_OLD_SPACE_MB=4096 bash script.sh".
+#   INSTALL_SYSTEM_PACKAGES / APPLY_NGINX / APPLY_FAIL2BAN = 0 no Gate 0S
+#   RUN_AUDIT=1 (manter ativo)
+#
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/assert-expected-commit.sh
+source "${SCRIPT_DIR}/lib/assert-expected-commit.sh"
 
 APP_USER="${APP_USER:-comunikapp}"
 PROJECT_DIR="${PROJECT_DIR:-}"
 BRANCH="${BRANCH:-}"
+EXPECTED_COMMIT="${EXPECTED_COMMIT:-}"
 PRISMA_APPLY="${PRISMA_APPLY:-migrate}"
 RUNTIME="${RUNTIME:-auto}"
 APPLY_NGINX="${APPLY_NGINX:-1}"
@@ -151,6 +148,8 @@ install_system_packages() {
 
   log 'Instalando/atualizando pacotes de sistema necessarios...'
   apt-get update
+  # Preferir mysql-client (nao mariadb-client): no Ubuntu, mariadb-client
+  # pode remover mysql-server/mysql-client e derrubar o banco de producao.
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
     ca-certificates \
     curl \
@@ -161,7 +160,7 @@ install_system_packages() {
     make \
     g++ \
     pkg-config \
-    mariadb-client \
+    mysql-client \
     gzip \
     libvips42 \
     nginx \
@@ -246,6 +245,17 @@ update_code() {
   run_as_app "git show-ref --verify --quiet refs/heads/$(quote "$BRANCH") && git checkout $(quote "$BRANCH") || git checkout -b $(quote "$BRANCH") origin/$(quote "$BRANCH")"
   run_as_app "git pull --ff-only origin $(quote "$BRANCH")"
   log "Commit em deploy: $(run_as_app 'git rev-parse --short HEAD')"
+
+  # Artefato fixado: depois do pull e antes de qualquer npm ci, build, backup
+  # ou migration. EXPECTED_COMMIT vazio = checagem desligada (legado); preenchido
+  # = obrigatorio bater com HEAD e ser inequivoco.
+  if [ -n "$EXPECTED_COMMIT" ]; then
+    log "Conferindo EXPECTED_COMMIT=${EXPECTED_COMMIT}..."
+    run_as_app "EXPECTED_COMMIT=$(quote "$EXPECTED_COMMIT") source $(quote "${SCRIPT_DIR}/lib/assert-expected-commit.sh") && assert_expected_commit" \
+      || fail 'EXPECTED_COMMIT nao confere com HEAD (divergencia ou prefixo ambiguo).'
+  else
+    log 'EXPECTED_COMMIT nao informado — deploy segue sem pin de commit.'
+  fi
 }
 
 install_dependencies() {
@@ -310,8 +320,9 @@ apply_nginx() {
   require_root_for_system_changes
 
   log 'Aplicando configuracoes canonicas do Nginx...'
-  mkdir -p /etc/nginx/conf.d /etc/nginx/sites-available /etc/nginx/sites-enabled /var/www/certbot
+  mkdir -p /etc/nginx/conf.d /etc/nginx/sites-available /etc/nginx/sites-enabled /var/www/certbot /etc/nginx/snippets
   cp "${PROJECT_DIR}/deploy/nginx/cors-map.conf" /etc/nginx/conf.d/cors-map.conf
+  cp "${PROJECT_DIR}/deploy/nginx/snippets/comunikapp-app-proxy.conf" /etc/nginx/snippets/comunikapp-app-proxy.conf
   cp "${PROJECT_DIR}/deploy/nginx/api.comunikapp.com.br.conf" /etc/nginx/sites-available/api.comunikapp.com.br.conf
   cp "${PROJECT_DIR}/deploy/nginx/comunikapp.com.br.conf" /etc/nginx/sites-available/comunikapp.com.br.conf
   ln -sf /etc/nginx/sites-available/api.comunikapp.com.br.conf /etc/nginx/sites-enabled/api.comunikapp.com.br.conf
