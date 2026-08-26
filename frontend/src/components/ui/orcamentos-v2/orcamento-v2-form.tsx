@@ -3003,11 +3003,6 @@ export function OrcamentoV2Form({
       const snapshot = produtoCompleto.itens_orcamento;
       if (Array.isArray(snapshot) && snapshot.length > 0) {
         const itensRestaurados = deserializarItensModeloOrcamento(snapshot);
-        const modeloTinhaAnexo = snapshot.some(
-          (item) =>
-            typeof item.arquivo_geometria_url === 'string' &&
-            item.arquivo_geometria_url.trim().length > 0,
-        );
         form.setValue('itens_produto', itensRestaurados as any, {
           shouldDirty: true,
           shouldValidate: false,
@@ -3017,11 +3012,6 @@ export function OrcamentoV2Form({
         toast.success(
           `Modelo "${produtoCompleto.nome}" carregado com ${itensRestaurados.length} produto(s).`,
         );
-        if (modeloTinhaAnexo) {
-          toast.message(
-            'Anexo de geometria do modelo não foi reutilizado. Reenvie o arquivo se precisar.',
-          );
-        }
         return;
       }
 
