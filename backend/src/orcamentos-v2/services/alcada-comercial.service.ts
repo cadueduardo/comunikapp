@@ -116,8 +116,10 @@ export class AlcadaComercialService {
       };
     }
 
+    // Desconto acima do limite, mas o usuário tem ALCADA_APROVAR: sinaliza que
+    // a alçada foi necessária, sem promover para aguardando_alcada.
     return {
-      requerAlcada: false,
+      requerAlcada: excedeLimite,
       promovidoParaAlcada: false,
       descontoPercentual,
       limitePermitido: limitePercentualLoja,

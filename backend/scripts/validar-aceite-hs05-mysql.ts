@@ -23,7 +23,9 @@ import { PrismaClient } from '@prisma/client';
 import { Logger } from '@nestjs/common';
 import { OrcamentosV2Service } from '../src/orcamentos-v2/services/orcamentos-v2.service';
 import { TransformacaoV2Service } from '../src/orcamentos-v2/services/transformacao-v2.service';
+import { TransicaoComercialService } from '../src/orcamentos-v2/services/transicao-comercial.service';
 import { VendasPermissionsService } from '../src/vendas/permissions/vendas-permissions.service';
+import { OrcamentoStatusComercial } from '../src/orcamentos-v2/domain/status-comercial';
 
 // O script cria e apaga lojas inteiras, então recusa rodar fora de um banco
 // descartável. O padrão é o clone local; o CI declara o seu por variável.
@@ -60,6 +62,9 @@ function montarService(orcamentoIdObservado: () => string) {
 
   (service as any).logger = new Logger('ValidacaoHS05');
   (service as any).transformacaoService = new TransformacaoV2Service();
+  (service as any).transicoesComerciais = new TransicaoComercialService(
+    prisma as any,
+  );
   (service as any).vendasPermissions = new VendasPermissionsService(
     prisma as any,
   );
@@ -199,9 +204,30 @@ async function criarCenario(): Promise<Cenario> {
       impostos: 10,
       preco_final: 220,
       status: 'enviado',
+      status_comercial: OrcamentoStatusComercial.ENVIADA,
       responsavel_id: usuario.id,
+      expira_em: new Date('2099-01-01T00:00:00.000Z'),
     },
   });
+
+  // Aceite exige versão congelada (máquina comercial pós-6ae4b36).
+  const versao = await prisma.versaoOrcamento.create({
+    data: {
+      orcamento_id: orcamento.id,
+      versao: 1,
+      numero: 1,
+      usuario_id: usuario.id,
+      responsavel_id: usuario.id,
+      dados_completos: JSON.stringify({ id: orcamento.id, numero: orcamento.numero }),
+      snapshot: { id: orcamento.id, numero: orcamento.numero },
+      motivo_alteracao: 'Versão congelada para Gate 0S / HS-05',
+    },
+  });
+  await prisma.orcamento.update({
+    where: { id: orcamento.id },
+    data: { versao_enviada_id: versao.id },
+  });
+
   return {
     lojaId: loja.id,
     usuarioId: usuario.id,
@@ -212,11 +238,23 @@ async function criarCenario(): Promise<Cenario> {
 async function reiniciar(c: Cenario) {
   efeitos = { osCriadas: 0, cobrancasCriadas: 0, statusVistoDeFora: null };
   sabotarAuditoria = false;
+
+  const versao = await prisma.versaoOrcamento.findFirst({
+    where: { orcamento_id: c.orcamentoId },
+    orderBy: [{ numero: 'desc' }, { versao: 'desc' }],
+  });
+
   await prisma.orcamento.update({
     where: { id: c.orcamentoId },
     data: {
       status: 'enviado',
+      status_comercial: OrcamentoStatusComercial.ENVIADA,
       status_aprovacao: 'PENDENTE',
+      versao_enviada_id: versao?.id ?? null,
+      versao_aceita_id: null,
+      aceito_em: null,
+      aceite_evidencia: null,
+      expira_em: new Date('2099-01-01T00:00:00.000Z'),
       codigo_aprovacao_hash: null,
       codigo_aprovacao_expira_em: null,
       codigo_aprovacao_tentativas: 0,

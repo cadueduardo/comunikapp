@@ -61,7 +61,7 @@ describe('AcompanhamentoComercialService (Fase 10)', () => {
         atualizado_em: new Date(),
         status_comercial: OrcamentoStatusComercial.PEDIDO_CONFIRMADO,
         cliente: { id: 'cli-1', nome: 'Loja Exemplo' },
-        cobrancas: [{ id: 'cob-1', status: 'LIQUIDADA', valor_total: 2500, valor_recebido: 2500 }],
+        cobranca: { id: 'cob-1', status: 'LIQUIDADA', valor_total: 2500, valor_recebido: 2500 },
       },
     ]);
 
