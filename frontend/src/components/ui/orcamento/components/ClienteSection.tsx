@@ -56,12 +56,18 @@ export function ClienteSection({ clientes, mode }: ClienteSectionProps) {
         <FormField
           control={form.control}
           name="cliente_id"
-          render={({ field }) => (
+          render={({ field }) => {
+              const valor =
+                field.value &&
+                clientes.some((c) => String(c.id) === String(field.value))
+                  ? String(field.value)
+                  : undefined;
+              return (
             <FormItem>
               <FormLabel>Selecione o Cliente</FormLabel>
               <Select
                 onValueChange={field.onChange}
-                value={field.value ? String(field.value) : undefined}
+                value={valor}
               >
                 <FormControl>
                   <SelectTrigger>
@@ -78,7 +84,8 @@ export function ClienteSection({ clientes, mode }: ClienteSectionProps) {
               </Select>
               <FormMessage />
             </FormItem>
-          )}
+              );
+          }}
         />
       </CardContent>
     </Card>

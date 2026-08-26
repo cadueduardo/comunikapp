@@ -436,7 +436,9 @@ export function OrcamentoV2Form({
         loja.tipo_margem_lucro === 'markup' ? 'markup' : 'margem_por_dentro',
     });
     lojaDefaultsAplicadosRef.current = true;
-  }, [form, mode, user?.loja, comissaoPadraoLoja]);
+    // Não incluir `form` nas deps: no RHF ≥7.54 o objeto muda a cada
+    // formState e reset+deps causam Maximum update depth.
+  }, [mode, user?.loja, comissaoPadraoLoja]);
 
   const calcularDadosQuandoNecessario = () => {
     const formData = form.getValues();
@@ -496,11 +498,19 @@ export function OrcamentoV2Form({
     });
   }, [mode, initialData, orcamentoId, orcamentoStatus]);
 
+  // Evita reaplicar initialData quando o objeto `form` muda de identidade
+  // (RHF recria o retorno a cada formState — ver docs useForm + useEffect).
+  const initialDataAplicadaRef = useRef<unknown>(null);
+
   // Carregar dados iniciais se for edição/template OU deep-link (novo)
   useEffect(() => {
     if (!initialData) {
       return;
     }
+    if (initialDataAplicadaRef.current === initialData) {
+      return;
+    }
+    initialDataAplicadaRef.current = initialData;
 
     if (mode === 'novo') {
       const clienteId = String(initialData.cliente_id || '').trim();
@@ -851,7 +861,8 @@ export function OrcamentoV2Form({
       }, 50);
 
       return () => window.clearTimeout(resetTimer);
-  }, [mode, initialData, form, comissaoPadraoLoja]);
+    // `form` propositalmente fora das deps (ver comentário do ref acima).
+  }, [mode, initialData, comissaoPadraoLoja]);
 
   // Reidratar catálogo (regras + preço de custo) para produtos de prateleira.
   useEffect(() => {
@@ -965,7 +976,8 @@ export function OrcamentoV2Form({
         }
       }
     })();
-  }, [mode, dadosCarregados, form]);
+    // `form` fora das deps — setValue aqui não deve rearmar o efeito.
+  }, [mode, dadosCarregados]);
 
   // Debug: verificar se o status está sendo recebido
   useEffect(() => {

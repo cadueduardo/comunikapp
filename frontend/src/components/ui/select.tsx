@@ -256,12 +256,6 @@ function Select({
 
   const handleValueChange = React.useCallback(
     (next: string) => {
-      // eslint-disable-next-line no-console
-      console.log('[DEBUG select] handleValueChange', {
-        next,
-        isValueControlled,
-        hasOnValueChangeProp: typeof onValueChange === 'function',
-      });
       if (!isValueControlled) setUncontrolledValue(next);
       onValueChange?.(next);
     },
@@ -298,12 +292,14 @@ function Select({
     );
   }
 
+  // Não passar `value={undefined}` ao Radix: isso entra em modo controlado
+  // vazio e, com itens ainda não montados, dispara onValueChange em loop.
   return (
     <SelectUiContext.Provider value={ui}>
       <SelectPrimitive.Root
         open={open}
         onOpenChange={handleOpenChange}
-        value={value}
+        {...(value != null ? { value } : {})}
         onValueChange={handleValueChange}
         {...props}
       />
@@ -472,8 +468,7 @@ const SelectContent = React.forwardRef<
           prev.every(
             (item, index) =>
               item.value === options[index]?.value &&
-              item.disabled === options[index]?.disabled &&
-              item.label === options[index]?.label,
+              item.disabled === options[index]?.disabled,
           )
         ) {
           return prev;
@@ -502,12 +497,6 @@ const SelectContent = React.forwardRef<
                       selected && 'bg-accent text-accent-foreground',
                     )}
                     onClick={() => {
-                      // eslint-disable-next-line no-console
-                      console.log('[DEBUG select] onClick item', {
-                        value: opt.value,
-                        disabled: opt.disabled,
-                        hasOnValueChange: typeof onValueChange === 'function',
-                      });
                       if (opt.disabled) return;
                       onValueChange?.(opt.value);
                       onOpenChange(false);
