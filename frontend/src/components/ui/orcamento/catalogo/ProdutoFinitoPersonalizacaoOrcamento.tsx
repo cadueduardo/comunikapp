@@ -121,7 +121,7 @@ export function ProdutoFinitoPersonalizacaoOrcamento({
     form.setValue(`${basePath}.personalizacao_grade_distribuicao`, iniciais, {
       shouldDirty: false,
     });
-  }, [exibirGrade, gradeDef, quantidadeTotal, gradeLinhas.length, form, basePath]);
+  }, [exibirGrade, gradeDef, quantidadeTotal, gradeLinhas.length, basePath]); // form fora (RHF)
 
   const precoPreview = useMemo(() => {
     if (!ativa || !modo) {
@@ -146,7 +146,7 @@ export function ProdutoFinitoPersonalizacaoOrcamento({
       String(precoPreview.precoTotalLinha.toFixed(2)),
       { shouldDirty: false },
     );
-  }, [precoPreview.precoTotalLinha, form, basePath]);
+  }, [precoPreview.precoTotalLinha, basePath]); // form fora (RHF)
 
   if (!personalizavel) {
     return null;

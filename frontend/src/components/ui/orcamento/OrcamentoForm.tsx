@@ -1,7 +1,7 @@
 'use client';
 import { getClientSessionToken } from '@/lib/session-auth';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
@@ -163,8 +163,13 @@ export function OrcamentoForm({
   });
 
   // Carregar dados iniciais se for edição
+  // `form` fora das deps: RHF recria o objeto a cada formState (update depth).
+  const initialDataAplicadaRef = useRef<unknown>(null);
   useEffect(() => {
     if (mode === 'editar' && initialData) {
+      if (initialDataAplicadaRef.current === initialData) return;
+      initialDataAplicadaRef.current = initialData;
+
       console.log('🔍 Debug - OrcamentoForm - Dados recebidos para reset:', initialData);
       console.log('🔍 Debug - OrcamentoForm - Cliente ID recebido:', initialData.cliente_id);
       console.log('🔍 Debug - OrcamentoForm - Estrutura completa dos dados:', JSON.stringify(initialData, null, 2));
@@ -215,7 +220,7 @@ export function OrcamentoForm({
     } else if (mode === 'novo') {
       setDadosCarregados(true);
     }
-  }, [mode, initialData, form]);
+  }, [mode, initialData]);
 
   // Debug: verificar se o status está sendo recebido
   useEffect(() => {

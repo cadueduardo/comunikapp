@@ -97,7 +97,7 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
     if (nomeAtual) return;
     const modalidadeId = String(form.getValues('entrega_modalidade_id') || '').trim();
     sincronizarNomeModalidadeEntrega(modalidadeId);
-  }, [modalidadesEntrega, form]);
+  }, [modalidadesEntrega]); // form propositalmente fora (RHF muda identidade a cada formState)
 
   if (mode === 'template') {
     return null;

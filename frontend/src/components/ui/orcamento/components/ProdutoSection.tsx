@@ -257,7 +257,7 @@ function TerceirizacaoProdutoSection({
       proximoCustoTotal,
       { shouldDirty: false },
     );
-  }, [custoTotalDetalhado, form, itemIndex, precoFechado]);
+  }, [custoTotalDetalhado, itemIndex, precoFechado]); // form fora das deps (RHF)
 
   return (
     <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
