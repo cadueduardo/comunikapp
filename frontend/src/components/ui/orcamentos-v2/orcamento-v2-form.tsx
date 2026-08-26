@@ -3003,6 +3003,11 @@ export function OrcamentoV2Form({
       const snapshot = produtoCompleto.itens_orcamento;
       if (Array.isArray(snapshot) && snapshot.length > 0) {
         const itensRestaurados = deserializarItensModeloOrcamento(snapshot);
+        const modeloTinhaAnexo = snapshot.some(
+          (item) =>
+            typeof item.arquivo_geometria_url === 'string' &&
+            item.arquivo_geometria_url.trim().length > 0,
+        );
         form.setValue('itens_produto', itensRestaurados as any, {
           shouldDirty: true,
           shouldValidate: false,
@@ -3012,6 +3017,11 @@ export function OrcamentoV2Form({
         toast.success(
           `Modelo "${produtoCompleto.nome}" carregado com ${itensRestaurados.length} produto(s).`,
         );
+        if (modeloTinhaAnexo) {
+          toast.message(
+            'Anexo de geometria do modelo não foi reutilizado. Reenvie o arquivo se precisar.',
+          );
+        }
         return;
       }
 
@@ -3045,8 +3055,8 @@ export function OrcamentoV2Form({
         unidade_medida_produto: produtoCompleto.unidade_medida_produto || 'un',
         area_produto: produtoCompleto.area_produto?.toString() || '',
         perimetro_produto: (produtoCompleto as any).perimetro_produto?.toString() || '',
-        geometria_origem: ((produtoCompleto as any).geometria_origem || 'MANUAL') as const,
-        arquivo_geometria_url: (produtoCompleto as any).arquivo_geometria_url?.toString() || '',
+        geometria_origem: 'MANUAL' as const,
+        arquivo_geometria_url: '',
         unidade_geometria: ((produtoCompleto as any).unidade_geometria || 'mm') as const,
         materiais: produtoCompleto.itens?.map((item) => ({
           insumo_id: item.insumo.id,

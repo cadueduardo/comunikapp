@@ -42,8 +42,11 @@ export const serializarItensModeloOrcamento = (
     unidade_medida_produto: item.unidade_medida_produto || 'un',
     area_produto: item.area_produto || '',
     perimetro_produto: item.perimetro_produto || '',
-    geometria_origem: item.geometria_origem || 'MANUAL',
-    arquivo_geometria_url: item.arquivo_geometria_url || '',
+    geometria_origem: 'MANUAL',
+    // Anexos de geometria são arquivos por token no disco do backend; não
+    // sobrevivem de forma confiável em modelo (outro ambiente, limpeza, etc.).
+    // Persistir a URL só gera GET 404 ao recarregar o modelo.
+    arquivo_geometria_url: '',
     unidade_geometria: item.unidade_geometria || 'mm',
     materiais: Array.isArray(item.materiais) ? item.materiais : [],
     maquinas: Array.isArray(item.maquinas) ? item.maquinas : [],
@@ -139,6 +142,10 @@ export const deserializarItensModeloOrcamento = (
       ...base,
       ...item,
       tipo_item: item.tipo_item || 'SOB_DEMANDA',
+      // Nunca reaproveitar URL de anexo do snapshot: o token costuma já ter
+      // expirado/sumido e o browser loga 404 no console de qualquer forma.
+      arquivo_geometria_url: '',
+      geometria_origem: 'MANUAL',
       materiais: isPrateleira
         ? []
         : Array.isArray(item.materiais) && item.materiais.length > 0
