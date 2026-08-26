@@ -234,6 +234,20 @@ function sanitizeSelectValue(
   return String(value);
 }
 
+/**
+ * Valor enviado ao Radix em modo controlado.
+ * Importante: NÃO usar `undefined` aqui — o Radix interpreta ausência/
+ * undefined como uncontrolled; depois, ao receber string, dispara o aviso
+ * "changing from uncontrolled to controlled". String vazia = “sem seleção”
+ * (placeholder), ainda controlado.
+ */
+function sanitizeSelectValueControlled(
+  value: SelectProps['value'],
+): string {
+  if (value == null || value === '') return '';
+  return String(value);
+}
+
 function Select({
   open: openProp,
   defaultOpen,
@@ -296,13 +310,7 @@ function Select({
   // Desktop: Radix puro — sem espelhar open/value/options (evita update depth).
   // Usa handleValueChange para ignorar resets vazios do Radix (senão RHF
   // re-renderiza em loop com default '' em campos como cliente_id).
-  //
-  // Se o caller passou `value` (mesmo `''`), mantém modo controlado no Radix
-  // com `value: undefined` = “nenhuma opção” (placeholder). Omitir a prop
-  // quando o valor fica vazio e recolocá-la depois dispara o aviso do React:
-  // “changing from uncontrolled to controlled”.
   if (!isMobile) {
-    const safeValue = sanitizeSelectValue(valueProp);
     return (
       <SelectUiContext.Provider value={DESKTOP_SELECT_UI}>
         <SelectPrimitive.Root
@@ -314,7 +322,9 @@ function Select({
               ? String(defaultValue)
               : undefined
           }
-          {...(isValueControlled ? { value: safeValue } : {})}
+          {...(isValueControlled
+            ? { value: sanitizeSelectValueControlled(valueProp) }
+            : {})}
           onValueChange={handleValueChange}
           {...props}
         />
