@@ -42,7 +42,7 @@ export function TipoPrioridadeSection({ modo }: TipoPrioridadeSectionProps) {
               <FormControl>
                 <Select
                   onValueChange={field.onChange}
-                  value={field.value ? String(field.value) : undefined}
+                  value={field.value ? String(field.value) : ''}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o tipo" />
@@ -70,7 +70,7 @@ export function TipoPrioridadeSection({ modo }: TipoPrioridadeSectionProps) {
               <FormControl>
                 <Select
                   onValueChange={field.onChange}
-                  value={field.value ? String(field.value) : undefined}
+                  value={field.value ? String(field.value) : ''}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a prioridade" />

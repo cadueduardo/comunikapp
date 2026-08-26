@@ -1958,7 +1958,7 @@ export function ProdutoSection({ mode, orcamentoId, somenteLeitura = false, onAd
                             <FormLabel>Unidade comercial</FormLabel>
                             <Select
                               onValueChange={field.onChange}
-                              value={field.value ? String(field.value) : undefined}
+                              value={field.value ? String(field.value) : ''}
                             >
                               <FormControl>
                                 <SelectTrigger>

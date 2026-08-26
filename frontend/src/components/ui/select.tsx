@@ -296,6 +296,11 @@ function Select({
   // Desktop: Radix puro — sem espelhar open/value/options (evita update depth).
   // Usa handleValueChange para ignorar resets vazios do Radix (senão RHF
   // re-renderiza em loop com default '' em campos como cliente_id).
+  //
+  // Se o caller passou `value` (mesmo `''`), mantém modo controlado no Radix
+  // com `value: undefined` = “nenhuma opção” (placeholder). Omitir a prop
+  // quando o valor fica vazio e recolocá-la depois dispara o aviso do React:
+  // “changing from uncontrolled to controlled”.
   if (!isMobile) {
     const safeValue = sanitizeSelectValue(valueProp);
     return (
@@ -309,7 +314,7 @@ function Select({
               ? String(defaultValue)
               : undefined
           }
-          {...(safeValue !== undefined ? { value: safeValue } : {})}
+          {...(isValueControlled ? { value: safeValue } : {})}
           onValueChange={handleValueChange}
           {...props}
         />

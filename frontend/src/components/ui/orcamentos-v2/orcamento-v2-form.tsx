@@ -311,7 +311,7 @@ export function OrcamentoV2Form({
       forma_pagamento: '', // DEPRECATED Fase 6: nao gravado pelo formulario novo; permanece para compatibilidade.
       validade_proposta: '30 dias',
       // Fase 6 - Condicao de pagamento estruturada (defaults vem da loja via CondicaoPagamentoFieldset)
-      condicao_pagamento_tipo: undefined,
+      condicao_pagamento_tipo: '',
       condicao_pagamento_entrada_pct: '',
       condicao_pagamento_parcelas: '',
       condicao_pagamento_descricao: '',

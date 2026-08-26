@@ -99,7 +99,7 @@ export function CondicaoPagamentoFieldset({ mode = 'novo' }: CondicaoPagamentoFi
               <FormLabel>Tipo *</FormLabel>
               <Select
                 onValueChange={field.onChange}
-                value={field.value ? String(field.value) : undefined}
+                value={field.value ? String(field.value) : ''}
               >
                 <FormControl>
                   <SelectTrigger>
