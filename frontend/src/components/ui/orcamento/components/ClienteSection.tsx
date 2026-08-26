@@ -1,6 +1,5 @@
 'use client';
 
-import { useFormContext } from 'react-hook-form';
 import {
   FormControl,
   FormField,
@@ -10,6 +9,7 @@ import {
 } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useFormContext } from 'react-hook-form';
 import { Cliente } from '../../shared/types/common.types';
 
 interface ClienteSectionProps {
@@ -20,25 +20,27 @@ interface ClienteSectionProps {
 export function ClienteSection({ clientes, mode }: ClienteSectionProps) {
   const form = useFormContext();
 
-  // Não mostrar se for template (produto)
   if (mode === 'template') {
     return null;
   }
 
-  // Em modo editar, mostrar cliente fixo quando já vinculado; senão permitir seleção (rascunho sem cliente).
   if (mode === 'editar') {
     const clienteId = form.watch('cliente_id');
     if (clienteId) {
-      const cliente = clientes.find(c => c.id === clienteId);
+      const cliente = clientes.find((c) => c.id === clienteId);
       return (
         <Card flatOnMobile>
           <CardHeader>
             <CardTitle>Cliente</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="p-3 bg-gray-50 rounded-md border">
-              <p className="font-medium text-gray-900">{cliente ? cliente.nome : 'Carregando cliente...'}</p>
-              <p className="text-sm text-gray-600 mt-1">Cliente fixo - não pode ser alterado</p>
+            <div className="rounded-md border bg-gray-50 p-3">
+              <p className="font-medium text-gray-900">
+                {cliente ? cliente.nome : 'Carregando cliente...'}
+              </p>
+              <p className="mt-1 text-sm text-gray-600">
+                Cliente fixo - não pode ser alterado
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -46,7 +48,6 @@ export function ClienteSection({ clientes, mode }: ClienteSectionProps) {
     }
   }
 
-  // Em modo novo ou rascunho sem cliente, permitir seleção
   return (
     <Card flatOnMobile>
       <CardHeader>
@@ -57,37 +58,40 @@ export function ClienteSection({ clientes, mode }: ClienteSectionProps) {
           control={form.control}
           name="cliente_id"
           render={({ field }) => {
-              const valor =
-                field.value &&
-                clientes.some((c) => String(c.id) === String(field.value))
-                  ? String(field.value)
-                  : undefined;
-              return (
-            <FormItem>
-              <FormLabel>Selecione o Cliente</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                value={valor}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Escolha um cliente" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {clientes.map((cliente) => (
-                    <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-              );
+            const valorNaLista =
+              field.value &&
+              clientes.some((c) => String(c.id) === String(field.value))
+                ? String(field.value)
+                : undefined;
+
+            return (
+              <FormItem>
+                <FormLabel>Selecione o Cliente</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  {...(valorNaLista !== undefined
+                    ? { value: valorNaLista }
+                    : {})}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Escolha um cliente" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {clientes.map((cliente) => (
+                      <SelectItem key={cliente.id} value={String(cliente.id)}>
+                        {cliente.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            );
           }}
         />
       </CardContent>
     </Card>
   );
-} 
+}

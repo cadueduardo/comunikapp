@@ -2,7 +2,7 @@
 
 /**
  * Select responsivo:
- * - Desktop: Radix Select (popover).
+ * - Desktop: Radix Select puro (sem estado espelho) — evita Maximum update depth.
  * - Mobile: bottom sheet próprio via createPortal no `document.body`
  *   (lista de botões — NÃO aninha Select.Content em Dialog; Radix #2571).
  *
@@ -32,12 +32,24 @@ type SelectUiContextValue = {
   value?: string;
   onValueChange?: (value: string) => void;
   options: SelectOption[];
-  setOptions: (options: SelectOption[]) => void;
+  setOptions: React.Dispatch<React.SetStateAction<SelectOption[]>>;
   placeholder?: string;
   setPlaceholder: (placeholder?: string) => void;
 };
 
 const SelectUiContext = React.createContext<SelectUiContextValue | null>(null);
+
+/** Noop no desktop: Trigger/Value/Content ainda chamam o hook, sem setState. */
+const DESKTOP_SELECT_UI: SelectUiContextValue = {
+  open: false,
+  onOpenChange: () => {},
+  value: undefined,
+  onValueChange: undefined,
+  options: [],
+  setOptions: () => {},
+  placeholder: undefined,
+  setPlaceholder: () => {},
+};
 
 function useSelectUi() {
   const ctx = React.useContext(SelectUiContext);
@@ -139,9 +151,6 @@ function lockAppScroll() {
   };
 }
 
-/**
- * Bottom sheet no `document.body` (fora do scroll do layout).
- */
 function MobileSelectSheet({
   open,
   onOpenChange,
@@ -218,6 +227,13 @@ function MobileSelectSheet({
 
 type SelectProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>;
 
+function sanitizeSelectValue(
+  value: SelectProps['value'],
+): string | undefined {
+  if (value == null || value === '') return undefined;
+  return String(value);
+}
+
 function Select({
   open: openProp,
   defaultOpen,
@@ -228,11 +244,13 @@ function Select({
   ...props
 }: SelectProps) {
   const isMobile = useIsMobileSelect();
+
+  // Hooks sempre montados (Rules of Hooks) — só usados no caminho mobile.
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(
     defaultOpen ?? false,
   );
   const [uncontrolledValue, setUncontrolledValue] = React.useState(
-    defaultValue != null ? String(defaultValue) : undefined,
+    sanitizeSelectValue(defaultValue),
   );
   const [options, setOptions] = React.useState<SelectOption[]>([]);
   const [placeholder, setPlaceholder] = React.useState<string | undefined>();
@@ -241,9 +259,7 @@ function Select({
   const isValueControlled = valueProp !== undefined;
   const open = isOpenControlled ? Boolean(openProp) : uncontrolledOpen;
   const value = isValueControlled
-    ? valueProp != null && valueProp !== ''
-      ? String(valueProp)
-      : undefined
+    ? sanitizeSelectValue(valueProp)
     : uncontrolledValue;
 
   const handleOpenChange = React.useCallback(
@@ -256,13 +272,14 @@ function Select({
 
   const handleValueChange = React.useCallback(
     (next: string) => {
+      if (!next) return;
       if (!isValueControlled) setUncontrolledValue(next);
       onValueChange?.(next);
     },
     [isValueControlled, onValueChange],
   );
 
-  const ui = React.useMemo(
+  const mobileUi = React.useMemo(
     () => ({
       open,
       onOpenChange: handleOpenChange,
@@ -276,33 +293,32 @@ function Select({
     [open, handleOpenChange, value, handleValueChange, options, placeholder],
   );
 
-  if (isMobile) {
-    // Mobile: nunca montar o Radix Select.Root. Trigger/Value/Content já são
-    // substituídos por markup próprio (sheet), e o Root do Radix não tem
-    // nenhum <Select.Item> real registrado nesse caminho — ao receber um
-    // `value` controlado externamente que ele não reconhece, o Root reage
-    // sozinho chamando onValueChange('') para "corrigir", desfazendo a
-    // seleção do usuário no próximo tick. Sem o Root montado, esse reset
-    // fantasma não acontece; o estado inteiro já é gerenciado pelo
-    // SelectUiContext acima.
+  // Desktop: Radix puro — sem espelhar open/value/options (evita update depth).
+  if (!isMobile) {
+    const safeValue = sanitizeSelectValue(valueProp);
     return (
-      <SelectUiContext.Provider value={ui}>
-        {props.children}
+      <SelectUiContext.Provider value={DESKTOP_SELECT_UI}>
+        <SelectPrimitive.Root
+          defaultOpen={defaultOpen}
+          open={openProp}
+          onOpenChange={onOpenChange}
+          defaultValue={
+            defaultValue != null && defaultValue !== ''
+              ? String(defaultValue)
+              : undefined
+          }
+          {...(safeValue !== undefined ? { value: safeValue } : {})}
+          onValueChange={onValueChange}
+          {...props}
+        />
       </SelectUiContext.Provider>
     );
   }
 
-  // Não passar `value={undefined}` ao Radix: isso entra em modo controlado
-  // vazio e, com itens ainda não montados, dispara onValueChange em loop.
+  // Mobile: sheet próprio (Radix Root NÃO montado).
   return (
-    <SelectUiContext.Provider value={ui}>
-      <SelectPrimitive.Root
-        open={open}
-        onOpenChange={handleOpenChange}
-        {...(value != null ? { value } : {})}
-        onValueChange={handleValueChange}
-        {...props}
-      />
+    <SelectUiContext.Provider value={mobileUi}>
+      {props.children}
     </SelectUiContext.Provider>
   );
 }
@@ -321,8 +337,9 @@ const SelectValue = React.forwardRef<
   const { value, options, setPlaceholder } = useSelectUi();
 
   React.useEffect(() => {
+    if (!isMobile) return;
     setPlaceholder(typeof placeholder === 'string' ? placeholder : undefined);
-  }, [placeholder, setPlaceholder]);
+  }, [isMobile, placeholder, setPlaceholder]);
 
   if (isMobile) {
     const selected = options.find((opt) => opt.value === value);
@@ -457,11 +474,12 @@ const SelectContent = React.forwardRef<
     } = useSelectUi();
 
     const { options, extras } = React.useMemo(
-      () => partitionSelectChildren(children),
-      [children],
+      () => (isMobile ? partitionSelectChildren(children) : { options: [], extras: [] }),
+      [children, isMobile],
     );
 
     React.useLayoutEffect(() => {
+      if (!isMobile) return;
       setOptions((prev) => {
         if (
           prev.length === options.length &&
@@ -475,7 +493,7 @@ const SelectContent = React.forwardRef<
         }
         return options;
       });
-    }, [options, setOptions]);
+    }, [isMobile, options, setOptions]);
 
     if (isMobile) {
       return (
