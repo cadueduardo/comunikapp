@@ -294,6 +294,8 @@ function Select({
   );
 
   // Desktop: Radix puro — sem espelhar open/value/options (evita update depth).
+  // Usa handleValueChange para ignorar resets vazios do Radix (senão RHF
+  // re-renderiza em loop com default '' em campos como cliente_id).
   if (!isMobile) {
     const safeValue = sanitizeSelectValue(valueProp);
     return (
@@ -308,7 +310,7 @@ function Select({
               : undefined
           }
           {...(safeValue !== undefined ? { value: safeValue } : {})}
-          onValueChange={onValueChange}
+          onValueChange={handleValueChange}
           {...props}
         />
       </SelectUiContext.Provider>
