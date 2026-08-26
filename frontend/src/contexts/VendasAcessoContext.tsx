@@ -10,7 +10,10 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { getClientSessionToken } from '@/lib/session-auth';
+import {
+  getClientSessionToken,
+  sessionFetch,
+} from '@/lib/session-auth';
 
 export type VendasAcessoResposta = {
   pode_acessar_modulo: boolean;
@@ -60,11 +63,14 @@ export const VENDAS_ACESSO_VAZIO: VendasAcessoResposta = {
   },
 };
 
+/** Cache de sessão (não é segredo): evita “Carregando Vendas…” a cada F5. */
+export const VENDAS_ACESSO_CACHE_PREFIX = 'comunikapp_vendas_acesso:';
+
 type VendasAcessoContextValue = {
   acesso: VendasAcessoResposta;
   loading: boolean;
   erro: string | null;
-  /** true após a primeira resposta (ok ou erro) nesta sessão autenticada */
+  /** true após hidratar cache ou receber resposta da API */
   resolvido: boolean;
   recarregar: () => Promise<void>;
 };
@@ -100,23 +106,79 @@ function normalizarAcesso(data: VendasAcessoResposta): VendasAcessoResposta {
   };
 }
 
+function cacheKey(userId: string) {
+  return `${VENDAS_ACESSO_CACHE_PREFIX}${userId}`;
+}
+
+function lerCache(userId: string): VendasAcessoResposta | null {
+  if (typeof window === 'undefined' || !userId) return null;
+  try {
+    const raw = sessionStorage.getItem(cacheKey(userId));
+    if (!raw) return null;
+    return normalizarAcesso(JSON.parse(raw) as VendasAcessoResposta);
+  } catch {
+    return null;
+  }
+}
+
+function gravarCache(userId: string, acesso: VendasAcessoResposta) {
+  if (typeof window === 'undefined' || !userId) return;
+  try {
+    sessionStorage.setItem(cacheKey(userId), JSON.stringify(acesso));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+export function limparCacheVendasAcesso() {
+  if (typeof window === 'undefined') return;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i += 1) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith(VENDAS_ACESSO_CACHE_PREFIX)) keys.push(key);
+    }
+    keys.forEach((key) => sessionStorage.removeItem(key));
+  } catch {
+    // ignore
+  }
+}
+
 /**
  * Uma única fonte de verdade para GET /vendas/acesso no shell autenticado.
- * Evita o waterfall "Carregando Vendas…" em cada layout/página do módulo.
+ * Hidrata do sessionStorage para não bloquear a UI a cada hard refresh.
+ * Backend continua sendo a fonte de verdade: revalida em background.
  */
 export function VendasAcessoProvider({
   enabled,
+  userId,
   children,
 }: {
   enabled: boolean;
+  userId?: string;
   children: ReactNode;
 }) {
-  const [acesso, setAcesso] =
-    useState<VendasAcessoResposta>(VENDAS_ACESSO_VAZIO);
-  const [loading, setLoading] = useState(enabled);
+  const cacheInicial =
+    enabled && userId ? lerCache(userId) : null;
+  const tinhaCache = cacheInicial != null;
+
+  const [acesso, setAcesso] = useState<VendasAcessoResposta>(
+    () => cacheInicial ?? VENDAS_ACESSO_VAZIO,
+  );
+  const [loading, setLoading] = useState(() => enabled && !tinhaCache);
   const [erro, setErro] = useState<string | null>(null);
-  const [resolvido, setResolvido] = useState(false);
-  const resolvidoRef = useRef(false);
+  const [resolvido, setResolvido] = useState(() => tinhaCache);
+  const resolvidoRef = useRef(tinhaCache);
+  const acessoRef = useRef(acesso);
+  const userIdRef = useRef(userId);
+
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
+
+  useEffect(() => {
+    acessoRef.current = acesso;
+  }, [acesso]);
 
   const recarregar = useCallback(async () => {
     if (!enabled) {
@@ -135,34 +197,41 @@ export function VendasAcessoProvider({
       setErro('Sessão inválida');
       setResolvido(true);
       resolvidoRef.current = true;
+      limparCacheVendasAcesso();
       return;
     }
 
-    // Só bloqueia a UI na primeira resolução; refresh em background não
-    // esconde o módulo inteiro de novo.
+    // Com cache/resposta prévia: revalida em silêncio (sem tela de espera).
     if (!resolvidoRef.current) {
       setLoading(true);
     }
     setErro(null);
     try {
-      const resp = await fetch('/api/vendas/acesso', {
+      const resp = await sessionFetch('/api/vendas/acesso', {
         method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
+        headers: { Accept: 'application/json' },
         cache: 'no-store',
       });
       if (!resp.ok) {
         setAcesso(VENDAS_ACESSO_VAZIO);
         setErro('Não foi possível verificar o acesso a Vendas.');
+        if (userIdRef.current) {
+          gravarCache(userIdRef.current, VENDAS_ACESSO_VAZIO);
+        }
         return;
       }
-      const data = (await resp.json()) as VendasAcessoResposta;
-      setAcesso(normalizarAcesso(data));
+      const data = normalizarAcesso(
+        (await resp.json()) as VendasAcessoResposta,
+      );
+      setAcesso(data);
+      if (userIdRef.current) {
+        gravarCache(userIdRef.current, data);
+      }
     } catch {
-      setAcesso(VENDAS_ACESSO_VAZIO);
-      setErro('Não foi possível verificar o acesso a Vendas.');
+      if (!acessoRef.current.pode_acessar_modulo) {
+        setAcesso(VENDAS_ACESSO_VAZIO);
+        setErro('Não foi possível verificar o acesso a Vendas.');
+      }
     } finally {
       setLoading(false);
       setResolvido(true);
@@ -172,7 +241,7 @@ export function VendasAcessoProvider({
 
   useEffect(() => {
     void recarregar();
-  }, [recarregar]);
+  }, [recarregar, userId]);
 
   const value = useMemo(
     () => ({ acesso, loading, erro, resolvido, recarregar }),
@@ -186,11 +255,6 @@ export function VendasAcessoProvider({
   );
 }
 
-/**
- * Lê o acesso compartilhado do provider.
- * Mantém a assinatura `useVendasAcesso(enabled)` por compatibilidade: o
- * parâmetro é ignorado quando o provider já está ativo (fonte única).
- */
 export function useVendasAcessoContext(): VendasAcessoContextValue {
   const ctx = useContext(VendasAcessoContext);
   if (!ctx) {

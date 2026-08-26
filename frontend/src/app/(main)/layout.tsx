@@ -185,7 +185,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <VendasAcessoProvider enabled>
+    <VendasAcessoProvider enabled userId={user.id}>
       <AuthenticatedShell user={user}>{children}</AuthenticatedShell>
     </VendasAcessoProvider>
   );

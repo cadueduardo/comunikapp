@@ -13,6 +13,7 @@ import {
   clearClientSessionActive,
   markClientSessionActive,
 } from '@/lib/session-auth';
+import { limparCacheVendasAcesso } from '@/contexts/VendasAcessoContext';
 import { resolvePostLoginHref } from '@/lib/post-login-redirect';
 import {
   Dialog,
@@ -101,6 +102,7 @@ function clearLegacyAuthStorage() {
   if (typeof window === 'undefined') return;
   try {
     clearClientSessionActive();
+    limparCacheVendasAcesso();
     localStorage.removeItem('access_token');
     localStorage.removeItem('loja_id');
     localStorage.removeItem('user_roles');

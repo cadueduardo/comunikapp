@@ -15,8 +15,11 @@ import {
 export function VendasAccessGate({ children }: { children: ReactNode }) {
   const { acesso, loading, erro, resolvido, recarregar } = useVendasAcesso();
 
-  // Já resolvido no shell (sidebar): não mostrar tela de espera ao entrar no módulo.
-  if (loading && !resolvido) {
+  // Só bloqueia na 1ª visita sem cache. Hard refresh com cache não mostra espera.
+  const aguardandoPrimeiraResolucao =
+    loading && !resolvido && !acesso.pode_acessar_modulo;
+
+  if (aguardandoPrimeiraResolucao) {
     return (
       <Card aria-busy="true">
         <CardHeader>
@@ -27,7 +30,8 @@ export function VendasAccessGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (erro) {
+  // Erro só bloqueia se não há acesso conhecido (cache/API).
+  if (erro && !acesso.pode_acessar_modulo) {
     return (
       <Card role="alert">
         <CardHeader>
@@ -53,7 +57,7 @@ export function VendasAccessGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!acesso.pode_acessar_modulo) {
+  if (resolvido && !acesso.pode_acessar_modulo) {
     return (
       <Card role="alert">
         <CardHeader>
