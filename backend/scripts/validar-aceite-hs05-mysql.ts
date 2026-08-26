@@ -45,6 +45,17 @@ function verificar(nome: string, ok: boolean, detalhe: string) {
   console.log(`${ok ? 'OK   ' : 'FALHA'} | ${nome} | ${detalhe}`);
 }
 
+/** Aceite comercial grava trilha de aceite + PEDIDO_CONFIRMADO (máquina pós-Fase 6). */
+function contarTrilhasDeAceite(
+  trilhas: Array<{ tipo_acao?: string | null }>,
+): number {
+  return trilhas.filter((t) =>
+    ['ACEITE_PUBLICO', 'APROVADO_INTERNAMENTE_E_OS_GERADA'].includes(
+      String(t.tipo_acao || ''),
+    ),
+  ).length;
+}
+
 interface Efeitos {
   osCriadas: number;
   cobrancasCriadas: number;
