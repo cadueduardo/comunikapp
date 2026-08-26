@@ -1606,24 +1606,42 @@ export function OrcamentoV2Form({
           terceirizacao_modelo_custo:
             (produtoFormulario as any).terceirizacao_modelo_custo ||
             'DETALHADO',
-          terceirizacao_quantidade_cotada: normalizarNumero(
-            (produtoFormulario as any).terceirizacao_quantidade_cotada,
-          ),
-          terceirizacao_custo_unitario: normalizarNumero(
-            (produtoFormulario as any).terceirizacao_custo_unitario,
-          ),
-          terceirizacao_custo_setup: normalizarNumero(
-            (produtoFormulario as any).terceirizacao_custo_setup,
-          ),
-          terceirizacao_custo_frete: normalizarNumero(
-            (produtoFormulario as any).terceirizacao_custo_frete,
-          ),
-          terceirizacao_custo_total: normalizarNumero(
-            (produtoFormulario as any).terceirizacao_custo_total,
-          ),
-          terceirizacao_prazo_dias: normalizarNumero(
-            (produtoFormulario as any).terceirizacao_prazo_dias,
-          ),
+          terceirizacao_quantidade_cotada: (() => {
+            const q = normalizarNumero(
+              (produtoFormulario as any).terceirizacao_quantidade_cotada,
+            );
+            return q > 0 ? q : undefined;
+          })(),
+          terceirizacao_custo_unitario: (() => {
+            const v = normalizarNumero(
+              (produtoFormulario as any).terceirizacao_custo_unitario,
+            );
+            return v > 0 ? v : undefined;
+          })(),
+          terceirizacao_custo_setup: (() => {
+            const v = normalizarNumero(
+              (produtoFormulario as any).terceirizacao_custo_setup,
+            );
+            return v > 0 ? v : undefined;
+          })(),
+          terceirizacao_custo_frete: (() => {
+            const v = normalizarNumero(
+              (produtoFormulario as any).terceirizacao_custo_frete,
+            );
+            return v > 0 ? v : undefined;
+          })(),
+          terceirizacao_custo_total: (() => {
+            const v = normalizarNumero(
+              (produtoFormulario as any).terceirizacao_custo_total,
+            );
+            return v > 0 ? v : undefined;
+          })(),
+          terceirizacao_prazo_dias: (() => {
+            const v = normalizarNumero(
+              (produtoFormulario as any).terceirizacao_prazo_dias,
+            );
+            return v > 0 ? v : undefined;
+          })(),
           terceirizacao_observacoes:
             (produtoFormulario as any).terceirizacao_observacoes || undefined,
         };
@@ -2686,8 +2704,8 @@ export function OrcamentoV2Form({
             : 'Orçamento enviado com sucesso!';
         toast.success(msg);
       } else {
-        // Para novo orçamento, criar e enviar
-        const orcamentoCriado = await orcamentosApi.create(dadosTransformados, token);
+        // Para novo orçamento, criar e enviar (mesmo contrato do rascunho V2)
+        const orcamentoCriado = await orcamentosApi.v2.create(dadosTransformados, token);
         if (orcamentoCriado && (orcamentoCriado as { id?: string }).id) {
           resEnviar = await orcamentosApi.enviar((orcamentoCriado as { id: string }).id, token) as typeof resEnviar;
           const msg = resEnviar?.email_enviado

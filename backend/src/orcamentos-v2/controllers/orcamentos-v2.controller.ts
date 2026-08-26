@@ -47,13 +47,9 @@ import {
   CriarOrcamentoBodyDto,
 } from '../dto/orcamento-body.dto';
 import { AlterarStatusComercialDto } from '../dto/alterar-status-comercial.dto';
+import { SoftValidateBodyPipe } from '../pipes/soft-validate-body.pipe';
 
-/** Pipe local: tipa o body sem descartar campos ainda fora do DTO canônico. */
-const BODY_PIPE_EXPANSIVO = new ValidationPipe({
-  transform: true,
-  whitelist: false,
-  forbidNonWhitelisted: false,
-});
+/** SoftValidateBodyPipe valida create/update; evita forbidNonWhitelisted global. */
 
 /**
  * Controller Principal de Orçamentos V2
@@ -110,7 +106,8 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async criarOrcamento(
-    @Body(BODY_PIPE_EXPANSIVO) dados: CriarOrcamentoBodyDto,
+    // `any` evita a ValidationPipe global (forbidNonWhitelisted); a soft pipe valida.
+    @Body(new SoftValidateBodyPipe(CriarOrcamentoBodyDto)) dados: any,
     @Request() req: any,
   ) {
     const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
@@ -573,7 +570,7 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async atualizarOrcamento(
     @Param('id') id: string,
-    @Body(BODY_PIPE_EXPANSIVO) dados: AtualizarOrcamentoBodyDto,
+    @Body(new SoftValidateBodyPipe(AtualizarOrcamentoBodyDto)) dados: any,
     @Request() req: any,
   ) {
     const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);

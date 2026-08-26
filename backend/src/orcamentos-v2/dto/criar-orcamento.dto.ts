@@ -6,7 +6,6 @@ import {
   IsIn,
   IsArray,
   IsDateString,
-  IsUUID,
   IsInt,
   MinLength,
   MaxLength,
@@ -74,11 +73,13 @@ export class CriarOrcamentoDto {
   prioridade: PrioridadeOrcamento;
 
   @ApiPropertyOptional({
-    description: 'ID do cliente (opcional em rascunho)',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'ID do cliente (opcional em rascunho). Usa cuid da loja, não UUID.',
+    example: 'clxclienteexemplo001',
   })
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
   cliente_id?: string;
 
   @ApiPropertyOptional({
@@ -93,11 +94,13 @@ export class CriarOrcamentoDto {
   contato_id?: string;
 
   @ApiPropertyOptional({
-    description: 'ID do responsável pelo orçamento',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'ID do responsável pelo orçamento (cuid)',
+    example: 'clxusuarioexemplo001',
   })
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
   responsavel_id?: string;
 
   @ApiPropertyOptional({
@@ -334,7 +337,7 @@ export class ProdutoOrcamentoDto {
   })
   @IsOptional()
   @IsNumber()
-  @Min(0.001)
+  @Min(0)
   terceirizacao_quantidade_cotada?: number;
 
   @ApiPropertyOptional({ description: 'Custo unitário cotado pelo parceiro' })

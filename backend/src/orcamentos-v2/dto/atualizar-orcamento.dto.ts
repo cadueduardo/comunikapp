@@ -5,7 +5,6 @@ import {
   IsEnum,
   IsArray,
   IsDateString,
-  IsUUID,
   MinLength,
   MaxLength,
   Min,
@@ -72,11 +71,13 @@ export class AtualizarOrcamentoDto {
   prioridade?: PrioridadeOrcamento;
 
   @ApiPropertyOptional({
-    description: 'ID do cliente',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'ID do cliente (cuid da loja, não UUID)',
+    example: 'clxclienteexemplo001',
   })
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
   cliente_id?: string;
 
   @ApiPropertyOptional({
@@ -89,11 +90,13 @@ export class AtualizarOrcamentoDto {
   contato_id?: string;
 
   @ApiPropertyOptional({
-    description: 'ID do responsável pelo orçamento',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'ID do responsável pelo orçamento (cuid)',
+    example: 'clxusuarioexemplo001',
   })
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
   responsavel_id?: string;
 
   @ApiPropertyOptional({
@@ -271,19 +274,23 @@ export class FiltrosOrcamentoDto {
   prioridade?: PrioridadeOrcamento[];
 
   @ApiPropertyOptional({
-    description: 'ID do cliente',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'ID do cliente (cuid)',
+    example: 'clxclienteexemplo001',
   })
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
   cliente_id?: string;
 
   @ApiPropertyOptional({
-    description: 'ID do responsável',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'ID do responsável (cuid)',
+    example: 'clxusuarioexemplo001',
   })
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
   responsavel_id?: string;
 
   @ApiPropertyOptional({

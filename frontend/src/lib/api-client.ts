@@ -961,7 +961,8 @@ export const orcamentosApi = {
   getAll: (token: string) => ApiClient.get('/orcamentos-v2', token),
   getById: (id: string, token: string) => ApiClient.get(`/orcamentos-v2/${id}`, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2', data, token),
-  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.patch(`/orcamentos-v2/${id}`, data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    ApiClient.put(`/orcamentos-v2/${id}`, data, token),
   delete: (id: string, token: string) => ApiClient.delete(`/orcamentos-v2/${id}`, token),
   calcular: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2/calcular', data, token),
   enviar: (id: string, token: string) => ApiClient.post(`/orcamentos-v2/${id}/enviar`, {}, token),
