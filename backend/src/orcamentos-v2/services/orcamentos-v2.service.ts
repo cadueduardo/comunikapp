@@ -4307,6 +4307,121 @@ export class OrcamentosV2Service {
       };
     }
 
+    // Balcão / "Aprovar e gerar OS" a partir de rascunho: o aceite só aceita
+    // proposta em enviada/em_negociacao com versao_enviada_id. Sem preparar
+    // aqui, o desfecho vira CONFLITO_DE_ESTADO e o endpoint respondia 200
+    // "já aprovado" sem gerar OS — orçamento ficava rascunho.
+    const statusComercialAtual = resolverStatusComercial(
+      (orcamento as any).status_comercial ?? orcamento.status,
+    );
+    let estadoParaAceite = {
+      status: orcamento.status,
+      statusAprovacao: orcamento.status_aprovacao,
+      observacoesCliente: (orcamento as any).observacoes_cliente ?? null,
+      statusComercial:
+        (orcamento as any).status_comercial ??
+        mapearStatusLegadoParaComercial(orcamento.status, false),
+      versaoEnviadaId: (orcamento as any).versao_enviada_id ?? null,
+      expiraEm: (orcamento as any).expira_em ?? null,
+      aceitoEm: (orcamento as any).aceito_em ?? null,
+      aceiteEvidencia: (orcamento as any).aceite_evidencia ?? null,
+      versaoAceitaId: (orcamento as any).versao_aceita_id ?? null,
+    };
+
+    const agoraPrep = new Date();
+    const propostaExpirada =
+      estadoParaAceite.expiraEm != null &&
+      estadoParaAceite.expiraEm <= agoraPrep;
+    const precisaPrepararParaAceiteInterno =
+      statusComercialAtual === OrcamentoStatusComercial.RASCUNHO ||
+      !estadoParaAceite.versaoEnviadaId ||
+      (propostaExpirada &&
+        (statusComercialAtual === OrcamentoStatusComercial.ENVIADA ||
+          statusComercialAtual === OrcamentoStatusComercial.EM_NEGOCIACAO));
+
+    if (precisaPrepararParaAceiteInterno) {
+      if (statusComercialAtual === OrcamentoStatusComercial.AGUARDANDO_ALCADA) {
+        throw new BadRequestException(
+          'Esta proposta aguarda alçada e não pode ser aprovada internamente ainda.',
+        );
+      }
+      if (
+        statusComercialAtual &&
+        ![
+          OrcamentoStatusComercial.RASCUNHO,
+          OrcamentoStatusComercial.ENVIADA,
+          OrcamentoStatusComercial.EM_NEGOCIACAO,
+        ].includes(statusComercialAtual)
+      ) {
+        throw new BadRequestException(
+          'Este orçamento não pode ser aprovado no status comercial atual: ' +
+            statusComercialAtual,
+        );
+      }
+
+      this.logger.log(
+        `[APROVACAO_INTERNA] Preparando proposta ${id} para aceite interno ` +
+          `(status=${statusComercialAtual}, versao=${estadoParaAceite.versaoEnviadaId}).`,
+      );
+
+      await this.marcarEnvioDaProposta(id, lojaId, userId);
+
+      if (statusComercialAtual === OrcamentoStatusComercial.RASCUNHO) {
+        const aplicado = await this.transicoesComerciais.executar({
+          orcamentoId: id,
+          lojaId,
+          origemStatus: OrcamentoStatusComercial.RASCUNHO,
+          destinoStatus: OrcamentoStatusComercial.ENVIADA,
+          origemAcao: 'INTERNO',
+          autor: userId,
+          tipoAuditoria: 'PROPOSTA_PREPARADA_ACEITE_INTERNO',
+          descricao:
+            'Versão congelada e proposta marcada como enviada para aprovação interna e geração de OS.',
+          evento: EVENTOS_COMERCIAIS.PROPOSTA_ENVIADA,
+          contexto,
+        });
+        if (!aplicado) {
+          throw new BadRequestException(
+            'A proposta foi alterada por outra operação. Recarregue e tente novamente.',
+          );
+        }
+      }
+
+      const atualizado = await this.prisma.orcamento.findFirst({
+        where: { id, loja_id: lojaId },
+        select: {
+          status: true,
+          status_aprovacao: true,
+          status_comercial: true,
+          versao_enviada_id: true,
+          expira_em: true,
+          observacoes_cliente: true,
+          aceito_em: true,
+          aceite_evidencia: true,
+          versao_aceita_id: true,
+        },
+      });
+      if (!atualizado?.versao_enviada_id) {
+        throw new BadRequestException(
+          'Não foi possível preparar a proposta para aprovação interna.',
+        );
+      }
+
+      estadoParaAceite = {
+        status: atualizado.status,
+        statusAprovacao: atualizado.status_aprovacao,
+        observacoesCliente: atualizado.observacoes_cliente ?? null,
+        statusComercial:
+          atualizado.status_comercial ??
+          mapearStatusLegadoParaComercial(atualizado.status, false),
+        versaoEnviadaId: atualizado.versao_enviada_id,
+        expiraEm: atualizado.expira_em ?? null,
+        aceitoEm: atualizado.aceito_em ?? null,
+        aceiteEvidencia: atualizado.aceite_evidencia ?? null,
+        versaoAceitaId: atualizado.versao_aceita_id ?? null,
+      };
+    }
+
     const observacaoRegistro =
       observacoes?.trim() ||
       'Orçamento aprovado internamente no sistema pelo usuário ' + userId;
@@ -4326,32 +4441,21 @@ export class OrcamentosV2Service {
       lojaId,
       origem: 'INTERNO',
       autor: userId,
-      estadoAnterior: {
-        status: orcamento.status,
-        statusAprovacao: orcamento.status_aprovacao,
-        observacoesCliente: (orcamento as any).observacoes_cliente ?? null,
-        statusComercial:
-          (orcamento as any).status_comercial ??
-          mapearStatusLegadoParaComercial(orcamento.status, false),
-        versaoEnviadaId: (orcamento as any).versao_enviada_id ?? null,
-        expiraEm: (orcamento as any).expira_em ?? null,
-        aceitoEm: (orcamento as any).aceito_em ?? null,
-        aceiteEvidencia: (orcamento as any).aceite_evidencia ?? null,
-        versaoAceitaId: (orcamento as any).versao_aceita_id ?? null,
-      },
+      estadoAnterior: estadoParaAceite,
       observacoes: observacaoRegistro,
       tipoAcaoAuditoria: 'APROVADO_INTERNAMENTE_E_OS_GERADA',
       contexto,
     });
 
     if (resultado.desfecho !== 'APLICADO') {
-      // Chegar aqui significa que outra requisição aprovou o mesmo orçamento
-      // entre a leitura e o UPDATE. O aceite dela já está registrado, então a
-      // resposta é idempotente: devolvemos o estado atual sem repetir efeito.
+      // Chegar aqui com OS existente = aprovação concorrente legítima
+      // (idempotente). Sem OS = estado incompatível — não mascarar como sucesso.
       this.logger.warn(
-        '[APROVACAO_INTERNA] Aprovacao concorrente detectada no orcamento ' +
+        '[APROVACAO_INTERNA] Aceite interno não aplicado no orcamento ' +
           id +
-          '. Respondendo de forma idempotente.',
+          ' (desfecho=' +
+          resultado.desfecho +
+          ').',
       );
 
       const osConcorrente = await this.prisma.ordemServico.findFirst({
@@ -4360,15 +4464,21 @@ export class OrcamentosV2Service {
         orderBy: { criado_em: 'desc' },
       });
 
-      return {
-        success: true,
-        message: 'Orçamento já estava aprovado e possui OS gerada.',
-        orcamento_id: id,
-        os_id: osConcorrente?.id,
-        os_numero: osConcorrente?.numero,
-        status: 'aprovado',
-        status_aprovacao: 'APROVADO',
-      };
+      if (osConcorrente) {
+        return {
+          success: true,
+          message: 'Orçamento já estava aprovado e possui OS gerada.',
+          orcamento_id: id,
+          os_id: osConcorrente.id,
+          os_numero: osConcorrente.numero,
+          status: 'aprovado',
+          status_aprovacao: 'APROVADO',
+        };
+      }
+
+      throw new BadRequestException(
+        'Não foi possível aprovar o orçamento no estado atual. Recarregue e tente novamente.',
+      );
     }
 
     // Notificação é rede: fora da transação e sem poder reverter o aceite.

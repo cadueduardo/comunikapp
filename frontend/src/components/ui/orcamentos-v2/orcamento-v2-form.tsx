@@ -2747,6 +2747,12 @@ export function OrcamentoV2Form({
 
       const formData = form.getValues();
 
+      if (!String(formData.cliente_id || '').trim()) {
+        toast.error('Selecione um cliente antes de aprovar e gerar a OS.');
+        setIsFechandoPedido(false);
+        return;
+      }
+
       const erroItens = validarMateriaisItensProduto(formData.itens_produto);
       if (erroItens) {
         toast.error(erroItens);
@@ -2813,10 +2819,17 @@ export function OrcamentoV2Form({
       const resultado = await orcamentosApi.v2.fecharPedido(
         idParaFechar,
         token,
-      ) as { os_numero?: string };
+      ) as { os_numero?: string; os_id?: string; message?: string };
+
+      if (!resultado?.os_id && !resultado?.os_numero) {
+        throw new Error(
+          resultado?.message ||
+            'A OS não foi gerada. Verifique o status do orçamento e tente novamente.',
+        );
+      }
 
       toast.success(
-        resultado?.os_numero
+        resultado.os_numero
           ? `Pedido fechado. OS ${resultado.os_numero} gerada.`
           : 'Pedido fechado e OS gerada com sucesso.',
       );
