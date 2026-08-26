@@ -1,5 +1,6 @@
 'use client';
 import { buildClientAuthHeaders } from '@/lib/session-auth';
+import { isAnexoGeometriaUrl } from '@/lib/anexo-geometria-client';
 
 import {
   type ClipboardEvent as ReactClipboardEvent,
@@ -164,9 +165,8 @@ export function AnexoGeometriaInput({
     useState<CategoriaDetectada>(null);
   const [nomeOriginal, setNomeOriginal] = useState<string | null>(null);
 
-  // Quando o `value` muda (carga inicial ou parent), carrega o preview a
-  // partir do endpoint autenticado e cria um blob URL local. Limpa o blob
-  // anterior para evitar leak.
+  // Só busca preview quando há URL real de anexo persistido.
+  // Orçamento novo (arquivo_geometria_url vazio) NÃO deve bater na API.
   useEffect(() => {
     let cancelado = false;
     let blobUrlCriado: string | null = null;
@@ -177,7 +177,13 @@ export function AnexoGeometriaInput({
       }
     };
 
-    if (!value) {
+    const url = typeof value === 'string' ? value.trim() : '';
+    const urlValida =
+      url.length > 0 &&
+      isAnexoGeometriaUrl(url) &&
+      /\/orcamentos-v2\/anexos-geometria\/[0-9a-f-]{36}$/i.test(url);
+
+    if (!urlValida) {
       limparBlobAnterior();
       setPreviewUrl(null);
       setCategoriaAtual(null);
@@ -188,10 +194,22 @@ export function AnexoGeometriaInput({
     const carregar = async () => {
       try {
         const headers: Record<string, string> = buildClientAuthHeaders();
-        const resp = await fetch(`${API_BASE_URL}${value}`, {
+        const resp = await fetch(`${API_BASE_URL}${url}`, {
           headers,
           credentials: 'include',
         });
+        if (resp.status === 404) {
+          // Anexo órfão (token apagado / outro ambiente): limpa o campo e
+          // não polui o console — comum ao reabrir rascunho antigo.
+          if (!cancelado) {
+            limparBlobAnterior();
+            setPreviewUrl(null);
+            setCategoriaAtual(null);
+            setNomeOriginal(null);
+            onChange(null, null);
+          }
+          return;
+        }
         if (!resp.ok) {
           throw new Error(`Falha ao carregar anexo (${resp.status})`);
         }
@@ -200,7 +218,6 @@ export function AnexoGeometriaInput({
         limparBlobAnterior();
         blobUrlCriado = URL.createObjectURL(blob);
         setPreviewUrl(blobUrlCriado);
-        // Detecta categoria pelo content-type retornado.
         const ct = (resp.headers.get('content-type') || '').toLowerCase();
         let categoriaCarregada: CategoriaDetectada = null;
         if (ct.startsWith('image/')) {
@@ -212,12 +229,8 @@ export function AnexoGeometriaInput({
         }
         setCategoriaAtual(categoriaCarregada);
 
-        // Sub-fase 7.B: se o anexo recarregado for DXF, refaz a leitura dos
-        // metadados extraídos para que o card de revisão volte a aparecer
-        // (ex.: ao reabrir um orçamento salvo). Falha silenciosa: o card
-        // simplesmente não aparece.
         if (categoriaCarregada === 'DXF' && onDxfExtraido) {
-          const match = value.match(
+          const match = url.match(
             /\/orcamentos-v2\/anexos-geometria\/([0-9a-f-]{36})$/i,
           );
           const tokenAnexo = match ? match[1] : null;
@@ -225,7 +238,7 @@ export function AnexoGeometriaInput({
             try {
               const respDxf = await fetch(
                 `${API_BASE_URL}/orcamentos-v2/anexos-geometria/${tokenAnexo}/dxf-extraido`,
-                { headers },
+                { headers, credentials: 'include' },
               );
               if (respDxf.ok) {
                 const dataDxf = (await respDxf.json()) as {
@@ -239,14 +252,13 @@ export function AnexoGeometriaInput({
                   );
                 }
               }
-            } catch (error) {
-              console.warn('Falha ao reler metadados do DXF:', error);
+            } catch {
+              // Metadados DXF são opcionais.
             }
           }
         }
-      } catch (error) {
+      } catch {
         if (!cancelado) {
-          console.warn('Falha ao carregar preview do anexo:', error);
           setPreviewUrl(null);
         }
       }
@@ -256,6 +268,9 @@ export function AnexoGeometriaInput({
 
     return () => {
       cancelado = true;
+      if (blobUrlCriado) {
+        URL.revokeObjectURL(blobUrlCriado);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
