@@ -6,6 +6,7 @@ import { useFormContext, useFieldArray } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -260,7 +261,7 @@ function TerceirizacaoProdutoSection({
   }, [custoTotalDetalhado, itemIndex, precoFechado]); // form fora das deps (RHF)
 
   return (
-    <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
+    <div className="space-y-4 rounded-lg border border-border bg-card p-4">
       <div>
         <h4 className="text-sm font-medium">Execução do produto</h4>
         <p className="text-xs text-muted-foreground">
@@ -412,6 +413,33 @@ function TerceirizacaoProdutoSection({
                           onValueChange={field.onChange}
                           onBlur={field.onBlur}
                           ref={field.ref}
+                          className="bg-background"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`itens_produto.${itemIndex}.terceirizacao_quantidade_cotada`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Quantidade cotada</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder={quantidade > 0 ? String(quantidade) : '1'}
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(
+                              event.target.value.replace(/[^0-9.,]/g, ''),
+                            )
+                          }
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                          className="bg-background"
                         />
                       </FormControl>
                       <FormMessage />
@@ -419,20 +447,17 @@ function TerceirizacaoProdutoSection({
                   )}
                 />
                 <FormItem>
-                  <FormLabel>Quantidade cotada</FormLabel>
-                  <Input
-                    value={String(quantidadeDaCotacao || '')}
-                    readOnly
-                    className="bg-muted"
-                  />
-                </FormItem>
-                <FormItem>
                   <FormLabel>Média de custo por unidade</FormLabel>
                   <Input
                     value={formatCurrency(custoMedioCotado)}
                     readOnly
-                    className="bg-muted"
+                    tabIndex={-1}
+                    aria-readonly="true"
+                    className="bg-muted cursor-default"
                   />
+                  <FormDescription>
+                    Calculado automaticamente (preço ÷ quantidade cotada).
+                  </FormDescription>
                 </FormItem>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -484,6 +509,7 @@ function TerceirizacaoProdutoSection({
                         onValueChange={field.onChange}
                         onBlur={field.onBlur}
                         ref={field.ref}
+                        className="bg-background"
                       />
                     </FormControl>
                     <FormMessage />
@@ -502,6 +528,7 @@ function TerceirizacaoProdutoSection({
                         name={field.name}
                         value={field.value ?? ''}
                         onValueChange={field.onChange}
+                        className="bg-background"
                       />
                     </FormControl>
                   </FormItem>
@@ -519,6 +546,7 @@ function TerceirizacaoProdutoSection({
                         name={field.name}
                         value={field.value ?? ''}
                         onValueChange={field.onChange}
+                        className="bg-background"
                       />
                     </FormControl>
                   </FormItem>
@@ -529,7 +557,9 @@ function TerceirizacaoProdutoSection({
                 <Input
                   value={formatCurrency(custoTotal)}
                   readOnly
-                  className="bg-muted"
+                  tabIndex={-1}
+                  aria-readonly="true"
+                  className="bg-muted cursor-default"
                 />
               </FormItem>
             </div>
@@ -549,6 +579,7 @@ function TerceirizacaoProdutoSection({
                       onChange={(event) =>
                         field.onChange(event.target.value.replace(/[^0-9]/g, ''))
                       }
+                      className="bg-background"
                     />
                   </FormControl>
                 </FormItem>
@@ -561,7 +592,7 @@ function TerceirizacaoProdutoSection({
                 <FormItem className="md:col-span-2">
                   <FormLabel>Observações internas</FormLabel>
                   <FormControl>
-                    <Textarea rows={2} {...field} value={field.value ?? ''} />
+                    <Textarea rows={2} {...field} value={field.value ?? ''} className="bg-background" />
                   </FormControl>
                 </FormItem>
               )}
