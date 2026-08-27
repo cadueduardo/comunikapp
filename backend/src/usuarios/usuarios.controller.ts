@@ -10,8 +10,9 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiExcludeEndpoint, ApiTags } from '@nestjs/swagger';
 import { UsuariosService } from './usuarios.service';
+import { PerfisAcessoService } from './perfis-acesso.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModuleActivationGuard } from '../common/guards/module-activation.guard';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
@@ -31,7 +32,10 @@ import {
 import { PermissaoEfetivaService } from '../rbac/autorizacao/permissao-efetiva.service';
 import { RequerPermissao } from '../rbac/autorizacao/requer-permissao.decorator';
 import { PermissionsGuard } from '../rbac/autorizacao/permissions.guard';
-import { ListarUsuariosQueryDto } from './dto/paginacao-query.dto';
+import {
+  ListarPerfisQueryDto,
+  ListarUsuariosQueryDto,
+} from './dto/paginacao-query.dto';
 
 @ApiTags('Usuários')
 @ApiBearerAuth()
@@ -39,6 +43,7 @@ import { ListarUsuariosQueryDto } from './dto/paginacao-query.dto';
 export class UsuariosController {
   constructor(
     private readonly usuariosService: UsuariosService,
+    private readonly perfisAcessoService: PerfisAcessoService,
     private readonly twoFactorService: TwoFactorService,
     private readonly permissaoEfetiva: PermissaoEfetivaService,
   ) {}
@@ -114,6 +119,20 @@ export class UsuariosController {
       lojaId,
     );
     return { modulos };
+  }
+
+  // Estático antes de `:id`. Sem isto, GET /usuarios/perfis vira
+  // GET /usuarios/:id com id="perfis" e responde 404 de usuário.
+  @Get('perfis')
+  @ApiExcludeEndpoint()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequerPermissao('usuarios.perfis.gerenciar')
+  async listarPerfis(
+    @Request() req: unknown,
+    @Query() query: ListarPerfisQueryDto,
+  ) {
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    return this.perfisAcessoService.listar(lojaId, query);
   }
 
   @Get(':id')

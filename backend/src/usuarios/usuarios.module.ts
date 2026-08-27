@@ -12,7 +12,9 @@ import { ModuleActivationGuard } from '../common/guards/module-activation.guard'
 
 @Module({
   imports: [PrismaModule, MailModule, AuthModule, RbacCoreModule],
-  controllers: [UsuariosController, PerfisAcessoController],
+  // PerfisAcessoController precisa vir antes: GET /usuarios/perfis senão
+  // casa com GET /usuarios/:id (id = "perfis") e devolve 404 de usuário.
+  controllers: [PerfisAcessoController, UsuariosController],
   providers: [
     UsuariosService,
     PerfisAcessoService,
