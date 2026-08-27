@@ -10,15 +10,15 @@ Autorização efetiva = identidade + loja ativa + permissão efetiva (ver `MODEL
 |---|---|---|---|---|
 | GET | `/usuarios` | gestão | `usuarios.usuarios.gerenciar` | Paginação; sem hash/segredo |
 | GET | `/usuarios/:id` | gestão | `usuarios.usuarios.gerenciar` | Tenant `id+loja_id` |
-| POST | `/usuarios` | gestão | `usuarios.usuarios.gerenciar` | Função whitelist do enum; não aceita `loja_id`/`sistema` |
-| PATCH | `/usuarios/:id` | gestão | `usuarios.usuarios.gerenciar` | Último admin; não auto-rebaixar se único; incrementa `session_version` se status/função/senha |
+| POST | `/usuarios` | gestão | `usuarios.usuarios.gerenciar` | Função whitelist do enum; não aceita `loja_id`/`sistema`; conceder `ADMINISTRADOR` exige ator já `ADMINISTRADOR` (lido no banco) |
+| PATCH | `/usuarios/:id` | gestão | `usuarios.usuarios.gerenciar` | Último admin; não auto-rebaixar se único; promover a `ADMINISTRADOR` exige ator já `ADMINISTRADOR`; incrementa `session_version` se status/função/senha |
 | PATCH | `/usuarios/:id/desativar` | gestão | `usuarios.usuarios.gerenciar` | Idem desativar; revoga sessão do alvo |
 | PATCH | `/usuarios/:id/reativar` | gestão | `usuarios.usuarios.gerenciar` | Status ATIVO + ativo true |
 | POST | `/usuarios/:id/perfis` | gestão | `usuarios.perfis.gerenciar` | Associação tenant-safe |
 | GET | `/usuarios/me/preferencias` | próprio | autenticado | Fora do catálogo de perfil |
 | PATCH | `/usuarios/me/preferencias` | próprio | autenticado | |
 | GET/POST | `/usuarios/2fa/*` | próprio | autenticado | |
-| GET | `/usuarios/me/acesso` | próprio | autenticado | Flags `.acessar` para UX |
+| GET | `/usuarios/me/acesso` | próprio | autenticado | Flags `.acessar` para UX; **não** exige `usuarios.acessar`; prefixo `/api` é o mesmo autoatendimento; uma carga do usuário |
 | POST | `/usuarios/reenviar-codigo` | público | — | Resposta genérica (anti-enumeração) |
 | POST | `/usuarios/definir-senha` | público | — | DTO + senha mín. 8 |
 | POST | `/usuarios/solicitar-redefinicao-senha` | público | — | Já genérico |
@@ -44,7 +44,7 @@ Guard de prefixo: para cada manifesto, requisições autenticadas cujo path come
 
 - rotas públicas;
 - `/admin/v1`;
-- `/usuarios/me/*`, `/usuarios/2fa/*` e rotas públicas de senha.
+- `/usuarios/me/*`, `/usuarios/2fa/*` e rotas públicas de senha (com ou sem prefixo `/api` do proxy).
 
 Operações granulares de Vendas/Compras/OS **permanecem** mais restritivas que `.acessar`. Ter `.acessar` não dispensa `vendas.proposta.editar`.
 

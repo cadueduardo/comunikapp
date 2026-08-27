@@ -48,4 +48,30 @@ describe('ModuloAcessoGuard', () => {
     ).resolves.toBe(true);
     expect(assertPode).not.toHaveBeenCalled();
   });
+
+  it('libera GET /api/usuarios/me/acesso usado no carregamento da navegação', async () => {
+    const assertPode = jest.fn();
+    const guard = criarGuard(assertPode);
+    await expect(
+      guard.canActivate(
+        contexto('/api/usuarios/me/acesso', {
+          id: 'u1',
+          loja_id: 'loja-1',
+          funcao: 'VENDAS',
+        }),
+      ),
+    ).resolves.toBe(true);
+    expect(assertPode).not.toHaveBeenCalled();
+  });
+
+  it('ainda exige a porta do módulo quando o proxy envia /api', async () => {
+    const assertPode = jest.fn().mockRejectedValue(new ForbiddenException());
+    const guard = criarGuard(assertPode);
+    await expect(
+      guard.canActivate(
+        contexto('/api/os', { id: 'u1', loja_id: 'loja-1', funcao: 'VENDAS' }),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(assertPode).toHaveBeenCalledWith('u1', 'loja-1', 'os.acessar');
+  });
 });

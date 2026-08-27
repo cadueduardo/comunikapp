@@ -9,6 +9,10 @@ import { UsuariosService } from './usuarios.service';
 describe('UsuariosService contenção (Fase 0)', () => {
   function setup(overrides?: {
     findFirst?: unknown;
+    atores?: Record<
+      string,
+      { id: string; funcao: usuario_funcao; status: usuario_status; ativo?: boolean }
+    >;
     count?: number;
     update?: unknown;
     updateManyCount?: number;
@@ -17,7 +21,7 @@ describe('UsuariosService contenção (Fase 0)', () => {
     const prisma: any = {
       usuario: {
         findUnique: jest.fn().mockResolvedValue(null),
-        findFirst: jest.fn().mockResolvedValue(overrides?.findFirst ?? null),
+        findFirst: jest.fn(),
         findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn().mockResolvedValue({ id: 'user-1' }),
         update: jest.fn().mockResolvedValue(overrides?.update ?? { id: 'u1' }),
@@ -35,6 +39,17 @@ describe('UsuariosService contenção (Fase 0)', () => {
       $queryRaw: jest.fn().mockResolvedValue([]),
       $transaction: jest.fn(),
     };
+    prisma.usuario.findFirst.mockImplementation(async (args: { where?: { id?: string } }) => {
+      const id = args?.where?.id;
+      if (id && overrides?.atores?.[id]) {
+        return overrides.atores[id];
+      }
+      const alvo = overrides?.findFirst as { id?: string } | null | undefined;
+      if (alvo && (!id || id === alvo.id)) {
+        return alvo;
+      }
+      return null;
+    });
     prisma.$transaction.mockImplementation(
       async (fn: (client: typeof prisma) => unknown) => fn(prisma),
     );
@@ -148,6 +163,14 @@ describe('UsuariosService contenção (Fase 0)', () => {
         funcao: usuario_funcao.VENDAS,
         status: usuario_status.ATIVO,
       },
+      atores: {
+        'admin-2': {
+          id: 'admin-2',
+          funcao: usuario_funcao.ADMINISTRADOR,
+          status: usuario_status.ATIVO,
+          ativo: true,
+        },
+      },
       update: {
         id: 'user-1',
         funcao: usuario_funcao.ADMINISTRADOR,
@@ -163,6 +186,93 @@ describe('UsuariosService contenção (Fase 0)', () => {
     );
 
     expect(prisma.usuario.update).toHaveBeenCalled();
+  });
+
+  it('impede que gestor com usuarios.usuarios.gerenciar promova outro a administrador', async () => {
+    const { service, prisma } = setup({
+      findFirst: {
+        id: 'user-1',
+        funcao: usuario_funcao.VENDAS,
+        status: usuario_status.ATIVO,
+      },
+      atores: {
+        'gestor-1': {
+          id: 'gestor-1',
+          funcao: usuario_funcao.VENDAS,
+          status: usuario_status.ATIVO,
+          ativo: true,
+        },
+      },
+    });
+
+    await expect(
+      service.atualizar(
+        'user-1',
+        'loja-1',
+        { funcao: usuario_funcao.ADMINISTRADOR },
+        'gestor-1',
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.usuario.update).not.toHaveBeenCalled();
+  });
+
+  it('impede que gestor crie usuário com função administrador', async () => {
+    const { service, prisma } = setup({
+      atores: {
+        'gestor-1': {
+          id: 'gestor-1',
+          funcao: usuario_funcao.FINANCEIRO,
+          status: usuario_status.ATIVO,
+          ativo: true,
+        },
+      },
+    });
+
+    await expect(
+      service.criar(
+        'loja-1',
+        {
+          nome_completo: 'Novo Admin',
+          email: 'admin2@loja.com',
+          funcao: usuario_funcao.ADMINISTRADOR,
+          senha: 'senha-segura',
+        },
+        'gestor-1',
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.usuario.create).not.toHaveBeenCalled();
+  });
+
+  it('permite que administrador crie outro administrador', async () => {
+    const { service, prisma } = setup({
+      atores: {
+        'admin-1': {
+          id: 'admin-1',
+          funcao: usuario_funcao.ADMINISTRADOR,
+          status: usuario_status.ATIVO,
+          ativo: true,
+        },
+      },
+    });
+    prisma.usuario.create.mockResolvedValue({
+      id: 'user-2',
+      email: 'admin2@loja.com',
+      funcao: usuario_funcao.ADMINISTRADOR,
+    });
+
+    await expect(
+      service.criar(
+        'loja-1',
+        {
+          nome_completo: 'Novo Admin',
+          email: 'admin2@loja.com',
+          funcao: usuario_funcao.ADMINISTRADOR,
+          senha: 'senha-segura',
+        },
+        'admin-1',
+      ),
+    ).resolves.toEqual({ id: 'user-2' });
+    expect(prisma.usuario.create).toHaveBeenCalled();
   });
 
   it('reenviar código não revela se o e-mail existe', async () => {

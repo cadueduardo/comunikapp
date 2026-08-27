@@ -67,7 +67,7 @@ Chaves em `COMPRAS_PERMISSOES`. Acrescentar apenas `compras.acessar`.
 | chave | risco | significado |
 |---|---|---|
 | usuarios.acessar | MEDIO | Abrir o módulo |
-| usuarios.usuarios.gerenciar | ALTO | CRUD e ciclo de vida de usuários |
+| usuarios.usuarios.gerenciar | ALTO | CRUD e ciclo de vida de usuários. Não inclui conceder `funcao: ADMINISTRADOR`. |
 | usuarios.perfis.gerenciar | CRITICO | CRUD de perfis e grants |
 
 ## Piso temporário de `.acessar` (compatibilidade)

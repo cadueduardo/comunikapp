@@ -73,6 +73,18 @@ Resultado: 13 suites / 71 testes passando; agregador gerado sincronizado (17 man
 - [x] `ComprasModule` importa `RbacCoreModule` (sem registrar `APP_GUARD` de novo)
 - [x] typecheck/build e checks obrigatórios do PR: run `33090577207` (PR) e `33090572044` (push) **success** — lint/build, unitários, e2e, Gate 0S, Prisma, OpenAPI, audit, artefato. Build e Deploy permanece skip fora da `main`.
 
+## Correção P1/P2 da revisão (concessão de administrador e navegação)
+
+Evidência local (worktree `C:\Projects\comunikapp-usuarios`, heap 6144):
+
+```text
+npx jest src/usuarios/usuarios-contencao.spec.ts src/rbac/autorizacao/permissao-efetiva.service.spec.ts src/rbac/autorizacao/modulo-acesso.guard.spec.ts src/rbac/catalogo/catalogo.gate.spec.ts --runInBand --forceExit --no-coverage
+```
+
+- [x] Gestor com `usuarios.usuarios.gerenciar` não cria nem promove `ADMINISTRADOR`; administrador existente consegue
+- [x] `GET /usuarios/me/acesso` (com ou sem `/api`) não exige `usuarios.acessar` e avalia as portas numa única carga
+- [ ] CI do PR após este commit
+
 ## Dívidas remanescentes
 
 | Dívida | Risco | Proprietário | Condição de saída |

@@ -43,6 +43,8 @@ Não há seed de `permitido=false` em massa. Permissão nova em perfil customiza
 
 Somente `usuario_funcao.ADMINISTRADOR`. **Proibido:** nome textual do perfil, `UserRole` minúsculo, `@Roles` inerte, `sistema=true` enviado pelo cliente.
 
+`usuarios.usuarios.gerenciar` **não** autoriza criar ou promover `funcao: ADMINISTRADOR`. Somente um usuário já `ADMINISTRADOR`, ativo e da mesma loja (lido no banco, não no JWT) pode conceder essa função. Sem essa fronteira, a permissão delegável de gestão de usuários se torna bypass completo do RBAC.
+
 ## Função vs perfil
 
 - Função: papel canônico no JWT; piso temporário; escolha na criação do usuário.

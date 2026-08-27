@@ -3,7 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../../auth/jwt-auth.guard';
 import { extrairIdentidadeAutenticada } from '../../auth/decorators';
 import { PREFIXOS_API_AUTOATENDIMENTO_USUARIO } from '../catalogo/tipos';
-import { resolverModuloPorPath } from '../catalogo/agregador';
+import { resolverModuloPorPath, semPrefixoApi } from '../catalogo/agregador';
 import { PermissaoEfetivaService } from './permissao-efetiva.service';
 
 @Injectable()
@@ -27,13 +27,11 @@ export class ModuloAcessoGuard implements CanActivate {
       url?: string;
       user?: unknown;
     }>();
-    const path = (request.path || request.url || '').split('?')[0];
+    const path = semPrefixoApi(
+      (request.path || request.url || '').split('?')[0],
+    );
 
-    if (
-      path.startsWith('/admin/v1') ||
-      path.startsWith('/api/admin/v1') ||
-      path.startsWith('/public/v1')
-    ) {
+    if (path.startsWith('/admin/v1') || path.startsWith('/public/v1')) {
       return true;
     }
 

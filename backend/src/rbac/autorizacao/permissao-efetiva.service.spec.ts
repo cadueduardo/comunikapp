@@ -1,6 +1,7 @@
 import { usuario_funcao } from '@prisma/client';
 import { PermissaoEfetivaService } from './permissao-efetiva.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { listarManifestos } from '../catalogo/agregador';
 
 interface PerfilFake {
   ativo: boolean;
@@ -17,39 +18,34 @@ interface UsuarioFake {
 }
 
 function criarPrismaFake(usuarios: UsuarioFake[]): PrismaService {
-  return {
-    usuario: {
-      findFirst: (args: any) => {
-        const filtro = args.where;
-        const usuario = usuarios.find(
-          (candidato) =>
-            candidato.id === filtro.id &&
-            candidato.loja_id === filtro.loja_id &&
-            candidato.status === filtro.status &&
-            candidato.ativo === filtro.ativo,
-        );
-        if (!usuario) {
-          return Promise.resolve(null);
-        }
-        const filtroPermissao =
-          args.select.perfis.select.perfil.select.permissoes.where;
-        return Promise.resolve({
-          funcao: usuario.funcao,
-          perfis: usuario.perfis.map((perfil) => ({
-            perfil: {
-              ativo: perfil.ativo,
-              permissoes: perfil.permissoes
-                .filter(
-                  (permissao) =>
-                    permissao.modulo === filtroPermissao.modulo &&
-                    permissao.acao === filtroPermissao.acao,
-                )
-                .map((permissao) => ({ permitido: permissao.permitido })),
-            },
+  const findFirst = jest.fn((args: any) => {
+    const filtro = args.where;
+    const usuario = usuarios.find(
+      (candidato) =>
+        candidato.id === filtro.id &&
+        candidato.loja_id === filtro.loja_id &&
+        candidato.status === filtro.status &&
+        candidato.ativo === filtro.ativo,
+    );
+    if (!usuario) {
+      return Promise.resolve(null);
+    }
+    return Promise.resolve({
+      funcao: usuario.funcao,
+      perfis: usuario.perfis.map((perfil) => ({
+        perfil: {
+          ativo: perfil.ativo,
+          permissoes: perfil.permissoes.map((permissao) => ({
+            modulo: permissao.modulo,
+            acao: permissao.acao,
+            permitido: permissao.permitido,
           })),
-        });
-      },
-    },
+        },
+      })),
+    });
+  });
+  return {
+    usuario: { findFirst },
   } as unknown as PrismaService;
 }
 
@@ -159,5 +155,27 @@ describe('PermissaoEfetivaService', () => {
     await expect(
       service.pode('vendas', lojaA, 'usuarios.perfis.gerenciar'),
     ).resolves.toBe(false);
+  });
+
+  it('listarAcessoModulos carrega o usuário uma vez e não exige usuarios.acessar', async () => {
+    const prisma = criarPrismaFake([usuario('vendas', usuario_funcao.VENDAS)]);
+    const service = new PermissaoEfetivaService(prisma);
+    const findFirst = prisma.usuario.findFirst as jest.Mock;
+
+    const flags = await service.listarAcessoModulos('vendas', lojaA);
+
+    expect(findFirst).toHaveBeenCalledTimes(1);
+    const chaves = listarManifestos().map((modulo) => modulo.chave);
+    expect(Object.keys(flags).sort()).toEqual([...chaves].sort());
+    expect(flags.vendas).toBe(true);
+    expect(flags.usuarios).toBe(false);
+    expect(flags.dashboard).toBe(true);
+  });
+
+  it('listarAcessoModulos nega todos os módulos se o usuário não estiver ativo na loja', async () => {
+    const service = svc([]);
+    const flags = await service.listarAcessoModulos('ausente', lojaA);
+    expect(Object.values(flags).every((flag) => flag === false)).toBe(true);
+    expect(flags.usuarios).toBe(false);
   });
 });

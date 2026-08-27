@@ -19,8 +19,7 @@ import { extrairListaPaginada } from '@/lib/lista-paginada';
 import { toast } from 'sonner';
 import { useUser } from '@/contexts/UserContext';
 
-const FUNCOES = [
-  'ADMINISTRADOR',
+const FUNCOES_OPERACIONAIS = [
   'FINANCEIRO',
   'PRODUCAO',
   'VENDAS',
@@ -218,11 +217,14 @@ export default function EditarUsuarioPage({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {FUNCOES.map((f) => (
+              {FUNCOES_OPERACIONAIS.map((f) => (
                 <SelectItem key={f} value={f}>
                   {f}
                 </SelectItem>
               ))}
+              {isAdmin ? (
+                <SelectItem value="ADMINISTRADOR">ADMINISTRADOR</SelectItem>
+              ) : null}
             </SelectContent>
           </Select>
         </div>

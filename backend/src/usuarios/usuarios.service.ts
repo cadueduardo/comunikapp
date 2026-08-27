@@ -164,6 +164,9 @@ export class UsuariosService {
     const senhaHash = await bcrypt.hash(dto.senha, salt);
 
     const created = await this.prisma.$transaction(async (tx) => {
+      if (dto.funcao === usuario_funcao.ADMINISTRADOR) {
+        await this.assertAtorPodeConcederAdministrador(tx, lojaId, atorId);
+      }
       const usuario = await tx.usuario.create({
         data: {
           loja_id: lojaId,
@@ -217,6 +220,13 @@ export class UsuariosService {
       }
 
       this.assertNaoAlteraProprioPrivilegio(id, atorId, dto, user);
+
+      if (
+        dto.funcao === usuario_funcao.ADMINISTRADOR &&
+        user.funcao !== usuario_funcao.ADMINISTRADOR
+      ) {
+        await this.assertAtorPodeConcederAdministrador(tx, lojaId, atorId);
+      }
 
       const proximaFuncao = dto.funcao ?? user.funcao;
       const proximoStatus = dto.status ?? user.status;
@@ -647,6 +657,32 @@ export class UsuariosService {
     });
 
     return proximo;
+  }
+
+  /**
+   * `usuarios.usuarios.gerenciar` não autoriza o bypass do núcleo.
+   * A função ADMINISTRADOR só pode ser concedida por um administrador
+   * já existente, ativo e da mesma loja (lido no banco, não no JWT).
+   */
+  private async assertAtorPodeConcederAdministrador(
+    tx: Prisma.TransactionClient,
+    lojaId: string,
+    atorId: string,
+  ) {
+    const ator = await tx.usuario.findFirst({
+      where: {
+        id: atorId,
+        loja_id: lojaId,
+        status: usuario_status.ATIVO,
+        ativo: true,
+      },
+      select: { funcao: true },
+    });
+    if (ator?.funcao !== usuario_funcao.ADMINISTRADOR) {
+      throw new ForbiddenException(
+        'Somente um administrador da loja pode conceder a função de administrador.',
+      );
+    }
   }
 
   private assertNaoAlteraProprioPrivilegio(

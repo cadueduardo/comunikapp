@@ -86,10 +86,15 @@ export function listarChavesPermissao(): readonly string[] {
   return [...PERMISSOES_POR_CHAVE.keys()];
 }
 
+/** Produção e o proxy Next mantêm `/api`; o catálogo declara prefixos sem esse segmento. */
+export function semPrefixoApi(pathname: string): string {
+  return pathname.replace(/^\/api(?=\/)/, '') || pathname;
+}
+
 export function resolverModuloPorPath(
   pathname: string,
 ): ModuloCatalogo | undefined {
-  const path = pathname.replace(/^\/api(?=\/)/, '') || pathname;
+  const path = semPrefixoApi(pathname);
   const candidatos = MANIFESTOS_MODULOS.filter((modulo) =>
     modulo.prefixosApi.some((prefixo) => pathCombinaPrefixo(path, prefixo)),
   );

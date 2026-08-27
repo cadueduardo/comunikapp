@@ -105,6 +105,9 @@ describe('Gate do catálogo RBAC', () => {
     expect(resolverModuloPorPath('/os/abc')?.permissaoAcesso).toBe(
       'os.acessar',
     );
+    expect(resolverModuloPorPath('/api/os/abc')?.permissaoAcesso).toBe(
+      'os.acessar',
+    );
     expect(resolverModuloPorPath('/modulo-sem-manifesto-xyz')).toBeUndefined();
   });
 });

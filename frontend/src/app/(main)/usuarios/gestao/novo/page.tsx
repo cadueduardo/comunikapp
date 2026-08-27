@@ -9,8 +9,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { apiRequest } from '@/lib/api';
 import { toast } from 'sonner';
+import { useUser } from '@/contexts/UserContext';
+
+const ROTULOS_FUNCAO: Record<string, string> = {
+  VENDAS: 'Vendas',
+  FINANCEIRO: 'Financeiro',
+  PRODUCAO: 'Produção',
+  ESTOQUE: 'Estoque',
+  ADMINISTRADOR: 'Administrador',
+};
 
 export default function NovoUsuarioPage() {
+  const { user: currentUser } = useUser();
+  const atorPodeConcederAdmin = currentUser?.funcao === 'ADMINISTRADOR';
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
@@ -131,14 +142,23 @@ export default function NovoUsuarioPage() {
               value={funcao}
               onChange={(e) => setFuncao(e.target.value)}
             >
-              <option value="VENDAS">Vendas</option>
-              <option value="FINANCEIRO">Financeiro</option>
-              <option value="PRODUCAO">Produção</option>
-              <option value="ESTOQUE">Estoque</option>
-              <option value="ADMINISTRADOR">Administrador</option>
+              {(['VENDAS', 'FINANCEIRO', 'PRODUCAO', 'ESTOQUE'] as const).map(
+                (valor) => (
+                  <option key={valor} value={valor}>
+                    {ROTULOS_FUNCAO[valor]}
+                  </option>
+                ),
+              )}
+              {atorPodeConcederAdmin ? (
+                <option value="ADMINISTRADOR">
+                  {ROTULOS_FUNCAO.ADMINISTRADOR}
+                </option>
+              ) : null}
             </select>
             <p className="text-xs text-muted-foreground">
-              A função define o piso temporário. Permissões granulares vêm dos perfis.
+              A função define o piso temporário. Permissões granulares vêm dos
+              perfis. Somente um administrador da loja pode conceder a função
+              de administrador.
             </p>
           </div>
           <fieldset className="grid gap-2">
