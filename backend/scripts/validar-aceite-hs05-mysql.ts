@@ -339,8 +339,8 @@ async function principal() {
       linha?.status === 'aprovado' &&
         linha?.codigo_aprovacao_usado_em !== null &&
         efeitos.osCriadas === 1 &&
-        trilhas.length === 1,
-      `status=${linha?.status} os=${efeitos.osCriadas} trilhas=${trilhas.length}`,
+        contarTrilhasDeAceite(trilhas) === 1,
+      `status=${linha?.status} os=${efeitos.osCriadas} trilhas_aceite=${contarTrilhasDeAceite(trilhas)} trilhas_total=${trilhas.length}`,
     );
 
     verificar(
@@ -366,11 +366,12 @@ async function principal() {
         ? 'ENCONTRADO: ' + encontrados.join(', ')
         : 'nenhum termo sensível',
     );
+    const trilhaAceite = trilhas.find((t) => t.tipo_acao === 'ACEITE_PUBLICO');
     verificar(
       'auditoria: IP e user-agent vêm do contexto confiável da requisição',
-      trilhas[0]?.ip_origem === '203.0.113.7' &&
-        trilhas[0]?.user_agent === 'Navegador/1.0',
-      `ip=${trilhas[0]?.ip_origem} ua=${trilhas[0]?.user_agent}`,
+      trilhaAceite?.ip_origem === '203.0.113.7' &&
+        trilhaAceite?.user_agent === 'Navegador/1.0',
+      `ip=${trilhaAceite?.ip_origem} ua=${trilhaAceite?.user_agent}`,
     );
 
     // ------------------------------------ concorrência no caminho público
@@ -394,9 +395,9 @@ async function principal() {
       where: { orcamento_id: c.orcamentoId },
     });
     verificar(
-      'concorrência pública: 12 aceites simultâneos produzem 1 OS e 1 trilha',
-      efeitos.osCriadas === 1 && trilhas.length === 1,
-      `aceitos=${publicasSimultaneas.filter((r) => r === 'ok').length} os=${efeitos.osCriadas} trilhas=${trilhas.length}`,
+      'concorrência pública: 12 aceites simultâneos produzem 1 OS e 1 trilha de aceite',
+      efeitos.osCriadas === 1 && contarTrilhasDeAceite(trilhas) === 1,
+      `aceitos=${publicasSimultaneas.filter((r) => r === 'ok').length} os=${efeitos.osCriadas} trilhas_aceite=${contarTrilhasDeAceite(trilhas)}`,
     );
 
     // ------------------------------------ concorrência no caminho interno
@@ -413,9 +414,9 @@ async function principal() {
       where: { orcamento_id: c.orcamentoId },
     });
     verificar(
-      'concorrência interna: 12 aprovações simultâneas produzem 1 OS e 1 trilha',
-      efeitos.osCriadas === 1 && trilhas.length === 1,
-      `respostas_ok=${internasSimultaneas.filter((r) => r === 'ok').length} os=${efeitos.osCriadas} trilhas=${trilhas.length}`,
+      'concorrência interna: 12 aprovações simultâneas produzem 1 OS e 1 trilha de aceite',
+      efeitos.osCriadas === 1 && contarTrilhasDeAceite(trilhas) === 1,
+      `respostas_ok=${internasSimultaneas.filter((r) => r === 'ok').length} os=${efeitos.osCriadas} trilhas_aceite=${contarTrilhasDeAceite(trilhas)}`,
     );
 
     // ------------------------------------ falha de auditoria reverte tudo

@@ -5,21 +5,19 @@ repositório. Antes de alterar código, leia também a documentação funcional 
 feature e, para mudanças de banco, leia obrigatoriamente
 `docs/database/boas-praticas-schema-prisma.md`.
 
-## Módulo Ordem de Serviço (OS)
+## Documentação funcional por módulo
 
-- Antes de qualquer trabalho em `backend/src/os` ou
-  `frontend/src/app/(main)/os`, leia obrigatoriamente
-  `docs/modulo-os-melhorias/DIAGNOSTICO-MODULO-OS.md` (diagnóstico de dados
-  mockados, fluxos incompletos e plano de ação P0/P1/P2).
-- Ao concluir um item do plano de ação, marque o checkbox correspondente no
-  diagnóstico no mesmo commit da mudança.
-- Não introduza dados mockados/hardcoded em telas ou services do módulo OS.
-  Se a API ainda não existe, exiba estado vazio/erro honesto, nunca dado
-  inventado.
-- A fonte de verdade dos status da OS é o enum TypeScript `StatusOS` em
-  `backend/src/os/interfaces/os.interfaces.ts`; o enum Prisma homônimo está
-  órfão. Não crie novos valores de status sem tratar a unificação (item P1-5
-  do diagnóstico).
+- Antes de alterar qualquer módulo, localize e leia integralmente a documentação
+  funcional, o diagnóstico e o plano de ação correspondentes em `docs/`.
+- Se o módulo possuir `AGENTS.md` local, suas instruções complementam este arquivo
+  apenas dentro daquele diretório.
+- Ao concluir item de diagnóstico/plano do módulo, marque o checkbox
+  correspondente no mesmo commit da implementação.
+- Não introduza dados mockados/hardcoded em telas ou services. Se a API ainda não
+  existe, exiba estado vazio ou erro honesto, nunca dado inventado.
+- Não crie ou amplie status sem identificar e respeitar a fonte de verdade do
+  domínio. Se aplicação e Prisma divergirem, trate primeiro a unificação prevista
+  na documentação do módulo.
 
 ## Segurança e multi-tenancy
 
@@ -87,18 +85,34 @@ feature e, para mudanças de banco, leia obrigatoriamente
 
 Referência canônica: `frontend/src/app/(main)/fornecedores/`.
 
+Esta regra é **obrigatória para toda listagem CRUD nova ou substancialmente
+alterada**, em qualquer módulo. A prioridade de visualização não é uma preferência
+do agente:
+
+- **desktop inicia sempre em Tabela/Grid**;
+- **desktop oferece alternância para Cards**;
+- **mobile usa sempre Cards** e oculta a alternância;
+- não é permitido persistir uma preferência de Cards do desktop de forma que ela
+  force Cards como padrão em uma nova sessão, salvo requisito de produto
+  explicitamente documentado;
+- não é permitido renderizar a tabela desktop comprimida ou com rolagem como
+  substituto da experiência de Cards no mobile.
+
 Estrutura mínima de uma listagem:
 
 1. **Cabeçalho** com título, subtítulo curto e ações primárias (ex.: Novo).
-2. **Alternância Tabela / Cards** no desktop (`useIsMobile` + toggle). No
-   mobile, forçar sempre a visão em cards; ocultar o toggle.
+2. **Alternância Tabela / Cards** no desktop (`useIsMobile` + toggle), iniciando
+   obrigatoriamente em **Tabela/Grid**. No mobile, forçar sempre a visão em Cards
+   e ocultar o toggle.
 3. **Tabela (desktop)** via `DataTable` (`@/components/data-table/data-table`) e
    `columns.tsx` com `@tanstack/react-table`, ordenação nos campos relevantes e
    menu de ações (`DropdownMenu` + `MoreHorizontal`).
 4. **Cards (mobile ou modo Cards)** em grid
    `grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3`, com componente de
    card dedicado em `frontend/src/components` (ex.: `FornecedorCard`,
-   `AdminStoreCard`). O card deve expor as mesmas ações da tabela.
+   `AdminStoreCard`). O card deve expor as mesmas ações, permissões e
+   confirmações da tabela. A definição/menu de ações deve ser reutilizada sempre
+   que possível para evitar divergência entre as duas visualizações.
 5. **Estados** explícitos de carregamento, vazio (com CTA quando fizer sentido)
    e erro.
 6. **Confirmações** destrutivas ou sensíveis com `ConfirmDialog` / diálogo
@@ -113,6 +127,11 @@ Não aceitar como pronto um CRUD que:
 
 - mostre apenas tabela no desktop sem cards no mobile;
 - mostre apenas cards empilhados no desktop sem opção de tabela;
+- abra em Cards por padrão no desktop sem requisito de produto explicitamente
+  documentado;
+- mantenha o toggle Tabela/Cards visível no mobile;
+- renderize `DataTable` no mobile como substituto dos cards;
+- ofereça ações, permissões ou confirmações diferentes entre Tabela e Cards;
 - duplique markup de ações entre tabela e card sem o padrão de menu;
 - use CSS inline ou estilos incompatíveis com dark/light mode.
 
@@ -125,4 +144,3 @@ Não aceitar como pronto um CRUD que:
   sem necessidade para a entrega.
 - Antes de concluir, execute testes proporcionais ao risco, validação Prisma,
   typecheck/build e `git diff --check`.
-
