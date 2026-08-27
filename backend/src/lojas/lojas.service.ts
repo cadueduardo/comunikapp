@@ -12,7 +12,13 @@ import { createHash, timingSafeEqual } from 'crypto';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
-import { usuario_funcao, usuario_status, loja_status, loja, Prisma } from '@prisma/client';
+import {
+  usuario_funcao,
+  usuario_status,
+  loja_status,
+  loja,
+  Prisma,
+} from '@prisma/client';
 import { CreateOnboardingDto } from './dto/create-onboarding.dto';
 import { UpdateLojaDto } from './dto/update-loja.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -39,6 +45,7 @@ import {
 } from './loja-slug';
 import { CloudflareSaaSService } from './cloudflare-saas.service';
 import { isLikelyApexHostname } from './dominio-custom-host';
+import { lerSessionVersion } from '../rbac/sessao-usuario';
 
 type LoginAttemptState = {
   failedAttempts: number;
@@ -339,7 +346,13 @@ export class LojasService {
       throw new UnauthorizedException('Credenciais inválidas.');
     }
 
-    this.assertLoginSlugMatchesLoja(slug, usuario.loja, normalizedEmail, ip, ua);
+    this.assertLoginSlugMatchesLoja(
+      slug,
+      usuario.loja,
+      normalizedEmail,
+      ip,
+      ua,
+    );
 
     if (usuario.two_factor_enabled && usuario.two_factor_secret) {
       this.clearLoginFailure(loginKey);
@@ -364,6 +377,7 @@ export class LojasService {
       loja: usuario.loja,
       funcao: usuario.funcao,
       nome_completo: usuario.nome_completo,
+      session_version: lerSessionVersion(usuario),
     });
 
     this.clearLoginFailure(loginKey);
@@ -444,6 +458,7 @@ export class LojasService {
       loja: usuario.loja,
       funcao: usuario.funcao,
       nome_completo: usuario.nome_completo,
+      session_version: lerSessionVersion(usuario),
     });
 
     this.logger.log(
@@ -541,11 +556,7 @@ export class LojasService {
 
   /** Resolve loja por hostname de domínio custom verificado. */
   async findPublicByHost(hostRaw: string) {
-    const host = hostRaw
-      .split(':')[0]
-      ?.trim()
-      .toLowerCase()
-      .replace(/\.$/, '');
+    const host = hostRaw.split(':')[0]?.trim().toLowerCase().replace(/\.$/, '');
     if (!host || host.length < 3 || host.length > 253) {
       throw new NotFoundException('Loja não encontrada.');
     }
@@ -601,7 +612,9 @@ export class LojasService {
       select: { id: true },
     });
     if (taken) {
-      throw new ConflictException('Este domínio já está em uso por outra loja.');
+      throw new ConflictException(
+        'Este domínio já está em uso por outra loja.',
+      );
     }
 
     this.cloudflareSaaS.requireConfigured();
@@ -773,7 +786,11 @@ export class LojasService {
   }
 
   private assertDominioCustomAllowed(host: string) {
-    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(host)) {
+    if (
+      !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(
+        host,
+      )
+    ) {
       throw new BadRequestException('Domínio inválido.');
     }
     if (host === 'comunikapp.com.br' || host.endsWith('.comunikapp.com.br')) {

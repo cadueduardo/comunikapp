@@ -54,8 +54,24 @@ npx jest src/usuarios/usuarios-criar-sem-convite.spec.ts src/usuarios/usuarios-c
 - [x] Duas lojas no `PermissaoEfetivaService`
 - [x] Compras unificado no núcleo (sem bypass por nome de perfil)
 - [x] OpenAPI: `@ApiTags` em usuários/perfis
-- [x] `git diff --check` sem erros de whitespace
-- [~] `npx tsc` local: não executado no worktree porque `node_modules` é junction e o client Prisma ainda não contém `session_version`/`loja_audit_log`; CI gera o client antes da suíte
+## Correção da revisão (login, catálogo, sync, mutações)
+
+Evidência local (worktree `C:\Projects\comunikapp-usuarios`, heap 6144):
+
+```text
+npx ts-node --transpile-only scripts/gerar-agregador-catalogo-rbac.ts --check
+npx jest src/auth/auth.service.spec.ts src/lojas/lojas.service.login-session.spec.ts src/common/middleware/jwt-global.middleware.spec.ts src/usuarios/usuarios-contencao.spec.ts src/usuarios/usuarios-criar-sem-convite.spec.ts src/usuarios/perfis-acesso.contencao.spec.ts src/rbac/catalogo/catalogo.gate.spec.ts src/rbac/autorizacao/permissao-efetiva.service.spec.ts src/rbac/sync/sincronizar-perfis-sistema.service.spec.ts src/compras/services/compras-permissions.service.spec.ts src/vendas/permissions/vendas-permissions.service.spec.ts src/vendas/permissions/seed-vendas-rbac.spec.ts src/rbac/autorizacao/modulo-acesso.guard.spec.ts --runInBand --forceExit --no-coverage
+```
+
+Resultado: 13 suites / 71 testes passando; agregador gerado sincronizado (17 manifestos); `git diff --check` limpo.
+
+- [x] Login passa `session_version` real ao JWT (`lojas.service.login-session.spec.ts`)
+- [x] Token recém-emitido autorizado; token sem/versão antiga revogado
+- [x] Gate compara filesystem `(main)`, `*.catalogo.ts` com `manifestoAcessoModulo` e chaves enforced
+- [x] Sync de sistema cria só grants ausentes, não reabre deny, não toca customizado
+- [x] Autoelevação, último admin com `FOR UPDATE`, reset com `updateMany` atômico
+- [x] `ComprasModule` importa `RbacCoreModule` (sem registrar `APP_GUARD` de novo)
+- [ ] typecheck/build e checks obrigatórios do PR: aguardando CI após `prisma generate`
 
 ## Dívidas remanescentes
 

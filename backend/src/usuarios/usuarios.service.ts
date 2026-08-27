@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
@@ -14,6 +15,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { MailService } from '../mail/mail.service';
 import { LojaAuditService } from '../rbac/auditoria/loja-audit.service';
+import { incrementoSessionVersion } from '../rbac/sessao-usuario';
 import { usuario_status, usuario_funcao, Prisma } from '@prisma/client';
 import { randomBytes, createHash } from 'crypto';
 import { ListarUsuariosQueryDto } from './dto/paginacao-query.dto';
@@ -205,58 +207,64 @@ export class UsuariosService {
     dto: UpdateUsuarioDto,
     atorId: string,
   ) {
-    const user = await this.prisma.usuario.findFirst({
-      where: { id, loja_id: lojaId },
-      select: { id: true, funcao: true, status: true },
-    });
-    if (!user) {
-      throw new NotFoundException('Usuário não encontrado');
-    }
-
-    const proximaFuncao = dto.funcao ?? user.funcao;
-    const proximoStatus = dto.status ?? user.status;
-    const deixaDeSerAdminAtivo =
-      user.funcao === usuario_funcao.ADMINISTRADOR &&
-      user.status === usuario_status.ATIVO &&
-      (proximaFuncao !== usuario_funcao.ADMINISTRADOR ||
-        proximoStatus !== usuario_status.ATIVO);
-
-    if (deixaDeSerAdminAtivo) {
-      await this.assertNaoEUltimoAdmin(lojaId, id);
-    }
-
-    const data: Prisma.usuarioUpdateInput = {};
-    if (dto.nome_completo !== undefined) {
-      data.nome_completo = dto.nome_completo.trim();
-    }
-    if (dto.email !== undefined) {
-      data.email = this.normalizeEmail(dto.email);
-    }
-    if (dto.telefone !== undefined) {
-      data.telefone = dto.telefone.trim() || null;
-    }
-    if (dto.funcao !== undefined) {
-      data.funcao = dto.funcao;
-    }
-    if (dto.status !== undefined) {
-      data.status = dto.status;
-      data.ativo = dto.status === usuario_status.ATIVO;
-    }
-    if (deixaDeSerAdminAtivo || dto.status !== undefined || dto.funcao !== undefined) {
-      Object.assign(data, { session_version: { increment: 1 } });
-    }
-
     return this.prisma.$transaction(async (tx) => {
+      const user = await tx.usuario.findFirst({
+        where: { id, loja_id: lojaId },
+        select: { id: true, funcao: true, status: true },
+      });
+      if (!user) {
+        throw new NotFoundException('Usuário não encontrado');
+      }
+
+      this.assertNaoAlteraProprioPrivilegio(id, atorId, dto, user);
+
+      const proximaFuncao = dto.funcao ?? user.funcao;
+      const proximoStatus = dto.status ?? user.status;
+      const deixaDeSerAdminAtivo =
+        user.funcao === usuario_funcao.ADMINISTRADOR &&
+        user.status === usuario_status.ATIVO &&
+        (proximaFuncao !== usuario_funcao.ADMINISTRADOR ||
+          proximoStatus !== usuario_status.ATIVO);
+
+      if (deixaDeSerAdminAtivo) {
+        await this.assertNaoEUltimoAdmin(tx, lojaId, id);
+      }
+
+      const data: Prisma.usuarioUpdateInput = {};
+      if (dto.nome_completo !== undefined) {
+        data.nome_completo = dto.nome_completo.trim();
+      }
+      if (dto.email !== undefined) {
+        data.email = this.normalizeEmail(dto.email);
+      }
+      if (dto.telefone !== undefined) {
+        data.telefone = dto.telefone.trim() || null;
+      }
+      if (dto.funcao !== undefined) {
+        data.funcao = dto.funcao;
+      }
+      if (dto.status !== undefined) {
+        data.status = dto.status;
+        data.ativo = dto.status === usuario_status.ATIVO;
+      }
+      if (
+        deixaDeSerAdminAtivo ||
+        dto.status !== undefined ||
+        dto.funcao !== undefined
+      ) {
+        Object.assign(data, incrementoSessionVersion());
+      }
+
       const atualizado = await tx.usuario.update({
         where: { id },
-        data,
+        data: data as Prisma.usuarioUpdateInput,
         select: USUARIO_PUBLICO_SELECT,
       });
       if (dto.perfilIds) {
         await this.substituirPerfis(tx, id, lojaId, dto.perfilIds);
         await tx.usuario.update({
           where: { id },
-          data: { session_version: { increment: 1 } } as never,
+          data: incrementoSessionVersion() as Prisma.usuarioUpdateInput,
         });
       }
       await this.audit.registrar({
@@ -281,77 +289,89 @@ export class UsuariosService {
   }
 
   async desativar(id: string, lojaId: string, atorId: string) {
-    const usuario = await this.prisma.usuario.findFirst({
-      where: { id, loja_id: lojaId },
-      select: { id: true, funcao: true, status: true },
-    });
-
-    if (!usuario) {
-      throw new NotFoundException('Usuario nao encontrado');
+    if (id === atorId) {
+      throw new ForbiddenException(
+        'Não é permitido desativar o próprio usuário',
+      );
     }
 
-    if (usuario.status === usuario_status.INATIVO) {
-      return { id: usuario.id, status: usuario_status.INATIVO };
-    }
+    return this.prisma.$transaction(async (tx) => {
+      const usuario = await tx.usuario.findFirst({
+        where: { id, loja_id: lojaId },
+        select: { id: true, funcao: true, status: true },
+      });
 
-    if (usuario.funcao === usuario_funcao.ADMINISTRADOR) {
-      await this.assertNaoEUltimoAdmin(lojaId, id);
-    }
+      if (!usuario) {
+        throw new NotFoundException('Usuario nao encontrado');
+      }
 
-    const updated = await this.prisma.usuario.update({
-      where: { id: usuario.id },
-      data: {
-        status: usuario_status.INATIVO,
-        ativo: false,
-        session_version: { increment: 1 },
-      } as never,
-      select: {
-        id: true,
-        status: true,
-        ativo: true,
-      },
+      if (usuario.status === usuario_status.INATIVO) {
+        return { id: usuario.id, status: usuario_status.INATIVO };
+      }
+
+      if (usuario.funcao === usuario_funcao.ADMINISTRADOR) {
+        await this.assertNaoEUltimoAdmin(tx, lojaId, id);
+      }
+
+      const updated = await tx.usuario.update({
+        where: { id: usuario.id },
+        data: {
+          status: usuario_status.INATIVO,
+          ativo: false,
+          ...incrementoSessionVersion(),
+        } as Prisma.usuarioUpdateInput,
+        select: {
+          id: true,
+          status: true,
+          ativo: true,
+        },
+      });
+
+      await this.audit.registrar({
+        lojaId,
+        atorId,
+        action: 'usuario.desativar',
+        resourceType: 'usuario',
+        resourceId: id,
+        previousState: { status: usuario.status },
+        newState: { status: updated.status },
+        tx,
+      });
+
+      return updated;
     });
-
-    await this.audit.registrar({
-      lojaId,
-      atorId,
-      action: 'usuario.desativar',
-      resourceType: 'usuario',
-      resourceId: id,
-      previousState: { status: usuario.status },
-      newState: { status: updated.status },
-    });
-
-    return updated;
   }
 
   async reativar(id: string, lojaId: string, atorId: string) {
-    const usuario = await this.prisma.usuario.findFirst({
-      where: { id, loja_id: lojaId },
-      select: { id: true, status: true },
+    return this.prisma.$transaction(async (tx) => {
+      const usuario = await tx.usuario.findFirst({
+        where: { id, loja_id: lojaId },
+        select: { id: true, status: true },
+      });
+      if (!usuario) {
+        throw new NotFoundException('Usuário não encontrado');
+      }
+      const atualizado = await tx.usuario.update({
+        where: { id: usuario.id },
+        data: {
+          status: usuario_status.ATIVO,
+          ativo: true,
+          ...incrementoSessionVersion(),
+        } as Prisma.usuarioUpdateInput,
+        select: USUARIO_PUBLICO_SELECT,
+      });
+      await this.audit.registrar({
+        lojaId,
+        atorId,
+        action: 'usuario.reativar',
+        resourceType: 'usuario',
+        resourceId: id,
+        previousState: { status: usuario.status },
+        newState: { status: atualizado.status },
+        tx,
+      });
+      return atualizado;
     });
-    if (!usuario) {
-      throw new NotFoundException('Usuário não encontrado');
-    }
-    const atualizado = await this.prisma.usuario.update({
-      where: { id: usuario.id },
-      data: {
-        status: usuario_status.ATIVO,
-        ativo: true,
-        session_version: { increment: 1 },
-      } as never,
-      select: USUARIO_PUBLICO_SELECT,
-    });
-    await this.audit.registrar({
-      lojaId,
-      atorId,
-      action: 'usuario.reativar',
-      resourceType: 'usuario',
-      resourceId: id,
-      previousState: { status: usuario.status },
-      newState: { status: atualizado.status },
-    });
-    return atualizado;
   }
 
   async reenviarCodigo(email: string) {
@@ -428,16 +448,24 @@ export class UsuariosService {
     const salt = await bcrypt.genSalt();
     const senhaHash = await bcrypt.hash(novaSenha, salt);
 
-    await this.prisma.usuario.update({
-      where: { id: usuario.id },
+    const queimado = await this.prisma.usuario.updateMany({
+      where: {
+        id: usuario.id,
+        codigo_verificacao_email: codigo,
+        email_verificado: false,
+      },
       data: {
         senha: senhaHash,
         email_verificado: true,
         status: usuario_status.ATIVO,
         codigo_verificacao_email: null,
         codigo_verificacao_email_expiracao: null,
-      },
+        ...incrementoSessionVersion(),
+      } as Prisma.usuarioUpdateManyMutationInput,
     });
+    if (queimado.count !== 1) {
+      throw new UnauthorizedException('Codigo invalido');
+    }
 
     return { message: 'Senha definida e e-mail verificado' };
   }
@@ -539,19 +567,28 @@ export class UsuariosService {
     const salt = await bcrypt.genSalt();
     const senhaHash = await bcrypt.hash(novaSenha, salt);
 
-    await this.prisma.$transaction([
-      this.prisma.usuario.update({
+    await this.prisma.$transaction(async (tx) => {
+      const queimado = await tx.passwordResetToken.updateMany({
+        where: {
+          id: resetToken.id,
+          used_at: null,
+          expires_at: { gt: new Date() },
+        },
+        data: { used_at: new Date() },
+      });
+      if (queimado.count !== 1) {
+        throw new BadRequestException(
+          'Link de redefinicao invalido ou expirado',
+        );
+      }
+      await tx.usuario.update({
         where: { id: resetToken.usuario_id },
         data: {
           senha: senhaHash,
-          session_version: { increment: 1 },
-        } as never,
-      }),
-      this.prisma.passwordResetToken.update({
-        where: { id: resetToken.id },
-        data: { used_at: new Date() },
-      }),
-    ]);
+          ...incrementoSessionVersion(),
+        } as Prisma.usuarioUpdateInput,
+      });
+    });
 
     return { message: 'Senha redefinida com sucesso' };
   }
@@ -612,8 +649,41 @@ export class UsuariosService {
     return proximo;
   }
 
-  private async assertNaoEUltimoAdmin(lojaId: string, usuarioId: string) {
-    const totalAdminsAtivos = await this.prisma.usuario.count({
+  private assertNaoAlteraProprioPrivilegio(
+    id: string,
+    atorId: string,
+    dto: UpdateUsuarioDto,
+    atual: { funcao: usuario_funcao; status: usuario_status },
+  ) {
+    if (id !== atorId) {
+      return;
+    }
+    if (dto.funcao !== undefined && dto.funcao !== atual.funcao) {
+      throw new ForbiddenException('Não é permitido alterar a própria função.');
+    }
+    if (dto.perfilIds !== undefined) {
+      throw new ForbiddenException(
+        'Não é permitido alterar os próprios perfis.',
+      );
+    }
+    if (dto.status !== undefined && dto.status !== atual.status) {
+      throw new ForbiddenException('Não é permitido alterar o próprio status.');
+    }
+  }
+
+  private async assertNaoEUltimoAdmin(
+    tx: Prisma.TransactionClient,
+    lojaId: string,
+    usuarioId: string,
+  ) {
+    await tx.$queryRaw`
+      SELECT id FROM usuario
+      WHERE loja_id = ${lojaId}
+        AND funcao = 'ADMINISTRADOR'
+        AND status = 'ATIVO'
+      FOR UPDATE
+    `;
+    const totalAdminsAtivos = await tx.usuario.count({
       where: {
         loja_id: lojaId,
         funcao: usuario_funcao.ADMINISTRADOR,
@@ -658,7 +728,9 @@ export class UsuariosService {
     });
   }
 
-  private parsePreferencias(raw: Prisma.JsonValue | null): UsuarioPreferenciasJson {
+  private parsePreferencias(
+    raw: Prisma.JsonValue | null,
+  ): UsuarioPreferenciasJson {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
       return {};
     }

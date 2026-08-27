@@ -151,6 +151,10 @@ jobs:
         working-directory: backend
         run: npx prisma db push --accept-data-loss
 
+      - name: Verificar agregador de catálogo gerado
+        working-directory: backend
+        run: npx ts-node --transpile-only scripts/gerar-agregador-catalogo-rbac.ts --check
+
       - name: Gate catálogo RBAC
         working-directory: backend
         run: npx jest src/rbac/catalogo/catalogo.gate.spec.ts src/rbac/autorizacao/permissao-efetiva.service.spec.ts --runInBand --forceExit --no-coverage

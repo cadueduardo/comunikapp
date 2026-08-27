@@ -650,7 +650,7 @@ ordem de dependência.
 - [x] Atualizar OpenAPI e documentação operacional.
 - [x] Atualizar checkboxes no mesmo commit da respectiva implementação.
 - [x] Registrar dívidas remanescentes com risco, proprietário e condição de saída.
-- [x] Executar validação final completa.
+- [ ] Executar validação final completa.
 
 ## Entregáveis documentais
 
@@ -722,7 +722,7 @@ A entrega só estará pronta quando:
 - [x] status, bloqueio, ativação e revogação de sessão estarem coerentes;
 - [x] CRUDs seguirem o padrão visual obrigatório em desktop e mobile;
 - [x] documentação antiga estar reconciliada, sem conclusão falsa;
-- [x] testes proporcionais, validação Prisma quando aplicável, typecheck, build e
+- [ ] testes proporcionais, validação Prisma quando aplicável, typecheck, build e
       `git diff --check` passarem;
 - [x] não houver secrets, dados mockados, CSS inline ou alterações não
       relacionadas na entrega.

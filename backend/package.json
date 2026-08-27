@@ -38,7 +38,9 @@
     "admin:bootstrap": "node scripts/bootstrap-admin-invitation.js",
     "migrate:arte-comentarios": "ts-node src/modules/arte-aprovacao/scripts/migrate-comentarios-to-mensagens.ts",
     "migrate:os-materiais": "ts-node ./scripts/migrar-os-materiais-corretos.ts",
-    "corrigir:os-materiais": "ts-node ./scripts/corrigir-os-materiais-completo.ts"
+    "corrigir:os-materiais": "ts-node ./scripts/corrigir-os-materiais-completo.ts",
+    "catalogo:gerar": "ts-node --transpile-only scripts/gerar-agregador-catalogo-rbac.ts",
+    "catalogo:check": "ts-node --transpile-only scripts/gerar-agregador-catalogo-rbac.ts --check"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",

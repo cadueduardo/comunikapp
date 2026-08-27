@@ -3,6 +3,7 @@ import {
   NestMiddleware,
   UnauthorizedException,
   ForbiddenException,
+  HttpException,
   Logger,
 } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
@@ -14,6 +15,7 @@ import {
   extractTenantSlugFromOrigin,
 } from '../../lojas/tenant-host';
 import { encontrarRotaPublica } from '../security/rotas-publicas';
+import { lerSessionVersion } from '../../rbac/sessao-usuario';
 
 @Injectable()
 export class JwtGlobalMiddleware implements NestMiddleware {
@@ -82,7 +84,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
         throw new UnauthorizedException('Token de loja inválido');
       }
 
-      const usuario = (await this.prisma.usuario.findFirst({
+      const usuario = await this.prisma.usuario.findFirst({
         where: {
           id: payload.sub,
           loja_id: payload.loja_id,
@@ -90,13 +92,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
           ativo: true,
           email_verificado: true,
         },
-        select: {
-          id: true,
-          email: true,
-          loja_id: true,
-          funcao: true,
-          nome_completo: true,
-          session_version: true,
+        include: {
           loja: {
             select: {
               id: true,
@@ -107,21 +103,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
             },
           },
         },
-      } as never)) as unknown as {
-        id: string;
-        email: string;
-        loja_id: string;
-        funcao: string;
-        nome_completo: string;
-        session_version: number;
-        loja: {
-          id: string;
-          nome: string;
-          slug: string;
-          status: string;
-          session_version: number;
-        };
-      } | null;
+      });
 
       if (!usuario) {
         throw new UnauthorizedException('Usuário inativo ou sessão inválida');
@@ -134,16 +116,25 @@ export class JwtGlobalMiddleware implements NestMiddleware {
       }
 
       if (
-        (payload.loja_session_version ?? 0) !==
-        usuario.loja.session_version
+        (payload.loja_session_version ?? 0) !== usuario.loja.session_version
       ) {
         throw new UnauthorizedException(
           'Sessão revogada. Faça login novamente.',
         );
       }
 
+      let versaoUsuario: number;
+      try {
+        versaoUsuario = lerSessionVersion(usuario);
+      } catch {
+        throw new UnauthorizedException(
+          'Sessão revogada. Faça login novamente.',
+        );
+      }
+
       if (
-        (payload.usuario_session_version ?? 0) !== usuario.session_version
+        typeof payload.usuario_session_version !== 'number' ||
+        payload.usuario_session_version !== versaoUsuario
       ) {
         throw new UnauthorizedException(
           'Sessão revogada. Faça login novamente.',
@@ -156,7 +147,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
         loja_id: usuario.loja_id,
         funcao: usuario.funcao,
         nome_completo: usuario.nome_completo,
-        session_version: usuario.session_version,
+        session_version: versaoUsuario,
         loja: usuario.loja,
       };
 
@@ -182,7 +173,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
 
       next();
     } catch (error) {
-      if (error instanceof ForbiddenException) {
+      if (error instanceof HttpException) {
         throw error;
       }
       if (process.env.NODE_ENV === 'production') {

@@ -1,6 +1,7 @@
 # Catálogo de módulos e permissões
 
-**Fonte canônica de metadados:** código em `backend/src/**/*.catalogo.ts`, agregado por `backend/src/rbac/catalogo/agregador.ts`.
+**Fonte canônica de metadados:** arquivos `backend/src/**/*.catalogo.ts` descobertos
+por `descoberta-fontes.ts` e agregados em `manifestos.generated.ts`.
 Este documento descreve o inventário e as regras; a UI **não** deve copiar esta lista.
 
 ## Critérios
@@ -90,9 +91,18 @@ Nenhuma nesta entrega. Legado de navegação `orcamentos` / `clientes` / `modelo
 
 ## Gate de CI
 
-O gate falha se:
+O agregador runtime é **gerado** a partir dos arquivos `src/**/*.catalogo.ts`
+que usam `manifestoAcessoModulo` (`scripts/gerar-agregador-catalogo-rbac.ts`).
+Não há lista manual de chaves nem lista manual de imports.
 
-1. chave do inventário obrigatório sem manifesto;
-2. manifesto cuja chave não está no inventário (órfão);
-3. duas chaves de permissão iguais;
-4. string de permissão usada em `assertPode` / `@RequerPermissao*` / `@RequerPermissaoVendas` / `COMPRAS_PERMISSOES` ausente do catálogo.
+O gate (`catalogo.gate.spec.ts` + `--check` no CI) falha se:
+
+1. arquivo `*.catalogo.ts` com `manifestoAcessoModulo` não estiver no gerado;
+2. rota de primeiro nível em `frontend/src/app/(main)` (exceto
+   `admin-plataforma`, exclusão SaaS documentada) não aparecer em `rotasFrontend`;
+3. `rotasFrontend` apontar para pasta `(main)` inexistente;
+4. string de permissão usada em `@RequerPermissao*` / `assertPode('…')` /
+   `VENDAS_PERMISSOES` / `COMPRAS_PERMISSOES` estiver ausente do catálogo;
+5. permissão catalogada não tiver enforcement (porta `.acessar` via
+   `ModuloAcessoGuard`, constante canônica ou decorator);
+6. duas chaves de permissão iguais.

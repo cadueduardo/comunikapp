@@ -1,47 +1,7 @@
 import { createHash } from 'crypto';
-import { ARTE_CATALOGO } from '../../modules/arte-aprovacao/arte.catalogo';
-import { CATALOGO_PRODUTOS_CATALOGO } from '../../catalogo/catalogo.catalogo';
-import { CENTROS_TRABALHO_CATALOGO } from '../../configuracoes/centros-trabalho.catalogo';
-import { COMPRAS_CATALOGO } from '../../compras/compras.catalogo';
-import { CONFIGURACOES_CATALOGO } from '../../configuracoes/configuracoes.catalogo';
-import { DASHBOARD_CATALOGO } from '../../home-operacional/dashboard.catalogo';
-import { ESTOQUE_CATALOGO } from '../../estoque/estoque.catalogo';
-import { EXPEDICAO_CATALOGO } from '../../expedicao/expedicao.catalogo';
-import { FINANCEIRO_CATALOGO } from '../../financeiro/financeiro.catalogo';
-import { FORNECEDORES_CATALOGO } from '../../fornecedores/fornecedores.catalogo';
-import { INSTALACAO_CATALOGO } from '../../instalacao/instalacao.catalogo';
-import { INSUMOS_CATALOGO } from '../../insumos/insumos.catalogo';
-import { MODELOS_CATALOGO } from '../../produtos/modelos.catalogo';
-import { OS_CATALOGO } from '../../os/os.catalogo';
-import { PCP_CATALOGO } from '../../pcp/pcp.catalogo';
-import { USUARIOS_CATALOGO } from '../../usuarios/usuarios.catalogo';
-import { VENDAS_CATALOGO } from '../../vendas/permissions/vendas.catalogo';
+import { MANIFESTOS_DESCOBERTOS } from './manifestos.generated';
 import { validarChavePermissao } from './parser-chave';
-import {
-  CHAVES_MODULOS_FUNCIONAIS,
-  ModuloCatalogo,
-  PermissaoCatalogo,
-} from './tipos';
-
-const MANIFESTOS_BRUTOS: readonly ModuloCatalogo[] = [
-  DASHBOARD_CATALOGO,
-  VENDAS_CATALOGO,
-  COMPRAS_CATALOGO,
-  ESTOQUE_CATALOGO,
-  OS_CATALOGO,
-  PCP_CATALOGO,
-  FINANCEIRO_CATALOGO,
-  EXPEDICAO_CATALOGO,
-  INSTALACAO_CATALOGO,
-  ARTE_CATALOGO,
-  CATALOGO_PRODUTOS_CATALOGO,
-  MODELOS_CATALOGO,
-  INSUMOS_CATALOGO,
-  FORNECEDORES_CATALOGO,
-  CENTROS_TRABALHO_CATALOGO,
-  CONFIGURACOES_CATALOGO,
-  USUARIOS_CATALOGO,
-];
+import { ModuloCatalogo, PermissaoCatalogo } from './tipos';
 
 function validarManifestos(
   manifestos: readonly ModuloCatalogo[],
@@ -72,28 +32,14 @@ function validarManifestos(
     }
   }
 
-  const ausentes = CHAVES_MODULOS_FUNCIONAIS.filter(
-    (chave) => !porChave.has(chave),
+  return [...porChave.values()].sort(
+    (a, b) => a.ordem - b.ordem || a.chave.localeCompare(b.chave),
   );
-  if (ausentes.length > 0) {
-    throw new Error(
-      `Módulos funcionais sem manifesto: ${ausentes.join(', ')}.`,
-    );
-  }
-
-  const orfaos = [...porChave.keys()].filter(
-    (chave) =>
-      !(CHAVES_MODULOS_FUNCIONAIS as readonly string[]).includes(chave),
-  );
-  if (orfaos.length > 0) {
-    throw new Error(`Manifestos órfãos: ${orfaos.join(', ')}.`);
-  }
-
-  return [...porChave.values()].sort((a, b) => a.ordem - b.ordem || a.chave.localeCompare(b.chave));
 }
 
-export const MANIFESTOS_MODULOS: readonly ModuloCatalogo[] =
-  validarManifestos(MANIFESTOS_BRUTOS);
+export const MANIFESTOS_MODULOS: readonly ModuloCatalogo[] = validarManifestos(
+  MANIFESTOS_DESCOBERTOS,
+);
 
 const PERMISSOES_POR_CHAVE = new Map<string, PermissaoCatalogo>();
 const MODULO_POR_PERMISSAO = new Map<string, ModuloCatalogo>();
@@ -140,7 +86,9 @@ export function listarChavesPermissao(): readonly string[] {
   return [...PERMISSOES_POR_CHAVE.keys()];
 }
 
-export function resolverModuloPorPath(pathname: string): ModuloCatalogo | undefined {
+export function resolverModuloPorPath(
+  pathname: string,
+): ModuloCatalogo | undefined {
   const path = pathname.replace(/^\/api(?=\/)/, '') || pathname;
   const candidatos = MANIFESTOS_MODULOS.filter((modulo) =>
     modulo.prefixosApi.some((prefixo) => pathCombinaPrefixo(path, prefixo)),

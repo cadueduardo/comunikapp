@@ -1,4 +1,8 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { usuario_funcao, usuario_status } from '@prisma/client';
 import { UsuariosService } from './usuarios.service';
 
@@ -7,20 +11,40 @@ describe('UsuariosService contenção (Fase 0)', () => {
     findFirst?: unknown;
     count?: number;
     update?: unknown;
+    updateManyCount?: number;
+    resetToken?: unknown;
   }) {
-    const prisma = {
+    const prisma: any = {
       usuario: {
         findUnique: jest.fn().mockResolvedValue(null),
         findFirst: jest.fn().mockResolvedValue(overrides?.findFirst ?? null),
         findMany: jest.fn().mockResolvedValue([]),
         create: jest.fn().mockResolvedValue({ id: 'user-1' }),
         update: jest.fn().mockResolvedValue(overrides?.update ?? { id: 'u1' }),
+        updateMany: jest
+          .fn()
+          .mockResolvedValue({ count: overrides?.updateManyCount ?? 1 }),
         count: jest.fn().mockResolvedValue(overrides?.count ?? 0),
       },
+      passwordResetToken: {
+        findUnique: jest.fn().mockResolvedValue(overrides?.resetToken ?? null),
+        updateMany: jest
+          .fn()
+          .mockResolvedValue({ count: overrides?.updateManyCount ?? 1 }),
+      },
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      $transaction: jest.fn(),
     };
+    prisma.$transaction.mockImplementation(
+      async (fn: (client: typeof prisma) => unknown) => fn(prisma),
+    );
     const mail = { sendVerificationEmail: jest.fn() };
     const audit = { registrar: jest.fn().mockResolvedValue(undefined) };
-    const service = new UsuariosService(prisma as any, mail as any, audit as any);
+    const service = new UsuariosService(
+      prisma as any,
+      mail as any,
+      audit as any,
+    );
     return { service, prisma, mail, audit };
   }
 
@@ -65,7 +89,7 @@ describe('UsuariosService contenção (Fase 0)', () => {
   });
 
   it('impede rebaixar o último administrador ativo', async () => {
-    const { service } = setup({
+    const { service, prisma } = setup({
       findFirst: {
         id: 'admin-1',
         funcao: usuario_funcao.ADMINISTRADOR,
@@ -82,6 +106,63 @@ describe('UsuariosService contenção (Fase 0)', () => {
         'ator-1',
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.$queryRaw).toHaveBeenCalled();
+  });
+
+  it('impede autoelevação de função, perfis e status', async () => {
+    const { service } = setup({
+      findFirst: {
+        id: 'user-1',
+        funcao: usuario_funcao.VENDAS,
+        status: usuario_status.ATIVO,
+      },
+    });
+
+    await expect(
+      service.atualizar(
+        'user-1',
+        'loja-1',
+        { funcao: usuario_funcao.ADMINISTRADOR },
+        'user-1',
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    await expect(
+      service.atualizar('user-1', 'loja-1', { perfilIds: ['p1'] }, 'user-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    await expect(
+      service.atualizar(
+        'user-1',
+        'loja-1',
+        { status: usuario_status.INATIVO },
+        'user-1',
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('permite que outro administrador altere função de um não-admin', async () => {
+    const { service, prisma } = setup({
+      findFirst: {
+        id: 'user-1',
+        funcao: usuario_funcao.VENDAS,
+        status: usuario_status.ATIVO,
+      },
+      update: {
+        id: 'user-1',
+        funcao: usuario_funcao.ADMINISTRADOR,
+        status: usuario_status.ATIVO,
+      },
+    });
+
+    await service.atualizar(
+      'user-1',
+      'loja-1',
+      { funcao: usuario_funcao.ADMINISTRADOR },
+      'admin-2',
+    );
+
+    expect(prisma.usuario.update).toHaveBeenCalled();
   });
 
   it('reenviar código não revela se o e-mail existe', async () => {
@@ -92,19 +173,11 @@ describe('UsuariosService contenção (Fase 0)', () => {
   });
 
   it('lista só a loja autenticada e pagina', async () => {
-    const prisma = {
-      usuario: {
-        findUnique: jest.fn(),
-        findFirst: jest.fn(),
-        findMany: jest.fn().mockResolvedValue([{ id: 'u1', loja_id: 'loja-1' }]),
-        create: jest.fn(),
-        update: jest.fn(),
-        count: jest.fn().mockResolvedValue(1),
-      },
-    };
-    const mail = { sendVerificationEmail: jest.fn() };
-    const audit = { registrar: jest.fn() };
-    const service = new UsuariosService(prisma as any, mail as any, audit as any);
+    const { service, prisma } = setup();
+    prisma.usuario.findMany.mockResolvedValue([
+      { id: 'u1', loja_id: 'loja-1' },
+    ]);
+    prisma.usuario.count.mockResolvedValue(1);
 
     const resultado = await service.listar('loja-1', { page: 1, limit: 20 });
 
@@ -117,5 +190,59 @@ describe('UsuariosService contenção (Fase 0)', () => {
         skip: 0,
       }),
     );
+  });
+
+  it('reset de senha queima o token de forma atômica e incrementa session_version', async () => {
+    const { service, prisma } = setup({
+      resetToken: {
+        id: 'tok-1',
+        used_at: null,
+        expires_at: new Date(Date.now() + 60_000),
+        usuario_id: 'u1',
+        usuario: {
+          id: 'u1',
+          status: usuario_status.ATIVO,
+          email_verificado: true,
+        },
+      },
+      updateManyCount: 1,
+    });
+
+    await service.redefinirSenha('token-valido', 'novaSenha1');
+
+    expect(prisma.passwordResetToken.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'tok-1', used_at: null }),
+      }),
+    );
+    expect(prisma.usuario.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'u1' },
+        data: expect.objectContaining({
+          session_version: { increment: 1 },
+        }),
+      }),
+    );
+  });
+
+  it('recusa replay de token de reset já usado', async () => {
+    const { service } = setup({
+      resetToken: {
+        id: 'tok-1',
+        used_at: null,
+        expires_at: new Date(Date.now() + 60_000),
+        usuario_id: 'u1',
+        usuario: {
+          id: 'u1',
+          status: usuario_status.ATIVO,
+          email_verificado: true,
+        },
+      },
+      updateManyCount: 0,
+    });
+
+    await expect(
+      service.redefinirSenha('token-replay', 'novaSenha1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

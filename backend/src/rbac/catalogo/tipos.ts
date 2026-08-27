@@ -28,27 +28,7 @@ export type ModuloCatalogo = {
   permissoes: PermissaoCatalogo[];
 };
 
-export const CHAVES_MODULOS_FUNCIONAIS = [
-  'dashboard',
-  'vendas',
-  'compras',
-  'estoque',
-  'os',
-  'pcp',
-  'financeiro',
-  'expedicao',
-  'instalacao',
-  'arte',
-  'catalogo',
-  'modelos',
-  'insumos',
-  'fornecedores',
-  'centros-trabalho',
-  'configuracoes',
-  'usuarios',
-] as const;
-
-export type ChaveModuloFuncional = (typeof CHAVES_MODULOS_FUNCIONAIS)[number];
+export type ChaveModuloFuncional = string;
 
 export const PREFIXOS_API_AUTOATENDIMENTO_USUARIO = [
   '/usuarios/me',
