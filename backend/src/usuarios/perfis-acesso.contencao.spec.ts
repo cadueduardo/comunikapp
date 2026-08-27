@@ -1,5 +1,10 @@
 import { PerfisAcessoService } from './perfis-acesso.service';
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { usuario_funcao, usuario_status } from '@prisma/client';
 
 describe('PerfisAcessoService contenção', () => {
   function setup(overrides?: {
@@ -93,5 +98,47 @@ describe('PerfisAcessoService contenção', () => {
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.perfil_acesso.create).not.toHaveBeenCalled();
+  });
+
+  it('recusa associar perfil a conta administradora sem ator administrador da loja', async () => {
+    const prisma: any = {
+      perfil_acesso: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'p1', loja_id: 'loja-1' }),
+      },
+      usuario: {
+        findFirst: jest.fn().mockImplementation(
+          async (args: {
+            where?: {
+              id?: string;
+              ativo?: boolean;
+              status?: usuario_status;
+            };
+          }) => {
+            if (args?.where?.id === 'gestor-1' && args?.where?.ativo === true) {
+              return {
+                funcao: usuario_funcao.VENDAS,
+                status: usuario_status.ATIVO,
+              };
+            }
+            return { id: 'admin-1', funcao: usuario_funcao.ADMINISTRADOR };
+          },
+        ),
+      },
+      usuario_perfil: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
+      },
+      $transaction: jest.fn(),
+    };
+    prisma.$transaction.mockImplementation(
+      async (fn: (client: typeof prisma) => unknown) => fn(prisma),
+    );
+    const audit = { registrar: jest.fn().mockResolvedValue(undefined) };
+    const service = new PerfisAcessoService(prisma as any, audit as any);
+
+    await expect(
+      service.associarUsuario('p1', 'admin-1', 'loja-1', 'gestor-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.usuario_perfil.create).not.toHaveBeenCalled();
   });
 });

@@ -10,11 +10,11 @@ Autorização efetiva = identidade + loja ativa + permissão efetiva (ver `MODEL
 |---|---|---|---|---|
 | GET | `/usuarios` | gestão | `usuarios.usuarios.gerenciar` | Paginação; sem hash/segredo |
 | GET | `/usuarios/:id` | gestão | `usuarios.usuarios.gerenciar` | Tenant `id+loja_id` |
-| POST | `/usuarios` | gestão | `usuarios.usuarios.gerenciar` | Função whitelist do enum; não aceita `loja_id`/`sistema`; conceder `ADMINISTRADOR` exige ator já `ADMINISTRADOR` (lido no banco) |
-| PATCH | `/usuarios/:id` | gestão | `usuarios.usuarios.gerenciar` | Último admin; não auto-rebaixar se único; promover a `ADMINISTRADOR` exige ator já `ADMINISTRADOR`; incrementa `session_version` se status/função/senha |
-| PATCH | `/usuarios/:id/desativar` | gestão | `usuarios.usuarios.gerenciar` | Idem desativar; revoga sessão do alvo |
-| PATCH | `/usuarios/:id/reativar` | gestão | `usuarios.usuarios.gerenciar` | Status ATIVO + ativo true |
-| POST | `/usuarios/:id/perfis` | gestão | `usuarios.perfis.gerenciar` | Associação tenant-safe |
+| POST | `/usuarios` | gestão | `usuarios.usuarios.gerenciar` | Função whitelist do enum; não aceita `loja_id`/`sistema`; criar `ADMINISTRADOR` exige ator já `ADMINISTRADOR` (lido no banco) |
+| PATCH | `/usuarios/:id` | gestão | `usuarios.usuarios.gerenciar` | Não administra conta `ADMINISTRADOR` (e-mail, nome, telefone, status, função, perfis) sem ator administrador da loja; último admin com `FOR UPDATE`; incrementa `session_version` se status/função/senha |
+| PATCH | `/usuarios/:id/desativar` | gestão | `usuarios.usuarios.gerenciar` | Conta `ADMINISTRADOR` só por administrador da loja; último admin com `FOR UPDATE`; revoga sessão do alvo |
+| PATCH | `/usuarios/:id/reativar` | gestão | `usuarios.usuarios.gerenciar` | Reativar `ADMINISTRADOR` exige ator administrador da loja |
+| POST | `/usuarios/:id/perfis` | gestão | `usuarios.perfis.gerenciar` | Associação tenant-safe; conta `ADMINISTRADOR` só por administrador da loja |
 | GET | `/usuarios/me/preferencias` | próprio | autenticado | Fora do catálogo de perfil |
 | PATCH | `/usuarios/me/preferencias` | próprio | autenticado | |
 | GET/POST | `/usuarios/2fa/*` | próprio | autenticado | |
@@ -36,7 +36,7 @@ Fase 0 (antes do núcleo): as rotas de gestão usam `usuario_funcao.ADMINISTRADO
 | GET | `/usuarios/perfis/:id` | `usuarios.perfis.gerenciar` | |
 | PUT | `/usuarios/perfis/:id` | `usuarios.perfis.gerenciar` | `versao` obrigatória; transação; auditoria |
 | DELETE | `/usuarios/perfis/:id` | `usuarios.perfis.gerenciar` | Bloqueia sistema e perfil com usuários |
-| POST/DELETE | `/usuarios/perfis/:id/usuarios/:usuarioId` | `usuarios.perfis.gerenciar` | Mesma loja; revoga sessão do usuário alvo |
+| POST/DELETE | `/usuarios/perfis/:id/usuarios/:usuarioId` | `usuarios.perfis.gerenciar` | Mesma loja; revoga sessão do usuário alvo; conta `ADMINISTRADOR` só por administrador da loja |
 
 ## Porta de módulo (Fase 5)
 

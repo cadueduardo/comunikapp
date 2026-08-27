@@ -15,6 +15,10 @@ import {
   UpdatePerfilAcessoDto,
 } from './dto/perfil-acesso.dto';
 import { ListarPerfisQueryDto } from './dto/paginacao-query.dto';
+import {
+  assertAtorPodeAdministrarContaAdministradora,
+  contaExigeAdministradorDaLoja,
+} from './conta-administrador.policy';
 
 @Injectable()
 export class PerfisAcessoService {
@@ -318,6 +322,16 @@ export class PerfisAcessoService {
 
     // Criar associação
     const vinculo = await this.prisma.$transaction(async (tx) => {
+      const alvo = await tx.usuario.findFirst({
+        where: { id: usuarioId, loja_id: lojaId },
+        select: { funcao: true },
+      });
+      if (!alvo) {
+        throw new NotFoundException('Usuário não encontrado');
+      }
+      if (contaExigeAdministradorDaLoja(alvo.funcao)) {
+        await assertAtorPodeAdministrarContaAdministradora(tx, lojaId, atorId);
+      }
       const criado = await tx.usuario_perfil.create({
         data: {
           usuario_id: usuarioId,
@@ -372,6 +386,16 @@ export class PerfisAcessoService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      const alvo = await tx.usuario.findFirst({
+        where: { id: usuarioId, loja_id: lojaId },
+        select: { funcao: true },
+      });
+      if (!alvo) {
+        throw new NotFoundException('Usuário não encontrado');
+      }
+      if (contaExigeAdministradorDaLoja(alvo.funcao)) {
+        await assertAtorPodeAdministrarContaAdministradora(tx, lojaId, atorId);
+      }
       await tx.usuario_perfil.delete({
         where: {
           usuario_id_perfil_id: {

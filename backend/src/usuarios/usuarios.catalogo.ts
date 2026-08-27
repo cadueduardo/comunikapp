@@ -15,7 +15,7 @@ export const USUARIOS_CATALOGO = manifestoAcessoModulo({
     {
       chave: 'usuarios.usuarios.gerenciar',
       nome: 'Gerenciar usuários',
-      descricao: 'Criar, editar, inativar e reativar usuários da loja.',
+      descricao: 'Criar, editar, inativar e reativar usuários operacionais da loja. Não administra contas ADMINISTRADOR.',
       grupo: 'usuarios',
       risco: 'ALTO',
     },

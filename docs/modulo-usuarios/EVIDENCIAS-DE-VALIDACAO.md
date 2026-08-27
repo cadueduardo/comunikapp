@@ -83,6 +83,20 @@ npx jest src/usuarios/usuarios-contencao.spec.ts src/rbac/autorizacao/permissao-
 
 - [x] Gestor com `usuarios.usuarios.gerenciar` não cria nem promove `ADMINISTRADOR`; administrador existente consegue
 - [x] `GET /usuarios/me/acesso` (com ou sem `/api`) não exige `usuarios.acessar` e avalia as portas numa única carga
+- [ ] CI do PR após o commit `1164c9b2` (substituído pela correção abaixo)
+
+## Correção P1 remanescente (administrar contas ADMINISTRADOR)
+
+Evidência local (worktree `C:\Projects\comunikapp-usuarios`, heap 6144):
+
+```text
+npx jest src/usuarios/usuarios-contencao.spec.ts src/usuarios/perfis-acesso.contencao.spec.ts --runInBand --forceExit --no-coverage
+```
+
+- [x] Gestor não altera e-mail/nome/telefone/status/função/perfis de administrador, não desativa nem reativa
+- [x] Gestor continua editando e reativando usuários operacionais
+- [x] Ator de outra loja, inativo ou com `ativo=false` é recusado; prova lida no banco na transação
+- [x] Último administrador permanece protegido com `FOR UPDATE`
 - [ ] CI do PR após este commit
 
 ## Dívidas remanescentes

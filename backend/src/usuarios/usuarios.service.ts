@@ -19,6 +19,10 @@ import { incrementoSessionVersion } from '../rbac/sessao-usuario';
 import { usuario_status, usuario_funcao, Prisma } from '@prisma/client';
 import { randomBytes, createHash } from 'crypto';
 import { ListarUsuariosQueryDto } from './dto/paginacao-query.dto';
+import {
+  assertAtorPodeAdministrarContaAdministradora,
+  contaExigeAdministradorDaLoja,
+} from './conta-administrador.policy';
 
 type PasswordResetAttemptState = {
   attempts: number;
@@ -164,8 +168,8 @@ export class UsuariosService {
     const senhaHash = await bcrypt.hash(dto.senha, salt);
 
     const created = await this.prisma.$transaction(async (tx) => {
-      if (dto.funcao === usuario_funcao.ADMINISTRADOR) {
-        await this.assertAtorPodeConcederAdministrador(tx, lojaId, atorId);
+      if (contaExigeAdministradorDaLoja(undefined, dto.funcao)) {
+        await assertAtorPodeAdministrarContaAdministradora(tx, lojaId, atorId);
       }
       const usuario = await tx.usuario.create({
         data: {
@@ -221,11 +225,8 @@ export class UsuariosService {
 
       this.assertNaoAlteraProprioPrivilegio(id, atorId, dto, user);
 
-      if (
-        dto.funcao === usuario_funcao.ADMINISTRADOR &&
-        user.funcao !== usuario_funcao.ADMINISTRADOR
-      ) {
-        await this.assertAtorPodeConcederAdministrador(tx, lojaId, atorId);
+      if (contaExigeAdministradorDaLoja(user.funcao, dto.funcao)) {
+        await assertAtorPodeAdministrarContaAdministradora(tx, lojaId, atorId);
       }
 
       const proximaFuncao = dto.funcao ?? user.funcao;
@@ -315,6 +316,10 @@ export class UsuariosService {
         throw new NotFoundException('Usuario nao encontrado');
       }
 
+      if (contaExigeAdministradorDaLoja(usuario.funcao)) {
+        await assertAtorPodeAdministrarContaAdministradora(tx, lojaId, atorId);
+      }
+
       if (usuario.status === usuario_status.INATIVO) {
         return { id: usuario.id, status: usuario_status.INATIVO };
       }
@@ -356,10 +361,13 @@ export class UsuariosService {
     return this.prisma.$transaction(async (tx) => {
       const usuario = await tx.usuario.findFirst({
         where: { id, loja_id: lojaId },
-        select: { id: true, status: true },
+        select: { id: true, status: true, funcao: true },
       });
       if (!usuario) {
         throw new NotFoundException('Usuário não encontrado');
+      }
+      if (contaExigeAdministradorDaLoja(usuario.funcao)) {
+        await assertAtorPodeAdministrarContaAdministradora(tx, lojaId, atorId);
       }
       const atualizado = await tx.usuario.update({
         where: { id: usuario.id },
@@ -657,32 +665,6 @@ export class UsuariosService {
     });
 
     return proximo;
-  }
-
-  /**
-   * `usuarios.usuarios.gerenciar` não autoriza o bypass do núcleo.
-   * A função ADMINISTRADOR só pode ser concedida por um administrador
-   * já existente, ativo e da mesma loja (lido no banco, não no JWT).
-   */
-  private async assertAtorPodeConcederAdministrador(
-    tx: Prisma.TransactionClient,
-    lojaId: string,
-    atorId: string,
-  ) {
-    const ator = await tx.usuario.findFirst({
-      where: {
-        id: atorId,
-        loja_id: lojaId,
-        status: usuario_status.ATIVO,
-        ativo: true,
-      },
-      select: { funcao: true },
-    });
-    if (ator?.funcao !== usuario_funcao.ADMINISTRADOR) {
-      throw new ForbiddenException(
-        'Somente um administrador da loja pode conceder a função de administrador.',
-      );
-    }
   }
 
   private assertNaoAlteraProprioPrivilegio(
