@@ -154,6 +154,9 @@ export default function NovoPerfilPage() {
               onChange={(chave, estado) =>
                 setDecisoes((prev) => ({ ...prev, [chave]: estado }))
               }
+              onChangeVarias={(alteracoes) =>
+                setDecisoes((prev) => ({ ...prev, ...alteracoes }))
+              }
             />
           )}
 

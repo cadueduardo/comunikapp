@@ -173,6 +173,9 @@ export default function EditarPerfilPage({
             onChange={(chave, estado) =>
               setDecisoes((prev) => ({ ...prev, [chave]: estado }))
             }
+            onChangeVarias={(alteracoes) =>
+              setDecisoes((prev) => ({ ...prev, ...alteracoes }))
+            }
           />
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => router.push(`/usuarios/perfis/${id}`)}>
