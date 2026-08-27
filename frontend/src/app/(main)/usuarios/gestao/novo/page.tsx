@@ -1,25 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { extrairListaPaginada } from '@/lib/lista-paginada';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { UsuarioCamposAcesso } from '@/components/usuarios/UsuarioCamposAcesso';
 import { apiRequest } from '@/lib/api';
 import { toast } from 'sonner';
 import { useUser } from '@/contexts/UserContext';
 
-const ROTULOS_FUNCAO: Record<string, string> = {
-  VENDAS: 'Vendas',
-  FINANCEIRO: 'Financeiro',
-  PRODUCAO: 'Produção',
-  ESTOQUE: 'Estoque',
-  ADMINISTRADOR: 'Administrador',
-};
-
 export default function NovoUsuarioPage() {
+  const router = useRouter();
   const { user: currentUser } = useUser();
   const atorPodeConcederAdmin = currentUser?.funcao === 'ADMINISTRADOR';
   const [nome, setNome] = useState('');
@@ -28,20 +23,7 @@ export default function NovoUsuarioPage() {
   const [senha, setSenha] = useState('');
   const [funcao, setFuncao] = useState('VENDAS');
   const [perfilIds, setPerfilIds] = useState<string[]>([]);
-  const [perfis, setPerfis] = useState<{ id: string; nome: string }[]>([]);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const load = async () => {
-      const res = await apiRequest('/usuarios/perfis?limit=100');
-      if (!res.ok) return;
-      const lista = extrairListaPaginada<{ id: string; nome: string }>(
-        await res.json(),
-      );
-      setPerfis(lista.items);
-    };
-    void load();
-  }, []);
 
   const handleCreate = async () => {
     if (!nome || !email) {
@@ -68,13 +50,17 @@ export default function NovoUsuarioPage() {
       });
       if (res.ok) {
         toast.success('Usuário criado e ativo');
-        window.location.href = '/usuarios/gestao';
+        router.push('/usuarios/gestao');
       } else {
         const err = await res.json().catch(() => ({}));
-        toast.error(err?.message || 'Erro ao criar usuário');
+        toast.error(
+          typeof err?.message === 'string'
+            ? err.message
+            : 'Erro ao criar usuário',
+        );
       }
-    } catch (e: any) {
-      toast.error(e?.message || 'Erro ao criar usuário');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao criar usuário');
     } finally {
       setLoading(false);
     }
@@ -87,7 +73,7 @@ export default function NovoUsuarioPage() {
         backHref="/usuarios/gestao"
         icon={<Users className="h-8 w-8" />}
       />
-      <div className="rounded-lg border bg-card p-6">
+      <div className="rounded-lg border border-border bg-card p-6">
         <div className="mb-4 max-w-xl">
           <Alert>
             <AlertDescription>
@@ -97,11 +83,9 @@ export default function NovoUsuarioPage() {
             </AlertDescription>
           </Alert>
         </div>
-        <div className="grid max-w-xl gap-3">
-          <div className="grid gap-1">
-            <label className="text-sm" htmlFor="novo-usuario-nome">
-              Nome completo
-            </label>
+        <div className="grid max-w-xl gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="novo-usuario-nome">Nome completo</Label>
             <Input
               id="novo-usuario-nome"
               value={nome}
@@ -109,10 +93,8 @@ export default function NovoUsuarioPage() {
               placeholder="Ex.: Maria Souza"
             />
           </div>
-          <div className="grid gap-1">
-            <label className="text-sm" htmlFor="novo-usuario-email">
-              E-mail
-            </label>
+          <div className="grid gap-2">
+            <Label htmlFor="novo-usuario-email">E-mail</Label>
             <Input
               id="novo-usuario-email"
               type="email"
@@ -121,10 +103,8 @@ export default function NovoUsuarioPage() {
               placeholder="email@exemplo.com"
             />
           </div>
-          <div className="grid gap-1">
-            <label className="text-sm" htmlFor="novo-usuario-telefone">
-              Telefone (opcional)
-            </label>
+          <div className="grid gap-2">
+            <Label htmlFor="novo-usuario-telefone">Telefone (opcional)</Label>
             <Input
               id="novo-usuario-telefone"
               value={telefone}
@@ -132,64 +112,16 @@ export default function NovoUsuarioPage() {
               placeholder="(11) 99999-9999"
             />
           </div>
-          <div className="grid gap-1">
-            <label className="text-sm" htmlFor="novo-usuario-funcao">
-              Função
-            </label>
-            <select
-              id="novo-usuario-funcao"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={funcao}
-              onChange={(e) => setFuncao(e.target.value)}
-            >
-              {(['VENDAS', 'FINANCEIRO', 'PRODUCAO', 'ESTOQUE'] as const).map(
-                (valor) => (
-                  <option key={valor} value={valor}>
-                    {ROTULOS_FUNCAO[valor]}
-                  </option>
-                ),
-              )}
-              {atorPodeConcederAdmin ? (
-                <option value="ADMINISTRADOR">
-                  {ROTULOS_FUNCAO.ADMINISTRADOR}
-                </option>
-              ) : null}
-            </select>
-            <p className="text-xs text-muted-foreground">
-              A função define o piso temporário. Permissões granulares vêm dos
-              perfis. Somente um administrador da loja pode conceder a função
-              de administrador.
-            </p>
-          </div>
-          <fieldset className="grid gap-2">
-            <legend className="text-sm">Perfis (opcional)</legend>
-            {perfis.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                Nenhum perfil disponível ainda.
-              </p>
-            ) : (
-              perfis.map((perfil) => (
-                <label key={perfil.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={perfilIds.includes(perfil.id)}
-                    onChange={(e) =>
-                      setPerfilIds((atual) =>
-                        e.target.checked
-                          ? [...atual, perfil.id]
-                          : atual.filter((id) => id !== perfil.id),
-                      )
-                    }
-                  />
-                  {perfil.nome}
-                </label>
-              ))
-            )}
-          </fieldset>
-          <div className="grid gap-1">
-            <label className="text-sm" htmlFor="novo-usuario-senha">
-              Senha inicial
-            </label>
+          <UsuarioCamposAcesso
+            funcao={funcao}
+            onFuncaoChange={setFuncao}
+            perfilIds={perfilIds}
+            onPerfilIdsChange={setPerfilIds}
+            podeConcederAdmin={atorPodeConcederAdmin}
+            disabled={loading}
+          />
+          <div className="grid gap-2">
+            <Label htmlFor="novo-usuario-senha">Senha inicial</Label>
             <Input
               id="novo-usuario-senha"
               type="password"
@@ -202,12 +134,12 @@ export default function NovoUsuarioPage() {
           <div className="mt-2 flex gap-2">
             <Button
               variant="outline"
-              onClick={() => (window.location.href = '/usuarios/gestao')}
+              onClick={() => router.push('/usuarios/gestao')}
               disabled={loading}
             >
               Cancelar
             </Button>
-            <Button onClick={handleCreate} disabled={loading}>
+            <Button onClick={() => void handleCreate()} disabled={loading}>
               Criar
             </Button>
           </div>

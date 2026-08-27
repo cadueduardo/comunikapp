@@ -14,17 +14,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { UsuarioCamposAcesso } from '@/components/usuarios/UsuarioCamposAcesso';
 import { apiRequest } from '@/lib/api';
-import { extrairListaPaginada } from '@/lib/lista-paginada';
 import { toast } from 'sonner';
 import { useUser } from '@/contexts/UserContext';
-
-const FUNCOES_OPERACIONAIS = [
-  'FINANCEIRO',
-  'PRODUCAO',
-  'VENDAS',
-  'ESTOQUE',
-] as const;
 
 const STATUS = [
   'ATIVO',
@@ -60,8 +53,6 @@ export default function EditarUsuarioPage({
     status: 'ATIVO',
     perfilIds: [],
   });
-  const [perfis, setPerfis] = useState<{ id: string; nome: string }[]>([]);
-
   const isAdmin = currentUser?.funcao === 'ADMINISTRADOR';
 
   useEffect(() => {
@@ -117,18 +108,6 @@ export default function EditarUsuarioPage({
     };
   }, [id, isAdmin, userLoading, router]);
 
-  useEffect(() => {
-    const loadPerfis = async () => {
-      const res = await apiRequest('/usuarios/perfis?limit=100');
-      if (!res.ok) return;
-      const lista = extrairListaPaginada<{ id: string; nome: string }>(
-        await res.json(),
-      );
-      setPerfis(lista.items);
-    };
-    void loadPerfis();
-  }, []);
-
   const handleSave = async () => {
     if (!form.nome_completo?.trim() || !form.email?.trim()) {
       toast.error('Preencha nome e e-mail');
@@ -181,7 +160,7 @@ export default function EditarUsuarioPage({
         backHref={`/usuarios/${id}`}
         icon={<Users className="h-8 w-8" />}
       />
-      <div className="rounded-lg border bg-white p-6 max-w-xl space-y-4">
+      <div className="max-w-xl space-y-4 rounded-lg border border-border bg-card p-6">
         <div className="grid gap-2">
           <Label htmlFor="nome">Nome completo</Label>
           <Input
@@ -207,27 +186,14 @@ export default function EditarUsuarioPage({
             onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))}
           />
         </div>
-        <div className="grid gap-2">
-          <Label>Função</Label>
-          <Select
-            value={form.funcao}
-            onValueChange={(v) => setForm((f) => ({ ...f, funcao: v }))}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {FUNCOES_OPERACIONAIS.map((f) => (
-                <SelectItem key={f} value={f}>
-                  {f}
-                </SelectItem>
-              ))}
-              {isAdmin ? (
-                <SelectItem value="ADMINISTRADOR">ADMINISTRADOR</SelectItem>
-              ) : null}
-            </SelectContent>
-          </Select>
-        </div>
+        <UsuarioCamposAcesso
+          funcao={form.funcao}
+          onFuncaoChange={(funcao) => setForm((f) => ({ ...f, funcao }))}
+          perfilIds={form.perfilIds}
+          onPerfilIdsChange={(perfilIds) => setForm((f) => ({ ...f, perfilIds }))}
+          podeConcederAdmin={isAdmin}
+          disabled={saving}
+        />
         <div className="grid gap-2">
           <Label>Status</Label>
           <Select
@@ -246,26 +212,6 @@ export default function EditarUsuarioPage({
             </SelectContent>
           </Select>
         </div>
-        <fieldset className="grid gap-2">
-          <legend className="text-sm font-medium">Perfis</legend>
-          {perfis.map((perfil) => (
-            <label key={perfil.id} className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.perfilIds.includes(perfil.id)}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    perfilIds: e.target.checked
-                      ? [...f.perfilIds, perfil.id]
-                      : f.perfilIds.filter((idAtual) => idAtual !== perfil.id),
-                  }))
-                }
-              />
-              {perfil.nome}
-            </label>
-          ))}
-        </fieldset>
         <div className="flex gap-2 pt-2">
           <Button variant="outline" onClick={() => router.push(`/usuarios/${id}`)} disabled={saving}>
             Cancelar
