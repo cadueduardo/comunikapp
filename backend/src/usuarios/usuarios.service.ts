@@ -13,13 +13,29 @@ import {
 } from './dto/usuario-preferencias.dto';
 import * as bcrypt from 'bcrypt';
 import { MailService } from '../mail/mail.service';
+import { LojaAuditService } from '../rbac/auditoria/loja-audit.service';
 import { usuario_status, usuario_funcao, Prisma } from '@prisma/client';
 import { randomBytes, createHash } from 'crypto';
+import { ListarUsuariosQueryDto } from './dto/paginacao-query.dto';
 
 type PasswordResetAttemptState = {
   attempts: number;
   firstAttemptAt: number;
 };
+
+const USUARIO_PUBLICO_SELECT = {
+  id: true,
+  nome_completo: true,
+  email: true,
+  telefone: true,
+  funcao: true,
+  loja_id: true,
+  status: true,
+  ativo: true,
+  email_verificado: true,
+  criado_em: true,
+  atualizado_em: true,
+} as const;
 
 @Injectable()
 export class UsuariosService {
@@ -33,6 +49,7 @@ export class UsuariosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly audit: LojaAuditService,
   ) {}
 
   private normalizeEmail(email: string) {
@@ -66,29 +83,62 @@ export class UsuariosService {
     return existing.attempts <= this.passwordResetMaxAttempts;
   }
 
-  async listar(lojaId: string) {
-    return this.prisma.usuario.findMany({
-      where: { loja_id: lojaId },
-      select: {
-        id: true,
-        nome_completo: true,
-        email: true,
-        funcao: true,
-        loja_id: true,
-        status: true,
-      },
-    });
+  async listar(lojaId: string, query: ListarUsuariosQueryDto = {}) {
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(100, Math.max(1, query.limit ?? 20));
+    const busca = query.busca?.trim();
+    const where: Prisma.usuarioWhereInput = {
+      loja_id: lojaId,
+      ...(query.status ? { status: query.status } : {}),
+      ...(busca
+        ? {
+            OR: [
+              { nome_completo: { contains: busca } },
+              { email: { contains: busca } },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.usuario.findMany({
+        where,
+        select: USUARIO_PUBLICO_SELECT,
+        orderBy: { nome_completo: 'asc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.usuario.count({ where }),
+    ]);
+
+    return { items, total, page, limit };
   }
 
   async obter(id: string, lojaId: string) {
     const user = await this.prisma.usuario.findFirst({
       where: { id, loja_id: lojaId },
+      select: {
+        ...USUARIO_PUBLICO_SELECT,
+        perfis: {
+          select: {
+            perfil_id: true,
+            perfil: {
+              select: {
+                id: true,
+                nome: true,
+                sistema: true,
+                ativo: true,
+              },
+            },
+          },
+        },
+      },
     });
-    if (!user) throw new NotFoundException('Usuario nao encontrado');
+    if (!user) throw new NotFoundException('Usuário não encontrado');
     return user;
   }
 
-  async criar(lojaId: string, dto: CreateUsuarioDto) {
+  async criar(lojaId: string, dto: CreateUsuarioDto, atorId: string) {
     if (!dto.senha?.trim()) {
       throw new BadRequestException(
         'O convite por e-mail sem senha foi desativado nesta área. Use a Gestão ComunikApp para convidar usuários, ou informe uma senha para criar o usuário já ativo.',
@@ -111,36 +161,126 @@ export class UsuariosService {
     const salt = await bcrypt.genSalt();
     const senhaHash = await bcrypt.hash(dto.senha, salt);
 
-    const created = await this.prisma.usuario.create({
-      data: {
-        loja_id: lojaId,
-        email,
-        nome_completo: dto.nome_completo.trim(),
-        telefone: dto.telefone?.trim() || null,
-        funcao: dto.funcao,
-        senha: senhaHash,
-        status: usuario_status.ATIVO,
-        email_verificado: true,
-        ativo: true,
-      },
-      select: { id: true },
+    const created = await this.prisma.$transaction(async (tx) => {
+      const usuario = await tx.usuario.create({
+        data: {
+          loja_id: lojaId,
+          email,
+          nome_completo: dto.nome_completo.trim(),
+          telefone: dto.telefone?.trim() || null,
+          funcao: dto.funcao,
+          senha: senhaHash,
+          status: usuario_status.ATIVO,
+          email_verificado: true,
+          ativo: true,
+        },
+        select: { id: true, email: true, funcao: true },
+      });
+      if (dto.perfilIds?.length) {
+        await this.substituirPerfis(tx, usuario.id, lojaId, dto.perfilIds);
+      }
+      await this.audit.registrar({
+        lojaId,
+        atorId,
+        action: 'usuario.criar',
+        resourceType: 'usuario',
+        resourceId: usuario.id,
+        newState: {
+          id: usuario.id,
+          email: usuario.email,
+          funcao: usuario.funcao,
+          perfilIds: dto.perfilIds ?? [],
+        },
+        tx,
+      });
+      return usuario;
     });
 
     return { id: created.id };
   }
 
-  async atualizar(id: string, lojaId: string, dto: UpdateUsuarioDto) {
+  async atualizar(
+    id: string,
+    lojaId: string,
+    dto: UpdateUsuarioDto,
+    atorId: string,
+  ) {
     const user = await this.prisma.usuario.findFirst({
       where: { id, loja_id: lojaId },
-      select: { id: true },
+      select: { id: true, funcao: true, status: true },
     });
     if (!user) {
-      throw new NotFoundException('Usuario nao encontrado');
+      throw new NotFoundException('Usuário não encontrado');
     }
-    return this.prisma.usuario.update({ where: { id }, data: dto as any });
+
+    const proximaFuncao = dto.funcao ?? user.funcao;
+    const proximoStatus = dto.status ?? user.status;
+    const deixaDeSerAdminAtivo =
+      user.funcao === usuario_funcao.ADMINISTRADOR &&
+      user.status === usuario_status.ATIVO &&
+      (proximaFuncao !== usuario_funcao.ADMINISTRADOR ||
+        proximoStatus !== usuario_status.ATIVO);
+
+    if (deixaDeSerAdminAtivo) {
+      await this.assertNaoEUltimoAdmin(lojaId, id);
+    }
+
+    const data: Prisma.usuarioUpdateInput = {};
+    if (dto.nome_completo !== undefined) {
+      data.nome_completo = dto.nome_completo.trim();
+    }
+    if (dto.email !== undefined) {
+      data.email = this.normalizeEmail(dto.email);
+    }
+    if (dto.telefone !== undefined) {
+      data.telefone = dto.telefone.trim() || null;
+    }
+    if (dto.funcao !== undefined) {
+      data.funcao = dto.funcao;
+    }
+    if (dto.status !== undefined) {
+      data.status = dto.status;
+      data.ativo = dto.status === usuario_status.ATIVO;
+    }
+    if (deixaDeSerAdminAtivo || dto.status !== undefined || dto.funcao !== undefined) {
+      Object.assign(data, { session_version: { increment: 1 } });
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const atualizado = await tx.usuario.update({
+        where: { id },
+        data,
+        select: USUARIO_PUBLICO_SELECT,
+      });
+      if (dto.perfilIds) {
+        await this.substituirPerfis(tx, id, lojaId, dto.perfilIds);
+        await tx.usuario.update({
+          where: { id },
+          data: { session_version: { increment: 1 } } as never,
+        });
+      }
+      await this.audit.registrar({
+        lojaId,
+        atorId,
+        action: 'usuario.atualizar',
+        resourceType: 'usuario',
+        resourceId: id,
+        previousState: {
+          funcao: user.funcao,
+          status: user.status,
+        },
+        newState: {
+          funcao: atualizado.funcao,
+          status: atualizado.status,
+          perfilIds: dto.perfilIds,
+        },
+        tx,
+      });
+      return atualizado;
+    });
   }
 
-  async desativar(id: string, lojaId: string) {
+  async desativar(id: string, lojaId: string, atorId: string) {
     const usuario = await this.prisma.usuario.findFirst({
       where: { id, loja_id: lojaId },
       select: { id: true, funcao: true, status: true },
@@ -155,19 +295,7 @@ export class UsuariosService {
     }
 
     if (usuario.funcao === usuario_funcao.ADMINISTRADOR) {
-      const totalAdminsAtivos = await this.prisma.usuario.count({
-        where: {
-          loja_id: lojaId,
-          funcao: usuario_funcao.ADMINISTRADOR,
-          status: usuario_status.ATIVO,
-        },
-      });
-
-      if (totalAdminsAtivos <= 1) {
-        throw new BadRequestException(
-          'Nao e permitido desativar o ultimo administrador ativo da loja',
-        );
-      }
+      await this.assertNaoEUltimoAdmin(lojaId, id);
     }
 
     const updated = await this.prisma.usuario.update({
@@ -175,7 +303,8 @@ export class UsuariosService {
       data: {
         status: usuario_status.INATIVO,
         ativo: false,
-      },
+        session_version: { increment: 1 },
+      } as never,
       select: {
         id: true,
         status: true,
@@ -183,14 +312,70 @@ export class UsuariosService {
       },
     });
 
+    await this.audit.registrar({
+      lojaId,
+      atorId,
+      action: 'usuario.desativar',
+      resourceType: 'usuario',
+      resourceId: id,
+      previousState: { status: usuario.status },
+      newState: { status: updated.status },
+    });
+
     return updated;
   }
 
+  async reativar(id: string, lojaId: string, atorId: string) {
+    const usuario = await this.prisma.usuario.findFirst({
+      where: { id, loja_id: lojaId },
+      select: { id: true, status: true },
+    });
+    if (!usuario) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+    const atualizado = await this.prisma.usuario.update({
+      where: { id: usuario.id },
+      data: {
+        status: usuario_status.ATIVO,
+        ativo: true,
+        session_version: { increment: 1 },
+      } as never,
+      select: USUARIO_PUBLICO_SELECT,
+    });
+    await this.audit.registrar({
+      lojaId,
+      atorId,
+      action: 'usuario.reativar',
+      resourceType: 'usuario',
+      resourceId: id,
+      previousState: { status: usuario.status },
+      newState: { status: atualizado.status },
+    });
+    return atualizado;
+  }
+
   async reenviarCodigo(email: string) {
-    const usuario = await this.prisma.usuario.findUnique({ where: { email } });
-    if (!usuario) throw new NotFoundException('Usuario nao encontrado');
-    if (usuario.email_verificado)
-      throw new BadRequestException('E-mail ja verificado');
+    const genericResponse = {
+      message:
+        'Se o e-mail existir e ainda não estiver verificado, enviaremos um novo código.',
+    };
+    const normalizedEmail = this.normalizeEmail(email);
+    if (!normalizedEmail) {
+      return genericResponse;
+    }
+
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        email: true,
+        email_verificado: true,
+      },
+    });
+
+    if (!usuario || usuario.email_verificado) {
+      return genericResponse;
+    }
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiration = new Date();
@@ -206,16 +391,21 @@ export class UsuariosService {
 
     const activationLink = `${
       process.env.FRONTEND_URL || 'https://comunikapp.com.br'
-    }/primeiro-acesso?email=${encodeURIComponent(email)}`;
-    await this.mail.sendVerificationEmail(email, code, {
+    }/primeiro-acesso?email=${encodeURIComponent(normalizedEmail)}`;
+    await this.mail.sendVerificationEmail(normalizedEmail, code, {
       mode: 'convite',
       activationLink,
     });
-    return { message: 'Codigo reenviado' };
+    return genericResponse;
   }
 
   async definirSenhaInicial(email: string, codigo: string, novaSenha: string) {
-    const usuario = await this.prisma.usuario.findUnique({ where: { email } });
+    if (!novaSenha || novaSenha.length < 8) {
+      throw new BadRequestException('A senha deve ter no mínimo 8 caracteres');
+    }
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { email: this.normalizeEmail(email) },
+    });
     if (!usuario) throw new NotFoundException('Usuario nao encontrado');
     if (usuario.email_verificado)
       throw new BadRequestException('E-mail ja verificado');
@@ -352,7 +542,10 @@ export class UsuariosService {
     await this.prisma.$transaction([
       this.prisma.usuario.update({
         where: { id: resetToken.usuario_id },
-        data: { senha: senhaHash },
+        data: {
+          senha: senhaHash,
+          session_version: { increment: 1 },
+        } as never,
       }),
       this.prisma.passwordResetToken.update({
         where: { id: resetToken.id },
@@ -364,21 +557,12 @@ export class UsuariosService {
   }
 
   async listarPerfis() {
-    const perfisBase = Object.values(usuario_funcao).map((f) => ({
+    return Object.values(usuario_funcao).map((f) => ({
       id: f,
       nome: f,
       sistema: true,
       ativo: true,
     }));
-
-    try {
-      const custom: any[] = await this.prisma.$queryRawUnsafe(
-        'SELECT id, nome, 0 as sistema, ativo FROM perfil_acesso',
-      );
-      return [...perfisBase, ...custom];
-    } catch {
-      return perfisBase;
-    }
   }
 
   async obterPreferencias(
@@ -426,6 +610,52 @@ export class UsuariosService {
     });
 
     return proximo;
+  }
+
+  private async assertNaoEUltimoAdmin(lojaId: string, usuarioId: string) {
+    const totalAdminsAtivos = await this.prisma.usuario.count({
+      where: {
+        loja_id: lojaId,
+        funcao: usuario_funcao.ADMINISTRADOR,
+        status: usuario_status.ATIVO,
+        id: { not: usuarioId },
+      },
+    });
+
+    if (totalAdminsAtivos < 1) {
+      throw new BadRequestException(
+        'Não é permitido remover ou rebaixar o último administrador ativo da loja',
+      );
+    }
+  }
+
+  private async substituirPerfis(
+    tx: Prisma.TransactionClient,
+    usuarioId: string,
+    lojaId: string,
+    perfilIds: string[],
+  ) {
+    const unicos = [...new Set(perfilIds)];
+    if (unicos.length === 0) {
+      await tx.usuario_perfil.deleteMany({ where: { usuario_id: usuarioId } });
+      return;
+    }
+    const encontrados = await tx.perfil_acesso.findMany({
+      where: { loja_id: lojaId, id: { in: unicos } },
+      select: { id: true },
+    });
+    if (encontrados.length !== unicos.length) {
+      throw new BadRequestException(
+        'Um ou mais perfis não pertencem a esta loja',
+      );
+    }
+    await tx.usuario_perfil.deleteMany({ where: { usuario_id: usuarioId } });
+    await tx.usuario_perfil.createMany({
+      data: unicos.map((perfil_id) => ({
+        usuario_id: usuarioId,
+        perfil_id,
+      })),
+    });
   }
 
   private parsePreferencias(raw: Prisma.JsonValue | null): UsuarioPreferenciasJson {

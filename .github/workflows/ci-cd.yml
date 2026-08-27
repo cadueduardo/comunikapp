@@ -4,9 +4,9 @@ on:
   push:
     # `feat/*` além de `feature/*`: a convenção usada no repositório é `feat/`,
     # então as branches de trabalho nunca disparavam o pipeline.
-    branches: [main, develop, feature/*, feat/*]
+    branches: [main, develop, feature/*, feat/*, codex/*]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, feat/*]
   workflow_dispatch:
 
 env:
@@ -150,6 +150,10 @@ jobs:
       - name: Sincronizar schema no banco de teste
         working-directory: backend
         run: npx prisma db push --accept-data-loss
+
+      - name: Gate catálogo RBAC
+        working-directory: backend
+        run: npx jest src/rbac/catalogo/catalogo.gate.spec.ts src/rbac/autorizacao/permissao-efetiva.service.spec.ts --runInBand --forceExit --no-coverage
 
       - name: Executar testes unitários
         working-directory: backend

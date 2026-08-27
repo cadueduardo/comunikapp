@@ -1,8 +1,11 @@
 import {
+  ArrayMaxSize,
+  IsArray,
   IsEmail,
   IsEnum,
   IsOptional,
   IsString,
+  Matches,
   MinLength,
 } from 'class-validator';
 import { usuario_funcao } from '@prisma/client';
@@ -31,4 +34,11 @@ export class CreateUsuarioDto {
     message: 'A senha deve ter no mínimo 8 caracteres.',
   })
   senha!: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @Matches(/^[a-z0-9_-]+$/i, { each: true })
+  perfilIds?: string[];
 }

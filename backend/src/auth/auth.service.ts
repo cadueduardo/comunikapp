@@ -10,6 +10,7 @@ export interface JwtPayload {
   funcao: string;
   nome_completo: string;
   loja_session_version: number;
+  usuario_session_version?: number;
   loja?: loja;
 }
 
@@ -37,6 +38,7 @@ export class AuthService {
     loja_id: string;
     funcao: string;
     nome_completo: string;
+    session_version?: number;
     loja?: loja;
   }): string {
     const payload: JwtPayload = {
@@ -46,6 +48,7 @@ export class AuthService {
       funcao: user.funcao,
       nome_completo: user.nome_completo,
       loja_session_version: user.loja?.session_version ?? 0,
+      usuario_session_version: user.session_version ?? 0,
       loja: user.loja,
     };
 
@@ -84,7 +87,7 @@ export class AuthService {
       },
     });
 
-    if (!user || user.status !== 'ATIVO' || !user.email_verificado) {
+    if (!user || user.status !== 'ATIVO' || !user.email_verificado || !user.ativo) {
       return null;
     }
 

@@ -82,7 +82,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
         throw new UnauthorizedException('Token de loja inválido');
       }
 
-      const usuario = await this.prisma.usuario.findFirst({
+      const usuario = (await this.prisma.usuario.findFirst({
         where: {
           id: payload.sub,
           loja_id: payload.loja_id,
@@ -96,6 +96,7 @@ export class JwtGlobalMiddleware implements NestMiddleware {
           loja_id: true,
           funcao: true,
           nome_completo: true,
+          session_version: true,
           loja: {
             select: {
               id: true,
@@ -106,7 +107,21 @@ export class JwtGlobalMiddleware implements NestMiddleware {
             },
           },
         },
-      });
+      } as never)) as unknown as {
+        id: string;
+        email: string;
+        loja_id: string;
+        funcao: string;
+        nome_completo: string;
+        session_version: number;
+        loja: {
+          id: string;
+          nome: string;
+          slug: string;
+          status: string;
+          session_version: number;
+        };
+      } | null;
 
       if (!usuario) {
         throw new UnauthorizedException('Usuário inativo ou sessão inválida');
@@ -127,12 +142,21 @@ export class JwtGlobalMiddleware implements NestMiddleware {
         );
       }
 
+      if (
+        (payload.usuario_session_version ?? 0) !== usuario.session_version
+      ) {
+        throw new UnauthorizedException(
+          'Sessão revogada. Faça login novamente.',
+        );
+      }
+
       req['user'] = {
         sub: usuario.id,
         email: usuario.email,
         loja_id: usuario.loja_id,
         funcao: usuario.funcao,
         nome_completo: usuario.nome_completo,
+        session_version: usuario.session_version,
         loja: usuario.loja,
       };
 

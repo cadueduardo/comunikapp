@@ -14,6 +14,7 @@ import {
   IconShoppingCart,
   IconTools,
   IconTruckDelivery,
+  IconUsers,
 } from '@tabler/icons-react';
 
 export type SidebarMenuItemId =
@@ -35,7 +36,8 @@ export type SidebarMenuItemId =
   | 'pcp'
   | 'expedicao'
   | 'instalacao'
-  | 'centros-trabalho';
+  | 'centros-trabalho'
+  | 'usuarios';
 
 export const SIDEBAR_MENU_DEFAULT_ORDER: SidebarMenuItemId[] = [
   'dashboard',
@@ -53,14 +55,26 @@ export const SIDEBAR_MENU_DEFAULT_ORDER: SidebarMenuItemId[] = [
   'expedicao',
   'instalacao',
   'centros-trabalho',
+  'usuarios',
 ];
 
 export interface SidebarMenuPermissions {
-  /** Fonte: backend `GET /vendas/acesso` (não confiar só em role no cliente). */
+  /** Fonte: backend `GET /vendas/acesso` e `GET /usuarios/me/acesso`. */
   podeVerVendas: boolean;
   podeVerFinanceiro: boolean;
   podeVerExpedicao: boolean;
   podeVerInstalacaoGestao: boolean;
+  podeVerInsumos?: boolean;
+  podeVerFornecedores?: boolean;
+  podeVerCompras?: boolean;
+  podeVerEstoque?: boolean;
+  podeVerModelos?: boolean;
+  podeVerCatalogo?: boolean;
+  podeVerOs?: boolean;
+  podeVerArte?: boolean;
+  podeVerPcp?: boolean;
+  podeVerCentrosTrabalho?: boolean;
+  podeVerUsuarios?: boolean;
 }
 
 export interface SidebarMenuContadores {
@@ -106,56 +120,88 @@ export function buildSidebarNavItems(
   }
 
   items.push(
-    {
-      id: 'insumos',
-      label: 'Insumos',
-      href: '/insumos',
-      icon: <IconBuildingWarehouse className={iconClass} />,
-    },
-    {
-      id: 'fornecedores',
-      label: 'Fornecedores',
-      href: '/fornecedores',
-      icon: <IconBuildingStore className={iconClass} />,
-    },
-    {
-      id: 'compras',
-      label: 'Compras',
-      href: '/compras',
-      icon: <IconShoppingCart className={iconClass} />,
-    },
-    {
-      id: 'estoque',
-      label: 'Estoque',
-      href: '/estoque',
-      icon: <IconBuildingWarehouse className={iconClass} />,
-    },
-    {
-      id: 'modelos',
-      label: 'Modelos de Orçamento',
-      href: '/produtos',
-      icon: <IconPackage className={iconClass} />,
-    },
-    {
-      id: 'catalogo',
-      label: 'Catálogo de produtos',
-      href: '/catalogo',
-      icon: <IconCategory className={iconClass} />,
-    },
-    {
-      id: 'os',
-      label: 'Ordens de Serviço',
-      href: '/os',
-      badgeCount: contadores.os,
-      icon: <IconClipboardList className={iconClass} />,
-    },
-    {
-      id: 'arte',
-      label: 'Arte & Aprovação',
-      href: '/arte',
-      badgeCount: contadores.arte,
-      icon: <IconPalette className={iconClass} />,
-    },
+    ...(permissions.podeVerInsumos === false
+      ? []
+      : [
+          {
+            id: 'insumos' as const,
+            label: 'Insumos',
+            href: '/insumos',
+            icon: <IconBuildingWarehouse className={iconClass} />,
+          },
+        ]),
+    ...(permissions.podeVerFornecedores === false
+      ? []
+      : [
+          {
+            id: 'fornecedores' as const,
+            label: 'Fornecedores',
+            href: '/fornecedores',
+            icon: <IconBuildingStore className={iconClass} />,
+          },
+        ]),
+    ...(permissions.podeVerCompras === false
+      ? []
+      : [
+          {
+            id: 'compras' as const,
+            label: 'Compras',
+            href: '/compras',
+            icon: <IconShoppingCart className={iconClass} />,
+          },
+        ]),
+    ...(permissions.podeVerEstoque === false
+      ? []
+      : [
+          {
+            id: 'estoque' as const,
+            label: 'Estoque',
+            href: '/estoque',
+            icon: <IconBuildingWarehouse className={iconClass} />,
+          },
+        ]),
+    ...(permissions.podeVerModelos === false
+      ? []
+      : [
+          {
+            id: 'modelos' as const,
+            label: 'Modelos de Orçamento',
+            href: '/produtos',
+            icon: <IconPackage className={iconClass} />,
+          },
+        ]),
+    ...(permissions.podeVerCatalogo === false
+      ? []
+      : [
+          {
+            id: 'catalogo' as const,
+            label: 'Catálogo de produtos',
+            href: '/catalogo',
+            icon: <IconCategory className={iconClass} />,
+          },
+        ]),
+    ...(permissions.podeVerOs === false
+      ? []
+      : [
+          {
+            id: 'os' as const,
+            label: 'Ordens de Serviço',
+            href: '/os',
+            badgeCount: contadores.os,
+            icon: <IconClipboardList className={iconClass} />,
+          },
+        ]),
+    ...(permissions.podeVerArte === false
+      ? []
+      : [
+          {
+            id: 'arte' as const,
+            label: 'Arte & Aprovação',
+            href: '/arte',
+            badgeCount: contadores.arte,
+            icon: <IconPalette className={iconClass} />,
+          },
+        ]),
   );
 
   // VENDAS não recebe Financeiro (critério RP 8.1 / Fase 3).
@@ -169,13 +215,15 @@ export function buildSidebarNavItems(
     });
   }
 
-  items.push({
-    id: 'pcp',
-    label: 'PCP',
-    href: '/pcp',
-    badgeCount: contadores.pcp,
-    icon: <IconBuilding className={iconClass} />,
-  });
+  if (permissions.podeVerPcp !== false) {
+    items.push({
+      id: 'pcp',
+      label: 'PCP',
+      href: '/pcp',
+      badgeCount: contadores.pcp,
+      icon: <IconBuilding className={iconClass} />,
+    });
+  }
 
   if (permissions.podeVerExpedicao) {
     items.push({
@@ -197,12 +245,23 @@ export function buildSidebarNavItems(
     });
   }
 
-  items.push({
-    id: 'centros-trabalho',
-    label: 'Centros de Trabalho',
-    href: '/centros-de-trabalho',
-    icon: <IconTools className={iconClass} />,
-  });
+  if (permissions.podeVerCentrosTrabalho !== false) {
+    items.push({
+      id: 'centros-trabalho',
+      label: 'Centros de Trabalho',
+      href: '/centros-de-trabalho',
+      icon: <IconTools className={iconClass} />,
+    });
+  }
+
+  if (permissions.podeVerUsuarios) {
+    items.push({
+      id: 'usuarios',
+      label: 'Usuários',
+      href: '/usuarios',
+      icon: <IconUsers className={iconClass} />,
+    });
+  }
 
   return items;
 }

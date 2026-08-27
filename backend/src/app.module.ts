@@ -43,6 +43,7 @@ import { PlatformModule } from './platform/platform.module';
 import { ConexoesModule } from './conexoes/conexoes.module';
 import { AdminModule } from './admin/admin.module';
 import { VendasSecurityModule } from './vendas/vendas-security.module';
+import { RbacModule } from './rbac/rbac.module';
 
 @Module({
   imports: [
@@ -97,6 +98,7 @@ import { VendasSecurityModule } from './vendas/vendas-security.module';
     ConexoesModule,
     AdminModule,
     VendasSecurityModule, // Fase 5 — home, atividades, atendimento, outbox
+    RbacModule,
     DiscoveryModule,
   ],
   providers: [RotasPublicasValidator],

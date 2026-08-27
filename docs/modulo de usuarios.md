@@ -1,3 +1,5 @@
+> **Supersedido em 2026-08-27.** Este PBI descreve um desenho antigo (CPF, Gerente/Operador/Apontador, `backend/src/usuarios/` em árvore que não existe). O estado real e o plano vigente estão em `docs/modulo-usuarios/`. Checkboxes abaixo são alegações, não prova.
+
 # Módulo de Usuários - PBI Completo
 
 ## 📋 Descrição do PBI

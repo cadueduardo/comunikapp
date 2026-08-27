@@ -20,6 +20,7 @@ function activeUser(overrides: Record<string, unknown> = {}) {
     loja_id: 'loja-1',
     funcao: 'ADMINISTRADOR',
     nome_completo: 'Usuário Teste',
+    session_version: 0,
     loja: {
       id: 'loja-1',
       nome: 'Loja Teste',

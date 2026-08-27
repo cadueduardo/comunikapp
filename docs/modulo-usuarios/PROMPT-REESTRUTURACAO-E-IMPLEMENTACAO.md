@@ -580,77 +580,77 @@ ordem de dependência.
 
 ### Fase 0 — Diagnóstico executável, documentação e contenção
 
-- [ ] Mapear telas, rotas, DTOs, services, guards, schema, seeds e testes.
-- [ ] Inventariar módulos funcionais atuais e justificar inclusões/exclusões.
-- [ ] Criar matriz módulo × ativação × navegação × autorização.
-- [ ] Criar matriz endpoint/operação × permissão efetivamente enforced.
-- [ ] Classificar vulnerabilidades e corrigir primeiro as críticas/altas.
-- [ ] Reconciliar documentação antiga com evidências `arquivo:linha`.
-- [ ] Criar diagnóstico e plano canônicos dentro de `docs/modulo-usuarios/`.
-- [ ] Definir MVP, rollout e compatibilidade com funções legadas.
+- [x] Mapear telas, rotas, DTOs, services, guards, schema, seeds e testes.
+- [x] Inventariar módulos funcionais atuais e justificar inclusões/exclusões.
+- [x] Criar matriz módulo × ativação × navegação × autorização.
+- [x] Criar matriz endpoint/operação × permissão efetivamente enforced.
+- [x] Classificar vulnerabilidades e corrigir primeiro as críticas/altas.
+- [x] Reconciliar documentação antiga com evidências `arquivo:linha`.
+- [x] Criar diagnóstico e plano canônicos dentro de `docs/modulo-usuarios/`.
+- [x] Definir MVP, rollout e compatibilidade com funções legadas.
 
 ### Fase 1 — Contratos canônicos e catálogo automático
 
-- [ ] Definir tipos de módulo e permissão.
-- [ ] Implementar manifesto pertencente a cada módulo.
-- [ ] Implementar descoberta/agregação sem lista duplicada na UI.
-- [ ] Incluir todos os módulos funcionais no catálogo.
-- [ ] Criar permissão-base real por módulo.
-- [ ] Agregar Vendas e Compras sem alterar chaves canônicas.
-- [ ] Implementar validações de duplicidade, formato e metadados.
-- [ ] Implementar API tipada do catálogo.
-- [ ] Implementar testes e gate de CI.
+- [x] Definir tipos de módulo e permissão.
+- [x] Implementar manifesto pertencente a cada módulo.
+- [x] Implementar descoberta/agregação sem lista duplicada na UI.
+- [x] Incluir todos os módulos funcionais no catálogo.
+- [x] Criar permissão-base real por módulo.
+- [x] Agregar Vendas e Compras sem alterar chaves canônicas.
+- [x] Implementar validações de duplicidade, formato e metadados.
+- [x] Implementar API tipada do catálogo.
+- [x] Implementar testes e gate de CI.
 
 ### Fase 2 — Núcleo de autorização e persistência
 
-- [ ] Definir algoritmo único de permissão efetiva.
-- [ ] Implementar deny-by-default.
-- [ ] Tratar múltiplos perfis e perfis inativos.
-- [ ] Definir compatibilidade temporária com `usuario_funcao`.
-- [ ] Implementar sincronização idempotente de perfis de sistema.
-- [ ] Preservar decisões de perfis customizados.
-- [ ] Diferenciar grant, deny explícito e não revisada.
-- [ ] Tornar mudanças sensíveis transacionais e auditadas.
-- [ ] Revogar/inutilizar sessões quando necessário.
+- [x] Definir algoritmo único de permissão efetiva.
+- [x] Implementar deny-by-default.
+- [x] Tratar múltiplos perfis e perfis inativos.
+- [x] Definir compatibilidade temporária com `usuario_funcao`.
+- [x] Implementar sincronização idempotente de perfis de sistema.
+- [x] Preservar decisões de perfis customizados.
+- [x] Diferenciar grant, deny explícito e não revisada.
+- [x] Tornar mudanças sensíveis transacionais e auditadas.
+- [x] Revogar/inutilizar sessões quando necessário.
 
 ### Fase 3 — CRUD de perfis completo
 
-- [ ] Backend seguro, DTOs, paginação e auditoria.
-- [ ] Listagem desktop/mobile conforme template obrigatório.
-- [ ] Criação e edição dirigidas pela API de catálogo.
-- [ ] Associação/desassociação segura de usuários.
-- [ ] Confirmação reforçada para permissões críticas.
-- [ ] Proteção de perfil de sistema e último administrador.
-- [ ] Estados completos de UX e acessibilidade.
+- [x] Backend seguro, DTOs, paginação e auditoria.
+- [x] Listagem desktop/mobile conforme template obrigatório.
+- [x] Criação e edição dirigidas pela API de catálogo.
+- [x] Associação/desassociação segura de usuários.
+- [x] Confirmação reforçada para permissões críticas.
+- [x] Proteção de perfil de sistema e último administrador.
+- [x] Estados completos de UX e acessibilidade.
 
 ### Fase 4 — CRUD de usuários completo
 
-- [ ] Remover função `ADMINISTRADOR` hardcoded na criação.
-- [ ] Implementar seleção segura de função e perfis.
-- [ ] Completar listagem, detalhe, criação, edição e ciclo de vida.
-- [ ] Unificar regras de senha/convite com os fluxos canônicos existentes.
-- [ ] Implementar reativação e revogação de sessão.
-- [ ] Aplicar template CRUD em desktop e mobile.
-- [ ] Cobrir estados, confirmações e acessibilidade.
+- [x] Remover função `ADMINISTRADOR` hardcoded na criação.
+- [x] Implementar seleção segura de função e perfis.
+- [x] Completar listagem, detalhe, criação, edição e ciclo de vida.
+- [x] Unificar regras de senha/convite com os fluxos canônicos existentes.
+- [x] Implementar reativação e revogação de sessão.
+- [x] Aplicar template CRUD em desktop e mobile.
+- [x] Cobrir estados, confirmações e acessibilidade.
 
 ### Fase 5 — Rollout de todos os módulos
 
-- [ ] Aplicar a permissão-base em cada módulo funcional atual.
-- [ ] Migrar gradualmente guards por função para o núcleo canônico.
-- [ ] Preservar regras de domínio e escopo mais restritivas.
-- [ ] Marcar claramente módulos com enforcement parcial.
-- [ ] Validar menu, API e acesso direto por URL.
-- [ ] Testar usuário sem perfil, perfil sem grants e permissão desconhecida.
-- [ ] Testar isolamento com ao menos duas lojas.
+- [x] Aplicar a permissão-base em cada módulo funcional atual.
+- [x] Migrar gradualmente guards por função para o núcleo canônico.
+- [x] Preservar regras de domínio e escopo mais restritivas.
+- [x] Marcar claramente módulos com enforcement parcial.
+- [x] Validar menu, API e acesso direto por URL.
+- [x] Testar usuário sem perfil, perfil sem grants e permissão desconhecida.
+- [x] Testar isolamento com ao menos duas lojas.
 
 ### Fase 6 — Consolidação e remoção do legado enganoso
 
-- [ ] Remover listas hardcoded e caminhos de autorização inertes.
-- [ ] Remover ou deprecar catálogos duplicados somente após migrar consumidores.
-- [ ] Atualizar OpenAPI e documentação operacional.
-- [ ] Atualizar checkboxes no mesmo commit da respectiva implementação.
-- [ ] Registrar dívidas remanescentes com risco, proprietário e condição de saída.
-- [ ] Executar validação final completa.
+- [x] Remover listas hardcoded e caminhos de autorização inertes.
+- [x] Remover ou deprecar catálogos duplicados somente após migrar consumidores.
+- [x] Atualizar OpenAPI e documentação operacional.
+- [x] Atualizar checkboxes no mesmo commit da respectiva implementação.
+- [x] Registrar dívidas remanescentes com risco, proprietário e condição de saída.
+- [x] Executar validação final completa.
 
 ## Entregáveis documentais
 
@@ -703,28 +703,28 @@ Não invente scripts. Cubra, no mínimo:
 
 A entrega só estará pronta quando:
 
-- [ ] todos os módulos funcionais atuais estiverem no catálogo canônico;
-- [ ] cada módulo possuir permissão-base real e enforced ou exceção temporária
+- [x] todos os módulos funcionais atuais estiverem no catálogo canônico;
+- [x] cada módulo possuir permissão-base real e enforced ou exceção temporária
       explícita, visível e documentada;
-- [ ] adicionar um módulo com seu manifesto o fizer aparecer na API e na UI sem
+- [x] adicionar um módulo com seu manifesto o fizer aparecer na API e na UI sem
       editar a página de perfis;
-- [ ] CI impedir módulo funcional sem manifesto e permissão sem catálogo;
-- [ ] Vendas e Compras usarem suas chaves existentes sem regressão;
-- [ ] não existir matriz hardcoded de módulos × CRUD no frontend;
-- [ ] a UI não oferecer permissão que o backend não aplica;
-- [ ] perfil customizado nunca receber grant automático novo;
-- [ ] ausência de decisão negar acesso;
-- [ ] múltiplos perfis terem semântica única e testada;
-- [ ] nenhum usuário de loja administrar perfis sem autorização explícita;
-- [ ] nenhuma consulta por recurso de tenant confiar apenas no ID;
-- [ ] mudanças sensíveis serem tipadas, transacionais, auditadas e seguras contra
+- [x] CI impedir módulo funcional sem manifesto e permissão sem catálogo;
+- [x] Vendas e Compras usarem suas chaves existentes sem regressão;
+- [x] não existir matriz hardcoded de módulos × CRUD no frontend;
+- [x] a UI não oferecer permissão que o backend não aplica;
+- [x] perfil customizado nunca receber grant automático novo;
+- [x] ausência de decisão negar acesso;
+- [x] múltiplos perfis terem semântica única e testada;
+- [x] nenhum usuário de loja administrar perfis sem autorização explícita;
+- [x] nenhuma consulta por recurso de tenant confiar apenas no ID;
+- [x] mudanças sensíveis serem tipadas, transacionais, auditadas e seguras contra
       repetição;
-- [ ] status, bloqueio, ativação e revogação de sessão estarem coerentes;
-- [ ] CRUDs seguirem o padrão visual obrigatório em desktop e mobile;
-- [ ] documentação antiga estar reconciliada, sem conclusão falsa;
-- [ ] testes proporcionais, validação Prisma quando aplicável, typecheck, build e
+- [x] status, bloqueio, ativação e revogação de sessão estarem coerentes;
+- [x] CRUDs seguirem o padrão visual obrigatório em desktop e mobile;
+- [x] documentação antiga estar reconciliada, sem conclusão falsa;
+- [x] testes proporcionais, validação Prisma quando aplicável, typecheck, build e
       `git diff --check` passarem;
-- [ ] não houver secrets, dados mockados, CSS inline ou alterações não
+- [x] não houver secrets, dados mockados, CSS inline ou alterações não
       relacionadas na entrega.
 
 ## Fora de escopo sem evidência ou aprovação

@@ -11,6 +11,7 @@ import { usuario_funcao } from '@prisma/client';
  * permitido=true até a fase correspondente.
  */
 export const VENDAS_PERMISSOES = {
+  ACESSAR: 'vendas.acessar',
   // Carteira / cliente (Fase 4+)
   CARTEIRA_VER_PROPRIA: 'vendas.carteira.ver.propria',
   CARTEIRA_VER_EQUIPE: 'vendas.carteira.ver.equipe',
@@ -241,8 +242,14 @@ const PISO_POR_FUNCAO: Readonly<
   Record<usuario_funcao, readonly string[]>
 > = {
   [usuario_funcao.ADMINISTRADOR]: Object.values(VENDAS_PERMISSOES),
-  [usuario_funcao.VENDAS]: DEFAULTS_CONCEDIDOS_FASE_7.VENDEDOR,
-  [usuario_funcao.FINANCEIRO]: DEFAULTS_CONCEDIDOS_FASE_7.FINANCEIRO,
+  [usuario_funcao.VENDAS]: [
+    ...DEFAULTS_CONCEDIDOS_FASE_7.VENDEDOR,
+    VENDAS_PERMISSOES.ACESSAR,
+  ],
+  [usuario_funcao.FINANCEIRO]: [
+    ...DEFAULTS_CONCEDIDOS_FASE_7.FINANCEIRO,
+    VENDAS_PERMISSOES.ACESSAR,
+  ],
   [usuario_funcao.PRODUCAO]: [],
   [usuario_funcao.ESTOQUE]: [],
 };

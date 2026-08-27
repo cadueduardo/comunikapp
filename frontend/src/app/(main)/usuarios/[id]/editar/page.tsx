@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { apiRequest } from '@/lib/api';
+import { extrairListaPaginada } from '@/lib/lista-paginada';
 import { toast } from 'sonner';
 import { useUser } from '@/contexts/UserContext';
 
@@ -39,6 +40,7 @@ type UsuarioForm = {
   telefone: string;
   funcao: string;
   status: string;
+  perfilIds: string[];
 };
 
 export default function EditarUsuarioPage({
@@ -55,9 +57,11 @@ export default function EditarUsuarioPage({
     nome_completo: '',
     email: '',
     telefone: '',
-    funcao: 'ADMINISTRADOR',
+    funcao: 'VENDAS',
     status: 'ATIVO',
+    perfilIds: [],
   });
+  const [perfis, setPerfis] = useState<{ id: string; nome: string }[]>([]);
 
   const isAdmin = currentUser?.funcao === 'ADMINISTRADOR';
 
@@ -91,8 +95,13 @@ export default function EditarUsuarioPage({
             nome_completo: data.nome_completo ?? '',
             email: data.email ?? '',
             telefone: data.telefone ?? '',
-            funcao: data.funcao ?? 'ADMINISTRADOR',
+            funcao: data.funcao ?? 'VENDAS',
             status: data.status ?? 'ATIVO',
+            perfilIds: Array.isArray(data.perfis)
+              ? data.perfis.map((p: { perfil_id?: string; perfil?: { id: string } }) =>
+                  p.perfil_id || p.perfil?.id,
+                ).filter(Boolean)
+              : [],
           });
         }
       } catch (e: unknown) {
@@ -108,6 +117,18 @@ export default function EditarUsuarioPage({
       cancelled = true;
     };
   }, [id, isAdmin, userLoading, router]);
+
+  useEffect(() => {
+    const loadPerfis = async () => {
+      const res = await apiRequest('/usuarios/perfis?limit=100');
+      if (!res.ok) return;
+      const lista = extrairListaPaginada<{ id: string; nome: string }>(
+        await res.json(),
+      );
+      setPerfis(lista.items);
+    };
+    void loadPerfis();
+  }, []);
 
   const handleSave = async () => {
     if (!form.nome_completo?.trim() || !form.email?.trim()) {
@@ -125,6 +146,7 @@ export default function EditarUsuarioPage({
           telefone: form.telefone.trim() || undefined,
           funcao: form.funcao,
           status: form.status,
+          perfilIds: form.perfilIds,
         }),
       });
       if (!res.ok) {
@@ -222,6 +244,26 @@ export default function EditarUsuarioPage({
             </SelectContent>
           </Select>
         </div>
+        <fieldset className="grid gap-2">
+          <legend className="text-sm font-medium">Perfis</legend>
+          {perfis.map((perfil) => (
+            <label key={perfil.id} className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.perfilIds.includes(perfil.id)}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    perfilIds: e.target.checked
+                      ? [...f.perfilIds, perfil.id]
+                      : f.perfilIds.filter((idAtual) => idAtual !== perfil.id),
+                  }))
+                }
+              />
+              {perfil.nome}
+            </label>
+          ))}
+        </fieldset>
         <div className="flex gap-2 pt-2">
           <Button variant="outline" onClick={() => router.push(`/usuarios/${id}`)} disabled={saving}>
             Cancelar

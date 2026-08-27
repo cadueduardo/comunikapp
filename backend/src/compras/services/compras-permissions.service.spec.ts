@@ -21,4 +21,19 @@ describe('ComprasPermissionsService.parseAcaoCompleta', () => {
       ForbiddenException,
     );
   });
+
+  it('delega ao núcleo e honra deny explícito', async () => {
+    const permissaoEfetiva = {
+      pode: jest.fn().mockResolvedValue(false),
+    };
+    const nucleo = new ComprasPermissionsService(permissaoEfetiva as never);
+    await expect(
+      nucleo.pode('u1', 'loja-1', 'compras.solicitacao.aprovar'),
+    ).resolves.toBe(false);
+    expect(permissaoEfetiva.pode).toHaveBeenCalledWith(
+      'u1',
+      'loja-1',
+      'compras.solicitacao.aprovar',
+    );
+  });
 });

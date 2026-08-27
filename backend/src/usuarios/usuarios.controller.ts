@@ -2,184 +2,194 @@ import {
   BadRequestException,
   Body,
   Controller,
-  ForbiddenException,
   Get,
   Param,
   Patch,
   Post,
+  Query,
   Request,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UsuariosService } from './usuarios.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModuleActivationGuard } from '../common/guards/module-activation.guard';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
-import { Public } from '../auth/decorators';
+import { Public, extrairIdentidadeAutenticada } from '../auth/decorators';
 import { TwoFactorService } from '../auth/two-factor.service';
 import { ConfirmTwoFactorDto, DisableTwoFactorDto } from './dto/two-factor.dto';
 import {
   AtualizarUsuarioPreferenciasDto,
-  UsuarioPreferenciasJson,
 } from './dto/usuario-preferencias.dto';
+import {
+  DefinirSenhaInicialDto,
+  RedefinirSenhaDto,
+  ReenviarCodigoDto,
+  SolicitarRedefinicaoSenhaDto,
+} from './dto/acesso-publico.dto';
+import { PermissaoEfetivaService } from '../rbac/autorizacao/permissao-efetiva.service';
+import { RequerPermissao } from '../rbac/autorizacao/requer-permissao.decorator';
+import { PermissionsGuard } from '../rbac/autorizacao/permissions.guard';
+import { ListarUsuariosQueryDto } from './dto/paginacao-query.dto';
 
+@ApiTags('Usuários')
+@ApiBearerAuth()
 @Controller('usuarios')
 export class UsuariosController {
   constructor(
     private readonly usuariosService: UsuariosService,
     private readonly twoFactorService: TwoFactorService,
+    private readonly permissaoEfetiva: PermissaoEfetivaService,
   ) {}
 
-  private getUserFromRequest(req: any): {
-    id: string;
-    loja_id: string;
-    funcao?: string;
-  } {
-    const user = req?.user;
-    if (!user?.id || !user?.loja_id) {
-      throw new UnauthorizedException('Loja ID não encontrado no token');
-    }
-    return user;
-  }
-
-  private ensureAdmin(req: any) {
-    const user = this.getUserFromRequest(req);
-    if (user.funcao !== 'ADMINISTRADOR') {
-      throw new ForbiddenException(
-        'Somente administradores podem gerenciar usuários',
-      );
-    }
-    return user;
-  }
-
   @Get()
-  @UseGuards(JwtAuthGuard, ModuleActivationGuard)
-  async listar(@Request() req: any) {
-    const user = this.getUserFromRequest(req);
-    return this.usuariosService.listar(user.loja_id);
+  @UseGuards(JwtAuthGuard, ModuleActivationGuard, PermissionsGuard)
+  @RequerPermissao('usuarios.usuarios.gerenciar')
+  async listar(
+    @Request() req: unknown,
+    @Query() query: ListarUsuariosQueryDto,
+  ) {
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    return this.usuariosService.listar(lojaId, query);
   }
 
   @Get('2fa/status')
   @UseGuards(JwtAuthGuard)
-  async twoFactorStatus(@Request() req: any) {
-    const user = this.getUserFromRequest(req);
-    return this.twoFactorService.getStatus(user.id);
+  async twoFactorStatus(@Request() req: unknown) {
+    const { usuarioId } = extrairIdentidadeAutenticada(req);
+    return this.twoFactorService.getStatus(usuarioId);
   }
 
   @Post('2fa/setup')
   @UseGuards(JwtAuthGuard)
-  async setupTwoFactor(@Request() req: any) {
-    const user = this.getUserFromRequest(req);
-    return this.twoFactorService.createSetup(user.id);
+  async setupTwoFactor(@Request() req: unknown) {
+    const { usuarioId } = extrairIdentidadeAutenticada(req);
+    return this.twoFactorService.createSetup(usuarioId);
   }
 
   @Post('2fa/confirm')
   @UseGuards(JwtAuthGuard)
   async confirmTwoFactor(
     @Body() dto: ConfirmTwoFactorDto,
-    @Request() req: any,
+    @Request() req: unknown,
   ) {
-    const user = this.getUserFromRequest(req);
-    return this.twoFactorService.confirmSetup(user.id, dto.code);
+    const { usuarioId } = extrairIdentidadeAutenticada(req);
+    return this.twoFactorService.confirmSetup(usuarioId, dto.code);
   }
 
   @Post('2fa/disable')
   @UseGuards(JwtAuthGuard)
   async disableTwoFactor(
     @Body() dto: DisableTwoFactorDto,
-    @Request() req: any,
+    @Request() req: unknown,
   ) {
-    const user = this.getUserFromRequest(req);
-    return this.twoFactorService.disable(user.id, dto.password, dto.code);
+    const { usuarioId } = extrairIdentidadeAutenticada(req);
+    return this.twoFactorService.disable(usuarioId, dto.password, dto.code);
   }
 
   @Get('me/preferencias')
   @UseGuards(JwtAuthGuard)
-  async obterMinhasPreferencias(@Request() req: any) {
-    const user = this.getUserFromRequest(req);
-    return this.usuariosService.obterPreferencias(user.id, user.loja_id);
+  async obterMinhasPreferencias(@Request() req: unknown) {
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
+    return this.usuariosService.obterPreferencias(usuarioId, lojaId);
   }
 
   @Patch('me/preferencias')
   @UseGuards(JwtAuthGuard)
   async atualizarMinhasPreferencias(
     @Body() dto: AtualizarUsuarioPreferenciasDto,
-    @Request() req: any,
+    @Request() req: unknown,
   ) {
-    const user = this.getUserFromRequest(req);
-    return this.usuariosService.atualizarPreferencias(
-      user.id,
-      user.loja_id,
-      dto,
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
+    return this.usuariosService.atualizarPreferencias(usuarioId, lojaId, dto);
+  }
+
+  @Get('me/acesso')
+  @UseGuards(JwtAuthGuard)
+  async obterMeuAcesso(@Request() req: unknown) {
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
+    const modulos = await this.permissaoEfetiva.listarAcessoModulos(
+      usuarioId,
+      lojaId,
     );
+    return { modulos };
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, ModuleActivationGuard)
-  async obter(@Param('id') id: string, @Request() req: any) {
-    const user = this.getUserFromRequest(req);
-    return this.usuariosService.obter(id, user.loja_id);
+  @UseGuards(JwtAuthGuard, ModuleActivationGuard, PermissionsGuard)
+  @RequerPermissao('usuarios.usuarios.gerenciar')
+  async obter(@Param('id') id: string, @Request() req: unknown) {
+    const { lojaId } = extrairIdentidadeAutenticada(req);
+    return this.usuariosService.obter(id, lojaId);
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, ModuleActivationGuard)
-  async criar(@Body() dto: CreateUsuarioDto, @Request() req: any) {
-    const user = this.ensureAdmin(req);
-    return this.usuariosService.criar(user.loja_id, dto);
+  @UseGuards(JwtAuthGuard, ModuleActivationGuard, PermissionsGuard)
+  @RequerPermissao('usuarios.usuarios.gerenciar')
+  async criar(@Body() dto: CreateUsuarioDto, @Request() req: unknown) {
+    const { lojaId, usuarioId } = extrairIdentidadeAutenticada(req);
+    return this.usuariosService.criar(lojaId, dto, usuarioId);
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, ModuleActivationGuard)
+  @UseGuards(JwtAuthGuard, ModuleActivationGuard, PermissionsGuard)
+  @RequerPermissao('usuarios.usuarios.gerenciar')
   async atualizar(
     @Param('id') id: string,
     @Body() dto: UpdateUsuarioDto,
-    @Request() req: any,
+    @Request() req: unknown,
   ) {
-    const user = this.ensureAdmin(req);
-    return this.usuariosService.atualizar(id, user.loja_id, dto);
+    const { lojaId, usuarioId } = extrairIdentidadeAutenticada(req);
+    return this.usuariosService.atualizar(id, lojaId, dto, usuarioId);
   }
 
   @Patch(':id/desativar')
-  @UseGuards(JwtAuthGuard, ModuleActivationGuard)
-  async desativar(@Param('id') id: string, @Request() req: any) {
-    const user = this.ensureAdmin(req);
-    if (id === user.id) {
+  @UseGuards(JwtAuthGuard, ModuleActivationGuard, PermissionsGuard)
+  @RequerPermissao('usuarios.usuarios.gerenciar')
+  async desativar(@Param('id') id: string, @Request() req: unknown) {
+    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
+    if (id === usuarioId) {
       throw new BadRequestException(
-        'Nao e permitido desativar o proprio usuario',
+        'Não é permitido desativar o próprio usuário',
       );
     }
-    return this.usuariosService.desativar(id, user.loja_id);
+    return this.usuariosService.desativar(id, lojaId, usuarioId);
   }
 
-  // Fluxo de convite/primeiro acesso (entradas public serão adicionadas na fase 2 com validação dedicada)
+  @Patch(':id/reativar')
+  @UseGuards(JwtAuthGuard, ModuleActivationGuard, PermissionsGuard)
+  @RequerPermissao('usuarios.usuarios.gerenciar')
+  async reativar(@Param('id') id: string, @Request() req: unknown) {
+    const { lojaId, usuarioId } = extrairIdentidadeAutenticada(req);
+    return this.usuariosService.reativar(id, lojaId, usuarioId);
+  }
+
   @Post('reenviar-codigo')
   @Public()
-  async reenviarCodigo(@Body('email') email: string) {
-    return this.usuariosService.reenviarCodigo(email);
+  async reenviarCodigo(@Body() dto: ReenviarCodigoDto) {
+    return this.usuariosService.reenviarCodigo(dto.email);
   }
 
   @Post('definir-senha')
   @Public()
-  async definirSenha(
-    @Body() body: { email: string; codigo: string; senha: string },
-  ) {
+  async definirSenha(@Body() dto: DefinirSenhaInicialDto) {
     return this.usuariosService.definirSenhaInicial(
-      body.email,
-      body.codigo,
-      body.senha,
+      dto.email,
+      dto.codigo,
+      dto.senha,
     );
   }
 
   @Post('solicitar-redefinicao-senha')
   @Public()
-  async solicitarRedefinicaoSenha(@Body() body: { email: string }) {
-    return this.usuariosService.solicitarRedefinicaoSenha(body.email);
+  async solicitarRedefinicaoSenha(@Body() dto: SolicitarRedefinicaoSenhaDto) {
+    return this.usuariosService.solicitarRedefinicaoSenha(dto.email);
   }
 
   @Post('redefinir-senha')
   @Public()
-  async redefinirSenha(@Body() body: { token: string; senha: string }) {
-    return this.usuariosService.redefinirSenha(body.token, body.senha);
+  async redefinirSenha(@Body() dto: RedefinirSenhaDto) {
+    return this.usuariosService.redefinirSenha(dto.token, dto.senha);
   }
 }

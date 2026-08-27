@@ -41,19 +41,59 @@ function AuthenticatedShell({
   // Deny-by-default enquanto `/vendas/acesso` não responder (estado compartilhado).
   const { acesso: vendasAcesso } = useVendasAcesso();
 
+  const [acessoModulos, setAcessoModulos] = useState<Record<string, boolean>>(
+    {},
+  );
+
+  useEffect(() => {
+    const token = getClientSessionToken();
+    if (!token) return;
+    void usuariosApi
+      .getAcesso(token)
+      .then((res) => {
+        const payload = res as { modulos?: Record<string, boolean> };
+        if (payload?.modulos) setAcessoModulos(payload.modulos);
+      })
+      .catch(() => {
+        /* menu permanece no fallback por função */
+      });
+  }, [user.id]);
+
   const permissions = useMemo(() => {
     const funcao = String(user.funcao ?? '').toUpperCase();
+    const flag = (chave: string, fallback: boolean) =>
+      acessoModulos[chave] ?? fallback;
     return {
-      podeVerVendas: vendasAcesso.pode_acessar_modulo === true,
-      podeVerFinanceiro: ['ADMINISTRADOR', 'FINANCEIRO'].includes(funcao),
-      podeVerExpedicao: ['ADMINISTRADOR', 'PRODUCAO', 'ESTOQUE'].includes(
-        funcao,
+      podeVerVendas:
+        acessoModulos.vendas ?? vendasAcesso.pode_acessar_modulo === true,
+      podeVerFinanceiro: flag(
+        'financeiro',
+        ['ADMINISTRADOR', 'FINANCEIRO'].includes(funcao),
       ),
-      podeVerInstalacaoGestao: ['ADMINISTRADOR', 'FINANCEIRO', 'VENDAS'].includes(
-        funcao,
+      podeVerExpedicao: flag(
+        'expedicao',
+        ['ADMINISTRADOR', 'PRODUCAO', 'ESTOQUE'].includes(funcao),
+      ),
+      podeVerInstalacaoGestao: flag(
+        'instalacao',
+        ['ADMINISTRADOR', 'FINANCEIRO', 'VENDAS'].includes(funcao),
+      ),
+      podeVerInsumos: flag('insumos', true),
+      podeVerFornecedores: flag('fornecedores', true),
+      podeVerCompras: flag('compras', true),
+      podeVerEstoque: flag('estoque', true),
+      podeVerModelos: flag('modelos', true),
+      podeVerCatalogo: flag('catalogo', true),
+      podeVerOs: flag('os', true),
+      podeVerArte: flag('arte', true),
+      podeVerPcp: flag('pcp', true),
+      podeVerCentrosTrabalho: flag('centros-trabalho', true),
+      podeVerUsuarios: flag(
+        'usuarios',
+        ['ADMINISTRADOR'].includes(funcao),
       ),
     };
-  }, [user.funcao, vendasAcesso.pode_acessar_modulo]);
+  }, [user.funcao, vendasAcesso.pode_acessar_modulo, acessoModulos]);
 
   useEffect(() => {
     const loadTwoFactorStatus = async () => {

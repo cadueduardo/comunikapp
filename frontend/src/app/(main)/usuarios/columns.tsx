@@ -1,10 +1,10 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
+import { ArrowUpDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { UserRound, Pencil, UserX } from 'lucide-react';
+import { UsuarioAcoesMenu } from '@/components/usuarios/UsuarioAcoesMenu';
 
 export type UsuarioRow = {
   id: string;
@@ -16,15 +16,28 @@ export type UsuarioRow = {
 
 type UsuarioColumnsOptions = {
   onDesativar: (usuario: UsuarioRow) => void;
+  onReativar: (usuario: UsuarioRow) => void;
   removingId?: string | null;
 };
 
 export const createUsuarioColumns = ({
   onDesativar,
+  onReativar,
   removingId,
 }: UsuarioColumnsOptions): ColumnDef<UsuarioRow>[] => [
-  { accessorKey: 'nome_completo', header: 'Nome' },
-  { accessorKey: 'email', header: 'Email' },
+  {
+    accessorKey: 'nome_completo',
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        Nome
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+  },
+  { accessorKey: 'email', header: 'E-mail' },
   { accessorKey: 'funcao', header: 'Função' },
   {
     accessorKey: 'status',
@@ -38,38 +51,15 @@ export const createUsuarioColumns = ({
   {
     id: 'acoes',
     header: 'Ações',
-    cell: ({ row }) => {
-      const usuario = row.original;
-      const isInactive = usuario.status === 'INATIVO';
-      const isRemoving = removingId === usuario.id;
-
-      return (
-        <div className="flex gap-2">
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/usuarios/${usuario.id}`}>
-              <UserRound className="w-4 h-4 mr-1" />
-              Ver
-            </Link>
-          </Button>
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/usuarios/${usuario.id}/editar`}>
-              <Pencil className="w-4 h-4 mr-1" />
-              Editar
-            </Link>
-          </Button>
-          <Button
-            size="sm"
-            variant="destructive"
-            disabled={isInactive || isRemoving}
-            onClick={() => onDesativar(usuario)}
-          >
-            <UserX className="w-4 h-4 mr-1" />
-            {isInactive ? 'Inativo' : isRemoving ? 'Removendo...' : 'Remover'}
-          </Button>
-        </div>
-      );
-    },
+    cell: ({ row }) => (
+      <div className="text-right">
+        <UsuarioAcoesMenu
+          usuario={row.original}
+          onDesativar={onDesativar}
+          onReativar={onReativar}
+          removingId={removingId}
+        />
+      </div>
+    ),
   },
 ];
-
-
