@@ -20,16 +20,16 @@ import { AppModule } from './../src/app.module';
 describe('App (e2e)', () => {
   let app: INestApplication<App>;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
-  });
+  }, 60000);
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app?.close();
   });
 
