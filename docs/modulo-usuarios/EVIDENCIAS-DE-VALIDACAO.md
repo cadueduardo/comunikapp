@@ -83,7 +83,7 @@ npx jest src/usuarios/usuarios-contencao.spec.ts src/rbac/autorizacao/permissao-
 
 - [x] Gestor com `usuarios.usuarios.gerenciar` não cria nem promove `ADMINISTRADOR`; administrador existente consegue
 - [x] `GET /usuarios/me/acesso` (com ou sem `/api`) não exige `usuarios.acessar` e avalia as portas numa única carga
-- [ ] CI do PR após o commit `1164c9b2` (substituído pela correção abaixo)
+- [x] CI do commit `1164c9b2`: runs `33093022429` (PR) e `33093022687` (push) **success** — histórico; a correção de contas privilegiadas abaixo o sucedeu
 
 ## Correção P1 remanescente (administrar contas ADMINISTRADOR)
 
@@ -97,7 +97,7 @@ npx jest src/usuarios/usuarios-contencao.spec.ts src/usuarios/perfis-acesso.cont
 - [x] Gestor continua editando e reativando usuários operacionais
 - [x] Ator de outra loja, inativo ou com `ativo=false` é recusado; prova lida no banco na transação
 - [x] Último administrador permanece protegido com `FOR UPDATE`
-- [ ] CI do PR após este commit
+- [x] CI do commit `e975fe34`: run `33094490086` (PR) **success** — lint/build, unitários, e2e, Gate 0S, Prisma, OpenAPI, audit, artefato. Build e Deploy permanece skip fora da `main`. Revisão posterior sem novos bloqueadores.
 
 ## Dívidas remanescentes
 
