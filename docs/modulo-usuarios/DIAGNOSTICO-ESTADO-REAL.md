@@ -91,6 +91,6 @@ Nenhuma destas propostas concede permissão nova a quem hoje não tem; a de Comp
 1. Ausência de linha em `perfil_permissao` = **não revisada** (nega), sem seed de `permitido=false`.
 2. Bypass admin = somente `usuario_funcao.ADMINISTRADOR`, nunca o nome do perfil.
 3. Módulos hoje abertos a qualquer JWT recebem `.acessar` **enforced** com piso temporário nas cinco funções, para permitir deny explícito sem lockout.
-4. Convite sem senha permanece na Gestão (`store_user_invitation`); a loja cria usuário com senha inicial.
+4. Convite da loja: `POST /usuarios` sem senha cria `PENDENTE_VERIFICACAO` e envia código para `/primeiro-acesso` (quem recebe define a senha). Senha inicial continua opcional para criar já `ATIVO`. Convite da Gestão (`store_user_invitation`) permanece para operadores da plataforma.
 
 Não há decisão bloqueante nesta fase.

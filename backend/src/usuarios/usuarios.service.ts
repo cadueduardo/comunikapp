@@ -17,7 +17,7 @@ import { MailService } from '../mail/mail.service';
 import { LojaAuditService } from '../rbac/auditoria/loja-audit.service';
 import { incrementoSessionVersion } from '../rbac/sessao-usuario';
 import { usuario_status, usuario_funcao, Prisma } from '@prisma/client';
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes, createHash, randomInt } from 'crypto';
 import { ListarUsuariosQueryDto } from './dto/paginacao-query.dto';
 import {
   assertAtorPodeAdministrarContaAdministradora,
@@ -145,12 +145,7 @@ export class UsuariosService {
   }
 
   async criar(lojaId: string, dto: CreateUsuarioDto, atorId: string) {
-    if (!dto.senha?.trim()) {
-      throw new BadRequestException(
-        'O convite por e-mail sem senha foi desativado nesta área. Use a Gestão ComunikApp para convidar usuários, ou informe uma senha para criar o usuário já ativo.',
-      );
-    }
-
+    const senhaInformada = dto.senha?.trim() ?? '';
     const email = this.normalizeEmail(dto.email);
     const exists = await this.prisma.usuario.findUnique({
       where: { email },
@@ -164,27 +159,49 @@ export class UsuariosService {
       );
     }
 
-    const salt = await bcrypt.genSalt();
-    const senhaHash = await bcrypt.hash(dto.senha, salt);
-
+    let codigoConvite: string | null = null;
     const created = await this.prisma.$transaction(async (tx) => {
       if (contaExigeAdministradorDaLoja(undefined, dto.funcao)) {
         await assertAtorPodeAdministrarContaAdministradora(tx, lojaId, atorId);
       }
-      const usuario = await tx.usuario.create({
-        data: {
-          loja_id: lojaId,
-          email,
-          nome_completo: dto.nome_completo.trim(),
-          telefone: dto.telefone?.trim() || null,
-          funcao: dto.funcao,
-          senha: senhaHash,
-          status: usuario_status.ATIVO,
-          email_verificado: true,
-          ativo: true,
-        },
-        select: { id: true, email: true, funcao: true },
-      });
+
+      const base = {
+        loja_id: lojaId,
+        email,
+        nome_completo: dto.nome_completo.trim(),
+        telefone: dto.telefone?.trim() || null,
+        funcao: dto.funcao,
+        ativo: true,
+      };
+
+      let usuario: { id: string; email: string; funcao: usuario_funcao };
+      if (senhaInformada) {
+        usuario = await tx.usuario.create({
+          data: {
+            ...base,
+            senha: await bcrypt.hash(senhaInformada, await bcrypt.genSalt()),
+            status: usuario_status.ATIVO,
+            email_verificado: true,
+          },
+          select: { id: true, email: true, funcao: true },
+        });
+      } else {
+        codigoConvite = randomInt(100000, 1000000).toString();
+        const expiration = new Date();
+        expiration.setMinutes(expiration.getMinutes() + 15);
+        usuario = await tx.usuario.create({
+          data: {
+            ...base,
+            senha: null,
+            status: usuario_status.PENDENTE_VERIFICACAO,
+            email_verificado: false,
+            codigo_verificacao_email: codigoConvite,
+            codigo_verificacao_email_expiracao: expiration,
+          },
+          select: { id: true, email: true, funcao: true },
+        });
+      }
+
       if (dto.perfilIds?.length) {
         await this.substituirPerfis(tx, usuario.id, lojaId, dto.perfilIds);
       }
@@ -199,11 +216,27 @@ export class UsuariosService {
           email: usuario.email,
           funcao: usuario.funcao,
           perfilIds: dto.perfilIds ?? [],
+          convite: !senhaInformada,
         },
         tx,
       });
       return usuario;
     });
+
+    if (codigoConvite) {
+      const loja = await this.prisma.loja.findUnique({
+        where: { id: lojaId },
+        select: { nome: true },
+      });
+      const activationLink = `${
+        process.env.FRONTEND_URL || 'https://comunikapp.com.br'
+      }/primeiro-acesso?email=${encodeURIComponent(email)}`;
+      await this.mail.sendVerificationEmail(email, codigoConvite, {
+        mode: 'convite',
+        activationLink,
+        lojaNome: loja?.nome || undefined,
+      });
+    }
 
     return { id: created.id };
   }

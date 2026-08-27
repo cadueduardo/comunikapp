@@ -102,9 +102,9 @@ function PrimeiroAcessoContent() {
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">Primeiro acesso</h1>
           <p className="text-sm text-muted-foreground">
-            Use esta tela apenas se você recebeu um código de verificação por
-            e-mail (fluxo antigo). Novos convites da Gestão usam o link
-            dedicado em /convite-loja.
+            Use o código enviado ao seu e-mail e defina sua senha para ativar
+            o acesso. Convites feitos pela Gestão ComunikApp usam o link em
+            /convite-loja.
           </p>
         </div>
 

@@ -334,7 +334,7 @@ function LoginContent() {
                             </Link>
                         </div>
                         <div className="text-center text-sm text-muted-foreground">
-                            Tem código antigo de primeiro acesso?{' '}
+                            Recebeu código da sua loja?{' '}
                             <Link href="/primeiro-acesso" className="underline">
                                 Ativar com código
                             </Link>

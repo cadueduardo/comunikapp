@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { UsuarioCamposAcesso } from '@/components/usuarios/UsuarioCamposAcesso';
 import { apiRequest } from '@/lib/api';
 import { toast } from 'sonner';
@@ -21,6 +22,7 @@ export default function NovoUsuarioPage() {
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
   const [senha, setSenha] = useState('');
+  const [definirSenha, setDefinirSenha] = useState(false);
   const [funcao, setFuncao] = useState('VENDAS');
   const [perfilIds, setPerfilIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -30,7 +32,7 @@ export default function NovoUsuarioPage() {
       toast.error('Preencha nome e e-mail');
       return;
     }
-    if (senha.length < 8) {
+    if (definirSenha && senha.length < 8) {
       toast.error('A senha deve ter ao menos 8 caracteres');
       return;
     }
@@ -44,12 +46,16 @@ export default function NovoUsuarioPage() {
           email,
           telefone: telefone || undefined,
           funcao,
-          senha,
+          senha: definirSenha ? senha : undefined,
           perfilIds,
         }),
       });
       if (res.ok) {
-        toast.success('Usuário criado e ativo');
+        toast.success(
+          definirSenha
+            ? 'Usuário criado e ativo'
+            : 'Convite enviado. O usuário define a senha no primeiro acesso.',
+        );
         router.push('/usuarios/gestao');
       } else {
         const err = await res.json().catch(() => ({}));
@@ -77,9 +83,9 @@ export default function NovoUsuarioPage() {
         <div className="mb-4 max-w-xl">
           <Alert>
             <AlertDescription>
-              O convite por e-mail (sem definir senha) agora é feito apenas pela
-              Gestão ComunikApp. Nesta tela você cria o usuário já ativo,
-              informando a senha inicial.
+              Por padrão enviamos um convite ao e-mail informado. Quem recebe
+              define a própria senha em Primeiro acesso. Só marque a opção
+              abaixo se quiser cadastrar a senha agora.
             </AlertDescription>
           </Alert>
         </div>
@@ -120,17 +126,34 @@ export default function NovoUsuarioPage() {
             podeConcederAdmin={atorPodeConcederAdmin}
             disabled={loading}
           />
-          <div className="grid gap-2">
-            <Label htmlFor="novo-usuario-senha">Senha inicial</Label>
-            <Input
-              id="novo-usuario-senha"
-              type="password"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              placeholder="Mín. 8 caracteres"
-              autoComplete="new-password"
+          <div className="flex items-start gap-2">
+            <Checkbox
+              id="novo-usuario-definir-senha"
+              checked={definirSenha}
+              disabled={loading}
+              onCheckedChange={(estado) => {
+                const marcado = estado === true;
+                setDefinirSenha(marcado);
+                if (!marcado) setSenha('');
+              }}
             />
+            <Label htmlFor="novo-usuario-definir-senha" className="font-normal">
+              Definir senha agora (senão enviaremos convite por e-mail)
+            </Label>
           </div>
+          {definirSenha ? (
+            <div className="grid gap-2">
+              <Label htmlFor="novo-usuario-senha">Senha inicial</Label>
+              <Input
+                id="novo-usuario-senha"
+                type="password"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                placeholder="Mín. 8 caracteres"
+                autoComplete="new-password"
+              />
+            </div>
+          ) : null}
           <div className="mt-2 flex gap-2">
             <Button
               variant="outline"

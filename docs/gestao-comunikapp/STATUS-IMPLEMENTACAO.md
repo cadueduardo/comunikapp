@@ -191,18 +191,19 @@ Não implementado ainda:
 - loja não ativa: só `SUPER_ADMIN` com justificativa;
 - UI: aba Usuários no detalhe da loja + página `/convite-loja`.
 
-### Desativação do convite legado da loja — 29/07/2026
+### Convite da loja (usuários da própria loja) — restaurado em 27/08/2026
 
-- `POST /usuarios` **exige senha**; não cria mais pendente nem envia e-mail de
-  convite pela área da loja.
-- Tela `/usuarios/gestao/novo` remove a opção “convidar sem senha” e orienta que
-  o convite por e-mail é só pela Gestão.
-- `/primeiro-acesso` + `reenviar-codigo` / `definir-senha` permanecem apenas para
-  pendências já emitidas no fluxo antigo.
-- Login aponta novos convites para `/convite-loja`.
-- `ConviteCadastro` (cadastro de loja nova / beta) **migrou para a Gestão** em
-  29/07/2026 (`/gestao/convites-beta`); o painel legado
-  `/admin-plataforma/convites` apenas redireciona.
+- `POST /usuarios` **aceita senha opcional**.
+- Sem senha: cria `PENDENTE_VERIFICACAO`, envia e-mail de convite, o convidado
+  define a senha em `/primeiro-acesso`.
+- Com senha: cria usuário já `ATIVO` (atalho operacional).
+- Convite da Gestão (`store_user_invitation` + `/convite-loja`) permanece para
+  operadores da plataforma convidarem alguém para uma loja.
+
+### Desativação anterior do convite legado da loja — 29/07/2026 (revertida)
+
+Naquela data o convite pela área da loja foi desligado em favor só da Gestão.
+A criação pela loja voltou a enviar convite; veja a seção acima.
 
 ### Convites beta / cadastro de loja nova — 29/07/2026
 

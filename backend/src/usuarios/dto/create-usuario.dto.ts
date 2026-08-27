@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
@@ -26,14 +27,19 @@ export class CreateUsuarioDto {
   funcao!: usuario_funcao;
 
   /**
-   * Obrigatória na criação pela loja. Convites sem senha (link por e-mail)
-   * passam exclusivamente pela Gestão ComunikApp (`store_user_invitation`).
+   * Se omitida, a loja envia convite: o convidado define a senha em
+   * `/primeiro-acesso`. Convites da Gestão ComunikApp continuam em
+   * `store_user_invitation`.
    */
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() === '' ? undefined : value,
+  )
   @IsString()
   @MinLength(8, {
     message: 'A senha deve ter no mínimo 8 caracteres.',
   })
-  senha!: string;
+  senha?: string;
 
   @IsOptional()
   @IsArray()
