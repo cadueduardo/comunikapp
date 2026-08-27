@@ -835,6 +835,7 @@ model loja {
   admin_audit_logs                   admin_audit_log[]
   store_user_invitations             store_user_invitation[]
   historicos_orcamento               HistoricoOrcamento[]
+  loja_audit_logs                    loja_audit_log[]
 }
 
 model InsumoFornecedor {
@@ -2274,6 +2275,7 @@ model usuario {
   two_factor_confirmed_at            DateTime?
   ativo                              Boolean              @default(true) // Campo para V2
   preferencias                       Json?
+  session_version                    Int                  @default(0)
   loja                               loja                 @relation(fields: [loja_id], references: [id], onDelete: Cascade, map: "Usuario_loja_id_fkey")
   perfis                             usuario_perfil[]
   password_reset_tokens              PasswordResetToken[]
@@ -2291,6 +2293,7 @@ model usuario {
   outbox_email_vendas                outbox_email_vendas[] @relation("OutboxEmailDestinatario")
   os_logs                            OrdemServicoLog[]
   store_user_invitations             store_user_invitation[]
+  audit_logs_ator                    loja_audit_log[]
 
   // Relacionamentos Arte & Aprovação
   artes_autor       ArteVersao[]     @relation("ArteAutor")
@@ -2635,6 +2638,7 @@ model perfil_acesso {
   descricao     String?            @db.Text
   ativo         Boolean            @default(true)
   sistema       Boolean            @default(false)
+  versao        Int                @default(1)
   criado_em     DateTime           @default(now())
   atualizado_em DateTime           @updatedAt
   loja          loja               @relation(fields: [loja_id], references: [id], onDelete: Cascade)
@@ -2671,6 +2675,27 @@ model usuario_perfil {
   @@index([usuario_id])
   @@index([perfil_id])
   @@map("usuario_perfil")
+}
+
+model loja_audit_log {
+  id             String    @id @default(cuid())
+  occurred_at    DateTime  @default(now())
+  loja_id        String
+  ator_id        String?
+  action         String    @db.VarChar(96)
+  resource_type  String    @db.VarChar(64)
+  resource_id    String?   @db.VarChar(191)
+  previous_state Json?
+  new_state      Json?
+  ip_address     String?   @db.VarChar(45)
+  user_agent     String?   @db.VarChar(512)
+  loja           loja      @relation(fields: [loja_id], references: [id], onDelete: Cascade)
+  ator           usuario?  @relation(fields: [ator_id], references: [id], onDelete: SetNull)
+
+  @@index([loja_id, occurred_at])
+  @@index([ator_id, occurred_at])
+  @@index([resource_type, resource_id])
+  @@map("loja_audit_log")
 }
 
 model estoque_aproveitamentos {

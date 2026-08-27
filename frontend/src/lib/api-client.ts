@@ -1527,8 +1527,33 @@ export const usuariosApi = {
   getAll: (token: string) => ApiClient.get('/usuarios', token),
   getById: (id: string, token: string) => ApiClient.get(`/usuarios/${id}`, token),
   create: (data: Record<string, unknown>, token: string) => ApiClient.post('/usuarios', data, token),
-  update: (id: string, data: Record<string, unknown>, token: string) => ApiClient.put(`/usuarios/${id}`, data, token),
-  delete: (id: string, token: string) => ApiClient.delete(`/usuarios/${id}`, token),
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    ApiClient.patch(`/usuarios/${id}`, data, token),
+  desativar: (id: string, token: string) =>
+    ApiClient.patch(`/usuarios/${id}/desativar`, {}, token),
+  reativar: (id: string, token: string) =>
+    ApiClient.patch(`/usuarios/${id}/reativar`, {}, token),
+  getAcesso: (token: string) =>
+    ApiClient.get<{ modulos: Record<string, boolean> }>('/usuarios/me/acesso', token),
+  getPerfis: (token: string) => ApiClient.get('/usuarios/perfis', token),
+  getPerfil: (id: string, token: string) => ApiClient.get(`/usuarios/perfis/${id}`, token),
+  createPerfil: (data: Record<string, unknown>, token: string) =>
+    ApiClient.post('/usuarios/perfis', data, token),
+  updatePerfil: (id: string, data: Record<string, unknown>, token: string) =>
+    ApiClient.put(`/usuarios/perfis/${id}`, data, token),
+  deletePerfil: (id: string, token: string) =>
+    ApiClient.delete(`/usuarios/perfis/${id}`, token),
+  associarPerfilUsuario: (perfilId: string, usuarioId: string, token: string) =>
+    ApiClient.post(`/usuarios/perfis/${perfilId}/usuarios/${usuarioId}`, {}, token),
+  desassociarPerfilUsuario: (perfilId: string, usuarioId: string, token: string) =>
+    ApiClient.delete(`/usuarios/perfis/${perfilId}/usuarios/${usuarioId}`, token),
+  getCatalogoPerfis: (token: string, perfilId?: string) =>
+    ApiClient.get(
+      perfilId
+        ? `/usuarios/perfis/catalogo?perfilId=${encodeURIComponent(perfilId)}`
+        : '/usuarios/perfis/catalogo',
+      token,
+    ),
   getPreferencias: (token: string) =>
     ApiClient.get<UsuarioPreferencias>('/usuarios/me/preferencias', token),
   updatePreferencias: (

@@ -1,7 +1,4 @@
-import {
-  ForbiddenException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { JwtGlobalMiddleware } from './jwt-global.middleware';
 
 function request(path = '/clientes') {
@@ -20,6 +17,7 @@ function activeUser(overrides: Record<string, unknown> = {}) {
     loja_id: 'loja-1',
     funcao: 'ADMINISTRADOR',
     nome_completo: 'Usuário Teste',
+    session_version: 0,
     loja: {
       id: 'loja-1',
       nome: 'Loja Teste',
@@ -36,6 +34,7 @@ describe('JwtGlobalMiddleware', () => {
     sub: 'user-1',
     loja_id: 'loja-1',
     loja_session_version: 0,
+    usuario_session_version: 0,
   };
 
   function setup(user = activeUser()) {
@@ -54,11 +53,7 @@ describe('JwtGlobalMiddleware', () => {
     const { middleware, jwtService, prisma } = setup();
     const next = jest.fn();
 
-    await middleware.use(
-      request('/admin/v1/auth/login'),
-      {} as any,
-      next,
-    );
+    await middleware.use(request('/admin/v1/auth/login'), {} as any, next);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(jwtService.verify).not.toHaveBeenCalled();
@@ -103,5 +98,50 @@ describe('JwtGlobalMiddleware', () => {
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user.loja.id).toBe('loja-1');
   });
-});
 
+  it('autoriza token recém-emitido com session_version atual do usuário', async () => {
+    const user = activeUser({ session_version: 4 });
+    const jwtService = {
+      verify: jest.fn().mockReturnValue({
+        sub: 'user-1',
+        loja_id: 'loja-1',
+        loja_session_version: 0,
+        usuario_session_version: 4,
+      }),
+    };
+    const prisma = {
+      usuario: { findFirst: jest.fn().mockResolvedValue(user) },
+    };
+    const middleware = new JwtGlobalMiddleware(
+      jwtService as any,
+      prisma as any,
+    );
+    const next = jest.fn();
+
+    await middleware.use(request(), {} as any, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it('nega token sem usuario_session_version ou com versão antiga', async () => {
+    const user = activeUser({ session_version: 4 });
+    const jwtService = {
+      verify: jest.fn().mockReturnValue({
+        sub: 'user-1',
+        loja_id: 'loja-1',
+        loja_session_version: 0,
+      }),
+    };
+    const prisma = {
+      usuario: { findFirst: jest.fn().mockResolvedValue(user) },
+    };
+    const middleware = new JwtGlobalMiddleware(
+      jwtService as any,
+      prisma as any,
+    );
+
+    await expect(
+      middleware.use(request(), {} as any, jest.fn()),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+});

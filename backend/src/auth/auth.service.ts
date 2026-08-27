@@ -10,6 +10,7 @@ export interface JwtPayload {
   funcao: string;
   nome_completo: string;
   loja_session_version: number;
+  usuario_session_version: number;
   loja?: loja;
 }
 
@@ -37,8 +38,14 @@ export class AuthService {
     loja_id: string;
     funcao: string;
     nome_completo: string;
-    loja?: loja;
+    session_version: number;
+    loja?: Pick<loja, 'session_version'> & Partial<loja>;
   }): string {
+    if (!Number.isInteger(user.session_version) || user.session_version < 0) {
+      throw new Error(
+        'Não é possível emitir JWT sem session_version numérica do usuário.',
+      );
+    }
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -46,7 +53,8 @@ export class AuthService {
       funcao: user.funcao,
       nome_completo: user.nome_completo,
       loja_session_version: user.loja?.session_version ?? 0,
-      loja: user.loja,
+      usuario_session_version: user.session_version,
+      loja: user.loja as loja | undefined,
     };
 
     return this.jwtService.sign(payload);
@@ -84,7 +92,12 @@ export class AuthService {
       },
     });
 
-    if (!user || user.status !== 'ATIVO' || !user.email_verificado) {
+    if (
+      !user ||
+      user.status !== 'ATIVO' ||
+      !user.email_verificado ||
+      !user.ativo
+    ) {
       return null;
     }
 

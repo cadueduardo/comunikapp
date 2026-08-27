@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { DocumentosModule } from '../documentos/documentos.module';
+import { RbacCoreModule } from '../rbac/rbac-core.module';
 import { SolicitacoesController } from './controllers/solicitacoes.controller';
 import { PedidosController } from './controllers/pedidos.controller';
 import {
@@ -22,7 +23,7 @@ import { ComprasHistoricoService } from './services/compras-historico.service';
 import { ComprasPermissionsService } from './services/compras-permissions.service';
 
 @Module({
-  imports: [PrismaModule, AuthModule, DocumentosModule],
+  imports: [PrismaModule, AuthModule, DocumentosModule, RbacCoreModule],
   controllers: [
     SolicitacoesController,
     PedidosController,

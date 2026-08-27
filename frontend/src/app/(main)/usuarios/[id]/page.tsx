@@ -20,6 +20,10 @@ type UsuarioDetalhe = {
   funcao: string;
   status: string;
   email_verificado?: boolean;
+  perfis?: Array<{
+    perfil_id?: string;
+    perfil?: { id: string; nome: string; sistema: boolean };
+  }>;
 };
 
 export default function UsuarioDetalhePage({
@@ -60,6 +64,7 @@ export default function UsuarioDetalhePage({
             funcao: data.funcao,
             status: data.status,
             email_verificado: data.email_verificado,
+            perfis: data.perfis,
           });
         }
       } catch (e: unknown) {
@@ -138,6 +143,20 @@ export default function UsuarioDetalhePage({
           <div className="flex justify-between gap-4 items-center">
             <span className="text-muted-foreground">E-mail verificado</span>
             <span>{usuario.email_verificado ? 'Sim' : 'Não'}</span>
+          </div>
+          <div className="space-y-2">
+            <span className="text-muted-foreground">Perfis</span>
+            <div className="flex flex-wrap gap-2">
+              {(usuario.perfis ?? []).length === 0 ? (
+                <span>Nenhum perfil associado</span>
+              ) : (
+                usuario.perfis?.map((vinculo) => (
+                  <Badge key={vinculo.perfil?.id || vinculo.perfil_id} variant="outline">
+                    {vinculo.perfil?.nome ?? vinculo.perfil_id}
+                  </Badge>
+                ))
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

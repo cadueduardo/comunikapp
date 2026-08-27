@@ -82,12 +82,14 @@ export function HeaderUserMenu() {
             Configurações
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/usuarios" className="cursor-pointer">
-            <IconUsers className="mr-2 h-4 w-4" />
-            Usuários
-          </Link>
-        </DropdownMenuItem>
+        {user?.funcao === 'ADMINISTRADOR' && (
+          <DropdownMenuItem asChild>
+            <Link href="/usuarios" className="cursor-pointer">
+              <IconUsers className="mr-2 h-4 w-4" />
+              Usuários
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-xs text-muted-foreground">
           Aparência
