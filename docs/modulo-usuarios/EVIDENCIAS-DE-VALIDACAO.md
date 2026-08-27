@@ -71,7 +71,7 @@ Resultado: 13 suites / 71 testes passando; agregador gerado sincronizado (17 man
 - [x] Sync de sistema cria só grants ausentes, não reabre deny, não toca customizado
 - [x] Autoelevação, último admin com `FOR UPDATE`, reset com `updateMany` atômico
 - [x] `ComprasModule` importa `RbacCoreModule` (sem registrar `APP_GUARD` de novo)
-- [ ] typecheck/build e checks obrigatórios do PR: aguardando CI após `prisma generate`
+- [x] typecheck/build e checks obrigatórios do PR: run `33090577207` (PR) e `33090572044` (push) **success** — lint/build, unitários, e2e, Gate 0S, Prisma, OpenAPI, audit, artefato. Build e Deploy permanece skip fora da `main`.
 
 ## Dívidas remanescentes
 
