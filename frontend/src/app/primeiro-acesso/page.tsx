@@ -102,8 +102,8 @@ function PrimeiroAcessoContent() {
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">Primeiro acesso</h1>
           <p className="text-sm text-muted-foreground">
-            Use o código enviado ao seu e-mail e defina sua senha para ativar
-            o acesso. Convites feitos pela Gestão ComunikApp usam o link em
+            Use o código enviado ao seu e-mail e defina sua senha para ativar o
+            acesso. Convites feitos pela Gestão ComunikApp usam o link em
             /convite-loja.
           </p>
         </div>
