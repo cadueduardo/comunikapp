@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -26,6 +26,14 @@ const STATUS = [
   'BLOQUEADO',
 ] as const;
 
+type UsuarioProtecoes = {
+  ehProprio: boolean;
+  ehUltimoAdministradorAtivo: boolean;
+  podeAlterarFuncao: boolean;
+  podeAlterarPerfis: boolean;
+  podeAlterarStatus: boolean;
+};
+
 type UsuarioForm = {
   nome_completo: string;
   email: string;
@@ -34,6 +42,20 @@ type UsuarioForm = {
   status: string;
   perfilIds: string[];
 };
+
+function montarMotivoBloqueio(protecoes: UsuarioProtecoes | null): string | null {
+  if (!protecoes) return null;
+  if (protecoes.ehProprio && protecoes.ehUltimoAdministradorAtivo) {
+    return 'Esta é a sua conta e o único administrador ativo da loja. Função, perfis e status ficam bloqueados para evitar perda do acesso master. Nome, e-mail e telefone podem ser editados.';
+  }
+  if (protecoes.ehProprio) {
+    return 'Você não pode alterar a própria função, perfis ou status. Nome, e-mail e telefone podem ser editados.';
+  }
+  if (protecoes.ehUltimoAdministradorAtivo) {
+    return 'Este é o único administrador ativo da loja. Função e status só podem mudar depois que existir outro administrador ativo.';
+  }
+  return null;
+}
 
 export default function EditarUsuarioPage({
   params,
@@ -53,6 +75,7 @@ export default function EditarUsuarioPage({
     status: 'ATIVO',
     perfilIds: [],
   });
+  const [protecoes, setProtecoes] = useState<UsuarioProtecoes | null>(null);
   const isAdmin = currentUser?.funcao === 'ADMINISTRADOR';
 
   useEffect(() => {
@@ -88,11 +111,29 @@ export default function EditarUsuarioPage({
             funcao: data.funcao ?? 'VENDAS',
             status: data.status ?? 'ATIVO',
             perfilIds: Array.isArray(data.perfis)
-              ? data.perfis.map((p: { perfil_id?: string; perfil?: { id: string } }) =>
-                  p.perfil_id || p.perfil?.id,
-                ).filter(Boolean)
+              ? data.perfis
+                  .map(
+                    (p: {
+                      perfil_id?: string;
+                      perfil?: { id: string };
+                    }) => p.perfil_id || p.perfil?.id,
+                  )
+                  .filter(Boolean)
               : [],
           });
+          setProtecoes(
+            data.protecoes && typeof data.protecoes === 'object'
+              ? {
+                  ehProprio: Boolean(data.protecoes.ehProprio),
+                  ehUltimoAdministradorAtivo: Boolean(
+                    data.protecoes.ehUltimoAdministradorAtivo,
+                  ),
+                  podeAlterarFuncao: Boolean(data.protecoes.podeAlterarFuncao),
+                  podeAlterarPerfis: Boolean(data.protecoes.podeAlterarPerfis),
+                  podeAlterarStatus: Boolean(data.protecoes.podeAlterarStatus),
+                }
+              : null,
+          );
         }
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Erro ao carregar usuário';
@@ -108,6 +149,11 @@ export default function EditarUsuarioPage({
     };
   }, [id, isAdmin, userLoading, router]);
 
+  const motivoBloqueio = useMemo(
+    () => montarMotivoBloqueio(protecoes),
+    [protecoes],
+  );
+
   const handleSave = async () => {
     if (!form.nome_completo?.trim() || !form.email?.trim()) {
       toast.error('Preencha nome e e-mail');
@@ -115,17 +161,25 @@ export default function EditarUsuarioPage({
     }
     setSaving(true);
     try {
+      const payload: Record<string, unknown> = {
+        nome_completo: form.nome_completo.trim(),
+        email: form.email.trim(),
+        telefone: form.telefone.trim() || undefined,
+      };
+      if (protecoes?.podeAlterarFuncao !== false) {
+        payload.funcao = form.funcao;
+      }
+      if (protecoes?.podeAlterarStatus !== false) {
+        payload.status = form.status;
+      }
+      if (protecoes?.podeAlterarPerfis !== false) {
+        payload.perfilIds = form.perfilIds;
+      }
+
       const res = await apiRequest(`/usuarios/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome_completo: form.nome_completo.trim(),
-          email: form.email.trim(),
-          telefone: form.telefone.trim() || undefined,
-          funcao: form.funcao,
-          status: form.status,
-          perfilIds: form.perfilIds,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -153,6 +207,8 @@ export default function EditarUsuarioPage({
     );
   }
 
+  const statusBloqueado = protecoes?.podeAlterarStatus === false;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -166,7 +222,9 @@ export default function EditarUsuarioPage({
           <Input
             id="nome"
             value={form.nome_completo}
-            onChange={(e) => setForm((f) => ({ ...f, nome_completo: e.target.value }))}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, nome_completo: e.target.value }))
+            }
           />
         </div>
         <div className="grid gap-2">
@@ -183,22 +241,30 @@ export default function EditarUsuarioPage({
           <Input
             id="tel"
             value={form.telefone}
-            onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, telefone: e.target.value }))
+            }
           />
         </div>
         <UsuarioCamposAcesso
           funcao={form.funcao}
           onFuncaoChange={(funcao) => setForm((f) => ({ ...f, funcao }))}
           perfilIds={form.perfilIds}
-          onPerfilIdsChange={(perfilIds) => setForm((f) => ({ ...f, perfilIds }))}
+          onPerfilIdsChange={(perfilIds) =>
+            setForm((f) => ({ ...f, perfilIds }))
+          }
           podeConcederAdmin={isAdmin}
           disabled={saving}
+          bloquearFuncao={protecoes?.podeAlterarFuncao === false}
+          bloquearPerfis={protecoes?.podeAlterarPerfis === false}
+          motivoBloqueioPrivilegio={motivoBloqueio}
         />
         <div className="grid gap-2">
           <Label>Status</Label>
           <Select
             value={form.status}
             onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}
+            disabled={saving || statusBloqueado}
           >
             <SelectTrigger>
               <SelectValue />
@@ -211,9 +277,18 @@ export default function EditarUsuarioPage({
               ))}
             </SelectContent>
           </Select>
+          {statusBloqueado ? (
+            <p className="text-xs text-muted-foreground">
+              O status desta conta não pode ser alterado neste momento.
+            </p>
+          ) : null}
         </div>
         <div className="flex gap-2 pt-2">
-          <Button variant="outline" onClick={() => router.push(`/usuarios/${id}`)} disabled={saving}>
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/usuarios/${id}`)}
+            disabled={saving}
+          >
             Cancelar
           </Button>
           <Button onClick={() => void handleSave()} disabled={saving}>

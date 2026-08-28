@@ -139,8 +139,8 @@ export class UsuariosController {
   @UseGuards(JwtAuthGuard, ModuleActivationGuard, PermissionsGuard)
   @RequerPermissao('usuarios.usuarios.gerenciar')
   async obter(@Param('id') id: string, @Request() req: unknown) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
-    return this.usuariosService.obter(id, lojaId);
+    const { lojaId, usuarioId } = extrairIdentidadeAutenticada(req);
+    return this.usuariosService.obter(id, lojaId, usuarioId);
   }
 
   @Post()

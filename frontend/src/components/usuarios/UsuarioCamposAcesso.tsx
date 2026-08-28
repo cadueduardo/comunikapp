@@ -45,6 +45,11 @@ type UsuarioCamposAcessoProps = {
   onPerfilIdsChange: (ids: string[]) => void;
   podeConcederAdmin: boolean;
   disabled?: boolean;
+  /** Desabilita troca de função (ex.: própria conta ou último admin). */
+  bloquearFuncao?: boolean;
+  /** Desabilita troca de perfis (ex.: própria conta). */
+  bloquearPerfis?: boolean;
+  motivoBloqueioPrivilegio?: string | null;
 };
 
 export function UsuarioCamposAcesso({
@@ -54,6 +59,9 @@ export function UsuarioCamposAcesso({
   onPerfilIdsChange,
   podeConcederAdmin,
   disabled = false,
+  bloquearFuncao = false,
+  bloquearPerfis = false,
+  motivoBloqueioPrivilegio = null,
 }: UsuarioCamposAcessoProps) {
   const [perfis, setPerfis] = useState<PerfilOpcao[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -102,14 +110,22 @@ export function UsuarioCamposAcesso({
     onPerfilIdsChange(perfilIds.filter((id) => id !== perfilId));
   };
 
+  const funcaoDesabilitada = disabled || bloquearFuncao;
+  const perfisDesabilitados = disabled || bloquearPerfis;
+
   return (
     <div className="grid gap-4">
+      {motivoBloqueioPrivilegio ? (
+        <Alert>
+          <AlertDescription>{motivoBloqueioPrivilegio}</AlertDescription>
+        </Alert>
+      ) : null}
       <div className="grid gap-2">
         <Label htmlFor="usuario-funcao">Função</Label>
         <Select
           value={funcao}
           onValueChange={onFuncaoChange}
-          disabled={disabled}
+          disabled={funcaoDesabilitada}
         >
           <SelectTrigger id="usuario-funcao">
             <SelectValue placeholder="Selecione a função" />
@@ -132,7 +148,7 @@ export function UsuarioCamposAcesso({
           ficam nos perfis abaixo. Somente um administrador da loja pode
           conceder a função Administrador.
         </p>
-        {funcao === 'ADMINISTRADOR' ? (
+        {funcao === 'ADMINISTRADOR' && !bloquearFuncao ? (
           <Alert>
             <AlertDescription>
               Administrador ignora as restrições dos perfis. Para aplicar só o
@@ -148,8 +164,9 @@ export function UsuarioCamposAcesso({
           Perfis de acesso
         </legend>
         <p className="text-xs text-muted-foreground">
-          Marque o perfil configurado na Gestão de perfis. Um usuário pode ter
-          mais de um.
+          {bloquearPerfis
+            ? 'Os perfis desta conta não podem ser alterados aqui.'
+            : 'Marque o perfil configurado na Gestão de perfis. Um usuário pode ter mais de um.'}
         </p>
         {carregando ? (
           <p className="text-sm text-muted-foreground">Carregando perfis…</p>
@@ -163,7 +180,7 @@ export function UsuarioCamposAcesso({
               variant="outline"
               size="sm"
               onClick={() => void carregarPerfis()}
-              disabled={disabled}
+              disabled={perfisDesabilitados}
             >
               Tentar de novo
             </Button>
@@ -171,9 +188,11 @@ export function UsuarioCamposAcesso({
         ) : perfisVisiveis.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Nenhum perfil ativo nesta loja.{' '}
-            <Link href="/usuarios/perfis/novo" className="underline">
-              Criar perfil
-            </Link>
+            {!bloquearPerfis ? (
+              <Link href="/usuarios/perfis/novo" className="underline">
+                Criar perfil
+              </Link>
+            ) : null}
           </p>
         ) : (
           <div className="grid gap-2">
@@ -184,7 +203,7 @@ export function UsuarioCamposAcesso({
                   <Checkbox
                     id={idCampo}
                     checked={perfilIds.includes(perfil.id)}
-                    disabled={disabled || perfil.ativo === false}
+                    disabled={perfisDesabilitados || perfil.ativo === false}
                     onCheckedChange={(estado) =>
                       alternarPerfil(perfil.id, estado === true)
                     }

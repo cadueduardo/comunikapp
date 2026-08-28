@@ -107,9 +107,16 @@ describe('UsuariosService contenção (Fase 0)', () => {
     };
     const { service, prisma } = setup({ findFirst: publico });
 
-    const resultado = await service.obter('u1', 'loja-1');
+    const resultado = await service.obter('u1', 'loja-1', 'admin-ator');
 
-    expect(resultado).toEqual(publico);
+    expect(resultado).toMatchObject(publico);
+    expect(resultado.protecoes).toEqual({
+      ehProprio: false,
+      ehUltimoAdministradorAtivo: false,
+      podeAlterarFuncao: true,
+      podeAlterarPerfis: true,
+      podeAlterarStatus: true,
+    });
     expect(prisma.usuario.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         select: expect.objectContaining({
@@ -124,11 +131,42 @@ describe('UsuariosService contenção (Fase 0)', () => {
     expect(select.codigo_verificacao_email).toBeUndefined();
   });
 
+  it('obter marca proteções da própria conta e do último administrador', async () => {
+    const unicoAdmin = {
+      id: 'admin-1',
+      nome_completo: 'Admin Solo',
+      email: 'admin@loja.com',
+      telefone: null,
+      funcao: usuario_funcao.ADMINISTRADOR,
+      loja_id: 'loja-1',
+      status: usuario_status.ATIVO,
+      ativo: true,
+      email_verificado: true,
+      criado_em: new Date(),
+      atualizado_em: new Date(),
+    };
+    const { service, prisma } = setup({
+      findFirst: unicoAdmin,
+      count: 0,
+    });
+
+    const resultado = await service.obter('admin-1', 'loja-1', 'admin-1');
+
+    expect(prisma.usuario.count).toHaveBeenCalled();
+    expect(resultado.protecoes).toEqual({
+      ehProprio: true,
+      ehUltimoAdministradorAtivo: true,
+      podeAlterarFuncao: false,
+      podeAlterarPerfis: false,
+      podeAlterarStatus: false,
+    });
+  });
+
   it('obter de outra loja resulta em não encontrado', async () => {
     const { service } = setup({ findFirst: null });
-    await expect(service.obter('u1', 'loja-b')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.obter('u1', 'loja-b', 'admin-ator'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('impede rebaixar o último administrador ativo', async () => {

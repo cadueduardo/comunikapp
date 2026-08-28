@@ -120,7 +120,7 @@ export class UsuariosService {
     return { items, total, page, limit };
   }
 
-  async obter(id: string, lojaId: string) {
+  async obter(id: string, lojaId: string, atorId: string) {
     const user = await this.prisma.usuario.findFirst({
       where: { id, loja_id: lojaId },
       select: {
@@ -141,7 +141,35 @@ export class UsuariosService {
       },
     });
     if (!user) throw new NotFoundException('Usuário não encontrado');
-    return user;
+
+    const ehProprio = id === atorId;
+    let ehUltimoAdministradorAtivo = false;
+    if (
+      user.funcao === usuario_funcao.ADMINISTRADOR &&
+      user.status === usuario_status.ATIVO
+    ) {
+      const outrosAdminsAtivos = await this.prisma.usuario.count({
+        where: {
+          loja_id: lojaId,
+          funcao: usuario_funcao.ADMINISTRADOR,
+          status: usuario_status.ATIVO,
+          id: { not: id },
+        },
+      });
+      ehUltimoAdministradorAtivo = outrosAdminsAtivos < 1;
+    }
+
+    return {
+      ...user,
+      protecoes: {
+        ehProprio,
+        ehUltimoAdministradorAtivo,
+        // Espelha as regras de mutação: autoalteração e último admin.
+        podeAlterarFuncao: !ehProprio && !ehUltimoAdministradorAtivo,
+        podeAlterarPerfis: !ehProprio,
+        podeAlterarStatus: !ehProprio && !ehUltimoAdministradorAtivo,
+      },
+    };
   }
 
   async criar(lojaId: string, dto: CreateUsuarioDto, atorId: string) {
