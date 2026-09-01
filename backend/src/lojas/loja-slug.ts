@@ -26,6 +26,8 @@ export const LOJA_SLUG_RESERVADOS = new Set([
   'login',
   'cadastro',
   'comunikapp',
+  'uat',
+  'api-uat',
 ]);
 
 export const LOJA_SLUG_MIN = 3;

@@ -4,6 +4,7 @@
 export const APEX_HOSTS = new Set([
   'comunikapp.com.br',
   'www.comunikapp.com.br',
+  'uat.comunikapp.com.br',
 ]);
 
 export const TENANT_HOST_SUFFIX = '.comunikapp.com.br';
@@ -35,6 +36,8 @@ export const TENANT_HOST_RESERVED = new Set([
   'login',
   'cadastro',
   'comunikapp',
+  'uat',
+  'api-uat',
 ]);
 
 export function stripPort(host: string): string {

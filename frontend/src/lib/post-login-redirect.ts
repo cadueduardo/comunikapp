@@ -30,8 +30,14 @@ export function resolvePostLoginHref(loja?: LojaRedirect | null): {
   const tenantHost = `${slug}.comunikapp.com.br`;
 
   if (isApexHost(host) || host === 'localhost' || host === '127.0.0.1') {
-    // Em localhost mantém same-origin para não quebrar dev.
-    if (host === 'localhost' || host === '127.0.0.1') return fallback;
+    // Local e UAT permanecem same-origin (não enviar para o subdomínio de produção).
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === 'uat.comunikapp.com.br'
+    ) {
+      return fallback;
+    }
     return { href: `${canon}/dashboard`, external: true };
   }
 

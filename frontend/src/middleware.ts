@@ -46,7 +46,18 @@ async function resolveByHost(host: string): Promise<{
 }
 
 function notFoundRedirect(request: NextRequest) {
-  // Redirect (não rewrite): evita proxy https://localhost:3001 (EPROTO/500).
+  // Não usar nextUrl.clone(): atrás do proxy o host interno vira localhost:porta.
+  const host = stripPort(
+    request.headers.get('x-forwarded-host') ||
+      request.headers.get('host') ||
+      '',
+  );
+  if (host && host !== 'localhost' && host !== '127.0.0.1') {
+    const proto = request.headers.get('x-forwarded-proto') || 'https';
+    return NextResponse.redirect(
+      new URL('/loja-nao-encontrada', `${proto}://${host}`),
+    );
+  }
   const dest = request.nextUrl.clone();
   dest.pathname = '/loja-nao-encontrada';
   dest.search = '';

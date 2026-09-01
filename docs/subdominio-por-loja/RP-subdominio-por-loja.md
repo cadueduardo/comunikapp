@@ -103,7 +103,8 @@ Fatia C (MVP):
 ```text
 www, api, app, ssh, mail, ftp, admin, gestao, gestao-app,
 static, assets, cdn, status, monitor, beta, docs, support,
-suporte, help, billing, pagamento, webhook, webhooks
+suporte, help, billing, pagamento, webhook, webhooks,
+login, cadastro, comunikapp, uat, api-uat
 ```
 
 ### 4.3 Geração automática (backfill e cadastro)
