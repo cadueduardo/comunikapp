@@ -5,19 +5,20 @@ import { SESSION_COOKIE_NAME } from '@/lib/auth-cookie';
 function extrairJwtDoCookie(cookieHeader: string | null): string | null {
   if (!cookieHeader) return null;
   const partes = cookieHeader.split(';');
+  let encontrado: string | null = null;
   for (const parte of partes) {
     const [nome, ...rest] = parte.trim().split('=');
     if (nome === SESSION_COOKIE_NAME) {
       const valor = rest.join('=').trim();
-      if (!valor || valor === 'null' || valor === 'undefined') return null;
+      if (!valor || valor === 'null' || valor === 'undefined') continue;
       try {
-        return decodeURIComponent(valor);
+        encontrado = decodeURIComponent(valor);
       } catch {
-        return valor;
+        encontrado = valor;
       }
     }
   }
-  return null;
+  return encontrado;
 }
 
 export type BackendAuthOk = {

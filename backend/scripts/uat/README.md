@@ -42,3 +42,7 @@ sudo python3 backend/scripts/uat/restore-operator-from-prod.py
 O script copia e-mail, nome, hash de senha e e-mail da loja a partir de
 `comunikapp` pelo mesmo `id`. Não copia 2FA. Não imprime senha nem hash.
 Outros usuários permanecem `@uat.invalid`.
+
+O cookie de sessão do UAT é `comunikapp_session_uat` (definido no
+`ecosystem.uat.config.js`) para não colidir com o cookie de produção
+`comunikapp_session` em `.comunikapp.com.br`.

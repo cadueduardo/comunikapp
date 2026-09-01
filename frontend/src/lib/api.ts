@@ -1,5 +1,6 @@
 import { joinApiBaseAndEndpoint } from '@/lib/config';
 import { extractTenantSlugFromHost } from '@/lib/tenant-host';
+import { SESSION_COOKIE_NAME } from '@/lib/auth-cookie';
 
 /**
  * Base da API no browser: sempre `/api` (BFF Next same-origin).
@@ -257,9 +258,10 @@ export const apiRequestServer = async (
       const cookieHeader = request.headers.get('cookie');
       if (cookieHeader) {
         const cookies = cookieHeader.split(';').map((c) => c.trim());
-        const tokenCookie = cookies.find(
+        const tokenCookie = [...cookies].reverse().find(
           (c) =>
-            c.startsWith('comunikapp_session=') || c.startsWith('access_token='),
+            c.startsWith(`${SESSION_COOKIE_NAME}=`) ||
+            c.startsWith('access_token='),
         );
         if (tokenCookie) {
           token = decodeURIComponent(tokenCookie.split('=').slice(1).join('='));

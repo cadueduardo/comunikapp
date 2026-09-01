@@ -1,5 +1,6 @@
 /** Nome do cookie HttpOnly de sessão (front + back devem coincidir). */
-export const SESSION_COOKIE_NAME = 'comunikapp_session';
+export const SESSION_COOKIE_NAME =
+  process.env.SESSION_COOKIE_NAME?.trim() || 'comunikapp_session';
 
 /**
  * Extrai JWT de Authorization Bearer ou do cookie de sessão.

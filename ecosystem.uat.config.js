@@ -21,6 +21,7 @@ module.exports = {
         HOST: '127.0.0.1',
         PORT: '4011',
         TZ: 'America/Sao_Paulo',
+        SESSION_COOKIE_NAME: 'comunikapp_session_uat',
       },
     },
     {
@@ -43,6 +44,7 @@ module.exports = {
         HOST: '127.0.0.1',
         PORT: '3011',
         TZ: 'America/Sao_Paulo',
+        SESSION_COOKIE_NAME: 'comunikapp_session_uat',
       },
     },
   ],

@@ -2,7 +2,8 @@ import type { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 import { isCustomTenantHost, stripPort } from '@/lib/tenant-host';
 
 /** Deve coincidir com backend/src/auth/session-cookie.ts */
-export const SESSION_COOKIE_NAME = 'comunikapp_session';
+export const SESSION_COOKIE_NAME =
+  process.env.SESSION_COOKIE_NAME?.trim() || 'comunikapp_session';
 
 /** JWT do Nest: expiresIn 24h */
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24;
