@@ -11,6 +11,7 @@ import { useUser } from '@/contexts/UserContext'; // Importar o useUser
 import { BackgroundBeamsWithCollision } from '@/components/ui/background-beams-with-collision';
 import { authAPI, AuthApiError } from '@/lib/api';
 import { BrandLogo } from '@/components/brand/BrandLogo';
+import { extractTenantSlugFromHost } from '@/lib/tenant-host';
 
 declare global {
     interface Window {
@@ -57,10 +58,8 @@ function LoginContent() {
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
-        const host = window.location.hostname.toLowerCase();
-        const match = host.match(/^([a-z0-9-]+)\.comunikapp\.com\.br$/);
-        if (!match || match[1] === 'www') return;
-        const slug = match[1];
+        const slug = extractTenantSlugFromHost(window.location.host);
+        if (!slug) return;
         const apiBase = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/$/, '');
         fetch(`${apiBase}/lojas/public/by-slug/${encodeURIComponent(slug)}`, {
             credentials: 'omit',

@@ -1,4 +1,5 @@
 import { joinApiBaseAndEndpoint } from '@/lib/config';
+import { extractTenantSlugFromHost } from '@/lib/tenant-host';
 
 /**
  * Base da API no browser: sempre `/api` (BFF Next same-origin).
@@ -52,11 +53,8 @@ const getTenantHeaders = () => {
   if (lojaId) headers['x-loja-id'] = lojaId;
   if (roles) headers['x-user-roles'] = roles;
 
-  const host = window.location.hostname.toLowerCase();
-  const match = host.match(/^([a-z0-9-]+)\.comunikapp\.com\.br$/);
-  if (match && match[1] !== 'www' && match[1] !== 'api') {
-    headers['x-tenant-slug'] = match[1];
-  }
+  const slug = extractTenantSlugFromHost(window.location.host);
+  if (slug) headers['x-tenant-slug'] = slug;
   return headers;
 };
 

@@ -14,6 +14,7 @@ function isProductionRuntime() {
 /**
  * Opções do cookie HttpOnly.
  * - Produção em *.comunikapp.com.br: Domain=.comunikapp.com.br (same-site com api.).
+ * - UAT (uat.comunikapp.com.br): host-only, para não vazar sessão para produção.
  * - Domínio próprio do cliente: host-only (sem Domain) — same-origin via Nginx.
  * - Localhost: host-only.
  */
@@ -30,7 +31,9 @@ export function getSessionCookieOptions(
     maxAge: maxAgeSeconds,
   };
 
-  if (isProd && !isCustomTenantHost(requestHost)) {
+  const host = stripPort(requestHost || '');
+  const isUatApex = host === 'uat.comunikapp.com.br';
+  if (isProd && !isCustomTenantHost(requestHost) && !isUatApex) {
     options.domain = '.comunikapp.com.br';
   }
 
