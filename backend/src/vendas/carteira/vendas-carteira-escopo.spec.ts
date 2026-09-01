@@ -75,7 +75,46 @@ describe('VendasCarteiraEscopoService — participante e gestor/equipe', () => {
     );
   });
 
-  it('cliente de outra loja / fora do escopo → NotFound', async () => {
+  it('orçamento: VER_TODOS não exige cliente relacionado', async () => {
+    const permissoes = {
+      pode: jest.fn(async (_u: string, _l: string, p: string) => {
+        if (p === VENDAS_PERMISSOES.CARTEIRA_VER_TODOS) return true;
+        return false;
+      }),
+    };
+    const prisma = { usuario: { findMany: jest.fn() }, cliente: { findFirst: jest.fn() } };
+    const svc = new VendasCarteiraEscopoService(
+      prisma as never,
+      permissoes as never,
+    );
+    await expect(svc.whereOrcamento(identidade as never)).resolves.toEqual({
+      loja_id: 'loja-1',
+    });
+  });
+
+  it('orçamento: VER_PROPRIA inclui responsável e carteira do cliente', async () => {
+    const permissoes = {
+      pode: jest.fn(async (_u: string, _l: string, p: string) => {
+        if (p === VENDAS_PERMISSOES.CARTEIRA_VER_PROPRIA) return true;
+        return false;
+      }),
+    };
+    const prisma = { usuario: { findMany: jest.fn() }, cliente: { findFirst: jest.fn() } };
+    const svc = new VendasCarteiraEscopoService(
+      prisma as never,
+      permissoes as never,
+    );
+    const where = await svc.whereOrcamento(identidade as never);
+    expect(where.loja_id).toBe('loja-1');
+    expect(where.OR).toEqual(
+      expect.arrayContaining([
+        { responsavel_id: 'vend-1' },
+        expect.objectContaining({ cliente: { is: expect.any(Object) } }),
+      ]),
+    );
+  });
+
+  it('cliente fora do escopo retorna NotFound', async () => {
     const permissoes = {
       pode: jest.fn(async (_u: string, _l: string, p: string) => {
         if (p === VENDAS_PERMISSOES.CARTEIRA_VER_PROPRIA) return true;

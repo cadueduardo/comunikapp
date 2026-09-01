@@ -114,6 +114,7 @@ export class CalculoV2Controller {
       const orcamento = await this.orcamentosV2Service.buscarOrcamento(
         orcamentoId,
         identidade.lojaId,
+        identidade,
       );
       const resultado =
         await this.integracaoMotorService.calcularOrcamentoCompleto(
@@ -192,6 +193,7 @@ export class CalculoV2Controller {
       const orcamento = await this.orcamentosV2Service.buscarOrcamento(
         orcamentoId,
         identidade.lojaId,
+        identidade,
       );
       const produto = (orcamento.produtos || []).find(
         (p: any) => p.id === produtoId,
@@ -251,6 +253,7 @@ export class CalculoV2Controller {
       const orcamento = await this.orcamentosV2Service.buscarOrcamento(
         orcamentoId,
         identidade.lojaId,
+        identidade,
       );
       const resultado = await this.integracaoMotorService.validarOrcamento(
         orcamento,
@@ -371,7 +374,11 @@ export class CalculoV2Controller {
       // direto para o motor, sem nunca ser lido do banco.
       const orcamentos = await Promise.all(
         (dados.orcamentos ?? []).map((item) =>
-          this.orcamentosV2Service.buscarOrcamento(item.id, identidade.lojaId),
+          this.orcamentosV2Service.buscarOrcamento(
+            item.id,
+            identidade.lojaId,
+            identidade,
+          ),
         ),
       );
 

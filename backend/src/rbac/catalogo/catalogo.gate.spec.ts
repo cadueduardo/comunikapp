@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as path from 'path';
 import { COMPRAS_PERMISSOES } from '../../compras/compras-permissoes';
 import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
@@ -99,6 +100,35 @@ describe('Gate do catálogo RBAC', () => {
   it('expõe hash estável do catálogo', () => {
     expect(HASH_CATALOGO).toMatch(/^[a-f0-9]{64}$/);
     expect(MANIFESTOS_MODULOS.length).toBeGreaterThan(0);
+  });
+
+  it('o gate de URL do frontend cobre as rotasFrontend e recusa a página', () => {
+    const moduloRotaPath = path.resolve(
+      SRC_DIR,
+      '../../frontend/src/lib/modulo-rota.ts',
+    );
+    const layoutPath = path.resolve(
+      SRC_DIR,
+      '../../frontend/src/app/(main)/layout.tsx',
+    );
+    const moduloRota = fs.readFileSync(moduloRotaPath, 'utf8');
+    const layout = fs.readFileSync(layoutPath, 'utf8');
+
+    expect(layout).toContain('<ModuleAccessGate>');
+    expect(moduloRota).toContain("if (chave === 'dashboard') return null;");
+    expect(moduloRota).toContain(
+      "if (chave === 'configuracoes' && path === '/configuracoes') return null;",
+    );
+
+    const prefixos = [
+      ...moduloRota.matchAll(/prefixo: '(\/[^']+)'/g),
+    ].map((m) => m[1]);
+    const rotasCatalogo = [
+      ...new Set(
+        listarManifestos().flatMap((modulo) => modulo.rotasFrontend),
+      ),
+    ];
+    expect(prefixos.sort()).toEqual(rotasCatalogo.sort());
   });
 
   it('resolve prefixo de API para a permissão-base do módulo', () => {

@@ -63,6 +63,9 @@ Função legada **não** some. Perfil granular **soma**. Perfil inativo não con
 
 - Guard de prefixo de API por manifesto.
 - Menu a partir da API de acesso.
+- **URL direta:** o layout autenticado recusa a página se `.acessar` for falso
+  (`ModuleAccessGate`). A API recusa no `ModuloAcessoGuard` (403).
+  Exceção: `/configuracoes` só para 2FA da própria conta.
 - Isolamento com duas lojas nos testes.
 - Enforcement parcial visível na UI (OS, PCP, etc.).
 

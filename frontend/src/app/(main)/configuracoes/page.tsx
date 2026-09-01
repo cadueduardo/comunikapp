@@ -13,6 +13,7 @@ import { ModuleHubCards } from '@/components/layout/ModuleHubCards';
 import { configuracoesModuleNav } from '@/lib/module-nav';
 import { useEffect, useState } from 'react';
 import { usuariosApi } from '@/lib/api-client';
+import { useAcessoModulos } from '@/contexts/AcessoModulosContext';
 
 type TwoFactorSetup = {
   qrCodeDataUrl: string;
@@ -181,9 +182,11 @@ function TwoFactorSecurityCard() {
 
 export default function ConfiguracoesPage() {
   const [statsValidacoes, setStatsValidacoes] = useState<any>(null);
+  const { pode, carregado } = useAcessoModulos();
+  const podeConfiguracoes = pode('configuracoes');
 
   useEffect(() => {
-    // Carregar estatísticas de validações
+    if (!podeConfiguracoes) return;
     const loadStats = async () => {
       try {
         const response = await fetch('/api/configuracoes/validacoes-automaticas/dashboard');
@@ -199,8 +202,17 @@ export default function ConfiguracoesPage() {
       }
     };
 
-    loadStats();
-  }, []);
+    void loadStats();
+  }, [podeConfiguracoes]);
+
+  if (carregado && !podeConfiguracoes) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-xl font-semibold text-foreground">Segurança da conta</h1>
+        <TwoFactorSecurityCard />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

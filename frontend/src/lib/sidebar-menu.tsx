@@ -119,90 +119,72 @@ export function buildSidebarNavItems(
     });
   }
 
-  items.push(
-    ...(permissions.podeVerInsumos === false
-      ? []
-      : [
-          {
-            id: 'insumos' as const,
-            label: 'Insumos',
-            href: '/insumos',
-            icon: <IconBuildingWarehouse className={iconClass} />,
-          },
-        ]),
-    ...(permissions.podeVerFornecedores === false
-      ? []
-      : [
-          {
-            id: 'fornecedores' as const,
-            label: 'Fornecedores',
-            href: '/fornecedores',
-            icon: <IconBuildingStore className={iconClass} />,
-          },
-        ]),
-    ...(permissions.podeVerCompras === false
-      ? []
-      : [
-          {
-            id: 'compras' as const,
-            label: 'Compras',
-            href: '/compras',
-            icon: <IconShoppingCart className={iconClass} />,
-          },
-        ]),
-    ...(permissions.podeVerEstoque === false
-      ? []
-      : [
-          {
-            id: 'estoque' as const,
-            label: 'Estoque',
-            href: '/estoque',
-            icon: <IconBuildingWarehouse className={iconClass} />,
-          },
-        ]),
-    ...(permissions.podeVerModelos === false
-      ? []
-      : [
-          {
-            id: 'modelos' as const,
-            label: 'Modelos de Orçamento',
-            href: '/produtos',
-            icon: <IconPackage className={iconClass} />,
-          },
-        ]),
-    ...(permissions.podeVerCatalogo === false
-      ? []
-      : [
-          {
-            id: 'catalogo' as const,
-            label: 'Catálogo de produtos',
-            href: '/catalogo',
-            icon: <IconCategory className={iconClass} />,
-          },
-        ]),
-    ...(permissions.podeVerOs === false
-      ? []
-      : [
-          {
-            id: 'os' as const,
-            label: 'Ordens de Serviço',
-            href: '/os',
-            badgeCount: contadores.os,
-            icon: <IconClipboardList className={iconClass} />,
-          },
-        ]),
-    ...(permissions.podeVerArte === false
-      ? []
-      : [
-          {
-            id: 'arte' as const,
-            label: 'Arte & Aprovação',
-            href: '/arte',
-            badgeCount: contadores.arte,
-            icon: <IconPalette className={iconClass} />,
-          },
-        ]),
-  );
+  if (permissions.podeVerInsumos) {
+    items.push({
+      id: 'insumos',
+      label: 'Insumos',
+      href: '/insumos',
+      icon: <IconBuildingWarehouse className={iconClass} />,
+    });
+  }
+  if (permissions.podeVerFornecedores) {
+    items.push({
+      id: 'fornecedores',
+      label: 'Fornecedores',
+      href: '/fornecedores',
+      icon: <IconBuildingStore className={iconClass} />,
+    });
+  }
+  if (permissions.podeVerCompras) {
+    items.push({
+      id: 'compras',
+      label: 'Compras',
+      href: '/compras',
+      icon: <IconShoppingCart className={iconClass} />,
+    });
+  }
+  if (permissions.podeVerEstoque) {
+    items.push({
+      id: 'estoque',
+      label: 'Estoque',
+      href: '/estoque',
+      icon: <IconBuildingWarehouse className={iconClass} />,
+    });
+  }
+  if (permissions.podeVerModelos) {
+    items.push({
+      id: 'modelos',
+      label: 'Modelos de Orçamento',
+      href: '/produtos',
+      icon: <IconPackage className={iconClass} />,
+    });
+  }
+  if (permissions.podeVerCatalogo) {
+    items.push({
+      id: 'catalogo',
+      label: 'Catálogo de produtos',
+      href: '/catalogo',
+      icon: <IconCategory className={iconClass} />,
+    });
+  }
+  if (permissions.podeVerOs) {
+    items.push({
+      id: 'os',
+      label: 'Ordens de Serviço',
+      href: '/os',
+      badgeCount: contadores.os,
+      icon: <IconClipboardList className={iconClass} />,
+    });
+  }
+  if (permissions.podeVerArte) {
+    items.push({
+      id: 'arte',
+      label: 'Arte & Aprovação',
+      href: '/arte',
+      badgeCount: contadores.arte,
+      icon: <IconPalette className={iconClass} />,
+    });
+  }
 
   // VENDAS não recebe Financeiro (critério RP 8.1 / Fase 3).
   if (permissions.podeVerFinanceiro) {
@@ -215,7 +197,7 @@ export function buildSidebarNavItems(
     });
   }
 
-  if (permissions.podeVerPcp !== false) {
+  if (permissions.podeVerPcp) {
     items.push({
       id: 'pcp',
       label: 'PCP',
@@ -245,7 +227,7 @@ export function buildSidebarNavItems(
     });
   }
 
-  if (permissions.podeVerCentrosTrabalho !== false) {
+  if (permissions.podeVerCentrosTrabalho) {
     items.push({
       id: 'centros-trabalho',
       label: 'Centros de Trabalho',

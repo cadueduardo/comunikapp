@@ -533,8 +533,12 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async buscarOrcamento(@Param('id') id: string, @Request() req: any) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
-    return await this.orcamentosService.buscarOrcamento(id, lojaId);
+    const identidade = extrairIdentidadeAutenticada(req);
+    return await this.orcamentosService.buscarOrcamento(
+      id,
+      identidade.lojaId,
+      identidade,
+    );
   }
 
   /**
@@ -550,11 +554,12 @@ export class OrcamentosV2Controller {
     @Query() paginacao: any,
     @Request() req: any,
   ) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
+    const identidade = extrairIdentidadeAutenticada(req);
     return await this.orcamentosService.listarOrcamentos(
-      lojaId,
+      identidade.lojaId,
       filtros,
       paginacao,
+      identidade,
     );
   }
 
@@ -649,13 +654,17 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async calcularOrcamento(@Param('id') id: string, @Request() req: any) {
-    const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
-    const orcamento = await this.orcamentosService.buscarOrcamento(id, lojaId);
+    const identidade = extrairIdentidadeAutenticada(req);
+    const orcamento = await this.orcamentosService.buscarOrcamento(
+      id,
+      identidade.lojaId,
+      identidade,
+    );
 
     return await this.integracaoMotor.calcularOrcamentoCompleto(
       orcamento,
-      lojaId,
-      usuarioId,
+      identidade.lojaId,
+      identidade.usuarioId,
     );
   }
 
@@ -669,12 +678,16 @@ export class OrcamentosV2Controller {
   @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
   @ApiResponse({ status: 401, description: 'Não autorizado' })
   async validarEstoque(@Param('id') id: string, @Request() req: any) {
-    const { lojaId } = extrairIdentidadeAutenticada(req);
-    const orcamento = await this.orcamentosService.buscarOrcamento(id, lojaId);
+    const identidade = extrairIdentidadeAutenticada(req);
+    const orcamento = await this.orcamentosService.buscarOrcamento(
+      id,
+      identidade.lojaId,
+      identidade,
+    );
 
     return await this.validacaoEstoque.validarEstoqueOrcamento(
       orcamento,
-      lojaId,
+      identidade.lojaId,
     );
   }
 

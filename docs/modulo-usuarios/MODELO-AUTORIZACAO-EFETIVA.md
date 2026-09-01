@@ -24,7 +24,8 @@ Entrada: `usuarioId`, `lojaId` (do token), `chave` da permissão.
 5. Se alguma decisão tem `permitido=false` → **nega** (deny explícito vence piso e grant).
 6. Se alguma decisão tem `permitido=true` → **concede**.
 7. Se não há linha (não revisada):
-   - se a chave está no **piso da função** do manifesto / `funcaoConcede` de Vendas → **concede** (compatibilidade temporária);
+   - se o usuário tem **pelo menos um perfil ativo** → **nega** (o perfil é a fonte de verdade; interruptor desligado / não revisada não herda o piso);
+   - se não tem perfil e a chave está no **piso da função** do manifesto / `funcaoConcede` de Vendas → **concede** (compatibilidade temporária);
    - senão → **nega**.
 
 Múltiplos perfis: união de grants, **qualquer** deny explícito vence. Perfil inativo é ignorado.

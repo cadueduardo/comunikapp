@@ -134,6 +134,26 @@ describe('PermissaoEfetivaService', () => {
     ).resolves.toBe(false);
   });
 
+  it('perfil ativo sem a chave não herda o piso', async () => {
+    const service = svc([
+      usuario('vendas', usuario_funcao.VENDAS, [
+        {
+          ativo: true,
+          permissoes: [{ modulo: 'vendas', acao: 'proposta.ver', permitido: true }],
+        },
+      ]),
+    ]);
+    await expect(service.pode('vendas', lojaA, 'vendas.acessar')).resolves.toBe(
+      false,
+    );
+    await expect(service.pode('vendas', lojaA, 'insumos.acessar')).resolves.toBe(
+      false,
+    );
+    await expect(service.pode('vendas', lojaA, 'vendas.proposta.ver')).resolves.toBe(
+      true,
+    );
+  });
+
   it('grant explícito concede em perfil customizado', async () => {
     const service = svc([
       usuario('vendas', usuario_funcao.VENDAS, [

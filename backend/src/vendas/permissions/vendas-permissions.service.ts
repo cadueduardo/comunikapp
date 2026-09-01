@@ -13,7 +13,8 @@ import { funcaoConcede, separarModuloEAcao } from './vendas-permissoes';
  * 3. Negação explícita `perfil_permissao.permitido=false` em perfil ativo → nega
  *    (prevalece sobre piso funcional).
  * 4. Concessão explícita `permitido=true` em perfil ativo → concede.
- * 5. Sem decisão explícita → piso por `usuario_funcao` (função desconhecida → []).
+ * 5. Sem decisão explícita e **sem** perfil ativo → piso por `usuario_funcao`.
+ *    Com perfil ativo, não revisada = nega (o perfil substitui o piso).
  *
  * Sem cache em memória nesta fase: toda avaliação consulta o banco.
  * Bypass por nome textual de perfil foi removido — só `usuario_funcao.ADMINISTRADOR`.
@@ -71,9 +72,8 @@ export class VendasPermissionsService {
       return true;
     }
 
-    const decisoes = usuario.perfis
-      .filter((vinculo) => vinculo.perfil.ativo)
-      .flatMap((vinculo) => vinculo.perfil.permissoes);
+    const perfisAtivos = usuario.perfis.filter((vinculo) => vinculo.perfil.ativo);
+    const decisoes = perfisAtivos.flatMap((vinculo) => vinculo.perfil.permissoes);
 
     // Negação explícita prevalece sobre piso funcional.
     if (decisoes.some((d) => d.permitido === false)) {
@@ -85,7 +85,11 @@ export class VendasPermissionsService {
       return true;
     }
 
-    // Sem decisão explícita: default da função (desconhecida → nega).
+    if (perfisAtivos.length > 0) {
+      return false;
+    }
+
+    // Sem perfil: default da função (desconhecida → nega).
     return funcaoConcede(usuario.funcao, permissao);
   }
 

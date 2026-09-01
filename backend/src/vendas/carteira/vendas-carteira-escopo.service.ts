@@ -75,10 +75,36 @@ export class VendasCarteiraEscopoService {
   async whereOrcamento(
     identidade: IdentidadeAutenticada,
   ): Promise<Prisma.orcamentoWhereInput> {
+    const { usuarioId, lojaId } = identidade;
+    const [todos, propria] = await Promise.all([
+      this.permissoes.pode(usuarioId, lojaId, VENDAS_PERMISSOES.CARTEIRA_VER_TODOS),
+      this.permissoes.pode(usuarioId, lojaId, VENDAS_PERMISSOES.CARTEIRA_VER_PROPRIA),
+    ]);
+
+    if (todos) {
+      return { loja_id: lojaId };
+    }
+
     const cliente = await this.whereCliente(identidade);
-    return {
-      loja_id: identidade.lojaId,
-      cliente: { is: cliente },
-    };
+    const alternativas: Prisma.orcamentoWhereInput[] = [
+      { cliente: { is: cliente } },
+    ];
+    if (propria) {
+      alternativas.push({ responsavel_id: usuarioId });
+    }
+
+    return { loja_id: lojaId, OR: alternativas };
+  }
+
+  async assertOrcamentoAcessivel(
+    identidade: IdentidadeAutenticada,
+    orcamentoId: string,
+  ): Promise<void> {
+    const escopo = await this.whereOrcamento(identidade);
+    const orcamento = await this.prisma.orcamento.findFirst({
+      where: { AND: [escopo, { id: orcamentoId, loja_id: identidade.lojaId }] },
+      select: { id: true },
+    });
+    if (!orcamento) throw new NotFoundException('Orçamento não encontrado.');
   }
 }

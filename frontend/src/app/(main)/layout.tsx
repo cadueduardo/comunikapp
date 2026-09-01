@@ -14,6 +14,10 @@ import {
 import { ShieldCheck } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import { VendasAcessoProvider } from '@/contexts/VendasAcessoContext';
+import {
+  AcessoModulosProvider,
+  useAcessoModulos,
+} from '@/contexts/AcessoModulosContext';
 import { MainHeader } from '@/components/ui/main-header';
 import { usuariosApi } from '@/lib/api-client';
 import { BetaFeedbackButton } from '@/components/feedback/BetaFeedbackButton';
@@ -22,6 +26,7 @@ import { AppSidebar } from '@/components/layout/AppSidebar';
 import { useSidebarContadores } from '@/hooks/use-sidebar-contadores';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { useVendasAcesso } from '@/hooks/use-vendas-acesso';
+import { ModuleAccessGate } from '@/components/layout/ModuleAccessGate';
 
 type AuthUser = {
   id: string;
@@ -40,60 +45,34 @@ function AuthenticatedShell({
   const { contadores, recarregar } = useSidebarContadores(true, user.id);
   // Deny-by-default enquanto `/vendas/acesso` não responder (estado compartilhado).
   const { acesso: vendasAcesso } = useVendasAcesso();
-
-  const [acessoModulos, setAcessoModulos] = useState<Record<string, boolean>>(
-    {},
-  );
-
-  useEffect(() => {
-    const token = getClientSessionToken();
-    if (!token) return;
-    void usuariosApi
-      .getAcesso(token)
-      .then((res) => {
-        const payload = res as { modulos?: Record<string, boolean> };
-        if (payload?.modulos) setAcessoModulos(payload.modulos);
-      })
-      .catch(() => {
-        /* menu permanece no fallback por função */
-      });
-  }, [user.id]);
+  const { pode, carregado } = useAcessoModulos();
 
   const permissions = useMemo(() => {
-    const funcao = String(user.funcao ?? '').toUpperCase();
     const flag = (chave: string, fallback: boolean) =>
-      acessoModulos[chave] ?? fallback;
+      carregado ? pode(chave) : fallback;
     return {
-      podeVerVendas:
-        acessoModulos.vendas ?? vendasAcesso.pode_acessar_modulo === true,
+      podeVerVendas: carregado
+        ? pode('vendas')
+        : vendasAcesso.pode_acessar_modulo === true,
       podeVerFinanceiro: flag(
         'financeiro',
-        ['ADMINISTRADOR', 'FINANCEIRO'].includes(funcao),
+        false,
       ),
-      podeVerExpedicao: flag(
-        'expedicao',
-        ['ADMINISTRADOR', 'PRODUCAO', 'ESTOQUE'].includes(funcao),
-      ),
-      podeVerInstalacaoGestao: flag(
-        'instalacao',
-        ['ADMINISTRADOR', 'FINANCEIRO', 'VENDAS'].includes(funcao),
-      ),
-      podeVerInsumos: flag('insumos', true),
-      podeVerFornecedores: flag('fornecedores', true),
-      podeVerCompras: flag('compras', true),
-      podeVerEstoque: flag('estoque', true),
-      podeVerModelos: flag('modelos', true),
-      podeVerCatalogo: flag('catalogo', true),
-      podeVerOs: flag('os', true),
-      podeVerArte: flag('arte', true),
-      podeVerPcp: flag('pcp', true),
-      podeVerCentrosTrabalho: flag('centros-trabalho', true),
-      podeVerUsuarios: flag(
-        'usuarios',
-        ['ADMINISTRADOR'].includes(funcao),
-      ),
+      podeVerExpedicao: flag('expedicao', false),
+      podeVerInstalacaoGestao: flag('instalacao', false),
+      podeVerInsumos: flag('insumos', false),
+      podeVerFornecedores: flag('fornecedores', false),
+      podeVerCompras: flag('compras', false),
+      podeVerEstoque: flag('estoque', false),
+      podeVerModelos: flag('modelos', false),
+      podeVerCatalogo: flag('catalogo', false),
+      podeVerOs: flag('os', false),
+      podeVerArte: flag('arte', false),
+      podeVerPcp: flag('pcp', false),
+      podeVerCentrosTrabalho: flag('centros-trabalho', false),
+      podeVerUsuarios: flag('usuarios', false),
     };
-  }, [user.funcao, vendasAcesso.pode_acessar_modulo, acessoModulos]);
+  }, [vendasAcesso.pode_acessar_modulo, pode, carregado]);
 
   useEffect(() => {
     const loadTwoFactorStatus = async () => {
@@ -150,7 +129,7 @@ function AuthenticatedShell({
             data-app-scroll-root
             className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-6 lg:px-8 lg:py-6"
           >
-            {children}
+            <ModuleAccessGate>{children}</ModuleAccessGate>
           </div>
         </main>
 
@@ -226,7 +205,9 @@ export default function DashboardLayout({
 
   return (
     <VendasAcessoProvider enabled userId={user.id}>
-      <AuthenticatedShell user={user}>{children}</AuthenticatedShell>
+      <AcessoModulosProvider userId={user.id}>
+        <AuthenticatedShell user={user}>{children}</AuthenticatedShell>
+      </AcessoModulosProvider>
     </VendasAcessoProvider>
   );
 }

@@ -37,4 +37,8 @@ export const PREFIXOS_API_AUTOATENDIMENTO_USUARIO = [
   '/usuarios/definir-senha',
   '/usuarios/solicitar-redefinicao-senha',
   '/usuarios/redefinir-senha',
+  '/lojas/me',
+  '/lojas/minha-loja',
+  '/lojas/my-loja-trial',
+  '/vendas/acesso',
 ] as const;

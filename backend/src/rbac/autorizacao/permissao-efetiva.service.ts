@@ -129,6 +129,13 @@ export class PermissaoEfetivaService {
       return true;
     }
 
+    const temPerfilAtivo = usuario.perfis.some((vinculo) => vinculo.perfil.ativo);
+    // Perfil ativo é a fonte de verdade: não revisada = nega.
+    // O piso por função só cobre quem ainda não tem perfil vinculado.
+    if (temPerfilAtivo) {
+      return false;
+    }
+
     const manifesto = obterModuloDaPermissao(permissao);
     if (!manifesto) {
       return false;

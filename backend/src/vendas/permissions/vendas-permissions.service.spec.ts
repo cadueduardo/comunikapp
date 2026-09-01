@@ -133,7 +133,7 @@ describe('VendasPermissionsService', () => {
       ).resolves.toBe(false);
       await expect(
         svc.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_CRIAR),
-      ).resolves.toBe(true);
+      ).resolves.toBe(false);
     });
 
     it('perfil ativo concede além do piso', async () => {
@@ -156,7 +156,36 @@ describe('VendasPermissionsService', () => {
       ).resolves.toBe(true);
     });
 
-    it('função só aplica default quando não há decisão explícita', async () => {
+    it('perfil ativo não herda o restante do piso da função', async () => {
+      const restrito = new VendasPermissionsService(
+        criarPrismaFake([
+          usuario('vendedor', usuario_funcao.VENDAS, [
+            {
+              nome: 'Restrito',
+              ativo: true,
+              permissoes: [
+                { modulo: 'vendas', acao: 'proposta.ver', permitido: true },
+              ],
+            },
+          ]),
+        ]),
+      );
+      await expect(
+        restrito.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
+      ).resolves.toBe(true);
+      await expect(
+        restrito.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_CRIAR),
+      ).resolves.toBe(false);
+      await expect(
+        restrito.pode(
+          'vendedor',
+          LOJA_A,
+          VENDAS_PERMISSOES.CARTEIRA_VER_TODOS,
+        ),
+      ).resolves.toBe(false);
+    });
+
+    it('sem perfil, piso VENDAS concede ver e nega excluir', async () => {
       await expect(
         service.pode('vendedor', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
       ).resolves.toBe(true);
@@ -205,7 +234,7 @@ describe('VendasPermissionsService', () => {
       ).resolves.toBe(false);
       await expect(
         falsoAdmin.pode('vendas', LOJA_A, VENDAS_PERMISSOES.PROPOSTA_VER),
-      ).resolves.toBe(true);
+      ).resolves.toBe(false);
     });
   });
 

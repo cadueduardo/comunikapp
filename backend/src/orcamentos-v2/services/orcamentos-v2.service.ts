@@ -48,6 +48,8 @@ import { Prisma, TipoFornecedor } from '@prisma/client';
 import { calcularCustoUnitarioUso } from '../../common/custos/custo-unitario-insumo.util';
 import { VendasPermissionsService } from '../../vendas/permissions/vendas-permissions.service';
 import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
+import { VendasCarteiraEscopoService } from '../../vendas/carteira/vendas-carteira-escopo.service';
+import { IdentidadeAutenticada } from '../../auth/decorators';
 import {
   calcularHashMaterial,
   houveAlteracaoMaterial,
@@ -125,12 +127,27 @@ export class OrcamentosV2Service {
     private readonly parcelasBuilder: ParcelasBuilderService,
     private readonly homeCacheService: HomeCacheService,
     private readonly vendasPermissions: VendasPermissionsService,
+    @Optional()
+    private readonly carteiraEscopo?: VendasCarteiraEscopoService,
     @Optional() transicoesComerciais?: TransicaoComercialService,
   ) {
     // Mantém os testes legados que instanciam o service manualmente; no Nest o
     // provider canônico é sempre injetado pelo módulo.
     this.transicoesComerciais =
       transicoesComerciais ?? new TransicaoComercialService(prisma);
+  }
+
+  private async whereOrcamentoAutorizado(
+    lojaId: string,
+    identidade?: IdentidadeAutenticada,
+    extra: Record<string, unknown> = {},
+  ): Promise<Record<string, unknown>> {
+    const base = { ...extra, loja_id: lojaId };
+    if (!identidade || !this.carteiraEscopo) {
+      return base;
+    }
+    const escopo = await this.carteiraEscopo.whereOrcamento(identidade);
+    return { AND: [base, escopo] };
   }
 
   private async validarEntregaInstalacao(
@@ -806,12 +823,16 @@ export class OrcamentosV2Service {
   async buscarOrcamento(
     id: string,
     lojaId: string,
+    identidade?: IdentidadeAutenticada,
   ): Promise<OrcamentoCompleto> {
     this.logger.log(`🔍 Buscando orçamento ${id} na loja ${lojaId}`);
 
     try {
+      const where = await this.whereOrcamentoAutorizado(lojaId, identidade, {
+        id,
+      });
       const orcamento = await (this.prisma as any).orcamento.findFirst({
-        where: { id, loja_id: lojaId },
+        where,
         include: {
           cliente: true,
           produtos: {
@@ -1035,6 +1056,7 @@ export class OrcamentosV2Service {
     lojaId: string,
     filtros: any = {},
     paginacao: any = {},
+    identidade?: IdentidadeAutenticada,
   ): Promise<{
     orcamentos: OrcamentoBase[];
     total: number;
@@ -1044,8 +1066,11 @@ export class OrcamentosV2Service {
     this.logger.log(`📋 Listando orçamentos da loja ${lojaId}`);
 
     try {
-      // Construir filtros
-      const where = this.construirFiltros(filtros, lojaId);
+      const where = await this.whereOrcamentoAutorizado(
+        lojaId,
+        identidade,
+        this.construirFiltros(filtros, lojaId),
+      );
       const { skip, take } = this.prepararPaginacao(paginacao);
 
       // Buscar orçamentos

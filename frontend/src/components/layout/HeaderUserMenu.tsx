@@ -14,11 +14,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useUser } from '@/contexts/UserContext';
+import { useAcessoModulos } from '@/contexts/AcessoModulosContext';
 import {
   IconDeviceDesktop,
   IconLogout,
   IconMoon,
   IconSettings,
+  IconShieldLock,
   IconSun,
   IconUsers,
 } from '@tabler/icons-react';
@@ -26,6 +28,7 @@ import { ChevronDown, User } from 'lucide-react';
 
 export function HeaderUserMenu() {
   const { user, logout, getFirstName } = useUser();
+  const { pode, carregado } = useAcessoModulos();
   const router = useRouter();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -76,13 +79,24 @@ export function HeaderUserMenu() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {carregado && pode('configuracoes') && (
+          <DropdownMenuItem asChild>
+            <Link href="/configuracoes" className="cursor-pointer">
+              <IconSettings className="mr-2 h-4 w-4" />
+              Configurações
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
-          <Link href="/configuracoes" className="cursor-pointer">
-            <IconSettings className="mr-2 h-4 w-4" />
-            Configurações
+          <Link
+            href="/configuracoes#seguranca-2fa"
+            className="cursor-pointer"
+          >
+            <IconShieldLock className="mr-2 h-4 w-4" />
+            Segurança da conta
           </Link>
         </DropdownMenuItem>
-        {user?.funcao === 'ADMINISTRADOR' && (
+        {carregado && pode('usuarios') && (
           <DropdownMenuItem asChild>
             <Link href="/usuarios" className="cursor-pointer">
               <IconUsers className="mr-2 h-4 w-4" />
