@@ -57,3 +57,8 @@ ficheiros. Sem esta cópia o header pede
 ```bash
 sudo bash backend/scripts/uat/sync-uploads-from-prod.sh
 ```
+
+O Nginx do UAT serve `/api/uploads/` e `/uploads/` direto do disco (não
+passa pelo Nest). Os diretórios pais `comunikapp-uat/` e `shared/`
+precisam de bit de atravessamento para o `www-data` (`chmod 751`);
+`shared/env` permanece `750`.

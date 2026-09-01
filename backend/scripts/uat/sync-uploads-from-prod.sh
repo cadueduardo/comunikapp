@@ -29,6 +29,7 @@ if [[ ! -d "$SRC" ]]; then
 fi
 
 sudo mkdir -p "$DST"
+sudo chmod 751 /srv/apps/comunikapp-uat /srv/apps/comunikapp-uat/shared
 sudo rsync -a --chmod=Du=rwx,Dg=rx,Do=rx,Fu=rw,Fg=r,Fo=r "$SRC" "$DST"
 sudo chown -R comunikapp:comunikapp "$DST"
 echo "ok arquivos=$(sudo find "$DST" -type f | wc -l)"

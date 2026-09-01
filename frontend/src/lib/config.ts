@@ -120,7 +120,12 @@ export const resolveAssetUrl = (path?: string | null): string | null => {
   ) {
     return path;
   }
-  return buildApiUrl(path.startsWith('/') ? path : `/${path}`);
+  const resolved = buildApiUrl(path.startsWith('/') ? path : `/${path}`);
+  // Query distinta evita HIT de 404/403 antigo na Cloudflare (mesmo path).
+  if (resolved.includes('/uploads/') && !/[?&]v=/.test(resolved)) {
+    return `${resolved}?v=20260901`;
+  }
+  return resolved;
 };
 
 // Função helper para obter headers com autenticação.
