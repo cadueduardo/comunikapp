@@ -9,11 +9,13 @@ ALTER TABLE `orcamento`
   ADD COLUMN `aceito_em` DATETIME(3) NULL,
   ADD COLUMN `aceite_evidencia` JSON NULL;
 
-ALTER TABLE `versaoorcamento`
+-- MySQL 8 em Linux diferencia maiúsculas: a tabela física é `VersaoOrcamento`
+-- (sem @@map no Prisma). `versaoorcamento` falha com ER_NO_SUCH_TABLE.
+ALTER TABLE `VersaoOrcamento`
   ADD COLUMN `snapshot` JSON NULL,
   ADD COLUMN `hash_material` CHAR(64) NULL;
 
-UPDATE `versaoorcamento`
+UPDATE `VersaoOrcamento`
 SET `snapshot` = CAST(`dados_completos` AS JSON)
 WHERE `dados_completos` IS NOT NULL
   AND `dados_completos` <> ''
@@ -24,10 +26,10 @@ CREATE INDEX `orcamento_versao_aceita_id_idx` ON `orcamento`(`versao_aceita_id`)
 
 ALTER TABLE `orcamento`
   ADD CONSTRAINT `orcamento_versao_enviada_id_fkey`
-    FOREIGN KEY (`versao_enviada_id`) REFERENCES `versaoorcamento`(`id`)
+    FOREIGN KEY (`versao_enviada_id`) REFERENCES `VersaoOrcamento`(`id`)
     ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE `orcamento`
   ADD CONSTRAINT `orcamento_versao_aceita_id_fkey`
-    FOREIGN KEY (`versao_aceita_id`) REFERENCES `versaoorcamento`(`id`)
+    FOREIGN KEY (`versao_aceita_id`) REFERENCES `VersaoOrcamento`(`id`)
     ON DELETE RESTRICT ON UPDATE CASCADE;
