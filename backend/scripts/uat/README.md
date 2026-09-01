@@ -46,3 +46,14 @@ Outros usuários permanecem `@uat.invalid`.
 O cookie de sessão do UAT é `comunikapp_session_uat` (definido no
 `ecosystem.uat.config.js`) para não colidir com o cookie de produção
 `comunikapp_session` em `.comunikapp.com.br`.
+
+### Copiar uploads (logo, anexos, geometrias)
+
+O dump do MySQL traz `logo_url` e caminhos em `/uploads/...`, mas não os
+ficheiros. Sem esta cópia o header pede
+`/api/uploads/<uuid>.png` e o Nest responde 404. O destino é só o UAT
+(`shared/uploads`); a origem é o disco de produção. Não usa `--delete`.
+
+```bash
+sudo bash backend/scripts/uat/sync-uploads-from-prod.sh
+```
