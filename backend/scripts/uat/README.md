@@ -28,3 +28,17 @@ Não iniciar frontend, backend, workers ou cron do UAT enquanto o script não
 tiver sido aplicado com sucesso. Senhas de loja/admin de produção não devem
 permanecer utilizáveis; o passo operacional de bootstrap de senha UAT fica no
 arquivo de ambiente protegido da VPS, fora deste repositório.
+
+### Restaurar operadores (e-mail real + senha de produção)
+
+A sanitização reescreve todos os `usuario.email`. Para testar convites SMTP no
+UAT com a conta da loja, restaure **somente** os e-mails listados em
+`/srv/apps/comunikapp-uat/shared/env/operator-restore.env` (não versionar):
+
+```bash
+sudo python3 backend/scripts/uat/restore-operator-from-prod.py
+```
+
+O script copia e-mail, nome, hash de senha e e-mail da loja a partir de
+`comunikapp` pelo mesmo `id`. Não copia 2FA. Não imprime senha nem hash.
+Outros usuários permanecem `@uat.invalid`.
