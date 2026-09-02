@@ -47,6 +47,8 @@ Detalhe e checklist: [`PLANO-DE-ACAO.md`](./PLANO-DE-ACAO.md).
 1. Perfil só de Vendas: Home sem estoque, PCP, onboarding; cards de Vendas.
 2. URL `/insumos` continua negada (gate já existente).
 3. Sidebar do vendedor mostra seções (Clientes, Orçamentos…) sem o hub.
-4. Estrelar Clientes: aparece no topo do menu e na Home após recarregar.
-5. Admin: Home completa, Vendas continua como um item + hub.
+4. Estrelar no **header** da página (ex.: Orçamentos, OS): aparece abaixo do
+   Dashboard no menu e na Home após recarregar.
+5. Admin: Home completa; módulos continuam como item + hub (sidebar curta).
 6. Relogar o usuário limitado depois do deploy.
+7. Console do perfil só de Vendas: sem `403` em `/api/instalacao/configuracao`.

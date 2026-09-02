@@ -3,8 +3,6 @@ import type { KPI } from './interfaces/kpi.interface';
 
 export type AcessoModulos = Record<string, boolean>;
 
-export const MAX_SECOES_ACHATAR_SEMPRE = 4;
-
 export function podeModulo(acesso: AcessoModulos, chave: string): boolean {
   return acesso[chave] === true;
 }
@@ -78,16 +76,15 @@ export function colunaFluxoPermitida(
 }
 
 /**
- * Achatamento da nav: um único módulo funcional explode as seções;
- * módulos com 1–4 seções além da home também achatam.
+ * Só explode seções na sidebar quando o perfil vê um único módulo
+ * funcional. Admin e gestor com vários módulos permanecem com hub.
  */
 export function deveAchatarModulo(
   secoesAlemDaHome: number,
   modulosFuncionais: number,
 ): boolean {
   if (secoesAlemDaHome < 1) return false;
-  if (modulosFuncionais === 1) return true;
-  return secoesAlemDaHome <= MAX_SECOES_ACHATAR_SEMPRE;
+  return modulosFuncionais === 1;
 }
 
 export const ONBOARDING_DESABILITADO = {

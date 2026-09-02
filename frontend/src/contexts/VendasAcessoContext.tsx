@@ -17,6 +17,7 @@ import {
 
 export type VendasAcessoResposta = {
   pode_acessar_modulo: boolean;
+  os_aditiva_habilitada: boolean;
   permissoes: {
     proposta_ver: boolean;
     proposta_criar: boolean;
@@ -41,6 +42,7 @@ export type VendasAcessoResposta = {
 
 export const VENDAS_ACESSO_VAZIO: VendasAcessoResposta = {
   pode_acessar_modulo: false,
+  os_aditiva_habilitada: false,
   permissoes: {
     proposta_ver: false,
     proposta_criar: false,
@@ -82,6 +84,7 @@ const VendasAcessoContext = createContext<VendasAcessoContextValue | null>(
 function normalizarAcesso(data: VendasAcessoResposta): VendasAcessoResposta {
   return {
     pode_acessar_modulo: data?.pode_acessar_modulo === true,
+    os_aditiva_habilitada: data?.os_aditiva_habilitada === true,
     permissoes: {
       proposta_ver: data?.permissoes?.proposta_ver === true,
       proposta_criar: data?.permissoes?.proposta_criar === true,

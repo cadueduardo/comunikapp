@@ -7,6 +7,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { extrairIdentidadeAutenticada } from '../auth/decorators';
+import { PrismaService } from '../prisma/prisma.service';
 import { VendasPermissionsService } from './permissions/vendas-permissions.service';
 import { VENDAS_PERMISSOES } from './permissions/vendas-permissoes';
 
@@ -20,7 +21,10 @@ import { VENDAS_PERMISSOES } from './permissions/vendas-permissoes';
 @Controller('vendas')
 @UseGuards(JwtAuthGuard)
 export class VendasAcessoController {
-  constructor(private readonly vendasPermissions: VendasPermissionsService) {}
+  constructor(
+    private readonly vendasPermissions: VendasPermissionsService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Get('acesso')
   @ApiOperation({
@@ -53,6 +57,7 @@ export class VendasAcessoController {
       atividadeVerPropria,
       atividadeVerEquipe,
       atividadeGerenciar,
+      osAditiva,
     ] = await Promise.all([
       pode(VENDAS_PERMISSOES.PROPOSTA_VER),
       pode(VENDAS_PERMISSOES.PROPOSTA_CRIAR),
@@ -72,10 +77,15 @@ export class VendasAcessoController {
       pode(VENDAS_PERMISSOES.ATIVIDADE_VER_PROPRIA),
       pode(VENDAS_PERMISSOES.ATIVIDADE_VER_EQUIPE),
       pode(VENDAS_PERMISSOES.ATIVIDADE_GERENCIAR),
+      this.prisma.configuracaoInstalacaoLoja.findUnique({
+        where: { loja_id: lojaId },
+        select: { os_aditiva_habilitada: true },
+      }),
     ]);
 
     return {
       pode_acessar_modulo: propostaVer || atividadeVerPropria,
+      os_aditiva_habilitada: osAditiva?.os_aditiva_habilitada === true,
       permissoes: {
         proposta_ver: propostaVer,
         proposta_criar: propostaCriar,

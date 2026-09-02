@@ -11,13 +11,14 @@
 - Recorte por porta de módulo (`.acessar`), não por `usuario_funcao` no front.
 - Cache da Home deixa de ser só `loja_id`; inclui o usuário.
 - Sem tabela nova: favoritos em `usuario.preferencias` (JSON já existente).
-- Achatamento: se o perfil vê **um** módulo funcional, as seções sobem à
-  sidebar (exceto “Visão geral”). Se o módulo tem **1 a 4** seções além da
-  home, também achata — mesmo com outros módulos. Admin (muitos módulos e
-  muitas seções) permanece com hub + submenu.
+- Achatamento: **somente** se o perfil vê **um** módulo funcional as seções
+  sobem à sidebar (exceto “Visão geral”). Admin e gestor com vários módulos
+  permanecem com hub + submenu.
 - Quando a seção já está na sidebar, submenu interno e bottom nav daquele
   módulo somem.
-- Teto de **6** favoritos. Ids `modulo:item` do `module-nav`.
+- Teto de **6** favoritos. Ids `modulo:item` do `module-nav`. Estrela no
+  header da página (e nos cards do hub). Bloco na sidebar **abaixo do
+  Dashboard**.
 - Login permanece em `/dashboard`.
 
 ## Fase 1 — Dashboard por permissão
@@ -74,6 +75,8 @@
       ids `modulo:item`, só módulos com `.acessar`).
 - [x] Estrela nos cards do hub do módulo.
 - [x] Lista no topo da sidebar (fora da ordenação dos módulos).
+- [x] Estrela no header da página (não só nos cards do hub).
+- [x] Favoritos na sidebar imediatamente abaixo do Dashboard.
 - [x] Cards na Home a partir dos favoritos permitidos.
 - [x] Favorito sem permissão some da UI (não quebra o GET).
 
@@ -89,4 +92,6 @@
 - [x] `git diff --check` nos arquivos da entrega.
 - [x] Deploy só UAT (PM2 `comunikapp-uat-*`); produção intocada.
 - [x] `ModuleHeader` não quebra sem `nav` (Aditivos/Pedidos no menu achatado).
+- [x] Nav de Vendas não chama `/instalacao/configuracao` (403 no perfil estreito).
+- [x] Admin não explode submenus na sidebar.
 - [ ] Conferir no UAT com usuário limitado + admin.

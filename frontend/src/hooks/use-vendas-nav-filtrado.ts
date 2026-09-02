@@ -1,17 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useVendasAcesso } from '@/hooks/use-vendas-acesso';
+import { useMemo } from 'react';
 import {
   filtrarVendasNavPorConfig,
   vendasModuleNav,
   type ModuleNavConfig,
 } from '@/lib/module-nav';
-import { instalacaoApi } from '@/lib/instalacao/instalacao-api';
-import { getClientSessionToken } from '@/lib/session-auth';
 
 /**
- * Nav de Vendas com Aditivos filtrado pela config real da loja
- * (`os_aditiva_habilitada`). Negar por padrão se a config falhar.
+ * Nav de Vendas com Aditivos filtrado pela flag da loja
+ * (`os_aditiva_habilitada` em GET /vendas/acesso).
+ * Não consulta `/instalacao/configuracao` — essa rota exige
+ * `instalacao.acessar` e 403 no console no perfil só de Vendas.
  */
 export function useVendasNavFiltrado(): {
   nav: ModuleNavConfig;
@@ -20,36 +21,8 @@ export function useVendasNavFiltrado(): {
   erro: string | null;
   recarregar: () => Promise<void>;
 } {
-  const [aditivosHabilitados, setAditivosHabilitados] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
-
-  const recarregar = useCallback(async () => {
-    const token = getClientSessionToken();
-    if (!token) {
-      setAditivosHabilitados(false);
-      setLoading(false);
-      setErro('Sessão inválida');
-      return;
-    }
-    setLoading(true);
-    setErro(null);
-    try {
-      const config = await instalacaoApi.obterConfiguracaoInstalacao();
-      setAditivosHabilitados(config.os_aditiva_habilitada === true);
-    } catch {
-      setAditivosHabilitados(false);
-      setErro(
-        'Não foi possível carregar a configuração de aditivos da loja.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void recarregar();
-  }, [recarregar]);
+  const { acesso, loading, erro, recarregar } = useVendasAcesso();
+  const aditivosHabilitados = acesso.os_aditiva_habilitada === true;
 
   const nav = useMemo(
     () =>

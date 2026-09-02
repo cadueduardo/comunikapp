@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { type ReactNode } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { ModuleSubmenu } from '@/components/layout/ModuleSubmenu';
+import { FavoritoHeaderButton } from '@/components/layout/FavoritoHeaderButton';
 import { Button } from '@/components/ui/button';
 import {
   resolveActiveModuleNavItem,
@@ -71,6 +72,7 @@ export function ModuleHeader({
           <h1 className="flex min-w-0 items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
             {icon}
             <span className="min-w-0 break-words">{displayTitle}</span>
+            <FavoritoHeaderButton item={active} />
           </h1>
         </div>
         {actions ? (
@@ -85,6 +87,7 @@ export function ModuleHeader({
           <h1 className="flex min-w-0 items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
             {icon}
             <span className="truncate">{displayTitle}</span>
+            <FavoritoHeaderButton item={active} />
             {nav?.label ? (
               <>
                 <span className="font-normal text-muted-foreground" aria-hidden>

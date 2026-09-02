@@ -32,3 +32,18 @@ export function listarDestinosFavorito(): DestinoFavorito[] {
 export function destinoFavoritoPorId(id: string): DestinoFavorito | undefined {
   return listarDestinosFavorito().find((destino) => destino.id === id);
 }
+
+function normalizarHref(href: string): string {
+  const trimmed = href.replace(/\/+$/, '');
+  return trimmed.length > 0 ? trimmed : '/';
+}
+
+/** Casa a página atual com um destino pinável, inclusive aliases (orçamentos/clientes). */
+export function destinoFavoritoPorHref(
+  href: string,
+): DestinoFavorito | undefined {
+  const alvo = normalizarHref(href);
+  return listarDestinosFavorito().find(
+    (destino) => normalizarHref(destino.href) === alvo,
+  );
+}

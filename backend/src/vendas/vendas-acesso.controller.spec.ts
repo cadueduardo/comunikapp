@@ -13,6 +13,7 @@ function criarPrismaFake(
     ativo: boolean;
     funcao: usuario_funcao;
   }>,
+  osAditiva = false,
 ): PrismaService {
   return {
     usuario: {
@@ -32,6 +33,10 @@ function criarPrismaFake(
         });
       },
     },
+    configuracaoInstalacaoLoja: {
+      findUnique: () =>
+        Promise.resolve({ os_aditiva_habilitada: osAditiva }),
+    },
   } as unknown as PrismaService;
 }
 
@@ -39,8 +44,7 @@ describe('VendasAcessoController', () => {
   const LOJA = 'loja-a';
 
   it('concede módulo a VENDAS com piso proposta.ver', async () => {
-    const svc = new VendasPermissionsService(
-      criarPrismaFake([
+    const prisma = criarPrismaFake([
         {
           id: 'v',
           loja_id: LOJA,
@@ -48,9 +52,9 @@ describe('VendasAcessoController', () => {
           ativo: true,
           funcao: usuario_funcao.VENDAS,
         },
-      ]),
-    );
-    const controller = new VendasAcessoController(svc);
+      ]);
+    const svc = new VendasPermissionsService(prisma);
+    const controller = new VendasAcessoController(svc, prisma);
     const resp = await controller.obterAcesso({
       user: { id: 'v', loja_id: LOJA, funcao: usuario_funcao.VENDAS },
     });
@@ -60,11 +64,11 @@ describe('VendasAcessoController', () => {
     expect(resp.permissoes.carteira_ver_propria).toBe(true);
     expect(resp.permissoes.cliente_criar).toBe(true);
     expect(resp.permissoes.carteira_transferir).toBe(false);
+    expect(resp.os_aditiva_habilitada).toBe(false);
   });
 
   it('concede módulo a ADMINISTRADOR (gestor) com piso completo', async () => {
-    const svc = new VendasPermissionsService(
-      criarPrismaFake([
+    const prisma = criarPrismaFake([
         {
           id: 'g',
           loja_id: LOJA,
@@ -72,9 +76,9 @@ describe('VendasAcessoController', () => {
           ativo: true,
           funcao: usuario_funcao.ADMINISTRADOR,
         },
-      ]),
-    );
-    const controller = new VendasAcessoController(svc);
+      ]);
+    const svc = new VendasPermissionsService(prisma);
+    const controller = new VendasAcessoController(svc, prisma);
     const resp = await controller.obterAcesso({
       user: {
         id: 'g',
@@ -91,8 +95,7 @@ describe('VendasAcessoController', () => {
   });
 
   it('nega módulo a PRODUCAO sem perfil', async () => {
-    const svc = new VendasPermissionsService(
-      criarPrismaFake([
+    const prisma = criarPrismaFake([
         {
           id: 'p',
           loja_id: LOJA,
@@ -100,9 +103,9 @@ describe('VendasAcessoController', () => {
           ativo: true,
           funcao: usuario_funcao.PRODUCAO,
         },
-      ]),
-    );
-    const controller = new VendasAcessoController(svc);
+      ]);
+    const svc = new VendasPermissionsService(prisma);
+    const controller = new VendasAcessoController(svc, prisma);
     const resp = await controller.obterAcesso({
       user: { id: 'p', loja_id: LOJA, funcao: usuario_funcao.PRODUCAO },
     });
@@ -110,8 +113,7 @@ describe('VendasAcessoController', () => {
   });
 
   it('isola tenant: admin de outra loja não acessa', async () => {
-    const svc = new VendasPermissionsService(
-      criarPrismaFake([
+    const prisma = criarPrismaFake([
         {
           id: 'a',
           loja_id: 'loja-b',
@@ -119,9 +121,9 @@ describe('VendasAcessoController', () => {
           ativo: true,
           funcao: usuario_funcao.ADMINISTRADOR,
         },
-      ]),
-    );
-    const controller = new VendasAcessoController(svc);
+      ]);
+    const svc = new VendasPermissionsService(prisma);
+    const controller = new VendasAcessoController(svc, prisma);
     const resp = await controller.obterAcesso({
       user: {
         id: 'a',

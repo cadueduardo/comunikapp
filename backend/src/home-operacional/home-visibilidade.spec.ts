@@ -49,10 +49,10 @@ describe('HomeVisibilidade', () => {
     expect(podeModulo(vendas, 'configuracoes')).toBe(false);
   });
 
-  it('achatamento: único módulo explode; admin com muitas seções não', () => {
+  it('achatamento: único módulo explode; admin não', () => {
     expect(deveAchatarModulo(7, 1)).toBe(true);
     expect(deveAchatarModulo(7, 8)).toBe(false);
-    expect(deveAchatarModulo(3, 3)).toBe(true);
+    expect(deveAchatarModulo(3, 3)).toBe(false);
     expect(deveAchatarModulo(0, 1)).toBe(false);
   });
 });
