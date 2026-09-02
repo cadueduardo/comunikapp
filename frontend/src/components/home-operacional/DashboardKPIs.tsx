@@ -48,6 +48,10 @@ export function DashboardKPIs() {
     );
   }
 
+  if (resumo.kpis.length === 0) {
+    return null;
+  }
+
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       {resumo.kpis.map((kpi) => (

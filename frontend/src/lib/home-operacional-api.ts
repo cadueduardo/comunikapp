@@ -22,6 +22,7 @@ export interface OnboardingEtapaEstado {
 }
 
 export interface OnboardingResumo {
+  habilitado?: boolean;
   progresso_pct: number;
   total_etapas: number;
   total_obrigatorias: number;

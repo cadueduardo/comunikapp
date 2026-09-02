@@ -13,35 +13,25 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useResumoFinanceiro } from '@/hooks/use-home-operacional';
-import { useUser } from '@/contexts/UserContext';
+import { useAcessoModulos } from '@/contexts/AcessoModulosContext';
 import { financeIndicatorThemes } from '@/lib/theme-surfaces';
 
 /**
  * Bloco 4 do dashboard - Resumo Financeiro Simples (Fase 6.C).
  *
- * Decisao Fase 0 (doc 07-permissoes-home.md):
- * - So renderiza quando o usuario tem permissao
- *   `home-operacional.ver_resumo_financeiro`.
- * - Enquanto o sistema de perfis nao esta populado (ver TODO no backend),
- *   usamos como proxy `usuario.funcao` alinhado ao enum oficial
- *   `usuario_funcao` em backend/prisma/schema.prisma:
- *     { ADMINISTRADOR, FINANCEIRO, PRODUCAO, VENDAS, ESTOQUE }
- *   Hoje apenas ADMINISTRADOR e FINANCEIRO veem o bloco.
+ * Porta: `financeiro.acessar` (docs/home-por-perfil). Sem a porta o
+ * bloco não renderiza e o hook não chama a API.
  *
  * Cada indicador e clicavel quando faz sentido (decisao do produto: cada
  * indicador leva a listagem ou tela correspondente).
  *
  * Indicadores com valor `null` sao OCULTADOS (regra: nao inventar projecao).
  */
-const FUNCOES_COM_VISAO_FINANCEIRA = new Set(['ADMINISTRADOR', 'FINANCEIRO']);
-
 export function ResumoFinanceiroSimples() {
-  const { user } = useUser();
+  const { pode, carregado } = useAcessoModulos();
   const { resumo, loading, erro } = useResumoFinanceiro();
 
-  // Permissao visivel: esconde o bloco inteiro se usuario nao tem acesso.
-  const funcaoUpper = String(user?.funcao ?? '').toUpperCase();
-  if (!user || !FUNCOES_COM_VISAO_FINANCEIRA.has(funcaoUpper)) {
+  if (!carregado || !pode('financeiro')) {
     return null;
   }
 

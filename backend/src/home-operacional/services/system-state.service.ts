@@ -41,7 +41,14 @@ export class SystemStateService {
     private readonly onboardingService: OnboardingService,
   ) {}
 
-  async listarMensagens(lojaId: string): Promise<BannerMensagem[]> {
+  async listarMensagens(
+    lojaId: string,
+    podeConfigurarLoja = false,
+  ): Promise<BannerMensagem[]> {
+    if (!podeConfigurarLoja) {
+      return [];
+    }
+
     const mensagens: BannerMensagem[] = [];
 
     const [trial, configuracaoIncompleta, insumosChapaIncompletos] =

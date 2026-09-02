@@ -10,6 +10,7 @@ import {
   type ModuleNavConfig,
 } from '@/lib/module-nav';
 import { cn } from '@/lib/utils';
+import { useModuloAchatado } from '@/contexts/ModulosAchatadosContext';
 
 type ModuleLayoutShellProps = {
   nav: ModuleNavConfig;
@@ -26,7 +27,8 @@ export function ModuleLayoutShell({
   children,
   className,
 }: ModuleLayoutShellProps) {
-  const showSectionNav = shouldShowModuleSectionNav(nav);
+  const achatado = useModuloAchatado(nav.id);
+  const showSectionNav = shouldShowModuleSectionNav(nav) && !achatado;
 
   return (
     <div

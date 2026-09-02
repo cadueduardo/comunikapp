@@ -2,9 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { StatusOS } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AlertasOperacionaisService } from './alertas-operacionais.service';
-import { HomeCacheService } from './home-cache.service';
 import { KPI, KpisResumo } from '../interfaces/kpi.interface';
-import { AlertasResponseData } from '../interfaces/alerta.interface';
+import {
+  type AcessoModulos,
+  kpiPermitido,
+} from '../home-visibilidade';
 import { filtroOsElegivelFluxoPcp } from '../../pcp/utils/os-elegivel-pcp-kanban.util';
 
 // Status considerados "OS em producao" para o KPI - inclui todas as
@@ -27,20 +29,24 @@ export class KpiDashboardService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly alertasService: AlertasOperacionaisService,
-    private readonly cache: HomeCacheService,
   ) {}
 
-  async listar(lojaId: string): Promise<KpisResumo> {
+  async listar(lojaId: string, acesso: AcessoModulos = {}): Promise<KpisResumo> {
     const periodo = this.calcularPeriodoMes();
+    const querVendas = kpiPermitido('orcamentos_abertos', acesso);
+    const querOs = kpiPermitido('os_em_producao', acesso);
+    const querAlertas = kpiPermitido('alertas_criticos', acesso);
 
     const [orcAbertos, totalMes, osProducao, criticos] = await Promise.all([
-      this.contarOrcamentosAbertos(lojaId),
-      this.somarTotalOrcadoMes(lojaId, periodo),
-      this.contarOsEmProducao(lojaId),
-      this.contarAlertasCriticos(lojaId),
+      querVendas ? this.contarOrcamentosAbertos(lojaId) : Promise.resolve(0),
+      querVendas ? this.somarTotalOrcadoMes(lojaId, periodo) : Promise.resolve(0),
+      querOs ? this.contarOsEmProducao(lojaId) : Promise.resolve(0),
+      querAlertas
+        ? this.contarAlertasCriticos(lojaId, acesso)
+        : Promise.resolve(0),
     ]);
 
-    const kpis: KPI[] = [
+    const candidatos: KPI[] = [
       {
         id: 'orcamentos_abertos',
         label: 'Orçamentos abertos',
@@ -84,6 +90,7 @@ export class KpiDashboardService {
             : 'sem pendências críticas',
       },
     ];
+    const kpis = candidatos.filter((kpi) => kpiPermitido(kpi.id, acesso));
 
     return {
       kpis,
@@ -160,17 +167,12 @@ export class KpiDashboardService {
     }
   }
 
-  private async contarAlertasCriticos(lojaId: string): Promise<number> {
-    // Reutiliza o cache de alertas (mesma chave `alertas:<lojaId>`) -
-    // como os 2 endpoints (kpis e alertas) sao chamados em paralelo pela
-    // pagina, o cache fica quente na maioria dos hits.
+  private async contarAlertasCriticos(
+    lojaId: string,
+    acesso: AcessoModulos,
+  ): Promise<number> {
     try {
-      const chave = `alertas:${lojaId}`;
-      const cached = this.cache.obter<AlertasResponseData>(chave, false);
-      if (cached) return cached.por_nivel.critico;
-
-      const fresh = await this.alertasService.listar(lojaId);
-      this.cache.gravar(chave, fresh);
+      const fresh = await this.alertasService.listar(lojaId, acesso);
       return fresh.por_nivel.critico;
     } catch (error) {
       this.logger.warn(

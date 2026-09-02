@@ -8,6 +8,10 @@ import {
   NivelAlerta,
 } from '../interfaces/alerta.interface';
 import { filtroOsElegivelFluxoPcp } from '../../pcp/utils/os-elegivel-pcp-kanban.util';
+import {
+  type AcessoModulos,
+  alertaPermitido,
+} from '../home-visibilidade';
 
 /**
  * Limiares de tempo para os alertas. Hoje hardcoded conforme decisao de
@@ -41,18 +45,32 @@ export class AlertasOperacionaisService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async listar(lojaId: string): Promise<AlertasResponseData> {
-    // Roda os detectores em paralelo - cada um isolado para nao derrubar os
-    // demais se uma query falhar (ex.: tabela ainda nao existente em ambiente
-    // antigo). Cada detector retorna sempre um array (possivelmente vazio).
+  async listar(
+    lojaId: string,
+    acesso: AcessoModulos = {},
+  ): Promise<AlertasResponseData> {
     const blocos = await Promise.all([
-      this.detectarOrcamentosParados(lojaId),
-      this.detectarOrcamentosAprovadosSemOS(lojaId),
-      this.detectarOSsAguardandoAprovacaoTecnica(lojaId),
-      this.detectarOSsLiberadasSemWorkflow(lojaId),
-      this.detectarEstoqueAbaixoDoMinimo(lojaId),
-      this.detectarOSsSemMateriais(lojaId),
-      this.detectarTrabalhoProntoSemRecebimento(lojaId), // Fase 6.E - 7o alerta
+      alertaPermitido('orcamentos', acesso)
+        ? this.detectarOrcamentosParados(lojaId)
+        : Promise.resolve([]),
+      alertaPermitido('orcamentos', acesso)
+        ? this.detectarOrcamentosAprovadosSemOS(lojaId)
+        : Promise.resolve([]),
+      alertaPermitido('os', acesso)
+        ? this.detectarOSsAguardandoAprovacaoTecnica(lojaId)
+        : Promise.resolve([]),
+      alertaPermitido('pcp', acesso)
+        ? this.detectarOSsLiberadasSemWorkflow(lojaId)
+        : Promise.resolve([]),
+      alertaPermitido('estoque', acesso)
+        ? this.detectarEstoqueAbaixoDoMinimo(lojaId)
+        : Promise.resolve([]),
+      alertaPermitido('estoque', acesso)
+        ? this.detectarOSsSemMateriais(lojaId)
+        : Promise.resolve([]),
+      alertaPermitido('financeiro', acesso)
+        ? this.detectarTrabalhoProntoSemRecebimento(lojaId)
+        : Promise.resolve([]),
     ]);
 
     const alertas = blocos.flat();

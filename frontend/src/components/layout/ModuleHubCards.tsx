@@ -12,6 +12,8 @@ import {
   type ModuleNavConfig,
 } from '@/lib/module-nav';
 import { cn } from '@/lib/utils';
+import { Star } from 'lucide-react';
+import { useFavoritos } from '@/contexts/FavoritosContext';
 
 type ModuleHubCardsProps = {
   nav: ModuleNavConfig;
@@ -30,6 +32,7 @@ export function ModuleHubCards({
   gridClassName,
 }: ModuleHubCardsProps) {
   const items = getModuleHubCardItems(nav);
+  const { ehFavorito, alternar } = useFavoritos();
 
   if (items.length === 0) return null;
 
@@ -53,27 +56,54 @@ export function ModuleHubCards({
             )}
           >
             <CardHeader>
-              <div className="flex items-center gap-3">
-                {Icon ? (
-                  <div className="rounded-lg bg-primary/10 p-2">
-                    <Icon className="h-5 w-5 text-primary" />
-                  </div>
-                ) : null}
-                <div>
-                  <CardTitle className="text-base">
-                    {item.label}
-                    {item.badge ? (
-                      <span className="ml-2 text-xs font-normal text-muted-foreground">
-                        {item.badge}
-                      </span>
-                    ) : null}
-                  </CardTitle>
-                  {item.description ? (
-                    <CardDescription className="text-sm">
-                      {item.description}
-                    </CardDescription>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  {Icon ? (
+                    <div className="rounded-lg bg-primary/10 p-2">
+                      <Icon className="h-5 w-5 text-primary" />
+                    </div>
                   ) : null}
+                  <div>
+                    <CardTitle className="text-base">
+                      {item.label}
+                      {item.badge ? (
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                          {item.badge}
+                        </span>
+                      ) : null}
+                    </CardTitle>
+                    {item.description ? (
+                      <CardDescription className="text-sm">
+                        {item.description}
+                      </CardDescription>
+                    ) : null}
+                  </div>
                 </div>
+                {!item.disabled ? (
+                  <button
+                    type="button"
+                    aria-pressed={ehFavorito(`${nav.id}:${item.id}`)}
+                    aria-label={
+                      ehFavorito(`${nav.id}:${item.id}`)
+                        ? `Remover ${item.label} dos favoritos`
+                        : `Favoritar ${item.label}`
+                    }
+                    className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    onClick={(evento) => {
+                      evento.preventDefault();
+                      evento.stopPropagation();
+                      void alternar(`${nav.id}:${item.id}`);
+                    }}
+                  >
+                    <Star
+                      className={
+                        ehFavorito(`${nav.id}:${item.id}`)
+                          ? 'h-4 w-4 fill-amber-400 text-amber-400'
+                          : 'h-4 w-4'
+                      }
+                    />
+                  </button>
+                ) : null}
               </div>
             </CardHeader>
           </Card>

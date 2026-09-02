@@ -1521,6 +1521,7 @@ export const catalogoArteProducaoApi = {
 
 export interface UsuarioPreferencias {
   sidebar_menu_order?: string[];
+  favoritos?: string[];
 }
 
 export const usuariosApi = {

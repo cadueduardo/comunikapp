@@ -27,6 +27,9 @@ import { useSidebarContadores } from '@/hooks/use-sidebar-contadores';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { useVendasAcesso } from '@/hooks/use-vendas-acesso';
 import { ModuleAccessGate } from '@/components/layout/ModuleAccessGate';
+import { FavoritosProvider } from '@/contexts/FavoritosContext';
+import { ModulosAchatadosProvider } from '@/contexts/ModulosAchatadosContext';
+import { idsModulosAchatados } from '@/lib/sidebar-achatamento';
 
 type AuthUser = {
   id: string;
@@ -74,6 +77,11 @@ function AuthenticatedShell({
     };
   }, [vendasAcesso.pode_acessar_modulo, pode, carregado]);
 
+  const modulosAchatados = useMemo(
+    () => idsModulosAchatados(permissions),
+    [permissions],
+  );
+
   useEffect(() => {
     const loadTwoFactorStatus = async () => {
       if (typeof window === 'undefined') return;
@@ -112,6 +120,7 @@ function AuthenticatedShell({
   };
 
   return (
+    <ModulosAchatadosProvider ids={modulosAchatados}>
     <SidebarProvider>
       <div className="app-shell flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-background lg:flex-row">
         <SidebarBadgeSync userId={user.id} onModuloVisto={recarregar} />
@@ -159,6 +168,7 @@ function AuthenticatedShell({
         <BetaFeedbackButton />
       </div>
     </SidebarProvider>
+    </ModulosAchatadosProvider>
   );
 }
 
@@ -206,7 +216,9 @@ export default function DashboardLayout({
   return (
     <VendasAcessoProvider enabled userId={user.id}>
       <AcessoModulosProvider userId={user.id}>
-        <AuthenticatedShell user={user}>{children}</AuthenticatedShell>
+        <FavoritosProvider userId={user.id}>
+          <AuthenticatedShell user={user}>{children}</AuthenticatedShell>
+        </FavoritosProvider>
       </AcessoModulosProvider>
     </VendasAcessoProvider>
   );

@@ -21,6 +21,7 @@ import {
   type ModuleNavItem,
 } from '@/lib/module-nav';
 import { cn } from '@/lib/utils';
+import { useModuloAchatado } from '@/contexts/ModulosAchatadosContext';
 
 type ModuleBottomNavProps = {
   nav: ModuleNavConfig;
@@ -102,6 +103,7 @@ function NavItemRow({
  */
 export function ModuleBottomNav({ nav, className }: ModuleBottomNavProps) {
   const pathname = usePathname();
+  const achatado = useModuloAchatado(nav.id);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const active = resolveActiveModuleNavItem(nav.items, pathname, nav.homeHref);
@@ -111,7 +113,7 @@ export function ModuleBottomNav({ nav, className }: ModuleBottomNavProps) {
     setMounted(true);
   }, []);
 
-  if (!shouldShowModuleSectionNav(nav)) {
+  if (achatado || !shouldShowModuleSectionNav(nav)) {
     return null;
   }
 

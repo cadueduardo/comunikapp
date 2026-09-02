@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { ArteAprovacaoModule } from '../modules/arte-aprovacao/arte-aprovacao.module';
 import { InstalacaoModule } from '../instalacao/instalacao.module';
 import { ConexoesModule } from '../conexoes/conexoes.module';
+import { RbacCoreModule } from '../rbac/rbac-core.module';
 import { HomeOperacionalController } from './home-operacional.controller';
 import { OnboardingService } from './services/onboarding.service';
 import { ConfiguracaoRecomendadaService } from './services/configuracao-recomendada.service';
@@ -35,6 +36,7 @@ import { ContadoresMenuService } from './services/contadores-menu.service';
   imports: [
     PrismaModule,
     AuthModule,
+    RbacCoreModule,
     ArteAprovacaoModule,
     ConexoesModule,
     forwardRef(() => InstalacaoModule),

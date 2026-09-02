@@ -94,8 +94,10 @@ export interface SidebarNavItem {
   badgeCount?: number;
 }
 
-const iconClass =
+export const SIDEBAR_ICON_CLASS =
   'text-neutral-700 dark:text-neutral-200 h-[18px] w-[18px] flex-shrink-0';
+
+const iconClass = SIDEBAR_ICON_CLASS;
 
 export function buildSidebarNavItems(
   permissions: SidebarMenuPermissions,

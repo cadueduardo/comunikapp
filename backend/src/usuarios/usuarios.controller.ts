@@ -22,6 +22,7 @@ import { TwoFactorService } from '../auth/two-factor.service';
 import { ConfirmTwoFactorDto, DisableTwoFactorDto } from './dto/two-factor.dto';
 import {
   AtualizarUsuarioPreferenciasDto,
+  favoritosComAcesso,
 } from './dto/usuario-preferencias.dto';
 import {
   DefinirSenhaInicialDto,
@@ -97,7 +98,18 @@ export class UsuariosController {
   @UseGuards(JwtAuthGuard)
   async obterMinhasPreferencias(@Request() req: unknown) {
     const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
-    return this.usuariosService.obterPreferencias(usuarioId, lojaId);
+    const prefs = await this.usuariosService.obterPreferencias(
+      usuarioId,
+      lojaId,
+    );
+    const acesso = await this.permissaoEfetiva.listarAcessoModulos(
+      usuarioId,
+      lojaId,
+    );
+    return {
+      ...prefs,
+      favoritos: favoritosComAcesso(prefs.favoritos ?? [], acesso),
+    };
   }
 
   @Patch('me/preferencias')
@@ -107,7 +119,22 @@ export class UsuariosController {
     @Request() req: unknown,
   ) {
     const { usuarioId, lojaId } = extrairIdentidadeAutenticada(req);
-    return this.usuariosService.atualizarPreferencias(usuarioId, lojaId, dto);
+    const acesso = await this.permissaoEfetiva.listarAcessoModulos(
+      usuarioId,
+      lojaId,
+    );
+    if (dto.favoritos) {
+      dto.favoritos = favoritosComAcesso(dto.favoritos, acesso);
+    }
+    const prefs = await this.usuariosService.atualizarPreferencias(
+      usuarioId,
+      lojaId,
+      dto,
+    );
+    return {
+      ...prefs,
+      favoritos: favoritosComAcesso(prefs.favoritos ?? [], acesso),
+    };
   }
 
   @Get('me/acesso')

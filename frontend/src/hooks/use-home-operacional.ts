@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useAcessoModulos } from '@/contexts/AcessoModulosContext';
 import {
   AlertasResumo,
   BannerMensagem,
@@ -29,11 +30,25 @@ interface UseOnboardingResult {
 }
 
 export function useOnboarding(): UseOnboardingResult {
+  const { pode, carregado: acessoPronto } = useAcessoModulos();
   const [resumo, setResumo] = useState<OnboardingResumo | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
   const recarregar = useCallback(async () => {
+    if (!pode('configuracoes')) {
+      setResumo({
+        habilitado: false,
+        progresso_pct: 0,
+        total_etapas: 0,
+        total_obrigatorias: 0,
+        obrigatorias_concluidas: 0,
+        etapas: [],
+      });
+      setLoading(false);
+      setErro(null);
+      return;
+    }
     setLoading(true);
     setErro(null);
     try {
@@ -44,11 +59,12 @@ export function useOnboarding(): UseOnboardingResult {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [pode]);
 
   useEffect(() => {
+    if (!acessoPronto) return;
     void recarregar();
-  }, [recarregar]);
+  }, [acessoPronto, recarregar]);
 
   const ignorarStep = useCallback(async (stepId: string) => {
     try {
@@ -213,30 +229,48 @@ export function useKpisDashboard(): UseKpisDashboardResult {
 }
 
 export function useAlertasOperacionais(): UseAlertasOperacionaisResult {
+  const { pode, carregado: acessoPronto } = useAcessoModulos();
   const [resumo, setResumo] = useState<AlertasResumo | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
-  const recarregar = useCallback(async (opcoes?: { forcar?: boolean }) => {
-    setLoading(true);
-    setErro(null);
-    try {
-      const data = await fetchAlertas({ refresh: opcoes?.forcar === true });
-      setResumo(data);
-    } catch (e) {
-      setErro(
-        e instanceof Error
-          ? e.message
-          : 'Falha ao carregar alertas operacionais',
+  const recarregar = useCallback(
+    async (opcoes?: { forcar?: boolean }) => {
+      const temOrigem = ['vendas', 'os', 'pcp', 'estoque', 'financeiro'].some(
+        (modulo) => pode(modulo),
       );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      if (!temOrigem) {
+        setResumo({
+          alertas: [],
+          total: 0,
+          por_nivel: { critico: 0, atencao: 0, informativo: 0 },
+        });
+        setLoading(false);
+        setErro(null);
+        return;
+      }
+      setLoading(true);
+      setErro(null);
+      try {
+        const data = await fetchAlertas({ refresh: opcoes?.forcar === true });
+        setResumo(data);
+      } catch (e) {
+        setErro(
+          e instanceof Error
+            ? e.message
+            : 'Falha ao carregar alertas operacionais',
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [pode],
+  );
 
   useEffect(() => {
+    if (!acessoPronto) return;
     void recarregar();
-  }, [recarregar]);
+  }, [acessoPronto, recarregar]);
 
   return { resumo, loading, erro, recarregar };
 }
@@ -253,30 +287,41 @@ interface UseResumoFinanceiroResult {
 }
 
 export function useResumoFinanceiro(): UseResumoFinanceiroResult {
+  const { pode, carregado: acessoPronto } = useAcessoModulos();
   const [resumo, setResumo] = useState<ResumoFinanceiroResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
-  const recarregar = useCallback(async (opcoes?: { forcar?: boolean }) => {
-    setLoading(true);
-    setErro(null);
-    try {
-      const data = await fetchResumoFinanceiro({
-        refresh: opcoes?.forcar === true,
-      });
-      setResumo(data);
-    } catch (e) {
-      setErro(
-        e instanceof Error ? e.message : 'Falha ao carregar resumo financeiro',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const recarregar = useCallback(
+    async (opcoes?: { forcar?: boolean }) => {
+      if (!pode('financeiro')) {
+        setResumo(null);
+        setLoading(false);
+        setErro(null);
+        return;
+      }
+      setLoading(true);
+      setErro(null);
+      try {
+        const data = await fetchResumoFinanceiro({
+          refresh: opcoes?.forcar === true,
+        });
+        setResumo(data);
+      } catch (e) {
+        setErro(
+          e instanceof Error ? e.message : 'Falha ao carregar resumo financeiro',
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [pode],
+  );
 
   useEffect(() => {
+    if (!acessoPronto) return;
     void recarregar();
-  }, [recarregar]);
+  }, [acessoPronto, recarregar]);
 
   return { resumo, loading, erro, recarregar };
 }

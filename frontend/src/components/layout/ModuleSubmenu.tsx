@@ -17,6 +17,7 @@ import {
   type ModuleNavConfig,
 } from '@/lib/module-nav';
 import { cn } from '@/lib/utils';
+import { useModuloAchatado } from '@/contexts/ModulosAchatadosContext';
 
 type ModuleSubmenuProps = {
   nav: ModuleNavConfig;
@@ -37,7 +38,8 @@ export function ModuleSubmenu({
   triggerLabel = 'Seções',
   className,
 }: ModuleSubmenuProps) {
-  if (!shouldShowModuleSectionNav(nav)) {
+  const achatado = useModuloAchatado(nav.id);
+  if (achatado || !shouldShowModuleSectionNav(nav)) {
     return null;
   }
 

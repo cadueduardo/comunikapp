@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -9,7 +10,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CurrentLojaId } from '../auth/decorators';
+import { CurrentLojaId, Identidade } from '../auth/decorators';
+import type { IdentidadeAutenticada } from '../auth/decorators';
 import { OnboardingService } from './services/onboarding.service';
 import { ConfiguracaoRecomendadaService } from './services/configuracao-recomendada.service';
 import { SystemStateService } from './services/system-state.service';
@@ -24,6 +26,12 @@ import { AplicarConfiguracaoRecomendadaDto } from './dto/aplicar-configuracao-re
 import { FluxoResponseData } from './interfaces/fluxo.interface';
 import { AlertasResponseData } from './interfaces/alerta.interface';
 import { KpisResumo } from './interfaces/kpi.interface';
+import { PermissaoEfetivaService } from '../rbac/autorizacao/permissao-efetiva.service';
+import {
+  type AcessoModulos,
+  ONBOARDING_DESABILITADO,
+  podeModulo,
+} from './home-visibilidade';
 
 /**
  * Controlador da Home operacional. Endpoints documentados em
@@ -46,51 +54,92 @@ export class HomeOperacionalController {
     private readonly kpiDashboardService: KpiDashboardService,
     private readonly resumoFinanceiroService: ResumoFinanceiroService,
     private readonly contadoresMenuService: ContadoresMenuService,
+    private readonly permissaoEfetiva: PermissaoEfetivaService,
   ) {}
 
+  private async acessoDe(
+    identidade: IdentidadeAutenticada,
+  ): Promise<AcessoModulos> {
+    return this.permissaoEfetiva.listarAcessoModulos(
+      identidade.usuarioId,
+      identidade.lojaId,
+    );
+  }
+
+  private chaveCache(
+    prefixo: string,
+    identidade: IdentidadeAutenticada,
+  ): string {
+    return `${prefixo}:${identidade.lojaId}:${identidade.usuarioId}`;
+  }
+
+  private assertPodeConfigurar(acesso: AcessoModulos): void {
+    if (!podeModulo(acesso, 'configuracoes')) {
+      throw new ForbiddenException(
+        'Você não tem permissão para executar esta ação.',
+      );
+    }
+  }
+
   @Get('onboarding')
-  async obterOnboarding(@CurrentLojaId() lojaId: string) {
-    const data = await this.onboardingService.obterResumo(lojaId);
-    return this.envelope(data);
+  async obterOnboarding(@Identidade() identidade: IdentidadeAutenticada) {
+    const acesso = await this.acessoDe(identidade);
+    if (!podeModulo(acesso, 'configuracoes')) {
+      return this.envelope({ ...ONBOARDING_DESABILITADO });
+    }
+    const data = await this.onboardingService.obterResumo(identidade.lojaId);
+    return this.envelope({ ...data, habilitado: true });
   }
 
   @Patch('onboarding/:stepId')
   async atualizarStep(
-    @CurrentLojaId() lojaId: string,
+    @Identidade() identidade: IdentidadeAutenticada,
     @Param('stepId') stepId: string,
     @Body() dto: AtualizarOnboardingStepDto,
   ) {
+    this.assertPodeConfigurar(await this.acessoDe(identidade));
     const data = await this.onboardingService.atualizarStep(
-      lojaId,
+      identidade.lojaId,
       stepId,
       dto.acao,
     );
-    return this.envelope(data);
+    return this.envelope({ ...data, habilitado: true });
   }
 
   @Post('onboarding/aplicar-configuracao-recomendada')
   async aplicarConfiguracaoRecomendada(
-    @CurrentLojaId() lojaId: string,
+    @Identidade() identidade: IdentidadeAutenticada,
     @Body() dto: AplicarConfiguracaoRecomendadaDto,
   ) {
-    const data = await this.configuracaoRecomendadaService.aplicar(lojaId, {
-      sobrescreverExistentes: dto.sobrescrever_existentes === true,
-    });
+    this.assertPodeConfigurar(await this.acessoDe(identidade));
+    const data = await this.configuracaoRecomendadaService.aplicar(
+      identidade.lojaId,
+      {
+        sobrescreverExistentes: dto.sobrescrever_existentes === true,
+      },
+    );
     return this.envelope(data);
   }
 
   @Post('onboarding/aplicar-entrega-instalacao')
-  async aplicarEntregaInstalacao(@CurrentLojaId() lojaId: string) {
+  async aplicarEntregaInstalacao(
+    @Identidade() identidade: IdentidadeAutenticada,
+  ) {
+    this.assertPodeConfigurar(await this.acessoDe(identidade));
     const data =
       await this.configuracaoRecomendadaService.aplicarSomenteEntregaInstalacao(
-        lojaId,
+        identidade.lojaId,
       );
     return this.envelope(data);
   }
 
   @Get('banner-estado')
-  async banner(@CurrentLojaId() lojaId: string) {
-    const mensagens = await this.systemStateService.listarMensagens(lojaId);
+  async banner(@Identidade() identidade: IdentidadeAutenticada) {
+    const acesso = await this.acessoDe(identidade);
+    const mensagens = await this.systemStateService.listarMensagens(
+      identidade.lojaId,
+      podeModulo(acesso, 'configuracoes'),
+    );
     return this.envelope({ mensagens });
   }
 
@@ -100,16 +149,17 @@ export class HomeOperacionalController {
    * Agregador de cards por estagio do trabalho. Contrato em
    * docs/fase-0-home-operacional/02-contratos-home-operacional.md secao 5.
    *
-   * Cache: 60s por `loja_id`. Use `?refresh=1` para forcar recomputacao
-   * (util para testes manuais; o front nao precisa enviar normalmente).
+   * Cache: 60s por `loja_id` + `usuario_id` (o recorte de colunas
+   * depende do perfil). Use `?refresh=1` para forcar recomputacao.
    */
   @Get('fluxo')
   async fluxo(
-    @CurrentLojaId() lojaId: string,
+    @Identidade() identidade: IdentidadeAutenticada,
     @Query('refresh') refresh?: string,
   ) {
-    const chave = `fluxo:${lojaId}`;
+    const chave = this.chaveCache('fluxo', identidade);
     const bypass = refresh === '1' || refresh === 'true';
+    const acesso = await this.acessoDe(identidade);
 
     const cached = this.homeCacheService.obter<FluxoResponseData>(
       chave,
@@ -119,7 +169,10 @@ export class HomeOperacionalController {
       return this.envelope(cached, { cache_hit: true });
     }
 
-    const data = await this.fluxoTrabalhoService.montarFluxo(lojaId);
+    const data = await this.fluxoTrabalhoService.montarFluxo(
+      identidade.lojaId,
+      acesso,
+    );
     this.homeCacheService.gravar(chave, data);
     return this.envelope(data, { cache_hit: false });
   }
@@ -131,15 +184,16 @@ export class HomeOperacionalController {
    * informativo). Contrato em
    * docs/fase-0-home-operacional/02-contratos-home-operacional.md secao 6.
    *
-   * Cache: 60s por `loja_id`. Use `?refresh=1` para forcar recomputacao.
+   * Cache: 60s por `loja_id` + `usuario_id`. Use `?refresh=1` para forcar recomputacao.
    */
   @Get('alertas')
   async alertas(
-    @CurrentLojaId() lojaId: string,
+    @Identidade() identidade: IdentidadeAutenticada,
     @Query('refresh') refresh?: string,
   ) {
-    const chave = `alertas:${lojaId}`;
+    const chave = this.chaveCache('alertas', identidade);
     const bypass = refresh === '1' || refresh === 'true';
+    const acesso = await this.acessoDe(identidade);
 
     const cached = this.homeCacheService.obter<AlertasResponseData>(
       chave,
@@ -149,7 +203,10 @@ export class HomeOperacionalController {
       return this.envelope(cached, { cache_hit: true });
     }
 
-    const data = await this.alertasOperacionaisService.listar(lojaId);
+    const data = await this.alertasOperacionaisService.listar(
+      identidade.lojaId,
+      acesso,
+    );
     this.homeCacheService.gravar(chave, data);
     return this.envelope(data, { cache_hit: false });
   }
@@ -163,23 +220,27 @@ export class HomeOperacionalController {
    * - OS em produção (count)
    * - Alertas críticos (count)
    *
-   * Cache: 60s por `loja_id` (chave separada `kpis:<lojaId>`). Use
-   * `?refresh=1` para forçar recomputação.
+   * Cache: 60s por `loja_id` + `usuario_id`. Use `?refresh=1` para forçar
+   * recomputação.
    */
   @Get('kpis')
   async kpis(
-    @CurrentLojaId() lojaId: string,
+    @Identidade() identidade: IdentidadeAutenticada,
     @Query('refresh') refresh?: string,
   ) {
-    const chave = `kpis:${lojaId}`;
+    const chave = this.chaveCache('kpis', identidade);
     const bypass = refresh === '1' || refresh === 'true';
+    const acesso = await this.acessoDe(identidade);
 
     const cached = this.homeCacheService.obter<KpisResumo>(chave, bypass);
     if (cached) {
       return this.envelope(cached, { cache_hit: true });
     }
 
-    const data = await this.kpiDashboardService.listar(lojaId);
+    const data = await this.kpiDashboardService.listar(
+      identidade.lojaId,
+      acesso,
+    );
     this.homeCacheService.gravar(chave, data);
     return this.envelope(data, { cache_hit: false });
   }
@@ -190,21 +251,24 @@ export class HomeOperacionalController {
    * Bloco 4 do dashboard (Fase 6.C). Retorna os 5 indicadores principais
    * + count e valor de cobrancas vencidas.
    *
-   * Decisao Fase 0 (doc 07-permissoes-home.md): o front so renderiza
-   * quando o usuario tem `home-operacional.ver_resumo_financeiro`. O
-   * backend retorna o dado para qualquer JWT autenticado (validacao
-   * fina sera adicionada quando o sistema de perfis estiver populado).
+   * Só devolve números com `financeiro.acessar`. Sem a porta, 403.
    *
    * Cache: 60s, usa o `ResumoFinanceiroService` interno.
    * `?refresh=1` para forcar recomputacao.
    */
   @Get('resumo-financeiro')
   async resumoFinanceiro(
-    @CurrentLojaId() lojaId: string,
+    @Identidade() identidade: IdentidadeAutenticada,
     @Query('refresh') refresh?: string,
   ) {
+    const acesso = await this.acessoDe(identidade);
+    if (!podeModulo(acesso, 'financeiro')) {
+      throw new ForbiddenException(
+        'Você não tem permissão para executar esta ação.',
+      );
+    }
     const bypass = refresh === '1' || refresh === 'true';
-    return this.resumoFinanceiroService.obterResumo(lojaId, bypass);
+    return this.resumoFinanceiroService.obterResumo(identidade.lojaId, bypass);
   }
 
   /**

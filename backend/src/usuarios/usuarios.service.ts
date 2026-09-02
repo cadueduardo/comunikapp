@@ -11,6 +11,7 @@ import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import {
   AtualizarUsuarioPreferenciasDto,
   UsuarioPreferenciasJson,
+  sanitizarFavoritos,
 } from './dto/usuario-preferencias.dto';
 import * as bcrypt from 'bcrypt';
 import { MailService } from '../mail/mail.service';
@@ -717,6 +718,9 @@ export class UsuariosService {
     if (patch.sidebar_menu_order !== undefined) {
       proximo.sidebar_menu_order = patch.sidebar_menu_order;
     }
+    if (patch.favoritos !== undefined) {
+      proximo.favoritos = sanitizarFavoritos(patch.favoritos);
+    }
 
     await this.prisma.usuario.update({
       where: { id: usuarioId },
@@ -816,10 +820,16 @@ export class UsuariosService {
 
     const obj = raw as Record<string, unknown>;
     const order = obj.sidebar_menu_order;
+    const favoritos = obj.favoritos;
 
     return {
       sidebar_menu_order: Array.isArray(order)
         ? order.filter((id): id is string => typeof id === 'string')
+        : undefined,
+      favoritos: Array.isArray(favoritos)
+        ? sanitizarFavoritos(
+            favoritos.filter((id): id is string => typeof id === 'string'),
+          )
         : undefined,
     };
   }

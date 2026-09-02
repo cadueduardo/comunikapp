@@ -30,6 +30,13 @@ import {
 } from '@/lib/sidebar-menu';
 import { useSidebarMenuOrder } from '@/hooks/use-sidebar-menu-order';
 import { cn } from '@/lib/utils';
+import {
+  expandirItensAchatados,
+  idsModulosAchatados,
+} from '@/lib/sidebar-achatamento';
+import { SIDEBAR_ICON_CLASS } from '@/lib/sidebar-menu';
+import { useFavoritos } from '@/contexts/FavoritosContext';
+import { Star } from 'lucide-react';
 
 interface AppSidebarProps {
   userId: string;
@@ -123,12 +130,14 @@ function AppSidebarContent({
   contadores,
 }: AppSidebarProps) {
   const [reorderMode, setReorderMode] = useState(false);
-  const { open, animate } = useSidebar();
+  const { open, animate, setOpen } = useSidebar();
 
-  const navItems = useMemo(
-    () => buildSidebarNavItems(permissions, contadores),
-    [permissions, contadores],
-  );
+  const navItems = useMemo(() => {
+    const base = buildSidebarNavItems(permissions, contadores);
+    const achatados = idsModulosAchatados(permissions);
+    return expandirItensAchatados(base, achatados, SIDEBAR_ICON_CLASS);
+  }, [permissions, contadores]);
+  const { destinos: favoritos } = useFavoritos();
 
   const { orderedItems, order, saveOrder, salvando } = useSidebarMenuOrder(
     userId,
@@ -160,6 +169,38 @@ function AppSidebarContent({
         >
           <SortableContext items={order} strategy={verticalListSortingStrategy}>
             <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden pr-0.5">
+              {favoritos.length > 0 && !reorderMode && (
+                <div className="mb-2 space-y-0.5">
+                  {open && (
+                    <p className="px-1 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Favoritos
+                    </p>
+                  )}
+                  {favoritos.map((destino) => (
+                    <Link
+                      key={destino.id}
+                      href={destino.href}
+                      onClick={() => setOpen(false)}
+                      className="group/sidebar flex items-center gap-2 rounded-md px-1 py-1.5 hover:bg-neutral-200/60 dark:hover:bg-neutral-800/80"
+                    >
+                      <Star className="h-[18px] w-[18px] shrink-0 fill-amber-400 text-amber-400" />
+                      <motion.span
+                        animate={{
+                          display: animate
+                            ? open
+                              ? 'inline-block'
+                              : 'none'
+                            : 'inline-block',
+                          opacity: animate ? (open ? 1 : 0) : 1,
+                        }}
+                        className="truncate text-sm text-neutral-700 dark:text-neutral-200"
+                      >
+                        {destino.label}
+                      </motion.span>
+                    </Link>
+                  ))}
+                </div>
+              )}
               {orderedItems.map((item) => (
                 <SortableNavRow
                   key={item.id}

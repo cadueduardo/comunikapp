@@ -9,6 +9,10 @@ import {
   FluxoResponseData,
 } from '../interfaces/fluxo.interface';
 import { filtroOsElegivelFluxoPcp } from '../../pcp/utils/os-elegivel-pcp-kanban.util';
+import {
+  type AcessoModulos,
+  colunaFluxoPermitida,
+} from '../home-visibilidade';
 
 /**
  * Service que monta o agregador de Fluxo de Trabalho da Home (Fase 4).
@@ -44,35 +48,38 @@ export class FluxoTrabalhoService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async montarFluxo(lojaId: string): Promise<FluxoResponseData> {
-    const [
-      orcamentosColuna,
-      aprovadosColuna,
-      revisaoTecnicaColuna,
-      producaoColuna,
-      prontosColuna,
-      aReceberColuna,
-      concluidosColuna,
-    ] = await Promise.all([
-      this.montarColunaOrcamentos(lojaId),
-      this.montarColunaAprovados(lojaId),
-      this.montarColunaRevisaoTecnica(lojaId),
-      this.montarColunaProducao(lojaId),
-      this.montarColunaProntos(lojaId),
-      this.montarColunaAReceber(lojaId),
-      this.montarColunaConcluidos(lojaId),
+  async montarFluxo(
+    lojaId: string,
+    acesso: AcessoModulos = {},
+  ): Promise<FluxoResponseData> {
+    const colunasBrutas = await Promise.all([
+      colunaFluxoPermitida('orcamentos', acesso)
+        ? this.montarColunaOrcamentos(lojaId)
+        : Promise.resolve(null),
+      colunaFluxoPermitida('aprovados', acesso)
+        ? this.montarColunaAprovados(lojaId)
+        : Promise.resolve(null),
+      colunaFluxoPermitida('revisao_tecnica', acesso)
+        ? this.montarColunaRevisaoTecnica(lojaId)
+        : Promise.resolve(null),
+      colunaFluxoPermitida('producao', acesso)
+        ? this.montarColunaProducao(lojaId)
+        : Promise.resolve(null),
+      colunaFluxoPermitida('prontos', acesso)
+        ? this.montarColunaProntos(lojaId)
+        : Promise.resolve(null),
+      colunaFluxoPermitida('a_receber', acesso)
+        ? this.montarColunaAReceber(lojaId)
+        : Promise.resolve(null),
+      colunaFluxoPermitida('concluidos', acesso)
+        ? this.montarColunaConcluidos(lojaId)
+        : Promise.resolve(null),
     ]);
 
     return {
-      colunas: [
-        orcamentosColuna,
-        aprovadosColuna,
-        revisaoTecnicaColuna,
-        producaoColuna,
-        prontosColuna,
-        aReceberColuna,
-        concluidosColuna,
-      ],
+      colunas: colunasBrutas.filter((coluna): coluna is ColunaFluxo =>
+        Boolean(coluna),
+      ),
     };
   }
 

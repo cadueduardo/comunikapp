@@ -24,6 +24,8 @@ export interface OnboardingEtapaEstado {
 }
 
 export interface OnboardingResumo {
+  /** false = perfil sem configuracoes.acessar; etapas vêm vazias. */
+  habilitado?: boolean;
   progresso_pct: number;
   total_etapas: number;
   total_obrigatorias: number;

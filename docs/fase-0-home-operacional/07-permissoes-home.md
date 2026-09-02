@@ -1,6 +1,12 @@
 # 07 — Permissões e Visibilidade da Home
 
-**Status do documento:** proposto
+**Status do documento:** parcialmente implementado (2026-09)
+
+A recorte vigente da Home **não** usa o catálogo `home-operacional.ver_*`
+abaixo. Os widgets, o onboarding e o resumo financeiro passam pela porta
+`<modulo>.acessar` (mapa e checklist em
+[`docs/home-por-perfil/`](../home-por-perfil/README.md)). Este arquivo
+permanece como histórico da proposta original.
 
 ## Princípio
 

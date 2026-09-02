@@ -76,6 +76,7 @@ export function FluxoTrabalho() {
   }
 
   if (!fluxo) return null;
+  if (fluxo.colunas.length === 0) return null;
 
   // Separa colunas ativas das colunas financeiras (aguardando_modulo).
   // As financeiras viram uma celula unica consolidada no grid.

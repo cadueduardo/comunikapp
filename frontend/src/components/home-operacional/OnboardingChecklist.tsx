@@ -69,6 +69,7 @@ export function OnboardingChecklist() {
   }
 
   if (!resumo) return null;
+  if (resumo.habilitado === false) return null;
 
   // O card some quando TODAS as etapas obrigatorias estao concluidas.
   // Etapas opcionais pendentes nao mantem o card visivel para sempre,

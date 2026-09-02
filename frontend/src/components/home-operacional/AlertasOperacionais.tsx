@@ -10,7 +10,10 @@ import {
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAlertasOperacionais } from '@/hooks/use-home-operacional';
+import { useAcessoModulos } from '@/contexts/AcessoModulosContext';
 import { AlertaCard } from './AlertaCard';
+
+const ORIGENS_ALERTA = ['vendas', 'os', 'pcp', 'estoque', 'financeiro'] as const;
 
 /**
  * Bloco "Alertas operacionais" da Home.
@@ -33,7 +36,14 @@ export function AlertasOperacionais({
   variant = 'default',
 }: AlertasOperacionaisProps = {}) {
   const { resumo, loading, erro, recarregar } = useAlertasOperacionais();
+  const { pode, carregado: acessoPronto } = useAcessoModulos();
   const ehSidebar = variant === 'sidebar';
+  const temOrigem =
+    acessoPronto && ORIGENS_ALERTA.some((modulo) => pode(modulo));
+
+  if (acessoPronto && !temOrigem) {
+    return null;
+  }
 
   if (loading && !resumo) {
     return (
