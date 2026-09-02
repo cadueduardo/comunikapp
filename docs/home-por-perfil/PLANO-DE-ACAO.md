@@ -87,5 +87,5 @@
 
 - [x] Jest das regras de visibilidade, achatamento e preferências.
 - [x] `git diff --check` nos arquivos da entrega.
-- [ ] Deploy só UAT (PM2 `comunikapp-uat-*`); produção intocada.
+- [x] Deploy só UAT (PM2 `comunikapp-uat-*`); produção intocada.
 - [ ] Conferir no UAT com usuário limitado + admin.
