@@ -103,17 +103,19 @@ function NavItemRow({
  */
 export function ModuleBottomNav({ nav, className }: ModuleBottomNavProps) {
   const pathname = usePathname();
-  const achatado = useModuloAchatado(nav.id);
+  const achatado = useModuloAchatado(nav?.id ?? '');
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const active = resolveActiveModuleNavItem(nav.items, pathname, nav.homeHref);
+  const active = nav
+    ? resolveActiveModuleNavItem(nav.items ?? [], pathname, nav.homeHref)
+    : undefined;
   const activeLabel = active?.shortLabel ?? active?.label;
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (achatado || !shouldShowModuleSectionNav(nav)) {
+  if (!nav || achatado || !shouldShowModuleSectionNav(nav)) {
     return null;
   }
 

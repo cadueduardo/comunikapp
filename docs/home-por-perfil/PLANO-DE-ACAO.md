@@ -88,4 +88,5 @@
 - [x] Jest das regras de visibilidade, achatamento e preferências.
 - [x] `git diff --check` nos arquivos da entrega.
 - [x] Deploy só UAT (PM2 `comunikapp-uat-*`); produção intocada.
+- [x] `ModuleHeader` não quebra sem `nav` (Aditivos/Pedidos no menu achatado).
 - [ ] Conferir no UAT com usuário limitado + admin.

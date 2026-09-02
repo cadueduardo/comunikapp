@@ -38,8 +38,8 @@ export function ModuleSubmenu({
   triggerLabel = 'Seções',
   className,
 }: ModuleSubmenuProps) {
-  const achatado = useModuloAchatado(nav.id);
-  if (achatado || !shouldShowModuleSectionNav(nav)) {
+  const achatado = useModuloAchatado(nav?.id ?? '');
+  if (!nav || achatado || !shouldShowModuleSectionNav(nav)) {
     return null;
   }
 

@@ -32,7 +32,7 @@ const PERMISSAO_PARA_NAV: Array<{
 ];
 
 export function secoesAlemDaHome(nav: ModuleNavConfig): ModuleNavItem[] {
-  const home = nav.homeHref.replace(/\/+$/, '') || '/';
+  const home = (nav.homeHref ?? '/').replace(/\/+$/, '') || '/';
   return getNavigableModuleNavItems(nav.items).filter((item) => {
     const href = item.href.replace(/\/+$/, '') || '/';
     return href !== home;

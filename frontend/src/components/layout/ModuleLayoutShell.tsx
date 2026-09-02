@@ -27,8 +27,8 @@ export function ModuleLayoutShell({
   children,
   className,
 }: ModuleLayoutShellProps) {
-  const achatado = useModuloAchatado(nav.id);
-  const showSectionNav = shouldShowModuleSectionNav(nav) && !achatado;
+  const achatado = useModuloAchatado(nav?.id ?? '');
+  const showSectionNav = Boolean(nav) && shouldShowModuleSectionNav(nav) && !achatado;
 
   return (
     <div

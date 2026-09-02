@@ -42,8 +42,10 @@ export function ModuleHeader({
   backLabel = 'Voltar',
 }: ModuleHeaderProps) {
   const pathname = usePathname();
-  const active = resolveActiveModuleNavItem(nav.items, pathname, nav.homeHref);
-  const displayTitle = title ?? active?.label ?? nav.label;
+  const active = nav
+    ? resolveActiveModuleNavItem(nav.items ?? [], pathname, nav.homeHref)
+    : undefined;
+  const displayTitle = title ?? active?.label ?? nav?.label ?? '';
 
   const backButton = backHref ? (
     <Button
@@ -83,16 +85,20 @@ export function ModuleHeader({
           <h1 className="flex min-w-0 items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
             {icon}
             <span className="truncate">{displayTitle}</span>
-            <span className="font-normal text-muted-foreground" aria-hidden>
-              ·
-            </span>
-            <span className="truncate text-base font-medium text-muted-foreground">
-              {nav.label}
-            </span>
+            {nav?.label ? (
+              <>
+                <span className="font-normal text-muted-foreground" aria-hidden>
+                  ·
+                </span>
+                <span className="truncate text-base font-medium text-muted-foreground">
+                  {nav.label}
+                </span>
+              </>
+            ) : null}
           </h1>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <ModuleSubmenu nav={nav} activeHref={active?.href} />
+          {nav ? <ModuleSubmenu nav={nav} activeHref={active?.href} /> : null}
           {actions}
         </div>
       </div>

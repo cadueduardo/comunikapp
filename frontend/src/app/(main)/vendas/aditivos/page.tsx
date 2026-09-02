@@ -7,6 +7,7 @@ import { Layers, Loader2, Tag, CheckCircle2 } from 'lucide-react';
 import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { ViewToggle } from '@/components/ui/shared/view-toggle';
 import { useIsMobile } from '@/hooks/use-media-query';
+import { useVendasNavFiltrado } from '@/hooks/use-vendas-nav-filtrado';
 import { AditivosTable, OcorrenciaAditivo } from '@/components/ui/vendas/aditivos-table';
 import { AditivosCards } from '@/components/ui/vendas/aditivos-cards';
 import {
@@ -23,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
 export default function VendasAditivosPage() {
+  const { nav } = useVendasNavFiltrado();
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [data, setData] = useState<OcorrenciaAditivo[]>([]);
@@ -155,6 +157,7 @@ export default function VendasAditivosPage() {
   return (
     <div className="min-w-0 w-full max-w-full space-y-6 overflow-x-hidden">
       <ModuleHeader
+        nav={nav}
         title="Aditivos Comerciais & OS Aditiva"
         subtitle="Gestão comercial de ocorrências operacionais e geração de aditivos vinculados"
         icon={<Layers className="h-7 w-7 shrink-0 sm:h-8 sm:w-8" />}

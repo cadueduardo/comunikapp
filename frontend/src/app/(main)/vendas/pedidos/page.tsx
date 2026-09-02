@@ -7,11 +7,13 @@ import { ShoppingBag, Loader2 } from 'lucide-react';
 import { ModuleHeader } from '@/components/layout/ModuleHeader';
 import { ViewToggle } from '@/components/ui/shared/view-toggle';
 import { useIsMobile } from '@/hooks/use-media-query';
+import { useVendasNavFiltrado } from '@/hooks/use-vendas-nav-filtrado';
 import { PedidosTable, PedidoComercial } from '@/components/ui/vendas/pedidos-table';
 import { PedidosCards } from '@/components/ui/vendas/pedidos-cards';
 import { TimelinePedidoDialog } from '@/components/ui/vendas/timeline-pedido-dialog';
 
 export default function VendasPedidosPage() {
+  const { nav } = useVendasNavFiltrado();
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [data, setData] = useState<PedidoComercial[]>([]);
@@ -63,6 +65,7 @@ export default function VendasPedidosPage() {
   return (
     <div className="min-w-0 w-full max-w-full space-y-6 overflow-x-hidden">
       <ModuleHeader
+        nav={nav}
         title="Pedidos Comerciais & Acompanhamento"
         subtitle="Projeção comercial consolidada e acompanhamento read-only em tempo real"
         icon={<ShoppingBag className="h-7 w-7 shrink-0 sm:h-8 sm:w-8" />}
