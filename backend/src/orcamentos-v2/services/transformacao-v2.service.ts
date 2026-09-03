@@ -326,6 +326,7 @@ export class TransformacaoV2Service {
       'loja_id',
       'data_criacao',
       'responsavel_id',
+      'atendente',
       'tipo',
       'cliente',
       'custos',
@@ -453,6 +454,25 @@ export class TransformacaoV2Service {
       tags: dados.tags || [],
       prioridade: dados.prioridade,
       responsavel_id: dados.responsavel_id,
+      responsavel: (() => {
+        const rel = dados.responsavel as
+          | { id?: string; nome_completo?: string }
+          | null
+          | undefined;
+        if (rel?.id) {
+          return {
+            id: String(rel.id),
+            nome: String(rel.nome_completo || '').trim(),
+          };
+        }
+        if (dados.responsavel_id) {
+          return {
+            id: String(dados.responsavel_id),
+            nome: String(dados.atendente || '').trim(),
+          };
+        }
+        return undefined;
+      })(),
       ativo: dados.ativo,
       comissao_percentual:
         dados.comissao_percentual != null
@@ -501,7 +521,13 @@ export class TransformacaoV2Service {
       prazo_entrega: dados.prazo_entrega ?? undefined,
       validade_proposta: dados.validade_proposta ?? undefined,
       condicoes_comerciais: dados.condicoes_comerciais ?? undefined,
-      atendente: dados.atendente ?? undefined,
+      atendente:
+        (typeof dados.responsavel?.nome_completo === 'string' &&
+        dados.responsavel.nome_completo.trim()
+          ? dados.responsavel.nome_completo.trim()
+          : undefined) ??
+        dados.atendente ??
+        undefined,
       condicao_pagamento_tipo: dados.condicao_pagamento_tipo ?? undefined,
       condicao_pagamento_entrada_pct:
         dados.condicao_pagamento_entrada_pct != null

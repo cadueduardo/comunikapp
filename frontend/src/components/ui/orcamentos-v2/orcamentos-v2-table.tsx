@@ -19,9 +19,12 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/utils';
 import { orcamentosApi } from '@/lib/api-client';
-import { Copy, Edit, FileText, Filter, Loader2, MoreHorizontal, Search, Share2, Trash2 } from 'lucide-react';
+import { Copy, Edit, FileText, Filter, Loader2, MoreHorizontal, Search, Share2, Trash2, UserRound } from 'lucide-react';
 import { OrcamentoV2, useOrcamentosV2 } from './hooks/useOrcamentosV2';
 import { useDuplicarOrcamento } from '@/hooks/use-duplicar-orcamento';
+import { useVendasAcesso } from '@/hooks/use-vendas-acesso';
+import { TransferirOrcamentoDialog } from '@/components/orcamentos/TransferirOrcamentoDialog';
+import { rotuloResponsavelOrcamento } from '@/lib/orcamento-responsavel';
 
 type StatusFilter =
   | 'todos'
@@ -179,8 +182,11 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('todos');
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; orcamentoId?: string; nome?: string; loading?: boolean }>({ open: false });
+  const [transferindo, setTransferindo] = useState<OrcamentoV2 | undefined>(undefined);
   const { orcamentos, loading, error, refetch } = useOrcamentosV2();
   const { duplicar, isDuplicando } = useDuplicarOrcamento();
+  const { acesso } = useVendasAcesso();
+  const podeTransferir = acesso.permissoes.carteira_transferir === true;
 
   const filteredData = useMemo(() => {
     const normalizedTerm = searchTerm.trim().toLowerCase();
@@ -334,6 +340,7 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
                 <th>Número</th>
                 <th>Serviço</th>
                 <th>Cliente</th>
+                <th>Responsável</th>
                 <th>Valor</th>
                 <th>Status</th>
                 <th>PDF</th>
@@ -345,7 +352,7 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
             <tbody>
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-muted-foreground">
+                  <td colSpan={10} className="px-6 py-12 text-center text-muted-foreground">
                     <div className="space-y-2">
                       <div className="text-lg font-medium">Nenhum orçamento encontrado</div>
                       <div className="text-sm">Ajuste os filtros ou crie um novo orçamento.</div>
@@ -378,6 +385,9 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
                     </td>
                       <td className="whitespace-nowrap px-6 py-4">
                         {orcamento.cliente?.nome ?? '-'}
+                    </td>
+                      <td className="whitespace-nowrap px-6 py-4">
+                        {rotuloResponsavelOrcamento(orcamento)}
                     </td>
                       <td className="whitespace-nowrap px-6 py-4">
                       <span className="font-semibold text-green-600 dark:text-green-400">
@@ -439,6 +449,14 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
                             )}
                             Duplicar
                           </DropdownMenuItem>
+                          {podeTransferir ? (
+                            <DropdownMenuItem
+                              onClick={() => setTransferindo(orcamento)}
+                            >
+                              <UserRound className="mr-2 h-4 w-4" />
+                              Transferir responsável
+                            </DropdownMenuItem>
+                          ) : null}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
                               onClick={() => openDeleteDialog(orcamento.id, orcamento.nome_servico)}
@@ -473,6 +491,14 @@ export function OrcamentosV2Table({ onDelete, onShare }: OrcamentosV2TableProps)
         onConfirm={confirmDelete}
         onCancel={() => setDeleteDialog({ open: false })}
         loading={deleteDialog.loading}
+      />
+      <TransferirOrcamentoDialog
+        open={Boolean(transferindo)}
+        orcamento={transferindo}
+        onClose={() => setTransferindo(undefined)}
+        onSuccess={() => {
+          void refetch();
+        }}
       />
     </div>
   );

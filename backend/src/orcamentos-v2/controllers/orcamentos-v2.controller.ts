@@ -24,7 +24,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { Public, extrairIdentidadeAutenticada } from '../../auth/decorators';
+import { Public, extrairIdentidadeAutenticada, Identidade, IdentidadeAutenticada } from '../../auth/decorators';
 import { OrcamentosV2Service } from '../services/orcamentos-v2.service';
 import { IntegracaoMotorService } from '../services/integracao-motor.service';
 import { ValidacaoEstoqueService } from '../services/validacao-estoque.service';
@@ -48,6 +48,7 @@ import {
 } from '../dto/orcamento-body.dto';
 import { AlterarStatusComercialDto } from '../dto/alterar-status-comercial.dto';
 import { SoftValidateBodyPipe } from '../pipes/soft-validate-body.pipe';
+import { TransferirOrcamentoDto } from '../dto/transferir-orcamento.dto';
 
 /** SoftValidateBodyPipe valida create/update; evita forbidNonWhitelisted global. */
 
@@ -561,6 +562,27 @@ export class OrcamentosV2Controller {
       paginacao,
       identidade,
     );
+  }
+
+  /**
+   * Transfere o responsável do orçamento (não é campo de formulário).
+   */
+  @Patch(':id/transferir')
+  @UseGuards(JwtAuthGuard)
+  @RequerPermissaoVendas(VENDAS_PERMISSOES.CARTEIRA_TRANSFERIR)
+  @ApiOperation({
+    summary: 'Transfere o responsável do orçamento (idempotente)',
+  })
+  @ApiResponse({ status: 200, description: 'Responsável atualizado' })
+  @ApiResponse({ status: 400, description: 'Destino inválido' })
+  @ApiResponse({ status: 403, description: 'Sem permissão para transferir' })
+  @ApiResponse({ status: 404, description: 'Orçamento não encontrado' })
+  transferirResponsavel(
+    @Identidade() identidade: IdentidadeAutenticada,
+    @Param('id') id: string,
+    @Body() dto: TransferirOrcamentoDto,
+  ) {
+    return this.orcamentosService.transferirResponsavel(identidade, id, dto);
   }
 
   /**

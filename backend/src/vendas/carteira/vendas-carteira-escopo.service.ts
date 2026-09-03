@@ -15,8 +15,10 @@ export class VendasCarteiraEscopoService {
 
   async whereCliente(
     identidade: IdentidadeAutenticada,
+    opcoes?: { incluirSemResponsavel?: boolean },
   ): Promise<Prisma.clienteWhereInput> {
     const { usuarioId, lojaId } = identidade;
+    const incluirSemResponsavel = opcoes?.incluirSemResponsavel !== false;
     const [todos, equipe, propria, semResponsavel] = await Promise.all([
       this.permissoes.pode(usuarioId, lojaId, VENDAS_PERMISSOES.CARTEIRA_VER_TODOS),
       this.permissoes.pode(usuarioId, lojaId, VENDAS_PERMISSOES.CARTEIRA_VER_EQUIPE),
@@ -52,7 +54,9 @@ export class VendasCarteiraEscopoService {
         { participantes: { some: { usuario_id: usuarioId } } },
       );
     }
-    if (semResponsavel) alternativas.push({ responsavel_comercial_id: null });
+    if (incluirSemResponsavel && semResponsavel) {
+      alternativas.push({ responsavel_comercial_id: null });
+    }
 
     // Sem qualquer escopo, nenhuma consulta pode degradar para a loja inteira.
     return alternativas.length > 0
@@ -76,24 +80,42 @@ export class VendasCarteiraEscopoService {
     identidade: IdentidadeAutenticada,
   ): Promise<Prisma.orcamentoWhereInput> {
     const { usuarioId, lojaId } = identidade;
-    const [todos, propria] = await Promise.all([
+    const [todos, propria, semResponsavel] = await Promise.all([
       this.permissoes.pode(usuarioId, lojaId, VENDAS_PERMISSOES.CARTEIRA_VER_TODOS),
       this.permissoes.pode(usuarioId, lojaId, VENDAS_PERMISSOES.CARTEIRA_VER_PROPRIA),
+      this.permissoes.pode(
+        usuarioId,
+        lojaId,
+        VENDAS_PERMISSOES.CARTEIRA_VER_SEM_RESPONSAVEL,
+      ),
     ]);
 
     if (todos) {
       return { loja_id: lojaId };
     }
 
-    const cliente = await this.whereCliente(identidade);
-    const alternativas: Prisma.orcamentoWhereInput[] = [
-      { cliente: { is: cliente } },
-    ];
+    // Carteira de clientes sem o bolo de contas sem responsável: esse recorte
+    // é da ficha de cliente, não da fila de orçamentos sem dono.
+    const clienteCarteira = await this.whereCliente(identidade, {
+      incluirSemResponsavel: false,
+    });
+    const clienteNegado =
+      'id' in clienteCarteira && clienteCarteira.id === '__escopo_negado__';
+
+    const alternativas: Prisma.orcamentoWhereInput[] = [];
+    if (!clienteNegado) {
+      alternativas.push({ cliente: { is: clienteCarteira } });
+    }
     if (propria) {
       alternativas.push({ responsavel_id: usuarioId });
     }
+    if (semResponsavel) {
+      alternativas.push({ responsavel_id: null });
+    }
 
-    return { loja_id: lojaId, OR: alternativas };
+    return alternativas.length > 0
+      ? { loja_id: lojaId, OR: alternativas }
+      : { loja_id: lojaId, id: '__escopo_negado__' };
   }
 
   async assertOrcamentoAcessivel(

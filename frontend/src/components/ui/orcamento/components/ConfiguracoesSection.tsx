@@ -26,9 +26,13 @@ import { Settings } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import { CondicaoPagamentoFieldset } from './CondicaoPagamentoFieldset';
 import { modalidadesEntregaApi } from '@/lib/api-client';
+import { useVendasAcesso } from '@/hooks/use-vendas-acesso';
+import { TransferirOrcamentoDialog } from '@/components/orcamentos/TransferirOrcamentoDialog';
+import { Button } from '@/components/ui/button';
 
 interface ConfiguracoesSectionProps {
   mode: 'novo' | 'editar' | 'template';
+  orcamentoId?: string;
 }
 
 interface ModalidadeEntregaOption {
@@ -39,11 +43,17 @@ interface ModalidadeEntregaOption {
   prazo_padrao_dias?: string | number | null;
 }
 
-export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
+export function ConfiguracoesSection({ mode, orcamentoId }: ConfiguracoesSectionProps) {
   const form = useFormContext();
   const { user } = useUser();
+  const { acesso } = useVendasAcesso();
   const [modalidadesEntrega, setModalidadesEntrega] = useState<ModalidadeEntregaOption[]>([]);
+  const [transferirAberto, setTransferirAberto] = useState(false);
   const LABEL_SEM_ENTREGA = 'Sem entrega / retirada';
+  const podeTransferir =
+    mode === 'editar' &&
+    Boolean(orcamentoId) &&
+    acesso.permissoes.carteira_transferir === true;
 
   const sincronizarNomeModalidadeEntrega = (modalidadeId: string) => {
     if (!modalidadeId?.trim()) {
@@ -99,11 +109,22 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
     sincronizarNomeModalidadeEntrega(modalidadeId);
   }, [modalidadesEntrega]); // form propositalmente fora (RHF muda identidade a cada formState)
 
+  useEffect(() => {
+    if (mode !== 'novo') return;
+    const nome = user?.nome_completo?.trim();
+    if (!nome) return;
+    const atual = String(form.getValues('atendente') || '').trim();
+    if (!atual || atual === 'Equipe Comercial') {
+      form.setValue('atendente', nome, { shouldDirty: false });
+    }
+  }, [mode, user?.nome_completo]); // form propositalmente fora
+
   if (mode === 'template') {
     return null;
   }
 
   return (
+    <>
     <Card flatOnMobile>
       <CardHeader>
         <div className="flex items-center space-x-2">
@@ -252,19 +273,51 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
             <FormField
               control={form.control}
               name="atendente"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Atendente</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="text"
-                      placeholder="Equipe Comercial"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const nomeLogado = user?.nome_completo?.trim() || '';
+                const bruto = String(field.value || '').trim();
+                const rotulo =
+                  mode === 'novo'
+                    ? bruto && bruto !== 'Equipe Comercial'
+                      ? bruto
+                      : nomeLogado || 'Você'
+                    : bruto && bruto !== 'Equipe Comercial'
+                      ? bruto
+                      : 'Sem responsável';
+
+                return (
+                  <FormItem>
+                    <InfoTooltip content="O atendente da proposta é o responsável pelo orçamento. Não é um nome livre.">
+                      <FormLabel>Atendente</FormLabel>
+                    </InfoTooltip>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        value={rotulo}
+                        readOnly
+                        disabled
+                        aria-readonly="true"
+                      />
+                    </FormControl>
+                    {podeTransferir ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2"
+                        onClick={() => setTransferirAberto(true)}
+                      >
+                        Transferir responsável
+                      </Button>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Preenchido automaticamente com o seu nome.
+                      </p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
 
             <FormField
@@ -552,5 +605,24 @@ export function ConfiguracoesSection({ mode }: ConfiguracoesSectionProps) {
         </div>
       </CardContent>
     </Card>
+    {orcamentoId ? (
+      <TransferirOrcamentoDialog
+        open={transferirAberto}
+        orcamento={{
+          id: orcamentoId,
+          atendente: String(form.getValues('atendente') || ''),
+        }}
+        onClose={() => setTransferirAberto(false)}
+        onSuccess={(resultado) => {
+          const nome =
+            resultado?.responsavel?.nome?.trim() ||
+            resultado?.atendente?.trim();
+          if (nome) {
+            form.setValue('atendente', nome, { shouldDirty: false });
+          }
+        }}
+      />
+    ) : null}
+    </>
   );
 }

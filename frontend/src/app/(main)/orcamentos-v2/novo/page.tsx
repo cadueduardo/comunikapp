@@ -240,7 +240,15 @@ export default function NovoOrcamentoV2Page() {
             prazo_entrega: orcamentoData.prazo_entrega || '10 a 15 dias úteis',
             forma_pagamento: orcamentoData.forma_pagamento || '50% entrada, restante na entrega',
             validade_proposta: orcamentoData.validade_proposta || '30 dias',
-            atendente: orcamentoData.atendente || 'Equipe Comercial',
+            atendente:
+              (orcamentoData.responsavel &&
+              typeof orcamentoData.responsavel === 'object' &&
+              typeof (orcamentoData.responsavel as { nome?: string }).nome ===
+                'string'
+                ? (orcamentoData.responsavel as { nome: string }).nome
+                : '') ||
+              orcamentoData.atendente ||
+              '',
             condicao_pagamento_tipo: orcamentoData.condicao_pagamento_tipo ?? undefined,
             condicao_pagamento_entrada_pct:
               orcamentoData.condicao_pagamento_entrada_pct != null

@@ -12,6 +12,7 @@ import {
   Search,
   Share2,
   User,
+  UserRound,
 } from 'lucide-react';
 import {
   MobileFiltersClearButton,
@@ -31,7 +32,10 @@ import {
 } from '@/components/ui/select';
 import { useDuplicarOrcamento } from '@/hooks/use-duplicar-orcamento';
 import { formatCurrency } from '@/lib/utils';
-import { useOrcamentosV2 } from './hooks/useOrcamentosV2';
+import { useOrcamentosV2, type OrcamentoV2 } from './hooks/useOrcamentosV2';
+import { useVendasAcesso } from '@/hooks/use-vendas-acesso';
+import { TransferirOrcamentoDialog } from '@/components/orcamentos/TransferirOrcamentoDialog';
+import { rotuloResponsavelOrcamento } from '@/lib/orcamento-responsavel';
 
 const statusColors = {
   PENDENTE: 'bg-yellow-100 text-yellow-800',
@@ -99,9 +103,14 @@ function OrcamentosFiltrosFields({
 export function OrcamentosV2Cards() {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('todos');
+  const [transferindo, setTransferindo] = React.useState<OrcamentoV2 | undefined>(
+    undefined,
+  );
 
   const { orcamentos, loading, error, refetch } = useOrcamentosV2();
   const { duplicar, isDuplicando } = useDuplicarOrcamento();
+  const { acesso } = useVendasAcesso();
+  const podeTransferir = acesso.permissoes.carteira_transferir === true;
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
@@ -306,6 +315,13 @@ export function OrcamentosV2Cards() {
                 </div>
 
                 <div className="flex min-w-0 items-center gap-2">
+                  <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 truncate text-foreground">
+                    {rotuloResponsavelOrcamento(orcamento)}
+                  </span>
+                </div>
+
+                <div className="flex min-w-0 items-center gap-2">
                   <Calendar className="h-4 w-4 shrink-0 text-gray-400" />
                   <span className="text-gray-700">
                     {orcamento.criado_em || '-'}
@@ -357,6 +373,17 @@ export function OrcamentosV2Cards() {
                 >
                   <Share2 className="h-4 w-4" />
                 </Button>
+                {podeTransferir ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-w-0 flex-1 basis-[calc(50%-0.25rem)]"
+                    onClick={() => setTransferindo(orcamento)}
+                  >
+                    <UserRound className="mr-1 h-4 w-4" />
+                    Transferir
+                  </Button>
+                ) : null}
               </div>
             </CardContent>
           </Card>
@@ -376,6 +403,14 @@ export function OrcamentosV2Cards() {
           </CardContent>
         </Card>
       )}
+      <TransferirOrcamentoDialog
+        open={Boolean(transferindo)}
+        orcamento={transferindo}
+        onClose={() => setTransferindo(undefined)}
+        onSuccess={() => {
+          void refetch();
+        }}
+      />
     </div>
   );
 }

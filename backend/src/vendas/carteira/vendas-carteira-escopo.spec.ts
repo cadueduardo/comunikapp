@@ -112,6 +112,51 @@ describe('VendasCarteiraEscopoService — participante e gestor/equipe', () => {
         expect.objectContaining({ cliente: { is: expect.any(Object) } }),
       ]),
     );
+    expect(where.OR).not.toEqual(
+      expect.arrayContaining([{ responsavel_id: null }]),
+    );
+  });
+
+  it('orçamento: VER_PROPRIA não vê a fila da loja sem responsável', async () => {
+    const permissoes = {
+      pode: jest.fn(async (_u: string, _l: string, p: string) => {
+        if (p === VENDAS_PERMISSOES.CARTEIRA_VER_PROPRIA) return true;
+        return false;
+      }),
+    };
+    const prisma = { usuario: { findMany: jest.fn() }, cliente: { findFirst: jest.fn() } };
+    const svc = new VendasCarteiraEscopoService(
+      prisma as never,
+      permissoes as never,
+    );
+    const where = await svc.whereOrcamento(identidade as never);
+    expect(where.OR).not.toEqual(
+      expect.arrayContaining([{ responsavel_id: null }]),
+    );
+    const clienteFiltro = (where.OR as Array<Record<string, unknown>>).find(
+      (item) => item.cliente,
+    ) as { cliente: { is: { OR?: unknown[] } } };
+    expect(clienteFiltro.cliente.is.OR).not.toEqual(
+      expect.arrayContaining([{ responsavel_comercial_id: null }]),
+    );
+  });
+
+  it('orçamento: VER_SEM_RESPONSAVEL inclui a fila sem dono', async () => {
+    const permissoes = {
+      pode: jest.fn(async (_u: string, _l: string, p: string) => {
+        if (p === VENDAS_PERMISSOES.CARTEIRA_VER_SEM_RESPONSAVEL) return true;
+        return false;
+      }),
+    };
+    const prisma = { usuario: { findMany: jest.fn() }, cliente: { findFirst: jest.fn() } };
+    const svc = new VendasCarteiraEscopoService(
+      prisma as never,
+      permissoes as never,
+    );
+    const where = await svc.whereOrcamento(identidade as never);
+    expect(where.OR).toEqual(
+      expect.arrayContaining([{ responsavel_id: null }]),
+    );
   });
 
   it('cliente fora do escopo retorna NotFound', async () => {

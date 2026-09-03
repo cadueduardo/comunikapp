@@ -330,7 +330,7 @@ export function OrcamentoV2Form({
       entrega_valor_cobrado: '',
       entrega_custo_estimado: '',
       entrega_observacoes: '',
-      atendente: 'Equipe Comercial',
+      atendente: '',
       comissao_percentual: '5',
       itens_produto: [
         {
@@ -602,7 +602,14 @@ export function OrcamentoV2Form({
             ? String(initialData.entrega_custo_estimado)
             : '',
         entrega_observacoes: String(initialData.entrega_observacoes ?? ''),
-        atendente: String(initialData.atendente || 'Equipe Comercial'),
+        atendente: String(
+          (typeof (initialData.responsavel as { nome?: string } | undefined)?.nome ===
+          'string'
+            ? (initialData.responsavel as { nome?: string }).nome
+            : '') ||
+            initialData.atendente ||
+            '',
+        ),
         itens_produto: (() => {
           const mapProdutoBackendParaFormulario = (produto: any) => {
             const quantidadeProdutoNumero = parseNumeroInicial(produto.quantidade || '1');
@@ -3158,7 +3165,7 @@ export function OrcamentoV2Form({
 
                   <div className={isAprovado ? 'pointer-events-none select-none opacity-95 space-y-6' : 'space-y-6'}>
                   {/* Configurações Comerciais */}
-                  <ConfiguracoesSection mode={mode} />
+                  <ConfiguracoesSection mode={mode} orcamentoId={orcamentoId} />
                   </div>
 
                   {/* Botões de Ação — mobile empilhado (evita empurrar a tela) */}
@@ -3405,7 +3412,7 @@ export function OrcamentoV2Form({
               <Separator />
 
               <div className={isAprovado ? 'pointer-events-none select-none opacity-95 space-y-6' : 'space-y-6'}>
-              <ConfiguracoesSection mode={mode} />
+              <ConfiguracoesSection mode={mode} orcamentoId={orcamentoId} />
               </div>
 
               {/* Botões de Ação — mobile empilhado (evita empurrar a tela) */}

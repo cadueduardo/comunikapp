@@ -19,6 +19,8 @@ export interface OrcamentoBase {
   tags?: string[];
   prioridade: PrioridadeOrcamento;
   responsavel_id?: string;
+  /** Dono resolvido (id + nome). Ausente quando o orçamento não tem responsável. */
+  responsavel?: { id: string; nome: string };
   ativo?: boolean;
   custos_calculados?: any;
   detalhamento_calculo?: any;

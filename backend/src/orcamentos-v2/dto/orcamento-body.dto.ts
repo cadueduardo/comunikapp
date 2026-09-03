@@ -72,6 +72,7 @@ export class CriarOrcamentoBodyDto {
   @IsOptional()
   @IsString()
   @MaxLength(64)
+  /** Ignorado na criação: o backend grava o usuário autenticado. */
   responsavel_id?: string;
 
   @IsOptional()
@@ -112,6 +113,7 @@ export class CriarOrcamentoBodyDto {
   @IsOptional()
   @IsString()
   @MaxLength(255)
+  /** Ignorado na escrita: o backend copia o nome do responsável. */
   atendente?: string;
 
   @IsOptional()

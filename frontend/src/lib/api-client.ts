@@ -1002,6 +1002,19 @@ export const orcamentosApi = {
       data: { titulo?: string; descricao?: string },
       token: string,
     ) => ApiClient.post(`/orcamentos-v2/${id}/duplicar`, data, token),
+    transferir: (
+      id: string,
+      data: {
+        para_usuario_id: string;
+        motivo: string;
+        chave_operacao: string;
+      },
+      token: string,
+    ) =>
+      ApiClient.patch<{
+        atendente?: string;
+        responsavel?: { id: string; nome: string };
+      }>(`/orcamentos-v2/${id}/transferir`, data, token),
 
     // Cálculo via Motor V2
     calcularOrcamento: (data: Record<string, unknown>, token: string) => ApiClient.post('/orcamentos-v2/calcular', data, token),

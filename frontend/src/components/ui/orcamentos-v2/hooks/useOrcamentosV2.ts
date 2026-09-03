@@ -27,6 +27,11 @@ export interface OrcamentoV2 {
   validade_proposta?: string;
   forma_pagamento?: string;
   prazo_entrega?: string;
+  responsavel_id?: string;
+  responsavel?: {
+    id: string;
+    nome: string;
+  };
 }
 
 interface UseOrcamentosV2Return {
@@ -150,6 +155,13 @@ export function useOrcamentosV2(): UseOrcamentosV2Return {
         validade_proposta: orcamento.validade_proposta,
         forma_pagamento: orcamento.forma_pagamento,
         prazo_entrega: orcamento.prazo_entrega,
+        responsavel_id: orcamento.responsavel_id,
+        responsavel: orcamento.responsavel
+          ? {
+              id: String(orcamento.responsavel.id),
+              nome: String(orcamento.responsavel.nome || ''),
+            }
+          : undefined,
         };
       });
 

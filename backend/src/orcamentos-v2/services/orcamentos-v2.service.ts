@@ -6,6 +6,7 @@ import {
   InternalServerErrorException,
   ServiceUnavailableException,
   ForbiddenException,
+  ConflictException,
   Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -44,7 +45,7 @@ import {
 import { MetodoCobrancaChapa } from '../../common/calculo-chapa/calculo-chapa.types';
 import { distribuirPrecoFinal } from '../utils/distribuicao-preco.util';
 import { resolverPrecosPdfComArte } from '../utils/pdf-arte-linha.util';
-import { Prisma, TipoFornecedor } from '@prisma/client';
+import { Prisma, TipoFornecedor, usuario_funcao } from '@prisma/client';
 import { calcularCustoUnitarioUso } from '../../common/custos/custo-unitario-insumo.util';
 import { VendasPermissionsService } from '../../vendas/permissions/vendas-permissions.service';
 import { VENDAS_PERMISSOES } from '../../vendas/permissions/vendas-permissoes';
@@ -93,6 +94,12 @@ import {
   ResultadoDoAceite,
 } from '../dto/aceite-proposta';
 import { TransicaoComercialService } from './transicao-comercial.service';
+import {
+  ACAO_TRANSFERENCIA_RESPONSAVEL,
+  aplicarOwnershipCriacao,
+  nomeAtendenteDoUsuario,
+} from '../domain/orcamento-responsavel';
+import { TransferirOrcamentoDto } from '../dto/transferir-orcamento.dto';
 
 /**
  * Serviço Principal de Orçamentos V2
@@ -510,6 +517,18 @@ export class OrcamentosV2Service {
         lojaId,
         usuarioId,
       );
+      const usuarioCriador = await this.prisma.usuario.findFirst({
+        where: { id: usuarioId, loja_id: lojaId },
+        select: { nome_completo: true },
+      });
+      Object.assign(
+        dadosPreparados,
+        aplicarOwnershipCriacao(
+          dadosPreparados,
+          usuarioId,
+          usuarioCriador?.nome_completo,
+        ),
+      );
       // Garantir numero sequencial controlado pelo DocumentCodeService
       dadosPreparados.numero =
         await this.documentCodeService.gerarCodigoOrcamento(lojaId);
@@ -519,6 +538,9 @@ export class OrcamentosV2Service {
         data: dadosPreparados,
         include: {
           cliente: true,
+          responsavel: {
+            select: { id: true, nome_completo: true },
+          },
           produtos: {
             select: {
               id: true,
@@ -810,11 +832,165 @@ export class OrcamentosV2Service {
       prazo_entrega: (original as any).prazo_entrega,
       forma_pagamento: (original as any).forma_pagamento,
       validade_proposta: (original as any).validade_proposta,
-      atendente: (original as any).atendente,
       condicoes_comerciais: (original as any).condicoes_comerciais,
     };
 
     return this.criarOrcamento(dadosDuplicacao, lojaId, usuarioId);
+  }
+
+  /**
+   * Transfere o responsável do orçamento. Idempotente por `chave_operacao`.
+   * O body de PUT não troca dono — só este endpoint.
+   */
+  async transferirResponsavel(
+    identidade: IdentidadeAutenticada,
+    orcamentoId: string,
+    dto: TransferirOrcamentoDto,
+  ): Promise<OrcamentoCompleto> {
+    await this.vendasPermissions.assertPode(
+      identidade.usuarioId,
+      identidade.lojaId,
+      VENDAS_PERMISSOES.CARTEIRA_TRANSFERIR,
+    );
+
+    if (!this.carteiraEscopo) {
+      throw new NotFoundException('Orçamento não encontrado.');
+    }
+
+    const orcamento = await this.prisma.orcamento.findFirst({
+      where: {
+        id: orcamentoId,
+        loja_id: identidade.lojaId,
+        excluido_em: null,
+      },
+      select: { id: true, responsavel_id: true },
+    });
+    if (!orcamento) {
+      throw new NotFoundException('Orçamento não encontrado.');
+    }
+
+    await this.carteiraEscopo.assertOrcamentoAcessivel(
+      identidade,
+      orcamentoId,
+    );
+
+    const transferenciaExistente =
+      await this.prisma.historicoOrcamento.findFirst({
+        where: {
+          orcamento_id: orcamentoId,
+          loja_id: identidade.lojaId,
+          acao: ACAO_TRANSFERENCIA_RESPONSAVEL,
+          observacoes: dto.chave_operacao,
+        },
+        select: { id: true },
+      });
+    if (transferenciaExistente) {
+      return this.buscarOrcamento(
+        orcamentoId,
+        identidade.lojaId,
+        identidade,
+      );
+    }
+
+    if (orcamento.responsavel_id === dto.para_usuario_id) {
+      return this.buscarOrcamento(
+        orcamentoId,
+        identidade.lojaId,
+        identidade,
+      );
+    }
+
+    const destino = await this.assertUsuarioComercialElegivel(
+      identidade,
+      dto.para_usuario_id,
+    );
+
+    const atendente = nomeAtendenteDoUsuario(destino.nome_completo);
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const alteracao = await tx.orcamento.updateMany({
+          where: {
+            id: orcamentoId,
+            loja_id: identidade.lojaId,
+            responsavel_id: orcamento.responsavel_id,
+            excluido_em: null,
+          },
+          data: {
+            responsavel_id: dto.para_usuario_id,
+            atendente,
+          },
+        });
+
+        if (alteracao.count !== 1) {
+          throw new ConflictException(
+            'O responsável deste orçamento já foi alterado. Atualize e tente de novo.',
+          );
+        }
+
+        await tx.historicoOrcamento.create({
+          data: {
+            orcamento: { connect: { id: orcamentoId } },
+            loja: { connect: { id: identidade.lojaId } },
+            acao: ACAO_TRANSFERENCIA_RESPONSAVEL,
+            evento: EVENTOS_COMERCIAIS.CARTEIRA_TRANSFERIDA,
+            descricao: dto.motivo,
+            usuario_id: identidade.usuarioId,
+            observacoes: dto.chave_operacao,
+            payload: {
+              de_usuario_id: orcamento.responsavel_id,
+              para_usuario_id: dto.para_usuario_id,
+            },
+          },
+        });
+      });
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+      this.logger.error(
+        `Falha ao transferir responsável do orçamento: ${
+          error instanceof Error ? error.message : 'erro'
+        }`,
+      );
+      throw new InternalServerErrorException(
+        'Não foi possível transferir o responsável do orçamento.',
+      );
+    }
+
+    return this.buscarOrcamento(orcamentoId, identidade.lojaId, identidade);
+  }
+
+  private async assertUsuarioComercialElegivel(
+    identidade: IdentidadeAutenticada,
+    usuarioId: string,
+  ): Promise<{ id: string; nome_completo: string }> {
+    const usuario = await this.prisma.usuario.findFirst({
+      where: {
+        id: usuarioId,
+        loja_id: identidade.lojaId,
+        status: 'ATIVO',
+        ativo: true,
+        funcao: {
+          in: [usuario_funcao.VENDAS, usuario_funcao.ADMINISTRADOR],
+        },
+      },
+      select: { id: true, nome_completo: true },
+    });
+
+    if (!usuario) {
+      registrarEventoDeSeguranca({
+        tipo: 'AUTORIZACAO_NEGADA',
+        rota: 'OrcamentosV2Service.transferirResponsavel',
+        origem: pseudonimizar(identidade.usuarioId),
+        motivo: 'usuario_destino_invalido_ou_outra_loja',
+      });
+      throw new BadRequestException(
+        'Usuário inválido, inativo, de outra loja ou sem função comercial adequada.',
+      );
+    }
+
+    return usuario;
   }
 
   /**
@@ -835,6 +1011,9 @@ export class OrcamentosV2Service {
         where,
         include: {
           cliente: true,
+          responsavel: {
+            select: { id: true, nome_completo: true },
+          },
           produtos: {
             select: {
               id: true,
@@ -1130,6 +1309,9 @@ export class OrcamentosV2Service {
             // devolvia o segredo do aceite em texto claro para qualquer
             // usuário da loja com permissão de leitura.
             cliente: true,
+            responsavel: {
+              select: { id: true, nome_completo: true },
+            },
             produtos: true,
           },
           orderBy: { data_atualizacao: 'desc' },
@@ -1236,6 +1418,9 @@ export class OrcamentosV2Service {
           data: dadosPreparados,
           include: {
             cliente: true,
+            responsavel: {
+              select: { id: true, nome_completo: true },
+            },
             produtos: {
               select: {
                 id: true,
